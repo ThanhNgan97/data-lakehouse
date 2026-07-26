@@ -1,6 +1,4 @@
-
-
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
@@ -50,13 +48,30 @@ const DRILLABLE_SOURCE_TABLE = 'kpi_tong_hop_don_vi';
 // Khi drill xuống, mặc định nhảy sang bảng chi tiết đầy đủ.
 const DRILL_TARGET_TABLE = 'kpi_chi_tiet_dashboard';
 
+const PAGE_SIZE = 20;
+
+// CSV export helper
+const exportCSV = (columns, rows, filename = 'export.csv') => {
+  const header = columns.join(',');
+  const body = rows.map((r) =>
+    columns.map((c) => `"${String(r[c] ?? '').replace(/"/g, '""')}"`).join(',')
+  ).join('\n');
+  const blob = new Blob([`\uFEFF${header}\n${body}`], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+};
+
 const PipelineDataExplorer = () => {
   const [status, setStatus] = useState({ bronze: false, silver: false, gold: false });
-  const [activeLayer, setActiveLayer] = useState(null); // 'bronze' | 'silver' | 'gold' | null
+  const [activeLayer, setActiveLayer] = useState(null);
   const [activeGoldTable, setActiveGoldTable] = useState('kpi_chi_tiet_dashboard');
   const [previewData, setPreviewData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // Search + Pagination
+  const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
 
   // [MỚI] Đơn vị đang được lọc (drill-down từ tổng -> chi tiết).
   // Lưu cả mã (để gọi API) lẫn tên đầy đủ (để hiển thị badge cho dễ đọc).
@@ -106,10 +121,23 @@ const PipelineDataExplorer = () => {
     setActiveLayer(null);
     setPreviewData(null);
     setError('');
-    // [MỚI] Đóng modal thì bỏ luôn filter đơn vị, tránh lần mở sau bị lọc "ngầm"
-    // mà người dùng không nhớ vì sao thấy ít dữ liệu.
     setSelectedUnit(null);
+    setSearchQuery('');
+    setPage(1);
   };
+
+  // Rows sau khi filter search
+  const filteredRows = useMemo(() => {
+    if (!previewData?.rows) return [];
+    if (!searchQuery.trim()) return previewData.rows;
+    const q = searchQuery.toLowerCase();
+    return previewData.rows.filter((row) =>
+      Object.values(row).some((v) => String(v ?? '').toLowerCase().includes(q))
+    );
+  }, [previewData, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+  const pagedRows = filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   // [MỚI] Xử lý click vào 1 dòng của bảng tổng hợp -> drill xuống bảng chi tiết
   // đã lọc đúng đơn vị vừa click.
@@ -181,13 +209,40 @@ const PipelineDataExplorer = () => {
                 </h4>
                 {previewData && (
                   <p className="text-xs text-gray-400 mt-0.5">
-                    Tổng {previewData.total_rows} dòng — đang hiển thị {previewData.rows?.length || 0} dòng đầu
+                    Tổng {previewData.total_rows} dòng
+                    {searchQuery && ` — lọc ra ${filteredRows.length} dòng`}
+                    {` — trang ${page}/${totalPages}`}
                   </p>
                 )}
               </div>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-700 text-xl leading-none">
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Search */}
+                {previewData && (
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+                    placeholder="🔍 Tìm kiếm..."
+                    className="border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 w-48"
+                  />
+                )}
+                {/* Export CSV */}
+                {previewData?.rows?.length > 0 && (
+                  <button
+                    onClick={() => exportCSV(
+                      previewData.columns,
+                      filteredRows,
+                      `${activeLayer}_${activeGoldTable || 'data'}.csv`
+                    )}
+                    className="px-3 py-1.5 text-xs bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg transition"
+                  >
+                     Xuất CSV
+                  </button>
+                )}
+                <button onClick={closeModal} className="text-gray-400 hover:text-gray-700 text-xl leading-none ml-2">
+                  ✕
+                </button>
+              </div>
             </div>
 
             {/* Chọn bảng khi đang xem Gold (Gold có 4 bảng) */}
@@ -235,45 +290,62 @@ const PipelineDataExplorer = () => {
               {error && !loading && <p className="text-red-500 text-sm text-center py-10">{error}</p>}
 
               {!loading && !error && previewData && (
-                <table className="w-full text-xs border-collapse">
-                  <thead className="sticky top-[-20px] bg-gray-100 py-10">
-                    <tr className="border-b border-gray-200"> 
-                      <th className="text-left text-xs px-3 py-2 border-b  text-slate-700 font-semibold whitespace-nowrap">
-                        STT
-                      </th>
-                      {previewData.columns.map((c) => (
-                        <th key={c} className="text-left text-xs px-3 py-2 border-b  text-slate-700 font-semibold whitespace-nowrap">
+                <>
+                  <table className="w-full text-xs border-collapse">
+                    <thead className="sticky top-0 bg-gray-100 z-10">
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left px-3 py-2 border-b text-slate-700 font-semibold whitespace-nowrap">STT</th>
+                        {previewData.columns.map((c) => (
+                          <th key={c} className="text-left px-3 py-2 border-b text-slate-700 font-semibold whitespace-nowrap">
                             {Heardertable[c] || c}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {previewData.rows.map((row, i) => {
-                      const isDrillable =
-                        activeLayer === 'gold' && activeGoldTable === DRILLABLE_SOURCE_TABLE;
-                      return (
-                        <tr
-                          key={i}
-                          onClick={() => handleRowDrillDown(row)}
-                          className={`odd:bg-white even:bg-gray-50 ${
-                            isDrillable ? 'cursor-pointer hover:bg-blue-50' : ''
-                          }`}
-                          title={isDrillable ? 'Click để xem chi tiết đơn vị này' : undefined}
-                        >
-                          <td className="px-3 py-1.5 border-b border-gray-100 whitespace-nowrap">
-                            {i + 1}
-                          </td>
-                          {previewData.columns.map((c) => (
-                            <td key={c} className="px-3 py-1.5 border-b border-gray-100 whitespace-nowrap">
-                              {String(row[c] ?? '')}
-                            </td>
-                          ))}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pagedRows.map((row, i) => {
+                        const isDrillable = activeLayer === 'gold' && activeGoldTable === DRILLABLE_SOURCE_TABLE;
+                        const globalIdx = (page - 1) * PAGE_SIZE + i + 1;
+                        return (
+                          <tr
+                            key={i}
+                            onClick={() => handleRowDrillDown(row)}
+                            className={`odd:bg-white even:bg-gray-50 ${isDrillable ? 'cursor-pointer hover:bg-blue-50' : ''}`}
+                            title={isDrillable ? 'Click để xem chi tiết đơn vị này' : undefined}
+                          >
+                            <td className="px-3 py-1.5 border-b border-gray-100 whitespace-nowrap text-gray-400">{globalIdx}</td>
+                            {previewData.columns.map((c) => (
+                              <td key={c} className="px-3 py-1.5 border-b border-gray-100 whitespace-nowrap">
+                                {String(row[c] ?? '')}
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      })}
+                      {pagedRows.length === 0 && (
+                        <tr><td colSpan={previewData.columns.length + 1} className="text-center py-8 text-gray-400">Không có kết quả phù hợp.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between px-4 py-2 border-t bg-gray-50 text-xs text-gray-500">
+                      <span>{filteredRows.length} dòng · trang {page}/{totalPages}</span>
+                      <div className="flex gap-1">
+                        <button onClick={() => setPage(1)} disabled={page === 1} className="px-2 py-1 rounded border disabled:opacity-40 hover:bg-gray-100">«</button>
+                        <button onClick={() => setPage((p) => p - 1)} disabled={page === 1} className="px-2 py-1 rounded border disabled:opacity-40 hover:bg-gray-100">‹</button>
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          const p = Math.max(1, Math.min(page - 2, totalPages - 4)) + i;
+                          return p <= totalPages ? (
+                            <button key={p} onClick={() => setPage(p)} className={`px-2 py-1 rounded border ${p === page ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-gray-100'}`}>{p}</button>
+                          ) : null;
+                        })}
+                        <button onClick={() => setPage((p) => p + 1)} disabled={page === totalPages} className="px-2 py-1 rounded border disabled:opacity-40 hover:bg-gray-100">›</button>
+                        <button onClick={() => setPage(totalPages)} disabled={page === totalPages} className="px-2 py-1 rounded border disabled:opacity-40 hover:bg-gray-100">»</button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* [MỚI] Trường hợp lọc ra rỗng: gợi ý bỏ lọc thay vì để trắng khó hiểu */}

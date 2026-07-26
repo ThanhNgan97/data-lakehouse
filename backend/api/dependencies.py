@@ -1,48 +1,58 @@
+# -*- coding: utf-8 -*-
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
 from sqlalchemy.orm import Session
-from core.security import decode_access_token
-from db.database import get_db, get_user
+from core.config import SECRET_KEY, ALGORITHM
+from db.database import get_db
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    """Lấy thông tin người dùng hiện tại từ JWT access token."""
+
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+):
+    """Giải mã JWT, trả về User ORM object hoặc dict nếu DB không khả dụng."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Không thể xác thực thông tin đăng nhập",
+        detail="Token không hợp lệ hoặc đã hết hạn",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
-    payload = decode_access_token(token)
-    if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token đã hết hạn hoặc không hợp lệ",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    username: str = payload.get("sub")
-    if username is None:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        role: str = payload.get("role", "user")
+        if username is None:
+            raise credentials_exception
+    except JWTError:
         raise credentials_exception
-    
-    user = get_user(username=username, db=db)
-    if user is None:
-        raise credentials_exception
-    
-    # Nếu user là ORM object hoặc dict
-    is_active = getattr(user, "is_active", True) if not isinstance(user, dict) else user.get("is_active", True)
-    if not is_active:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tài khoản đã bị khóa")
-        
-    return user
 
-async def get_current_active_admin(current_user = Depends(get_current_user)):
-    """Dependency kiểm tra người dùng có quyền Admin hay không."""
-    role = getattr(current_user, "role", None) if not isinstance(current_user, dict) else current_user.get("role")
+    # Thử lấy từ DB trước
+    try:
+        from db.models import User
+        user = db.query(User).filter(User.username == username).first()
+        if user:
+            return user
+    except Exception:
+        pass
+
+    # Fallback: trả về dict với thông tin từ token (khi DB offline)
+    return {"username": username, "role": role}
+
+
+async def get_current_active_admin(
+    current_user=Depends(get_current_user),
+):
+    """Chỉ cho phép admin. Raise 403 nếu không phải admin."""
+    role = (
+        current_user.role
+        if hasattr(current_user, "role")
+        else current_user.get("role", "user")
+    )
     if role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Bạn không có quyền thực hiện thao tác này (Yêu cầu quyền Admin)"
+            detail="Chỉ admin mới có quyền thực hiện thao tác này.",
         )
     return current_user

@@ -1,5 +1,6 @@
 import os
 import logging
+from pathlib import Path
 from urllib.parse import quote_plus
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
@@ -38,6 +39,7 @@ def init_db():
     try:
         from db.models import User
         Base.metadata.create_all(bind=engine)
+    
 
         db = SessionLocal()
         try:

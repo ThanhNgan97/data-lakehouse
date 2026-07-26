@@ -123,43 +123,4 @@ async def get_me(current_user = Depends(get_current_user)):
         "created_at": None
     }
 
-
-@router.get("/users", summary="Danh sách toàn bộ người dùng (Yêu cầu quyền Admin)")
-async def list_users(
-    db: Session = Depends(get_db),
-    admin_user = Depends(get_current_active_admin)
-):
-    """Lấy danh sách người dùng trong hệ thống (Chỉ dành cho Admin)."""
-    try:
-        users = db.query(User).all()
-        return [user.to_dict() for user in users]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi lấy danh sách người dùng: {str(e)}")
-
-
-@router.put("/users/{user_id}/role", summary="Cập nhật quyền người dùng (Yêu cầu quyền Admin)")
-async def update_user_role(
-    user_id: int,
-    role_in: RoleUpdate,
-    db: Session = Depends(get_db),
-    admin_user = Depends(get_current_active_admin)
-):
-    """Cập nhật vai trò (role: 'admin' hoặc 'user') của một người dùng."""
-    if role_in.role not in ["admin", "user"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Vai trò không hợp lệ (chỉ chấp nhận 'admin' hoặc 'user')"
-        )
-
-    try:
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy người dùng")
-        
-        user.role = role_in.role
-        db.commit()
-        return {"message": f"Đã cập nhật quyền của người dùng '{user.username}' thành '{role_in.role}'"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi cập nhật người dùng: {str(e)}")
+

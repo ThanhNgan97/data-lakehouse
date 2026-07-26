@@ -1,336 +1,264 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+
+const authHeader = () => ({
+  Authorization: `Bearer ${localStorage.getItem('token')}`,
+});
+
+const ROLE_COLORS = {
+  admin: 'bg-purple-100 text-purple-700 border-purple-200',
+  user: 'bg-blue-100 text-blue-700 border-blue-200',
+};
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
-  
-  // Modal state
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    email: '',
-    full_name: '',
-    role: 'user',
-  });
-  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ username: '', password: '', full_name: '', email: '', role: 'user' });
+  const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
-
-  const token = localStorage.getItem('token');
-  const authHeader = { Authorization: `Bearer ${token}` };
 
   const fetchUsers = async () => {
     setLoading(true);
     setError('');
     try {
-      // Try /users or /auth/users
-      let res;
-      try {
-        res = await axios.get(`${BASE_URL}/users`, { headers: authHeader });
-      } catch (err) {
-        res = await axios.get(`${BASE_URL}/auth/users`, { headers: authHeader });
-      }
-      setUsers(res.data || []);
-    } catch (err) {
-      console.error(err);
-      setError('Không thể tải danh sách người dùng. Vui lòng kiểm tra quyền Admin hoặc server backend.');
+      const res = await axios.get(`${API_URL}/users`, { headers: authHeader() });
+      setUsers(res.data);
+    } catch (e) {
+      setError(e.response?.data?.detail || 'Không thể tải danh sách người dùng.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  useEffect(() => { fetchUsers(); }, []);
 
-  const handleInputChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+  const notify = (msg, isError = false) => {
+    if (isError) setError(msg); else setSuccess(msg);
+    setTimeout(() => { setError(''); setSuccess(''); }, 3500);
+  };
+
+  const handleDelete = async (user) => {
+    if (!window.confirm(`Xóa tài khoản "${user.username}"?`)) return;
+    try {
+      await axios.delete(`${API_URL}/users/${user.id}`, { headers: authHeader() });
+      notify(`✅ Đã xóa tài khoản "${user.username}".`);
+      fetchUsers();
+    } catch (e) {
+      notify(e.response?.data?.detail || 'Lỗi xóa tài khoản.', true);
+    }
+  };
+
+  const handleToggleActive = async (user) => {
+    try {
+      const res = await axios.put(`${API_URL}/users/${user.id}/toggle-active`, {}, { headers: authHeader() });
+      notify(`✅ ${res.data.message}`);
+      fetchUsers();
+    } catch (e) {
+      notify(e.response?.data?.detail || 'Lỗi cập nhật trạng thái.', true);
+    }
+  };
+
+  const handleRoleChange = async (user, newRole) => {
+    try {
+      await axios.put(`${API_URL}/users/${user.id}/role`, { role: newRole }, { headers: authHeader() });
+      notify(`✅ Đã đổi quyền "${user.username}" thành ${newRole === 'admin' ? 'Admin' : 'Cán bộ'}.`);
+      fetchUsers();
+    } catch (e) {
+      notify(e.response?.data?.detail || 'Lỗi cập nhật quyền.', true);
+    }
   };
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
+    setFormLoading(true);
     setFormError('');
-    setSubmitting(true);
-
     try {
-      let res;
-      try {
-        res = await axios.post(`${BASE_URL}/create_user`, formData, { headers: authHeader });
-      } catch (err) {
-        res = await axios.post(`${BASE_URL}/auth/create_user`, formData, { headers: authHeader });
-      }
-
-      setSuccessMsg(`Tạo tài khoản "${formData.username}" thành công!`);
-      setIsModalOpen(false);
-      setFormData({
-        username: '',
-        password: '',
-        email: '',
-        full_name: '',
-        role: 'user',
-      });
+      await axios.post(`${API_URL}/users`, form, { headers: authHeader() });
+      notify(`✅ Đã tạo tài khoản "${form.username}".`);
+      setShowForm(false);
+      setForm({ username: '', password: '', full_name: '', email: '', role: 'user' });
       fetchUsers();
-      setTimeout(() => setSuccessMsg(''), 4000);
-    } catch (err) {
-      console.error(err);
-      const detail = err.response?.data?.detail || 'Lỗi khi tạo người dùng. Vui lòng kiểm tra lại.';
-      setFormError(typeof detail === 'string' ? detail : JSON.stringify(detail));
+    } catch (e) {
+      setFormError(e.response?.data?.detail || 'Lỗi tạo tài khoản.');
     } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleChangeRole = async (userId, currentRole) => {
-    const newRole = currentRole === 'admin' ? 'user' : 'admin';
-    if (!window.confirm(`Bạn có chắc muốn đổi vai trò của người dùng này thành '${newRole}'?`)) return;
-
-    try {
-      try {
-        await axios.put(`${BASE_URL}/users/${userId}/role`, { role: newRole }, { headers: authHeader });
-      } catch (err) {
-        await axios.put(`${BASE_URL}/auth/users/${userId}/role`, { role: newRole }, { headers: authHeader });
-      }
-      setSuccessMsg('Cập nhật quyền thành công!');
-      fetchUsers();
-      setTimeout(() => setSuccessMsg(''), 3000);
-    } catch (err) {
-      alert('Lỗi cập nhật quyền: ' + (err.response?.data?.detail || err.message));
+      setFormLoading(false);
     }
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-full flex flex-col">
-      {/* Header & Button */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+    <div className="p-6 h-full overflow-y-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Quản lý Người dùng</h2>
-          <p className="text-sm text-gray-500 mt-1">Danh sách tài khoản và phân quyền truy cập hệ thống Data Lakehouse</p>
+          <h3 className="text-lg font-semibold text-gray-800">👥 Quản lý Người dùng</h3>
+          <p className="text-sm text-gray-400 mt-1">
+            Thêm, xóa, phân quyền và khoá tài khoản trong hệ thống.
+          </p>
         </div>
-
         <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-5 rounded-lg shadow-md hover:shadow-lg transition flex items-center gap-2"
+          onClick={() => setShowForm((v) => !v)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition shadow"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-          </svg>
-          Tạo người dùng mới
+          {showForm ? '✕ Đóng' : '+ Thêm người dùng'}
         </button>
       </div>
 
-      {/* Alert Messages */}
-      {successMsg && (
-        <div className="mb-4 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-lg flex items-center justify-between">
-          <span>{successMsg}</span>
-          <button onClick={() => setSuccessMsg('')} className="font-bold">✕</button>
-        </div>
-      )}
-
+      {/* Thông báo */}
       {error && (
-        <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-lg flex items-center justify-between">
-          <span>{error}</span>
-          <button onClick={fetchUsers} className="underline text-sm font-semibold ml-2">Thử lại</button>
-        </div>
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm">{error}</div>
+      )}
+      {success && (
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{success}</div>
       )}
 
-      {/* User Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex-1">
-        {loading ? (
-          <div className="flex items-center justify-center p-12 text-gray-500">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>
-            Đang tải danh sách tài khoản...
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-100/75 border-b border-gray-200 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  <th className="py-3.5 px-6">ID</th>
-                  <th className="py-3.5 px-6">Tài khoản</th>
-                  <th className="py-3.5 px-6">Họ & Tên</th>
-                  <th className="py-3.5 px-6">Email</th>
-                  <th className="py-3.5 px-6">Vai trò (Role)</th>
-                  <th className="py-3.5 px-6">Trạng thái</th>
-                  <th className="py-3.5 px-6 text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 text-sm text-gray-700">
-                {users.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" className="py-8 text-center text-gray-400">
-                      Chưa có dữ liệu người dùng
-                    </td>
-                  </tr>
-                ) : (
-                  users.map((user) => (
-                    <tr key={user.id || user.username} className="hover:bg-gray-50 transition">
-                      <td className="py-4 px-6 font-mono text-xs text-gray-400">{user.id || '—'}</td>
-                      <td className="py-4 px-6 font-semibold text-gray-900 flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-xs">
-                          {user.username ? user.username.charAt(0).toUpperCase() : 'U'}
-                        </div>
-                        {user.username}
-                      </td>
-                      <td className="py-4 px-6">{user.full_name || '—'}</td>
-                      <td className="py-4 px-6 text-gray-500">{user.email || '—'}</td>
-                      <td className="py-4 px-6">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                            user.role === 'admin'
-                              ? 'bg-purple-100 text-purple-700 border border-purple-200'
-                              : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                          }`}
-                        >
-                          {user.role === 'admin' ? 'Quản trị viên' : 'Người dùng'}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6">
-                        <span className="inline-flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                          Đang hoạt động
-                        </span>
-                      </td>
-                      <td className="py-4 px-6 text-right">
-                        {user.id ? (
-                          <button
-                            onClick={() => handleChangeRole(user.id, user.role)}
-                            className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium px-3 py-1.5 rounded transition border border-gray-300"
-                          >
-                            Đổi vai trò
-                          </button>
-                        ) : (
-                          <span className="text-xs text-gray-400 italic">Mặc định</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Modal Tạo Người Dùng Mới */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-md overflow-hidden">
-            {/* Modal Header */}
-            <div className="px-6 py-4 bg-slate-900 text-white flex justify-between items-center">
-              <h3 className="text-lg font-bold">Tạo Tài Khoản Người Dùng Mới</h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-white text-xl font-bold transition"
+      {/* Form thêm user */}
+      {showForm && (
+        <div className="mb-6 bg-white border border-blue-100 rounded-xl p-5 shadow-sm">
+          <h4 className="font-semibold text-gray-700 mb-4 text-sm">Tạo tài khoản mới</h4>
+          <form onSubmit={handleCreateUser} className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Tên đăng nhập *</label>
+              <input
+                required
+                value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                placeholder="vd: canbo_phong_kh"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Mật khẩu *</label>
+              <input
+                required
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                placeholder="Tối thiểu 6 ký tự"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Họ và tên</label>
+              <input
+                value={form.full_name}
+                onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                placeholder="vd: Nguyễn Văn A"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Email</label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                placeholder="vd: email@cusc.vn"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Vai trò</label>
+              <select
+                value={form.role}
+                onChange={(e) => setForm({ ...form, role: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
               >
-                ✕
+                <option value="user">Cán bộ (User)</option>
+                <option value="admin">Quản trị (Admin)</option>
+              </select>
+            </div>
+            <div className="flex items-end gap-3">
+              {formError && <span className="text-xs text-red-500 flex-1">{formError}</span>}
+              <button
+                type="submit"
+                disabled={formLoading}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition disabled:opacity-60 whitespace-nowrap"
+              >
+                {formLoading ? 'Đang tạo...' : '+ Tạo tài khoản'}
               </button>
             </div>
+          </form>
+        </div>
+      )}
 
-            {/* Modal Form */}
-            <form onSubmit={handleCreateUser} className="p-6 space-y-4">
-              {formError && (
-                <div className="bg-rose-50 border border-rose-200 text-rose-600 p-3 rounded-lg text-sm font-medium">
-                  {formError}
-                </div>
+      {/* Bảng danh sách */}
+      {loading ? (
+        <div className="text-center text-gray-400 py-16 text-sm">Đang tải danh sách người dùng...</div>
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                {['#', 'Tài khoản', 'Họ tên / Email', 'Vai trò', 'Trạng thái', 'Ngày tạo', 'Thao tác'].map((h) => (
+                  <th key={h} className="text-left px-4 py-3 text-xs text-gray-500 font-semibold">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((u, idx) => (
+                <tr key={u.id} className="border-b border-gray-100 hover:bg-gray-50 transition">
+                  <td className="px-4 py-3 text-gray-400 text-xs">{idx + 1}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-teal-400 flex items-center justify-center text-white font-bold text-xs shrink-0">
+                        {u.username?.[0]?.toUpperCase()}
+                      </div>
+                      <span className="font-medium text-gray-800">{u.username}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-gray-500 text-xs">
+                    <div>{u.full_name || <span className="italic text-gray-300">—</span>}</div>
+                    <div className="text-gray-400">{u.email || ''}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <select
+                      value={u.role}
+                      onChange={(e) => handleRoleChange(u, e.target.value)}
+                      className={`text-xs border rounded-full px-2 py-1 font-medium cursor-pointer ${ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-600 border-gray-200'}`}
+                    >
+                      <option value="user">Cán bộ</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs px-2 py-1 rounded-full border font-medium ${u.is_active ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-500 border-red-200'}`}>
+                      {u.is_active ? '● Hoạt động' : '● Bị khoá'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-400 text-xs">
+                    {u.created_at ? new Date(u.created_at).toLocaleDateString('vi-VN') : '—'}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleToggleActive(u)}
+                        className={`px-2 py-1 text-xs rounded transition border ${u.is_active ? 'bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border-yellow-200' : 'bg-green-50 hover:bg-green-100 text-green-700 border-green-200'}`}
+                      >
+                        {u.is_active ? '🔒 Khoá' : '🔓 Mở'}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(u)}
+                        className="px-2 py-1 text-xs rounded bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 transition"
+                      >
+                        🗑 Xóa
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {users.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="text-center py-10 text-gray-400 text-sm">Chưa có người dùng nào.</td>
+                </tr>
               )}
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-                  Tên tài khoản (Username) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="username"
-                  value={formData.username}
-                  onChange={handleInputChange}
-                  placeholder="Nhập tên tài khoản (vd: user_khach)"
-                  required
-                  className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-                  Mật khẩu <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  placeholder="Nhập mật khẩu (tối thiểu 6 ký tự)"
-                  minLength={6}
-                  required
-                  className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Họ và tên</label>
-                <input
-                  type="text"
-                  name="full_name"
-                  value={formData.full_name}
-                  onChange={handleInputChange}
-                  placeholder="Nhập họ và tên (vd: Nguyễn Văn A)"
-                  className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Email</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="Nhập địa chỉ email (vd: user@lakehouse.vn)"
-                  className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-                  Vai trò (Role) <span className="text-red-500">*</span>
-                </label>
-                <select
-                  name="role"
-                  value={formData.role}
-                  onChange={handleInputChange}
-                  className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white"
-                >
-                  <option value="user">👤 User (Người dùng tiêu chuẩn)</option>
-                  <option value="admin">🛡️ Admin (Quản trị viên toàn quyền)</option>
-                </select>
-              </div>
-
-              {/* Form Buttons */}
-              <div className="pt-3 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md hover:shadow-lg transition disabled:opacity-50"
-                >
-                  {submitting ? 'Đang khởi tạo...' : 'Xác nhận tạo'}
-                </button>
-              </div>
-            </form>
-          </div>
+            </tbody>
+          </table>
+          <div className="px-4 py-2 text-xs text-gray-400 border-t bg-gray-50">Tổng {users.length} tài khoản</div>
         </div>
       )}
     </div>

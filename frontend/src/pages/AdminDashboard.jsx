@@ -7,7 +7,8 @@ import UserManagement from './UserManagement';
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'pipeline' | 'catalog' | 'users'
-
+  const user = { username: localStorage.getItem('username') || 'Admin',
+  };
   const supersetUrl = import.meta.env.VITE_SUPERSET_DASHBOARD_URL || "http://localhost:8088/superset/dashboard/1/?native_filters_key=8TNRVjTeKm37iM9LWUB6EX-Z6hUKzsb-3BK6RuTaYCHmOLIwd75IMSdjyh913EeT&standalone=2";
 
   const handleLogout = () => {
@@ -15,7 +16,7 @@ const AdminDashboard = () => {
     localStorage.removeItem('role');
     navigate('/login');
   };
-
+  
   const TAB_TITLES = {
     dashboard: 'Báo cáo Thường niên chất lượng Giáo dục',
     pipeline: 'Pipeline Dữ liệu: Bronze → Silver → Gold',
@@ -39,7 +40,7 @@ const AdminDashboard = () => {
           <button
             onClick={() => setActiveTab('dashboard')}
             className={`w-full text-left py-3 px-4 rounded transition ${activeTab === 'dashboard' ? 'bg-blue-600 shadow hover:bg-blue-700 font-semibold' : 'hover:bg-slate-800'}`}>
-            📊 Báo cáo Tổng hợp (Gold)
+            Báo cáo Tổng hợp (Gold)
           </button>
 
           <button
@@ -65,7 +66,7 @@ const AdminDashboard = () => {
           <div className="flex items-center space-x-3 mb-4">
             <div className="w-10 h-10 rounded-full bg-teal-500 flex items-center justify-center font-bold text-lg">A</div>
             <div>
-              <p className="text-sm font-medium">Ban Giám Hiệu</p>
+              <p className="text-sm font-medium">{user?.username}</p>
               <p className="text-xs text-slate-400">Admin</p>
             </div>
           </div>

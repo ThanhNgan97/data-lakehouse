@@ -189,7 +189,7 @@ const UserManagement = () => {
                               : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
                           }`}
                         >
-                          {user.role === 'admin' ? '🛡️ Admin' : '👤 User'}
+                          {user.role === 'admin' ? 'Quản trị viên' : 'Người dùng'}
                         </span>
                       </td>
                       <td className="py-4 px-6">

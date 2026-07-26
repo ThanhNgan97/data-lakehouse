@@ -23,27 +23,7 @@ DATABASE_URL = f"postgresql://{PG_USER}:{_pw}@{PG_HOST}:{PG_PORT}/{PG_DATABASE}"
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Fallback in-memory users db for backwards compatibility when DB is unavailable
-fake_users_db = {
-    "admin": {
-        "id": 1,
-        "username": "admin",
-        "email": "admin@lakehouse.vn",
-        "full_name": "System Administrator",
-        "hashed_password": get_password_hash("admin123"),
-        "role": "admin",
-        "is_active": True
-    },
-    "canbo_truongA": {
-        "id": 2,
-        "username": "canbo_truongA",
-        "email": "canbo_truonga@lakehouse.vn",
-        "full_name": "Cán bộ Trường A",
-        "hashed_password": get_password_hash("user123"),
-        "role": "user",
-        "is_active": True
-    }
-}
+# NOTE: In-memory fallback removed. Authentication now requires a real DB.
 
 def get_db():
     """Yield a SQLAlchemy session for dependency injection."""
@@ -89,16 +69,15 @@ def init_db():
     except Exception as e:
         logging.warning(f"Database initialization warning (PostgreSQL offline or connecting issue): {e}")
 
-def get_user(username: str, db=None):
-    """Lấy thông tin user từ DB hoặc fake_users_db nếu DB không sẵn sàng."""
-    if db is not None:
-        try:
-            from db.models import User
-            user = db.query(User).filter(User.username == username).first()
-            if user:
-                return user
-        except Exception as e:
-            logging.warning(f"Failed to query database for user '{username}': {e}")
-    
-    # Fallback to in-memory dictionary
-    return fake_users_db.get(username)
+def get_user(username: str, db):
+    """Lấy thông tin user từ database.
+
+    `db` must be a SQLAlchemy `Session` provided by `get_db()`.
+    Returns a `User` ORM instance or `None`.
+    """
+    try:
+        from db.models import User
+        return db.query(User).filter(User.username == username).first()
+    except Exception as e:
+        logging.error(f"Database error when querying user '{username}': {e}")
+        return None

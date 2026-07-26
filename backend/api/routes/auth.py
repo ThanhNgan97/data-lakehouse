@@ -4,7 +4,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from core.security import get_password_hash, verify_password, create_access_token
-from db.database import get_db, get_user, fake_users_db
+from db.database import get_db, get_user
 from db.models import User
 from api.dependencies import get_current_user, get_current_active_admin
 from api.schemas.auth import UserLogin, UserCreate, UserResponse, Token, RoleUpdate
@@ -103,32 +103,9 @@ async def create_user(
         return new_user
     except HTTPException:
         raise
-    except Exception:
-        # Fallback nếu DB không khả dụng
-        if user_in.username in fake_users_db:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Tài khoản đã tồn tại"
-            )
-        hashed_pwd = get_password_hash(user_in.password)
-        fake_users_db[user_in.username] = {
-            "id": len(fake_users_db) + 1,
-            "username": user_in.username,
-            "email": user_in.email,
-            "full_name": user_in.full_name,
-            "hashed_password": hashed_pwd,
-            "role": user_in.role or "user",
-            "is_active": True
-        }
-        return {
-            "id": fake_users_db[user_in.username]["id"],
-            "username": user_in.username,
-            "email": user_in.email,
-            "full_name": user_in.full_name,
-            "role": user_in.role or "user",
-            "is_active": True,
-            "created_at": None
-        }
+    except Exception as e:
+        # If DB operation fails, return server error to surface the issue.
+        raise HTTPException(status_code=500, detail=f"Lỗi tạo người dùng: {str(e)}")
 
 
 @router.get("/me", response_model=UserResponse, summary="Lấy thông tin tài khoản đang đăng nhập")
@@ -156,18 +133,8 @@ async def list_users(
     try:
         users = db.query(User).all()
         return [user.to_dict() for user in users]
-    except Exception:
-        return [
-            {
-                "id": data.get("id"),
-                "username": username,
-                "email": data.get("email"),
-                "full_name": data.get("full_name"),
-                "role": data.get("role"),
-                "is_active": data.get("is_active", True)
-            }
-            for username, data in fake_users_db.items()
-        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi lấy danh sách người dùng: {str(e)}")
 
 
 @router.put("/users/{user_id}/role", summary="Cập nhật quyền người dùng (Yêu cầu quyền Admin)")

@@ -53,7 +53,8 @@ const UploadHistory = () => {
           <table className="w-full text-sm text-left">
             <thead className="bg-gray-50 text-gray-700 uppercase">
               <tr>
-                <th className="px-4 py-3 font-semibold">Người dùng</th>
+                <th className="px-4 py-3 font-semibold">Id nguời dùng</th>
+                <th className="px-4 py-3 font-semibold">Tên người upload</th>
                 <th className="px-4 py-3 font-semibold">Tên File</th>
                 <th className="px-4 py-3 font-semibold">Loại</th>
                 <th className="px-4 py-3 font-semibold">Kích thước</th>
@@ -64,7 +65,8 @@ const UploadHistory = () => {
             <tbody className="divide-y">
               {history.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{item.uploader_username}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900">{item.user_id}</td>
+                  <td className="px-4 py-3 text-gray-600">{item.full_name || 'N/A'}</td>
                   <td className="px-4 py-3 text-gray-600 truncate max-w-xs" title={item.filename}>{item.filename}</td>
                   <td className="px-4 py-3 text-gray-600">{item.file_type?.split('/')[1] || item.file_type || 'N/A'}</td>
                   <td className="px-4 py-3 text-gray-600">{(item.file_size_bytes / 1024).toFixed(2)} KB</td>

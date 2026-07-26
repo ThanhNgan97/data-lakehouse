@@ -32,7 +32,7 @@ class UploadHistory(Base):
     __tablename__ = "upload_history"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    uploader_username = Column(String(50), ForeignKey("users.username"), index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
     filename = Column(String(255), nullable=False)
     file_size_bytes = Column(Float, nullable=False)
     file_type = Column(String(50), nullable=True)
@@ -41,12 +41,14 @@ class UploadHistory(Base):
     status = Column(String(50), default="Uploaded")
     uploaded_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    uploader = relationship("User", foreign_keys=[uploader_username])
+    uploader = relationship("User", foreign_keys=[user_id])
 
     def to_dict(self):
         return {
             "id": self.id,
-            "uploader_username": self.uploader_username,
+            "user_id": self.user_id,
+            "full_name": self.uploader.full_name if self.uploader else None,
+            "username": self.uploader.username if self.uploader else None,
             "filename": self.filename,
             "file_size_bytes": self.file_size_bytes,
             "file_type": self.file_type,

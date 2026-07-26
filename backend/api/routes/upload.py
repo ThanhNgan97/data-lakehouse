@@ -38,10 +38,10 @@ async def upload_file(
         )
 
         # Lưu lịch sử upload vào DB
-        uploader_username = current_user.username if hasattr(current_user, "username") else current_user.get("username", "unknown")
+        user_id = current_user.id if hasattr(current_user, "id") else current_user.get("id")
         
         history_record = UploadHistory(
-            uploader_username=uploader_username,
+            user_id=user_id,
             filename=file.filename,
             file_size_bytes=file_size,
             file_type=file.content_type,
@@ -81,7 +81,7 @@ async def get_upload_history(
     Kèm theo thông tin người upload, metadata, kích thước...
     """
     try:
-        histories = db.query(UploadHistory).order_by(UploadHistory.uploaded_at.desc()).limit(limit).all()
+        histories = db.query(UploadHistory).join(User, UploadHistory.user_id == User.id).order_by(UploadHistory.uploaded_at.desc()).limit(limit)
         return [record.to_dict() for record in histories]
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi lấy lịch sử: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Lỗi lấy lịch sử: {str(e)}")

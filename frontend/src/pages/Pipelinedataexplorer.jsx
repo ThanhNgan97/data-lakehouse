@@ -33,6 +33,12 @@ const Heardertable = {
     tang_truong_phan_tram: 'Tăng trưởng (%)',
     ky_dau_tien_xuat_hien: 'Kỳ đầu tiên xuất hiện',
     ky_gan_nhat_cap_nhat: 'Kỳ gần nhất cập nhật',
+    quy_hien_tai: 'Kỳ hiện tại',
+    muc_dat_hien_tai: 'Mức đạt hiện tại',
+    quy_du_doan: 'Kỳ dự đoán',
+    muc_dat_du_doan: 'Mức đạt dự đoán',
+    avg_growth_pct: 'Tăng trưởng TB (%)',
+    thoi_gian_du_doan: 'Thời gian dự đoán',
 }
 
 const GOLD_TABLE_LABELS = {
@@ -40,6 +46,7 @@ const GOLD_TABLE_LABELS = {
   kpi_chi_tiet_dashboard: 'Chi tiết đầy đủ',
   kpi_so_sanh_ky: 'So sánh giữa các kỳ',
   dm_chi_tieu: 'Chú thích / Data Dictionary',
+  kpi_du_doan_tuong_lai: 'Dự đoán kết quả tương lai',
 };
 
 // [MỚI] Bảng gốc dùng để click-to-drill: chỉ bảng tổng hợp mới có nghĩa để

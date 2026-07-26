@@ -48,6 +48,7 @@ GOLD_TABLES = {
     "kpi_chi_tiet_dashboard":  "Chi tiết đầy đủ KPI",
     "kpi_so_sanh_ky":          "So sánh tăng/giảm giữa các kỳ",
     "dm_chi_tieu":             "Chú thích / Data Dictionary mã chỉ tiêu",
+    "kpi_du_doan_tuong_lai":   "Dự đoán kết quả tương lai",
 }
 
 # [MỚI] Regex validate giá trị nhom_don_vi truyền vào từ query param.

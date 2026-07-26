@@ -2,6 +2,9 @@ import logging
 import requests
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
 from api.dependencies import get_current_user
+from db.database import get_db
+from sqlalchemy.orm import Session
+from db.models import UploadHistory, User
 from db.minio_client import minio_client
 from core.config import MINIO_BUCKET_NAME
 from core.config import AIRFLOW_WEBSERVER_URL
@@ -12,7 +15,11 @@ def read_root():
 
 @router.post("/upload")
 @router.post("/upload/")
-async def upload_file(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+async def upload_file(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     try:
        
         # Mọi file người dùng nạp vào đều phải qua tầng Staging.
@@ -29,6 +36,21 @@ async def upload_file(file: UploadFile = File(...), current_user: dict = Depends
             data=file.file,
             length=file_size
         )
+
+        # Lưu lịch sử upload vào DB
+        uploader_username = current_user.username if hasattr(current_user, "username") else current_user.get("username", "unknown")
+        
+        history_record = UploadHistory(
+            uploader_username=uploader_username,
+            filename=file.filename,
+            file_size_bytes=file_size,
+            file_type=file.content_type,
+            s3_path=object_name,
+            metadata_info={"source": "api", "bucket": MINIO_BUCKET_NAME},
+            status="Uploaded"
+        )
+        db.add(history_record)
+        db.commit()
 
         # Trigger Airflow Pipeline
        
@@ -47,3 +69,19 @@ async def upload_file(file: UploadFile = File(...), current_user: dict = Depends
         return {"message": f"Đã đẩy trực tiếp file {file.filename} vào trạm {object_name} của MinIO và kích hoạt pipeline!"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi đẩy file  {str(e)}")
+
+@router.get("/upload/history", summary="Lấy lịch sử tải lên dữ liệu")
+async def get_upload_history(
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Lấy danh sách các file đã được upload lên hệ thống.
+    Kèm theo thông tin người upload, metadata, kích thước...
+    """
+    try:
+        histories = db.query(UploadHistory).order_by(UploadHistory.uploaded_at.desc()).limit(limit).all()
+        return [record.to_dict() for record in histories]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi lấy lịch sử: {str(e)}")

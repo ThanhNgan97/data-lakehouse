@@ -37,7 +37,7 @@ def get_db():
 def init_db():
     """Tự động tạo các bảng và seed tài khoản mặc định vào database."""
     try:
-        from db.models import User
+        from db.models import User, UploadHistory
         Base.metadata.create_all(bind=engine)
     
 

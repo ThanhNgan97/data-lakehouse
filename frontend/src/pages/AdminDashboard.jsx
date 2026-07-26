@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import CatalogHistoryTimeline from './CatalogHistoryTimeline';
 import PipelineDataExplorer from './Pipelinedataexplorer';
 import UserManagement from './UserManagement';
+import UploadHistory from './UploadHistory';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -19,16 +20,18 @@ const AdminDashboard = () => {
   };
 
   const NAV = [
-    { key: 'dashboard', icon: '', label: 'Báo cáo Tổng hợp (Gold)' },
-    { key: 'pipeline',  icon: '', label: 'Dữ liệu Pipeline' },
-    { key: 'catalog',   icon: '', label: 'Lịch sử Branch/Merge' },
-    { key: 'users',     icon: '', label: 'Quản lý Người dùng' },
+    { key: 'dashboard', icon: '📊', label: 'Báo cáo Tổng hợp (Gold)' },
+    { key: 'pipeline',  icon: '🔗', label: 'Dữ liệu Pipeline' },
+    { key: 'catalog',   icon: '🌿', label: 'Lịch sử Branch/Merge' },
+    { key: 'history',   icon: '🕒', label: 'Lịch sử Upload' },
+    { key: 'users',     icon: '👥', label: 'Quản lý Người dùng' },
   ];
 
   const TAB_TITLES = {
     dashboard: 'Báo cáo Thường niên chất lượng Giáo dục (Apache Superset)',
     pipeline:  'Pipeline Dữ liệu: Bronze → Silver → Gold',
     catalog:   'Lịch sử Pipeline (Nessie Catalog)',
+    history:   'Lịch sử Tải lên dữ liệu',
     users:     'Quản lý Người dùng',
   };
 
@@ -118,6 +121,7 @@ const AdminDashboard = () => {
               )}
               {activeTab === 'pipeline' && <PipelineDataExplorer />}
               {activeTab === 'catalog'  && <CatalogHistoryTimeline />}
+              {activeTab === 'history'  && <UploadHistory />}
               {activeTab === 'users'    && <UserManagement />}
             </div>
           </div>

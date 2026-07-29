@@ -222,27 +222,35 @@ const UserUpload = () => {
                <span className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-md">ID: {activePipeline.dag_run_id?.slice(0, 15)}...</span>
              </div>
              
-             <div className="relative flex items-center justify-between">
-                {/* Đường line kết nối (tạo background line) */}
-                <div className="absolute top-4 left-10 right-10 h-0.5 bg-gray-200 z-0"></div>
-                
+             <div className="flex items-center gap-3">
                 {PIPELINE_TASKS.map((pt, idx) => {
                    const t = activePipeline.tasks?.find(x => x.task_id === pt.id);
                    const state = t?.state || 'pending';
-                   let color = 'bg-gray-200';
-                   let textColor = 'text-gray-500';
-                   if (state === 'success') { color = 'bg-green-500'; textColor = 'text-green-700'; }
-                   else if (state === 'running') { color = 'bg-yellow-400 animate-pulse'; textColor = 'text-yellow-700'; }
-                   else if (state === 'failed') { color = 'bg-red-500'; textColor = 'text-red-700'; }
+                   
+                   let dotColor = 'bg-gray-400';
+                   let borderColor = 'border-gray-300';
+                   let bgColor = 'bg-gray-50';
+                   let stateText = 'Đang chờ';
+                   
+                   if (state === 'success') {
+                       dotColor = 'bg-green-500'; borderColor = 'border-green-500'; bgColor = 'bg-green-50'; stateText = 'Hoàn thành';
+                   } else if (state === 'running') {
+                       dotColor = 'bg-yellow-400 animate-pulse'; borderColor = 'border-yellow-400'; bgColor = 'bg-yellow-50'; stateText = 'Đang xử lý';
+                   } else if (state === 'failed') {
+                       dotColor = 'bg-red-500'; borderColor = 'border-red-500'; bgColor = 'bg-red-50'; stateText = 'Lỗi';
+                   }
                    
                    return (
-                      <div key={pt.id} className="relative z-10 flex flex-col items-center flex-1 bg-white">
-                         <div className={`w-8 h-8 rounded-full ${color} text-white flex items-center justify-center mb-2 text-xs font-bold ring-4 ring-white shadow-sm`}>
-                            {state === 'success' ? '✓' : (idx + 1)}
-                         </div>
-                         <div className={`text-xs font-semibold ${textColor}`}>{pt.label}</div>
-                         <div className="text-[10px] text-gray-400 capitalize">{state}</div>
-                      </div>
+                      <React.Fragment key={pt.id}>
+                          <div className={`relative flex-1 border-2 rounded-xl p-4 text-center transition ${borderColor} ${bgColor} ${state === 'pending' ? 'opacity-70' : ''}`}>
+                             <div className="flex items-center justify-center gap-2 mb-1">
+                                <span className={`w-2.5 h-2.5 rounded-full ${dotColor}`} />
+                                <span className="font-semibold text-gray-800 text-sm">{pt.label}</span>
+                             </div>
+                             <p className="text-[11px] mt-1 text-gray-500 font-medium">{stateText}</p>
+                          </div>
+                          {idx < PIPELINE_TASKS.length - 1 && <div className="text-gray-300 text-2xl font-bold">➜</div>}
+                      </React.Fragment>
                    )
                 })}
              </div>

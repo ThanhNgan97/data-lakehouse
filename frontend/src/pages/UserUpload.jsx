@@ -146,194 +146,207 @@ const UserUpload = () => {
   const getStatus = (item) => STATUS_CONFIG[item.pipeline_status] || { label: item.pipeline_status, cls: 'bg-gray-100 text-gray-500' };
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans">
-      <header className="bg-white shadow px-8 py-4 flex justify-between items-center">
-        <div>
-          <h1 className="text-xl font-bold text-blue-600">EduLakehouse — Cổng Nạp Dữ Liệu</h1>
-          <p className="text-xs text-gray-400 mt-0.5">Upload file PDF/DOCX để kích hoạt pipeline Bronze → Silver → Gold</p>
+    <div className="min-h-screen bg-gray-50 font-sans flex flex-col">
+      <header className="bg-white border-b border-gray-200 px-6 md:px-8 py-4 flex justify-between items-center sticky top-0 z-50">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-teal-500 rounded-xl flex items-center justify-center shadow-md">
+            <span className="text-white font-bold text-xl">E</span>
+          </div>
+          <div>
+            <h1 className="text-lg md:text-xl font-bold text-gray-800 leading-tight">EduLakehouse Portal</h1>
+            <p className="text-[11px] md:text-xs text-gray-500 font-medium">Cổng nạp & Xử lý dữ liệu trung tâm</p>
+          </div>
         </div>
-        <button onClick={handleLogout} className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm transition">
+        <button onClick={handleLogout} className="px-4 md:px-5 py-2 bg-slate-800 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition shadow-sm">
           Đăng xuất
         </button>
       </header>
 
-      <main className="max-w-4xl mx-auto mt-10 p-6 space-y-6">
-        {/* Upload Card */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
-          <h2 className="text-lg font-bold text-gray-800 mb-1">Upload Dữ liệu vào Staging Zone</h2>
-          <p className="text-xs text-gray-400 mb-6">Định dạng hỗ trợ: PDF, DOCX</p>
-
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={(e) => processFile(e.target.files[0])}
-            accept=".pdf,.docx"
-            className="hidden"
-          />
-
-          <div
-            onClick={() => !uploading && fileInputRef.current.click()}
-            onDragOver={onDragOver}
-            onDragLeave={onDragLeave}
-            onDrop={onDrop}
-            className={`border-4 border-dashed rounded-xl p-14 text-center transition-all duration-300 ${
-              uploading ? 'cursor-wait opacity-70' : 'cursor-pointer'
-            } ${isDragging ? 'border-blue-500 bg-blue-50 scale-[1.01]' : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'}`}
-          >
-            <div className="text-5xl mb-3">{uploading ? '⏳' : isDragging ? '📥' : '📄'}</div>
-            <p className="text-base font-medium text-gray-700">
-              {uploading ? 'Đang tải lên...' : 'Kéo & Thả hoặc Click để chọn file'}
-            </p>
-            <p className="text-xs text-gray-400 mt-1">Định dạng: PDF, DOCX</p>
-          </div>
-
-          {/* Progress bar */}
-          {uploadProgress > 0 && (
-            <div className="mt-4">
-              <div className="flex justify-between text-xs text-gray-500 mb-1">
-                <span>Tiến trình upload</span>
-                <span>{uploadProgress}%</span>
-              </div>
-              <div className="w-full bg-gray-100 rounded-full h-2">
-                <div
-                  className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${uploadProgress}%` }}
-                />
-              </div>
+      <main className="flex-1 w-full max-w-[1400px] mx-auto p-4 md:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+        
+        {/* CỘT TRÁI (Upload & Pipeline) */}
+        <div className="lg:col-span-4 flex flex-col gap-6">
+          
+          {/* 1. Upload Card */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+            <div className="mb-5">
+              <h2 className="text-lg font-bold text-gray-800">Tải lên Dữ liệu</h2>
+              <p className="text-xs text-gray-500 mt-1">Hệ thống sẽ tự động đưa vào Bronze Zone và kích hoạt Pipeline</p>
             </div>
-          )}
 
-          {/* Thông báo */}
-          {uploadStatus && (
-            <div className="mt-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">
-              {uploadStatus}
-            </div>
-          )}
-          {uploadError && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm">
-              {uploadError}
-            </div>
-          )}
-        </div>
+            <input type="file" ref={fileInputRef} onChange={(e) => processFile(e.target.files[0])} accept=".pdf,.docx" className="hidden" />
 
-        {/* Pipeline Step-by-Step Progress */}
-        {activePipeline && (
-          <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-             <div className="flex justify-between items-center mb-4">
-               <h3 className="text-sm font-bold text-gray-800">Tiến trình Pipeline (Airflow)</h3>
-               <span className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-md">ID: {activePipeline.dag_run_id?.slice(0, 15)}...</span>
-             </div>
-             
-             <div className="flex items-center gap-3">
-                {PIPELINE_TASKS.map((pt, idx) => {
-                   const t = activePipeline.tasks?.find(x => x.task_id === pt.id);
-                   const state = t?.state || 'pending';
-                   
-                   let dotColor = 'bg-gray-400';
-                   let borderColor = 'border-gray-300';
-                   let bgColor = 'bg-gray-50';
-                   let stateText = 'Đang chờ';
-                   
-                   if (state === 'success') {
-                       dotColor = 'bg-green-500'; borderColor = 'border-green-500'; bgColor = 'bg-green-50'; stateText = 'Hoàn thành';
-                   } else if (state === 'running') {
-                       dotColor = 'bg-yellow-400 animate-pulse'; borderColor = 'border-yellow-400'; bgColor = 'bg-yellow-50'; stateText = 'Đang xử lý';
-                   } else if (state === 'failed') {
-                       dotColor = 'bg-red-500'; borderColor = 'border-red-500'; bgColor = 'bg-red-50'; stateText = 'Lỗi';
-                   }
-                   
-                   return (
-                      <React.Fragment key={pt.id}>
-                          <div className={`relative flex-1 border-2 rounded-xl p-4 text-center transition ${borderColor} ${bgColor} ${state === 'pending' ? 'opacity-70' : ''}`}>
-                             <div className="flex items-center justify-center gap-2 mb-1">
-                                <span className={`w-2.5 h-2.5 rounded-full ${dotColor}`} />
-                                <span className="font-semibold text-gray-800 text-sm">{pt.label}</span>
-                             </div>
-                             <p className="text-[11px] mt-1 text-gray-500 font-medium">{stateText}</p>
-                          </div>
-                          {idx < PIPELINE_TASKS.length - 1 && <div className="text-gray-300 text-2xl font-bold">➜</div>}
-                      </React.Fragment>
-                   )
-                })}
-             </div>
-          </div>
-        )}
-
-        {/* Superset Dashboard Placeholder */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-           <h3 className="text-lg font-bold text-gray-800 mb-4">Sơ đồ Superset</h3>
-           <div className="w-full bg-gray-50 rounded-lg overflow-hidden border flex items-center justify-center" style={{ height: '400px' }}>
-              {/* NOTE: Bạn hãy thay thế URL src bằng đường dẫn embed thực tế của Superset Dashboard */}
-              <iframe
-                 width="100%"
-                 height="100%"
-                 frameBorder="0"
-                 src={supersetUrl}
-                 title="Superset Chart"
-                 className="w-full h-full border-none"
-              ></iframe>
-           </div>
-        </div>
-
-        {/* Upload History */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50">
-            <div>
-              <h3 className="font-semibold text-gray-800 text-sm">📋 Lịch sử Upload</h3>
-              <p className="text-xs text-gray-400 mt-0.5">Trạng thái pipeline cập nhật mỗi 5 giây khi đang chạy</p>
-            </div>
-            <button
-              onClick={fetchHistory}
-              className="text-xs text-blue-600 hover:underline"
-              disabled={historyLoading}
+            <div
+              onClick={() => !uploading && fileInputRef.current.click()}
+              onDragOver={onDragOver}
+              onDragLeave={onDragLeave}
+              onDrop={onDrop}
+              className={`relative overflow-hidden border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 flex flex-col items-center justify-center group ${
+                uploading ? 'cursor-wait opacity-90 bg-gray-50 border-gray-300' : 'cursor-pointer border-blue-200 hover:border-blue-400 hover:bg-blue-50/50'
+              } ${isDragging ? 'border-blue-500 bg-blue-100 scale-[1.02]' : ''}`}
             >
-              {historyLoading ? 'Đang tải...' : '🔄 Làm mới'}
-            </button>
+              <div className={`w-14 h-14 mb-3 rounded-full flex items-center justify-center transition-transform duration-300 ${isDragging ? 'bg-blue-500 scale-110 text-white' : 'bg-blue-100 text-blue-600 group-hover:scale-110 group-hover:bg-blue-500 group-hover:text-white'}`}>
+                 <span className="text-2xl">{uploading ? '⏳' : isDragging ? '📥' : '📄'}</span>
+              </div>
+              <p className="text-sm font-semibold text-gray-700">
+                {uploading ? 'Đang tải lên và xử lý...' : 'Kéo thả file hoặc Click'}
+              </p>
+              <p className="text-[11px] text-gray-400 mt-1.5">Hỗ trợ định dạng: PDF, DOCX</p>
+              
+              {uploading && uploadProgress > 0 && (
+                <div className="absolute bottom-0 left-0 h-1.5 bg-blue-500 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+              )}
+            </div>
+
+            {/* Thông báo */}
+            {uploadStatus && (
+              <div className="mt-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm flex items-start gap-2 transition-opacity">
+                <span>✓</span><span className="font-medium">{uploadStatus}</span>
+              </div>
+            )}
+            {uploadError && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm flex items-start gap-2 transition-opacity">
+                <span>⚠️</span><span className="font-medium">{uploadError}</span>
+              </div>
+            )}
           </div>
 
-          {history.length === 0 ? (
-            <div className="text-center py-10 text-gray-400 text-sm">Chưa có file nào được upload.</div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-xs text-gray-500">
-                <tr>
-                  {['#', 'Tên file', 'Người upload', 'Thời gian', 'Trạng thái Pipeline'].map((h) => (
-                    <th key={h} className="text-left px-4 py-2 font-semibold">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {history.map((item, i) => {
-                  const st = getStatus(item);
-                  return (
-                    <tr key={item.id || i} className="border-t border-gray-100 hover:bg-gray-50">
-                      <td className="px-4 py-3 text-gray-400 text-xs">{i + 1}</td>
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-gray-800 text-xs">{item.filename}</div>
-                        <div className="text-gray-400 text-xs">{item.minio_path}</div>
-                      </td>
-                      <td className="px-4 py-3 text-gray-600 text-xs">{item.username}</td>
-                      <td className="px-4 py-3 text-gray-500 text-xs">
-                        {item.uploaded_at
-                          ? new Date(item.uploaded_at + 'Z').toLocaleString('vi-VN')
-                          : '—'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${st.cls}`}>
-                          {st.label}
-                        </span>
-                        {item.dag_run_id && (
-                          <div className="text-xs text-gray-300 mt-0.5 font-mono">
-                            {item.dag_run_id.slice(0, 24)}...
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          {/* 2. Pipeline Status (Vertical Stepper) */}
+          {activePipeline && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex-1">
+               <div className="flex justify-between items-start mb-6">
+                 <div>
+                   <h3 className="text-base font-bold text-gray-800">Tiến trình Pipeline</h3>
+                   <p className="text-xs text-gray-500 mt-0.5">Airflow Orchestration</p>
+                 </div>
+                 {activePipeline.dag_run_id && (
+                   <span className="text-[10px] font-mono px-2 py-1 bg-gray-100 text-gray-600 rounded border border-gray-200" title={activePipeline.dag_run_id}>
+                      ID: {activePipeline.dag_run_id.slice(0, 8)}...
+                   </span>
+                 )}
+               </div>
+               
+               <div className="relative pl-5 border-l-2 border-gray-100 space-y-6 ml-2">
+                  {PIPELINE_TASKS.map((pt, idx) => {
+                     const t = activePipeline.tasks?.find(x => x.task_id === pt.id);
+                     const state = t?.state || 'pending';
+                     
+                     let dotColor = 'bg-gray-200 border-gray-300';
+                     let borderColor = 'border-gray-100';
+                     let stateText = 'Đang đợi';
+                     let icon = '⏳';
+                     let textColor = 'text-gray-400';
+                     
+                     if (state === 'success') {
+                         dotColor = 'bg-green-500 border-green-200 shadow-[0_0_8px_rgba(34,197,94,0.4)]'; borderColor = 'border-green-200'; stateText = 'Thành công'; icon = '✅'; textColor = 'text-green-700';
+                     } else if (state === 'running') {
+                         dotColor = 'bg-blue-500 border-blue-200 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]'; borderColor = 'border-blue-300'; stateText = 'Đang xử lý...'; icon = '⚙️'; textColor = 'text-blue-700';
+                     } else if (state === 'failed') {
+                         dotColor = 'bg-red-500 border-red-200 shadow-[0_0_8px_rgba(239,68,68,0.4)]'; borderColor = 'border-red-200'; stateText = 'Lỗi'; icon = '❌'; textColor = 'text-red-700';
+                     }
+                     
+                     return (
+                        <div key={pt.id} className="relative">
+                           {/* Dot */}
+                           <div className={`absolute -left-[27px] top-2 w-3.5 h-3.5 rounded-full border-2 bg-clip-padding ${dotColor} z-10 transition-colors duration-300`} />
+                           
+                           {/* Card */}
+                           <div className={`bg-white rounded-xl p-3 border ${borderColor} shadow-sm transition-all duration-300 ${state === 'running' ? 'bg-blue-50/40 scale-[1.02]' : ''}`}>
+                              <div className="flex items-center justify-between">
+                                 <p className={`font-semibold text-sm ${state === 'pending' ? 'text-gray-500' : 'text-gray-800'}`}>{pt.label}</p>
+                                 <span className="text-sm opacity-80">{icon}</span>
+                              </div>
+                              <p className={`text-[11px] font-medium mt-0.5 ${textColor}`}>{stateText}</p>
+                           </div>
+                        </div>
+                     )
+                  })}
+               </div>
+            </div>
           )}
+        </div>
+
+        {/* CỘT PHẢI (History & Superset) */}
+        <div className="lg:col-span-8 flex flex-col gap-6 h-full">
+          
+          {/* 3. Upload History */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[320px]">
+            <div className="flex items-center justify-between px-6 py-4 border-b bg-white shrink-0">
+              <div>
+                <h3 className="font-bold text-gray-800 text-base">Lịch sử tải lên</h3>
+                <p className="text-[11px] text-gray-500 mt-0.5">Tự động đồng bộ trạng thái Pipeline mỗi 5 giây</p>
+              </div>
+              <button
+                onClick={fetchHistory}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition"
+                disabled={historyLoading}
+              >
+                <span className={historyLoading ? 'animate-spin' : ''}>🔄</span> {historyLoading ? 'Đang tải...' : 'Làm mới'}
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-auto bg-gray-50/50 p-4">
+              {history.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                  <span className="text-4xl mb-3 opacity-50">📁</span>
+                  <p className="text-sm font-medium">Chưa có dữ liệu nào được tải lên hệ thống.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {history.map((item, i) => {
+                    const st = getStatus(item);
+                    return (
+                      <div key={item.id || i} className="bg-white border border-gray-100 rounded-xl p-3.5 shadow-sm hover:shadow-md hover:border-gray-200 transition-all flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3.5 min-w-0">
+                           <div className="w-10 h-10 rounded-lg bg-blue-50/80 text-blue-600 border border-blue-100 flex items-center justify-center font-bold text-sm shrink-0">
+                             📄
+                           </div>
+                           <div className="min-w-0">
+                             <h4 className="font-semibold text-gray-800 text-sm truncate" title={item.filename}>{item.filename}</h4>
+                             <div className="text-[11px] text-gray-500 mt-1 flex items-center gap-2 truncate">
+                                <span className="font-medium text-gray-600">👤 {item.username}</span>
+                                <span className="text-gray-300">•</span>
+                                <span className="font-mono text-gray-500" title={item.dag_run_id}>{item.dag_run_id?.slice(0, 12)}...</span>
+                             </div>
+                           </div>
+                        </div>
+                        
+                        <div className="flex flex-col items-end shrink-0 gap-1.5">
+                           <span className={`text-[10px] px-2.5 py-1 rounded-md font-semibold border border-opacity-20 ${st.cls}`}>
+                             {st.label}
+                           </span>
+                           <span className="text-[10px] text-gray-400 font-medium">
+                             {item.uploaded_at ? new Date(item.uploaded_at + 'Z').toLocaleString('vi-VN') : '—'}
+                           </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 4. Superset Dashboard Placeholder */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col flex-1 min-h-[450px]">
+             <div className="px-6 py-4 border-b bg-white flex justify-between items-center shrink-0">
+                <div>
+                  <h3 className="text-base font-bold text-gray-800">Báo cáo Phân tích (Gold Layer)</h3>
+                  <p className="text-[11px] text-gray-500 mt-0.5">Trực quan hóa dữ liệu bằng Apache Superset</p>
+                </div>
+                <a href={supersetUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition font-medium flex items-center gap-1.5">
+                  Mở tab mới ↗
+                </a>
+             </div>
+             <div className="flex-1 bg-gray-50 relative p-3">
+                <iframe
+                   src={supersetUrl}
+                   title="Superset Chart"
+                   className="w-full h-full border border-gray-200 bg-white rounded-xl shadow-inner"
+                ></iframe>
+             </div>
+          </div>
+
         </div>
       </main>
     </div>

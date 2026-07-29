@@ -35,7 +35,7 @@ class UploadHistory(Base):
     user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
     filename = Column(String(255), nullable=False)
     file_size_bytes = Column(Float, nullable=False)
-    file_type = Column(String(50), nullable=True)
+    file_type = Column(String(255), nullable=True)
     s3_path = Column(String(500), nullable=False)
     metadata_info = Column(JSONB, nullable=True)  # "metadata" is a reserved word in SQLAlchemy, so we use metadata_info
     status = Column(String(50), default="Uploaded")

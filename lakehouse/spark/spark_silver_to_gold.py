@@ -27,6 +27,29 @@ vắt qua ranh giới năm, vì so sánh string: 'Q4/2025' > 'Q1/2026' (do ký t
 lỗi "Python worker exited unexpectedly (crashed)" trên Windows (do Spark phải
 spawn tiến trình Python con để chạy UDF). Đã thay bằng regexp_extract() +
 cast() thuần Spark SQL, chạy trong JVM, không còn spawn Python con nữa.
+
+[MỚI - Tự phục hồi orphaned metadata] Khi Nessie catalog còn nhớ 1 bảng Gold
+nhưng file metadata.json tương ứng trên MinIO đã không còn tồn tại (do bị xoá
+thủ công, do reset MinIO không đồng bộ với Nessie, hoặc do 1 lần chạy trước
+bị crash giữa chừng), lệnh `df.writeTo(table).createOrReplace()` sẽ ném lỗi
+dạng:
+    org.apache.iceberg.exceptions.NotFoundException: Failed to open input
+    stream for file: s3a://.../metadata/xxxx.metadata.json
+
+Cơ chế tự phục hồi gồm 2 lớp, TÁCH BIỆT theo đúng thời điểm để tránh gây
+xung đột khi merge:
+  1. `preflight_clean_orphaned_gold_tables()` — chạy TRÊN 'main', TRƯỚC KHI
+     tạo branch tạm cho lần chạy hiện tại. Đảm bảo main sạch orphaned key
+     ngay tại điểm phân nhánh.
+  2. `safe_write_gold_table()` — chỉ dọn orphaned key TRÊN BRANCH TẠM (không
+     đụng vào main) nếu vẫn gặp lỗi này trong lúc ghi trên branch.
+
+  [QUAN TRỌNG] KHÔNG được xoá key mồ côi trên 'main' trong lúc branch tạm
+  đang tồn tại: nếu làm vậy, main sẽ có 1 commit riêng xảy ra SAU điểm
+  phân nhánh, khiến Nessie thấy cả 'main' và 'branch' cùng thay đổi 1 key
+  kể từ điểm fork -> ném NessieReferenceConflictException khi merge, dù dữ
+  liệu trên branch hoàn toàn hợp lệ. Đây chính là lỗi đã gặp ở phiên bản
+  code trước (khi safe_write_gold_table() còn xoá key trên cả 'main').
 ------------------------------------------------------------
 """
 
@@ -65,6 +88,7 @@ from nessie_catalog_utils import (
     merge_branch_to_main,
     check_quality_gold,
     DataQualityError,
+    delete_nessie_orphaned_key,   # [MỚI] dùng để tự phục hồi orphaned metadata
 )
 from openmetadata_lineage_utils import get_client, push_lineage_safe
 
@@ -159,6 +183,95 @@ def with_ten_phong_ban(df):
     return df.withColumn("ten_phong_ban", mapping_expr[col("nhom_don_vi")])
 
 
+def preflight_clean_orphaned_gold_tables(spark):
+    """
+    [MỚI] Dọn dẹp key mồ côi (orphaned metadata) cho cả 4 bảng Gold TRÊN
+    'main' — chạy TRƯỚC KHI tạo branch tạm cho lần chạy này.
+
+    Lý do phải làm ở đây thay vì trong lúc branch đang chạy: nếu xoá key
+    trên 'main' SAU KHI branch đã được fork ra từ main, thì main sẽ có 1
+    commit riêng (DELETE) xảy ra sau điểm phân nhánh. Khi đó Nessie thấy cả
+    'main' và 'branch' đều thay đổi cùng 1 key kể từ điểm fork -> coi là
+    CONFLICT thật sự và từ chối merge (NessieReferenceConflictException),
+    dù dữ liệu trên branch hoàn toàn hợp lệ.
+
+    Bằng cách dọn dẹp 'main' TRƯỚC khi tạo branch, main sẽ ở trạng thái sạch
+    ngay tại điểm phân nhánh, và không bị ai đụng vào thêm trong suốt vòng
+    đời của branch -> merge về sau không còn xung đột.
+    """
+    use_main(spark)
+    gold_tables = [
+        GOLD_SUMMARY_TABLE, GOLD_DETAIL_TABLE, GOLD_COMPARISON_TABLE, GOLD_DICT_TABLE,
+    ]
+    for table_name in gold_tables:
+        try:
+            spark.table(table_name).limit(1).collect()
+        except Exception as exc:
+            error_text = str(exc).lower()
+            is_orphaned_metadata_error = any(
+                token in error_text
+                for token in [
+                    "notfoundexception",
+                    "no such file or directory",
+                    "failed to open input stream",
+                ]
+            )
+            if is_orphaned_metadata_error:
+                print(
+                    f"⚠️  [Preflight] Bảng '{table_name}' bị orphaned metadata trên 'main'. "
+                    f"Đang dọn dẹp key trước khi tạo branch mới..."
+                )
+                delete_nessie_orphaned_key(table_name, "main")
+            # Các lỗi khác (VD bảng chưa từng tồn tại) bỏ qua, vì writeTo(...)
+            # .createOrReplace() ở bước sau sẽ tự tạo bảng mới bình thường.
+
+
+def safe_write_gold_table(df, table_name, branch_name):
+    """
+    Ghi 1 bảng Gold bằng writeTo(...).createOrReplace().
+
+    [MỚI] Tự động phục hồi khi gặp lỗi 'orphaned metadata' NGAY TRÊN BRANCH
+    TẠM — tức Nessie catalog còn nhớ bảng này trên branch nhưng file
+    metadata.json tương ứng trên MinIO đã không còn tồn tại.
+
+    LƯU Ý: hàm này CHỈ dọn dẹp key trên branch tạm (branch_name), KHÔNG đụng
+    vào 'main'. Việc dọn dẹp 'main' đã được thực hiện ở bước preflight
+    (preflight_clean_orphaned_gold_tables) TRƯỚC KHI branch này được tạo ra —
+    xem giải thích chi tiết trong docstring của hàm đó. Nếu dọn 'main' ở đây
+    (trong lúc branch đang sống), main sẽ bị thay đổi sau điểm phân nhánh và
+    gây NessieReferenceConflictException khi merge về sau.
+
+    Khi phát hiện lỗi dạng NotFoundException / FileNotFoundException, hàm sẽ:
+      1. Xoá orphaned key trên branch tạm hiện tại.
+      2. Thử ghi lại 1 lần nữa.
+    Nếu vẫn lỗi (không phải do orphaned key) -> raise nguyên lỗi gốc.
+    """
+    try:
+        df.writeTo(table_name).createOrReplace()
+    except Exception as exc:
+        error_text = str(exc).lower()
+        is_orphaned_metadata_error = any(
+            token in error_text
+            for token in [
+                "notfoundexception",
+                "no such file or directory",
+                "failed to open input stream",
+            ]
+        )
+        if not is_orphaned_metadata_error:
+            raise
+
+        print(
+            f"⚠️  Bảng '{table_name}' bị orphaned metadata trên branch '{branch_name}'. "
+            f"Đang tự động dọn dẹp key và thử ghi lại..."
+        )
+        delete_nessie_orphaned_key(table_name, branch_name)
+
+        # Thử ghi lại 1 lần nữa sau khi đã dọn key
+        df.writeTo(table_name).createOrReplace()
+        print(f"✅ Đã phục hồi và ghi lại thành công bảng '{table_name}'.")
+
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     spark = get_spark_session()
@@ -167,6 +280,10 @@ def main():
     branch_name = make_branch_name("silver_gold")
 
     try:
+        # [MỚI] Dọn dẹp key mồ côi trên 'main' TRƯỚC khi phân nhánh, để main
+        # sạch ngay tại điểm fork -> tránh conflict khi merge về sau.
+        preflight_clean_orphaned_gold_tables(spark)
+
         create_branch(spark, branch_name, from_ref="main")
         use_branch(spark, branch_name)
 
@@ -286,18 +403,20 @@ def main():
 
         # ---------------------------------------------------------
         # GHI DỮ LIỆU LÊN BRANCH TẠM (chưa ảnh hưởng main)
+        # [MỚI] Dùng safe_write_gold_table() thay vì gọi writeTo() trực tiếp,
+        # để tự động phục hồi nếu gặp lỗi orphaned metadata.
         # ---------------------------------------------------------
         print(f"🧊 Đang ghi Data Mart Tổng hợp lên branch '{branch_name}'...")
-        df_summary.writeTo(GOLD_SUMMARY_TABLE).createOrReplace()
+        safe_write_gold_table(df_summary, GOLD_SUMMARY_TABLE, branch_name)
 
         print(f"🧊 Đang ghi Data Mart Chi tiết lên branch '{branch_name}'...")
-        df_detail.writeTo(GOLD_DETAIL_TABLE).createOrReplace()
+        safe_write_gold_table(df_detail, GOLD_DETAIL_TABLE, branch_name)
 
         print(f"🧊 Đang ghi Data Mart So sánh kỳ lên branch '{branch_name}'...")
-        df_comparison.writeTo(GOLD_COMPARISON_TABLE).createOrReplace()
+        safe_write_gold_table(df_comparison, GOLD_COMPARISON_TABLE, branch_name)
 
         print(f"🧊 Đang ghi Data Dictionary (dm_chi_tieu) lên branch '{branch_name}'...")
-        df_dict.writeTo(GOLD_DICT_TABLE).createOrReplace()
+        safe_write_gold_table(df_dict, GOLD_DICT_TABLE, branch_name)
 
         # Data quality check TRÊN BRANCH trước khi merge (2 bảng gốc)
         check_quality_gold(spark, GOLD_SUMMARY_TABLE, GOLD_DETAIL_TABLE)

@@ -192,9 +192,10 @@ def preview_gold(
         where_clause = f"WHERE nhom_don_vi = '{safe_value}'"
 
     try:
+        sort_col = "thoi_gian_du_doan" if table == "kpi_du_doan_tuong_lai" else "thoi_gian_dong_goi_gold"
         columns, rows = _run_trino_query(
             f"SELECT * FROM gold.{table} {where_clause} "
-            f"ORDER BY thoi_gian_dong_goi_gold DESC LIMIT {limit}"
+            f"ORDER BY {sort_col} DESC LIMIT {limit}"
         )
         _, count_rows = _run_trino_query(
             f"SELECT COUNT(*) FROM gold.{table} {where_clause}"

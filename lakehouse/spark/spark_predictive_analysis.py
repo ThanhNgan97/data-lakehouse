@@ -28,7 +28,8 @@ os.environ["PYSPARK_SUBMIT_ARGS"] = (
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     col, when, count, round, current_timestamp, lag, lit,
-    first, max as spark_max, avg, concat, cast
+    first, max as spark_max, avg, concat, cast,
+    row_number, sum as spark_sum
 )
 from pyspark.sql.window import Window
 
@@ -88,9 +89,14 @@ def main():
             print("Không tìm thấy bảng kpi_so_sanh_ky. Không thể thực hiện dự đoán.")
             return
 
-        # Tính toán mức độ tăng trưởng trung bình của từng mã chỉ tiêu
-        df_avg_growth = df_history.filter(col("tang_truong_phan_tram").isNotNull()).groupBy("ma_chi_tieu").agg(
-            avg("tang_truong_phan_tram").alias("avg_growth_pct")
+        # Tính toán mức độ tăng trưởng theo phương pháp Weighted Moving Average (WMA)
+        # Trọng số cao hơn cho các quý gần nhất để dự đoán bám sát xu hướng hiện tại hơn.
+        window_time = Window.partitionBy("ma_chi_tieu").orderBy("quy_danh_gia")
+        df_weighted = df_history.filter(col("tang_truong_phan_tram").isNotNull()) \
+            .withColumn("weight", row_number().over(window_time))
+        
+        df_avg_growth = df_weighted.groupBy("ma_chi_tieu").agg(
+            (spark_sum(col("tang_truong_phan_tram") * col("weight")) / spark_sum(col("weight"))).alias("avg_growth_pct")
         )
         
         # Lấy giá trị kỳ gần nhất của mỗi mã chỉ tiêu

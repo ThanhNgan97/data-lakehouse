@@ -339,10 +339,11 @@ const UserUpload = () => {
                 </a>
              </div>
              <div className="flex-1 bg-gray-50 relative p-3">
+                {/* Lớp overlay trong suốt (nếu cần) hoặc dùng thẳng pointer-events-none trên iframe */}
                 <iframe
                    src={supersetUrl}
                    title="Superset Chart"
-                   className="w-full h-full border border-gray-200 bg-white rounded-xl shadow-inner"
+                   className="w-full h-full border border-gray-200 bg-white rounded-xl shadow-inner pointer-events-none select-none"
                 ></iframe>
              </div>
           </div>

@@ -22,6 +22,13 @@ const STATUS_CONFIG = {
   unreachable:    { label: '🔌 Airflow offline',  cls: 'bg-gray-100 text-gray-500' },
 };
 
+const PIPELINE_TASKS = [
+  { id: 'ingest_bronze', label: 'Extract (Bronze)' },
+  { id: 'bronze_to_silver', label: 'Transform (Silver)' },
+  { id: 'silver_to_gold', label: 'Load (Gold)' },
+  { id: 'predictive_analysis', label: 'Analyze (Predict)' }
+];
+
 const UserUpload = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
@@ -32,6 +39,7 @@ const UserUpload = () => {
   const [uploadError, setUploadError] = useState('');
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [activePipeline, setActivePipeline] = useState(null);
   // polling dag run
   const pollingRef = useRef(null);
 
@@ -39,7 +47,15 @@ const UserUpload = () => {
     setHistoryLoading(true);
     try {
       const res = await axios.get(`${API_URL}/upload/history`, { headers: authHeader() });
-      setHistory(res.data.history || []);
+      const hist = res.data || [];
+      setHistory(hist);
+      
+      // Auto poll if the most recent upload is still running
+      if (hist.length > 0 && ['running', 'queued', 'pending'].includes(hist[0].pipeline_status)) {
+         if (!pollingRef.current && hist[0].dag_run_id) {
+            pollPipelineStatus(hist[0].dag_run_id);
+         }
+      }
     } catch { /* silence */ } finally {
       setHistoryLoading(false);
     }
@@ -53,10 +69,20 @@ const UserUpload = () => {
   const pollPipelineStatus = (dagRunId) => {
     if (!dagRunId) return;
     if (pollingRef.current) clearInterval(pollingRef.current);
+    
+    // Gọi ngay lập tức lần đầu
+    (async () => {
+      try {
+        const res = await axios.get(`${API_URL}/upload/pipeline-status/${dagRunId}`, { headers: authHeader() });
+        setActivePipeline(res.data);
+      } catch {}
+    })();
+
     pollingRef.current = setInterval(async () => {
       try {
         const res = await axios.get(`${API_URL}/upload/pipeline-status/${dagRunId}`, { headers: authHeader() });
         const state = res.data.state;
+        setActivePipeline(res.data);
         if (['success', 'failed', 'unreachable'].includes(state)) {
           clearInterval(pollingRef.current);
           fetchHistory();
@@ -186,6 +212,57 @@ const UserUpload = () => {
               {uploadError}
             </div>
           )}
+        </div>
+
+        {/* Pipeline Step-by-Step Progress */}
+        {activePipeline && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+             <div className="flex justify-between items-center mb-4">
+               <h3 className="text-sm font-bold text-gray-800">Tiến trình Pipeline (Airflow)</h3>
+               <span className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-md">ID: {activePipeline.dag_run_id?.slice(0, 15)}...</span>
+             </div>
+             
+             <div className="relative flex items-center justify-between">
+                {/* Đường line kết nối (tạo background line) */}
+                <div className="absolute top-4 left-10 right-10 h-0.5 bg-gray-200 z-0"></div>
+                
+                {PIPELINE_TASKS.map((pt, idx) => {
+                   const t = activePipeline.tasks?.find(x => x.task_id === pt.id);
+                   const state = t?.state || 'pending';
+                   let color = 'bg-gray-200';
+                   let textColor = 'text-gray-500';
+                   if (state === 'success') { color = 'bg-green-500'; textColor = 'text-green-700'; }
+                   else if (state === 'running') { color = 'bg-yellow-400 animate-pulse'; textColor = 'text-yellow-700'; }
+                   else if (state === 'failed') { color = 'bg-red-500'; textColor = 'text-red-700'; }
+                   
+                   return (
+                      <div key={pt.id} className="relative z-10 flex flex-col items-center flex-1 bg-white">
+                         <div className={`w-8 h-8 rounded-full ${color} text-white flex items-center justify-center mb-2 text-xs font-bold ring-4 ring-white shadow-sm`}>
+                            {state === 'success' ? '✓' : (idx + 1)}
+                         </div>
+                         <div className={`text-xs font-semibold ${textColor}`}>{pt.label}</div>
+                         <div className="text-[10px] text-gray-400 capitalize">{state}</div>
+                      </div>
+                   )
+                })}
+             </div>
+          </div>
+        )}
+
+        {/* Superset Dashboard Placeholder */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+           <h3 className="text-lg font-bold text-gray-800 mb-4">Sơ đồ Superset</h3>
+           <div className="w-full bg-gray-50 rounded-lg overflow-hidden border flex items-center justify-center" style={{ height: '400px' }}>
+              {/* NOTE: Bạn hãy thay thế URL src bằng đường dẫn embed thực tế của Superset Dashboard */}
+              <iframe
+                 width="100%"
+                 height="100%"
+                 frameBorder="0"
+                 src="http://localhost:8088/superset/dashboard/1/?standalone=1&height=400"
+                 title="Superset Chart"
+                 className="w-full h-full border-none"
+              ></iframe>
+           </div>
         </div>
 
         {/* Upload History */}

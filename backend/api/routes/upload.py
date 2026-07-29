@@ -56,17 +56,29 @@ async def upload_file(
        
 
         airflow_url = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/lakehouse_pipeline/dagRuns"
+        dag_run_id = None
         try:
             # Assuming airflow-init sets up admin user with 'airflow:airflow'
             resp = requests.post(airflow_url, json={}, auth=("airflow", "airflow"), timeout=5)
             if resp.status_code in [200, 201]:
                 logging.info("Airflow pipeline triggered successfully.")
+                dag_run_id = resp.json().get("dag_run_id")
+                history_record.dag_run_id = dag_run_id
+                history_record.pipeline_status = "running"
+                db.commit()
             else:
                 logging.warning(f"Failed to trigger Airflow pipeline [{resp.status_code}]: {resp.text}")
+                history_record.pipeline_status = "trigger_failed"
+                db.commit()
         except Exception as e:
             logging.error(f"Error triggering Airflow pipeline at {airflow_url}: {e}")
+            history_record.pipeline_status = "unreachable"
+            db.commit()
 
-        return {"message": f"Đã đẩy trực tiếp file {file.filename} vào trạm {object_name} của MinIO và kích hoạt pipeline!"}
+        return {
+            "message": f"Đã đẩy trực tiếp file {file.filename} vào trạm {object_name} của MinIO và kích hoạt pipeline!",
+            "dag_run_id": dag_run_id
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi đẩy file  {str(e)}")
 
@@ -85,3 +97,47 @@ async def get_upload_history(
         return [record.to_dict() for record in histories]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi lấy lịch sử: {str(e)}")
+
+@router.get("/upload/pipeline-status/{dag_run_id}", summary="Lấy trạng thái step-by-step của Pipeline")
+async def get_pipeline_status(
+    dag_run_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Gọi Airflow API để lấy trạng thái của DAG run và các task bên trong.
+    """
+    airflow_base = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/lakehouse_pipeline/dagRuns/{dag_run_id}"
+    try:
+        # Lấy trạng thái tổng quan DAG run
+        resp_dag = requests.get(airflow_base, auth=("airflow", "airflow"), timeout=5)
+        state = "unknown"
+        if resp_dag.status_code == 200:
+            state = resp_dag.json().get("state", "unknown")
+            
+        # Lấy trạng thái các task (taskInstances)
+        tasks = []
+        resp_tasks = requests.get(f"{airflow_base}/taskInstances", auth=("airflow", "airflow"), timeout=5)
+        if resp_tasks.status_code == 200:
+            task_instances = resp_tasks.json().get("task_instances", [])
+            for t in task_instances:
+                tasks.append({
+                    "task_id": t.get("task_id"),
+                    "state": t.get("state"),
+                    "start_date": t.get("start_date"),
+                    "end_date": t.get("end_date")
+                })
+        
+        # Cập nhật pipeline_status vào DB
+        record = db.query(UploadHistory).filter(UploadHistory.dag_run_id == dag_run_id).first()
+        if record and state != "unknown":
+            record.pipeline_status = state
+            db.commit()
+            
+        return {
+            "dag_run_id": dag_run_id,
+            "state": state,
+            "tasks": tasks
+        }
+    except Exception as e:
+        return {"state": "unreachable", "error": str(e), "tasks": []}

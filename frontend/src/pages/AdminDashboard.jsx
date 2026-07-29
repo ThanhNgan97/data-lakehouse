@@ -11,7 +11,7 @@ const AdminDashboard = () => {
 
   const supersetUrl =
     import.meta.env.VITE_SUPERSET_DASHBOARD_URL ||
-    'http://localhost:8088/superset/dashboard/1/?native_filters_key=8TNRVjTeKm37iM9LWUB6EX-Z6hUKzsb-3BK6RuTaYCHmOLIwd75IMSdjyh913EeT&standalone=2';
+    'http://localhost:8088/superset/dashboard/1/?standalone=3';
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -20,11 +20,11 @@ const AdminDashboard = () => {
   };
 
   const NAV = [
-    { key: 'dashboard', icon: '📊', label: 'Báo cáo Tổng hợp (Gold)' },
-    { key: 'pipeline',  icon: '🔗', label: 'Dữ liệu Pipeline' },
-    { key: 'catalog',   icon: '🌿', label: 'Lịch sử Branch/Merge' },
-    { key: 'history',   icon: '🕒', label: 'Lịch sử Upload' },
-    { key: 'users',     icon: '👥', label: 'Quản lý Người dùng' },
+    { key: 'dashboard', icon: '', label: 'Báo cáo Tổng hợp (Gold)' },
+    { key: 'pipeline',  icon: '', label: 'Dữ liệu Pipeline' },
+    { key: 'catalog',   icon: '', label: 'Lịch sử Branch/Merge' },
+    { key: 'history',   icon: '', label: 'Lịch sử Upload' },
+    { key: 'users',     icon: '', label: 'Quản lý Người dùng' },
   ];
 
   const TAB_TITLES = {

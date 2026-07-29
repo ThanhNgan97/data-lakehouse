@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-
+  const supersetUrl =
+    import.meta.env.VITE_SUPERSET_DASHBOARD_URL ||
+    'http://localhost:8088/superset/dashboard/1/?standalone=3';
 const authHeader = () => ({
   Authorization: `Bearer ${localStorage.getItem('token')}`,
 });
@@ -266,7 +268,7 @@ const UserUpload = () => {
                  width="100%"
                  height="100%"
                  frameBorder="0"
-                 src="http://localhost:8088/superset/dashboard/1/?standalone=1&height=400"
+                 src={supersetUrl}
                  title="Superset Chart"
                  className="w-full h-full border-none"
               ></iframe>

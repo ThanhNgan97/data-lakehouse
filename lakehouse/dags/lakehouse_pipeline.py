@@ -40,5 +40,11 @@ with DAG(
         bash_command='cd /opt/airflow/spark && python spark_silver_to_gold.py',
     )
 
+    # Task 4: Predictive Analysis in Gold Layer
+    predictive_analysis = BashOperator(
+        task_id='predictive_analysis',
+        bash_command='cd /opt/airflow/spark && python spark_predictive_analysis.py',
+    )
+
     # Define the pipeline flow
-    ingest_bronze >> bronze_to_silver >> silver_to_gold
+    ingest_bronze >> bronze_to_silver >> silver_to_gold >> predictive_analysis

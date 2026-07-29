@@ -1,8 +1,17 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routes import auth, upload
 
-app = FastAPI(title="Lakehouse API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Khởi tạo DB (tạo bảng + seed users mặc định) khi server start."""
+    from db.database import init_db
+    init_db()
+    yield
+
+
+app = FastAPI(title="Lakehouse API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -12,18 +21,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include Routers
-app.include_router(auth.router, tags=["Authentication"])
+# Authentication
+from api.routes import auth
+app.include_router(auth.router, prefix="/api", tags=["Authentication"])
+
+# Upload + Upload History
+from api.routes import upload
 app.include_router(upload.router, prefix="/api", tags=["Upload"])
 
-# Catalog Router
+# Catalog (Nessie history / references)
 from api.routes import catalog
-app.include_router(catalog.router, prefix="/api")
+app.include_router(catalog.router, prefix="/api", tags=["Catalog"])
 
-# Pipeline Data Explorer Router (Bronze/Silver/Gold preview - giống Airflow Graph View)
+# Pipeline Data Explorer — prefix="/api/pipeline" để khớp frontend
 from api.routes import pipeline_preview
-# app.include_router(pipeline_preview.router, prefix="/api/pipeline", tags=["Pipeline"])
-app.include_router(pipeline_preview.router, prefix="/pipeline", tags=["Pipeline"])
+app.include_router(pipeline_preview.router, prefix="/api/pipeline", tags=["Pipeline"])
+
+# User Management (CRUD — admin only, dùng PostgreSQL ORM)
+from api.routes import users
+app.include_router(users.router, prefix="/api", tags=["Users"])
+
+
 @app.get("/")
 async def root():
     return {"message": "Welcome to Lakehouse API!"}

@@ -32,6 +32,7 @@ const Login = ({ setToken, setRole }) => {
       // Điều hướng chuyển trang tự động dựa theo vai trò (Role)
       if (role === 'admin') {
         navigate('/admin');
+      localStorage.setItem('username', username); // Lưu tên người dùng vào LocalStorage
       } else {
         navigate('/user');
       }

@@ -4,6 +4,16 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Legend, Cell,
 } from 'recharts';
+import { 
+  Building2, 
+  Target, 
+  Star, 
+  BarChart3, 
+  TrendingUp, 
+  AlertTriangle, 
+  Activity,
+  Inbox
+} from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
@@ -68,50 +78,56 @@ const KPICharts = () => {
   }, []);
 
   const chartTabs = [
-    { key: 'summary', label: '📊 Tỷ lệ Hoàn thành KPI', desc: 'Tổng hợp theo đơn vị' },
-    { key: 'compare', label: '📈 So sánh Tăng trưởng', desc: 'So sánh kỳ này vs kỳ trước' },
+    { key: 'summary', label: 'Tỷ lệ Hoàn thành KPI', icon: <BarChart3 className="w-4 h-4 inline mr-2" />, desc: 'Tổng hợp theo đơn vị' },
+    { key: 'compare', label: 'So sánh Tăng trưởng', icon: <TrendingUp className="w-4 h-4 inline mr-2" />, desc: 'So sánh kỳ này vs kỳ trước' },
   ];
 
   return (
-    <div className="p-6 h-full overflow-y-auto">
+    <div className="p-6 h-full overflow-y-auto bg-slate-50/50">
       {/* Header */}
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-gray-800">📈 Biểu đồ KPI</h3>
-        <p className="text-sm text-gray-400 mt-1">
+      <div className="mb-8">
+        <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2 tracking-tight">
+          <TrendingUp className="w-6 h-6 text-blue-600" /> Phân tích & Biểu đồ KPI
+        </h3>
+        <p className="text-sm text-slate-500 mt-1.5 font-medium">
           Trực quan hóa dữ liệu từ tầng Gold (Iceberg) qua Trino — không phụ thuộc Superset.
         </p>
       </div>
 
       {/* Chart Tabs */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-3 mb-8">
         {chartTabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveChart(tab.key)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition border ${
+            className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 border ${
               activeChart === tab.key
-                ? 'bg-blue-600 text-white border-blue-600 shadow'
-                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-600/20'
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300 shadow-sm'
             }`}
           >
+            {tab.icon}
             {tab.label}
           </button>
         ))}
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-sm">
-          ⚠️ {error}
-          <p className="mt-1 text-xs text-amber-500">
-            Chạy pipeline Bronze → Silver → Gold để có dữ liệu hiển thị.
-          </p>
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-sm flex items-start gap-2">
+          <AlertTriangle className="w-5 h-5 shrink-0" />
+          <div>
+            <p>{error}</p>
+            <p className="mt-1 text-xs text-amber-500">
+              Chạy pipeline Bronze → Silver → Gold để có dữ liệu hiển thị.
+            </p>
+          </div>
         </div>
       )}
 
       {loading ? (
         <div className="flex items-center justify-center h-64 text-gray-400 text-sm">
           <div className="text-center">
-            <div className="text-4xl mb-3 animate-pulse">📊</div>
+            <div className="mb-3 flex justify-center"><Activity className="w-10 h-10 animate-pulse text-blue-500" /></div>
             Đang tải dữ liệu biểu đồ...
           </div>
         </div>
@@ -129,7 +145,7 @@ const KPICharts = () => {
                     <StatCard
                       label="Số đơn vị"
                       value={summaryData.length}
-                      icon="🏢"
+                      icon={<Building2 className="w-6 h-6" />}
                       color="blue"
                     />
                     <StatCard
@@ -138,20 +154,20 @@ const KPICharts = () => {
                         summaryData.reduce((s, r) => s + parseFloat(r.ty_le_hoan_thanh_phan_tram || 0), 0) /
                         summaryData.length
                       ).toFixed(1)}%`}
-                      icon="🎯"
+                      icon={<Target className="w-6 h-6" />}
                       color="green"
                     />
                     <StatCard
                       label="Đơn vị xuất sắc (≥90%)"
                       value={summaryData.filter((r) => parseFloat(r.ty_le_hoan_thanh_phan_tram || 0) >= 90).length}
-                      icon="⭐"
+                      icon={<Star className="w-6 h-6" />}
                       color="yellow"
                     />
                   </div>
 
                   {/* Bar Chart */}
-                  <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4">
+                  <div className="bg-white rounded-2xl border border-slate-100 shadow-xl shadow-slate-200/40 p-6">
+                    <h4 className="text-[15px] font-bold text-slate-800 mb-6 tracking-tight">
                       Tỷ lệ hoàn thành KPI theo đơn vị (%)
                     </h4>
                     <ResponsiveContainer width="100%" height={320}>
@@ -164,15 +180,17 @@ const KPICharts = () => {
                         }))}
                         margin={{ top: 5, right: 20, left: 0, bottom: 40 }}
                       >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                         <XAxis
                           dataKey="name"
-                          tick={{ fontSize: 11, fill: '#6B7280' }}
+                          tick={{ fontSize: 11, fill: '#64748b' }}
                           angle={-30}
                           textAnchor="end"
                           interval={0}
+                          axisLine={false}
+                          tickLine={false}
                         />
-                        <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#6B7280' }} unit="%" />
+                        <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#64748b' }} unit="%" axisLine={false} tickLine={false} />
                         <Tooltip content={<CustomTooltip />} />
                         <Bar dataKey="Tỷ lệ hoàn thành (%)" radius={[4, 4, 0, 0]}>
                           {summaryData.map((_, i) => (
@@ -198,38 +216,40 @@ const KPICharts = () => {
                   </div>
 
                   {/* Ranking Table */}
-                  <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4">Bảng xếp hạng đơn vị</h4>
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="border-b text-gray-500">
-                          <th className="text-left py-2 px-3">Xếp hạng</th>
-                          <th className="text-left py-2 px-3">Đơn vị</th>
-                          <th className="text-right py-2 px-3">Đạt / Tổng</th>
-                          <th className="text-right py-2 px-3">Tỷ lệ</th>
+                  <div className="bg-white rounded-2xl border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden">
+                    <div className="p-6 border-b border-slate-100">
+                      <h4 className="text-[15px] font-bold text-slate-800 tracking-tight">Bảng xếp hạng đơn vị</h4>
+                    </div>
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-50 border-b border-slate-100">
+                        <tr className="text-slate-500">
+                          <th className="text-left py-3 px-6 font-semibold">Xếp hạng</th>
+                          <th className="text-left py-3 px-6 font-semibold">Đơn vị</th>
+                          <th className="text-right py-3 px-6 font-semibold">Đạt / Tổng</th>
+                          <th className="text-right py-3 px-6 font-semibold">Tỷ lệ</th>
                         </tr>
                       </thead>
-                      <tbody>
+                      <tbody className="divide-y divide-slate-100">
                         {[...summaryData]
                           .sort((a, b) => parseFloat(b.ty_le_hoan_thanh_phan_tram || 0) - parseFloat(a.ty_le_hoan_thanh_phan_tram || 0))
                           .map((r, i) => {
                             const pct = parseFloat(r.ty_le_hoan_thanh_phan_tram || 0);
                             return (
-                              <tr key={i} className="border-b hover:bg-gray-50">
-                                <td className="py-2 px-3 font-bold text-gray-400">
-                                  {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
+                              <tr key={i} className="hover:bg-slate-50/80 transition-colors">
+                                <td className="py-3 px-6 font-bold text-slate-400">
+                                  {i === 0 ? <span className="text-yellow-500 font-black">#1</span> : i === 1 ? <span className="text-gray-400 font-black">#2</span> : i === 2 ? <span className="text-amber-600 font-black">#3</span> : `#${i + 1}`}
                                 </td>
-                                <td className="py-2 px-3 font-medium text-gray-700">{r.nhom_don_vi || r.ten_phong_ban}</td>
-                                <td className="py-2 px-3 text-right text-gray-500">
+                                <td className="py-3 px-6 font-medium text-slate-700">{r.nhom_don_vi || r.ten_phong_ban}</td>
+                                <td className="py-3 px-6 text-right text-slate-500 font-medium">
                                   {r.so_chi_tieu_dat} / {r.tong_chi_tieu_danh_gia}
                                 </td>
-                                <td className="py-2 px-3 text-right">
+                                <td className="py-3 px-6 text-right">
                                   <span className={`font-bold ${pct >= 90 ? 'text-green-600' : pct >= 70 ? 'text-blue-600' : 'text-red-500'}`}>
                                     {pct.toFixed(1)}%
                                   </span>
-                                  <div className="w-full bg-gray-100 rounded-full h-1 mt-1">
+                                  <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2">
                                     <div
-                                      className={`h-1 rounded-full ${pct >= 90 ? 'bg-green-500' : pct >= 70 ? 'bg-blue-500' : 'bg-red-400'}`}
+                                      className={`h-1.5 rounded-full ${pct >= 90 ? 'bg-green-500' : pct >= 70 ? 'bg-blue-500' : 'bg-red-400'}`}
                                       style={{ width: `${Math.min(pct, 100)}%` }}
                                     />
                                   </div>
@@ -251,8 +271,8 @@ const KPICharts = () => {
               {compareData.length === 0 ? (
                 <EmptyState message="Chưa có dữ liệu so sánh kỳ. Cần có ít nhất 2 kỳ đánh giá." />
               ) : (
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-4">
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-xl shadow-slate-200/40 p-6">
+                  <h4 className="text-[15px] font-bold text-slate-800 mb-6 tracking-tight">
                     Tăng trưởng KPI so với kỳ trước (%)
                   </h4>
                   <ResponsiveContainer width="100%" height={350}>
@@ -286,22 +306,22 @@ const KPICharts = () => {
 
 const StatCard = ({ label, value, icon, color }) => {
   const colors = {
-    blue: 'bg-blue-50 border-blue-100 text-blue-700',
-    green: 'bg-green-50 border-green-100 text-green-700',
-    yellow: 'bg-yellow-50 border-yellow-100 text-yellow-700',
+    blue: 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100 text-blue-700 shadow-blue-500/10',
+    green: 'bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-100 text-emerald-700 shadow-emerald-500/10',
+    yellow: 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-100 text-amber-700 shadow-amber-500/10',
   };
   return (
-    <div className={`rounded-xl border p-4 ${colors[color]}`}>
-      <div className="text-2xl mb-1">{icon}</div>
-      <div className="text-2xl font-bold">{value}</div>
-      <div className="text-xs opacity-70 mt-0.5">{label}</div>
+    <div className={`rounded-2xl border p-5 shadow-lg ${colors[color]}`}>
+      <div className="mb-2 opacity-80">{icon}</div>
+      <div className="text-3xl font-black tracking-tight">{value}</div>
+      <div className="text-sm font-medium opacity-80 mt-1">{label}</div>
     </div>
   );
 };
 
 const EmptyState = ({ message }) => (
   <div className="flex flex-col items-center justify-center h-64 text-gray-400 text-sm bg-white rounded-xl border border-dashed border-gray-200">
-    <div className="text-5xl mb-3">📭</div>
+    <Inbox className="w-12 h-12 mb-3 text-gray-300" />
     <p className="font-medium">{message || 'Chưa có dữ liệu để hiển thị.'}</p>
     <p className="text-xs mt-1 text-gray-300">Chạy pipeline đầy đủ Bronze → Silver → Gold để xem biểu đồ.</p>
   </div>

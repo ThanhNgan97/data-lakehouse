@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
+import { ArrowRight, Search, X, Lightbulb, Download } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
@@ -160,18 +161,18 @@ const PipelineDataExplorer = () => {
 
   const nodeClass = (layer) => {
     const isDone = status[layer];
-    return `relative flex-1 border-2 rounded-xl p-5 text-center transition cursor-pointer ${
+    return `relative flex-1 border-2 rounded-2xl p-6 text-center transition-all duration-300 cursor-pointer shadow-lg hover:-translate-y-1 ${
       isDone
-        ? 'border-green-500 bg-green-50 hover:bg-green-100'
-        : 'border-gray-300 bg-gray-50 hover:bg-gray-100 opacity-70'
+        ? 'border-emerald-200 bg-emerald-50/50 hover:bg-emerald-50 hover:shadow-emerald-500/20 hover:border-emerald-300'
+        : 'border-slate-200 bg-slate-50 hover:bg-slate-100 opacity-70 shadow-none'
     }`;
   };
 
   return (
-    <div className="p-6 h-full overflow-y-auto">
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-gray-800">Pipeline Dữ Liệu: Bronze → Silver → Gold</h3>
-        <p className="text-sm text-gray-400 mt-1">
+    <div className="p-6 h-full overflow-y-auto bg-slate-50/50">
+      <div className="mb-8">
+        <h3 className="text-xl font-bold text-slate-800 tracking-tight">Pipeline Dữ Liệu: Bronze → Silver → Gold</h3>
+        <p className="text-sm text-slate-500 mt-1.5 font-medium">
           Click vào từng tầng để xem bảng dữ liệu thật đang có ở tầng đó (giống trạng thái chạy trên Airflow).
         </p>
       </div>
@@ -181,16 +182,18 @@ const PipelineDataExplorer = () => {
         {['bronze', 'silver', 'gold'].map((layer, idx) => (
           <React.Fragment key={layer}>
             <div className={nodeClass(layer)} onClick={() => openLayer(layer)}>
-              <div className="flex items-center justify-center gap-2 mb-1">
+              <div className="flex items-center justify-center gap-2 mb-2">
                 <span
-                  className={`w-2.5 h-2.5 rounded-full ${status[layer] ? 'bg-green-500' : 'bg-gray-400'}`}
+                  className={`w-3 h-3 rounded-full shadow-sm ${status[layer] ? 'bg-emerald-500 shadow-emerald-500/50' : 'bg-slate-300'}`}
                 />
-                <span className="font-semibold text-gray-800">{LAYER_INFO[layer].label}</span>
+                <span className="font-bold text-slate-800 text-lg">{LAYER_INFO[layer].label}</span>
               </div>
-              <p className="text-xs text-gray-500">{LAYER_INFO[layer].desc}</p>
-              <p className="text-[11px] text-blue-600 mt-2 underline">Xem bảng dữ liệu →</p>
+              <p className="text-xs font-medium text-slate-500">{LAYER_INFO[layer].desc}</p>
+              <p className="text-[11px] font-semibold text-blue-600 mt-3 flex items-center justify-center gap-1">
+                Xem bảng dữ liệu <ArrowRight className="w-3 h-3" />
+              </p>
             </div>
-            {idx < 2 && <div className="text-gray-300 text-2xl">➜</div>}
+            {idx < 2 && <div className="text-gray-300 flex items-center justify-center px-2"><ArrowRight className="w-6 h-6" /></div>}
           </React.Fragment>
         ))}
       </div>
@@ -201,22 +204,22 @@ const PipelineDataExplorer = () => {
 
       {/* Modal xem dữ liệu */}
       {activeLayer && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-6">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[85vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-6 transition-all">
+          <div className="bg-white rounded-2xl shadow-2xl shadow-slate-900/20 w-full max-w-6xl max-h-[85vh] flex flex-col overflow-hidden border border-slate-200">
+            <div className="flex items-center justify-between px-7 py-5 border-b border-slate-100 bg-white">
               <div>
-                <h4 className="font-semibold text-gray-800">
+                <h4 className="font-bold text-slate-800 text-lg tracking-tight">
                   Dữ liệu tầng {LAYER_INFO[activeLayer].label}
                   {previewData?.source_file && (
-                    <span className="text-xs text-gray-400 font-normal ml-2">({previewData.source_file})</span>
+                    <span className="text-xs text-slate-400 font-medium ml-2">({previewData.source_file})</span>
                   )}
                   {previewData?.source_table && (
-                    <span className="text-xs text-gray-400 font-normal ml-2">({previewData.source_table})</span>
+                    <span className="text-xs text-slate-400 font-medium ml-2">({previewData.source_table})</span>
                   )}
                 </h4>
                 {previewData && (
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    Tổng {previewData.total_rows} dòng
+                  <p className="text-xs text-slate-500 mt-1 font-medium">
+                    Tổng <strong className="text-slate-700">{previewData.total_rows}</strong> dòng
                     {searchQuery && ` — lọc ra ${filteredRows.length} dòng`}
                     {` — trang ${page}/${totalPages}`}
                   </p>
@@ -225,13 +228,16 @@ const PipelineDataExplorer = () => {
               <div className="flex items-center gap-2">
                 {/* Search */}
                 {previewData && (
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-                    placeholder="🔍 Tìm kiếm..."
-                    className="border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 w-48"
-                  />
+                  <div className="relative">
+                    <Search className="w-4 h-4 absolute left-2.5 top-1.5 text-gray-400" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+                      placeholder="Tìm kiếm..."
+                      className="border border-gray-200 rounded-lg pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 w-48"
+                    />
+                  </div>
                 )}
                 {/* Export CSV */}
                 {previewData?.rows?.length > 0 && (
@@ -241,28 +247,28 @@ const PipelineDataExplorer = () => {
                       filteredRows,
                       `${activeLayer}_${activeGoldTable || 'data'}.csv`
                     )}
-                    className="px-3 py-1.5 text-xs bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg transition"
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg transition"
                   >
-                     Xuất CSV
+                     <Download className="w-4 h-4" /> Xuất CSV
                   </button>
                 )}
-                <button onClick={closeModal} className="text-gray-400 hover:text-gray-700 text-xl leading-none ml-2">
-                  ✕
+                <button onClick={closeModal} className="text-gray-400 hover:text-gray-700 p-1 ml-2">
+                  <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
             {/* Chọn bảng khi đang xem Gold (Gold có 4 bảng) */}
             {activeLayer === 'gold' && (
-              <div className="flex items-center flex-wrap gap-2 px-6 py-3 border-b bg-white">
+              <div className="flex items-center flex-wrap gap-2 px-7 py-4 border-b border-slate-100 bg-slate-50/50">
                 {Object.entries(GOLD_TABLE_LABELS).map(([key, label]) => (
                   <button
                     key={key}
                     onClick={() => setActiveGoldTable(key)}
-                    className={`text-xs  h-[40px] px-3 py-2 rounded-full border transition ${
+                    className={`text-xs font-semibold h-[40px] px-4 py-2 rounded-xl transition-all duration-300 border ${
                       activeGoldTable === key
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
                     }`}
                   >
                     {label}
@@ -272,13 +278,13 @@ const PipelineDataExplorer = () => {
                 {/* [MỚI] Badge hiển thị đơn vị đang lọc (kết quả drill-down) + nút bỏ lọc */}
                 {selectedUnit && (
                   <span className="flex items-center gap-2 text-xs h-[40px] px-3 py-2 rounded-full border border-blue-300 bg-blue-50 text-blue-700 ml-2">
-                    🔎 Đang lọc theo đơn vị: <strong>{selectedUnit.label}</strong>
+                    <Search className="w-3 h-3" /> Đang lọc theo đơn vị: <strong>{selectedUnit.label}</strong>
                     <button
                       onClick={clearUnitFilter}
-                      className="text-blue-500 hover:text-blue-800 font-bold leading-none ml-1"
+                      className="text-blue-500 hover:text-blue-800 ml-1 p-0.5 rounded-full hover:bg-blue-100"
                       title="Bỏ lọc đơn vị"
                     >
-                      ✕
+                      <X className="w-3 h-3" />
                     </button>
                   </span>
                 )}
@@ -287,8 +293,8 @@ const PipelineDataExplorer = () => {
 
             {/* [MỚI] Gợi ý drill-down khi đang ở bảng tổng hợp và chưa lọc gì */}
             {activeLayer === 'gold' && activeGoldTable === DRILLABLE_SOURCE_TABLE && !selectedUnit && !loading && (
-              <div className="px-6 py-2 text-xs text-gray-400 bg-white border-b">
-                💡 Click vào 1 dòng bên dưới để xem chi tiết đầy đủ của đơn vị đó.
+              <div className="px-6 py-2 text-xs text-gray-400 bg-white border-b flex items-center gap-2">
+                <Lightbulb className="w-4 h-4 text-yellow-500" /> Click vào 1 dòng bên dưới để xem chi tiết đầy đủ của đơn vị đó.
               </div>
             )}
 
@@ -299,17 +305,17 @@ const PipelineDataExplorer = () => {
               {!loading && !error && previewData && (
                 <>
                   <table className="w-full text-xs border-collapse">
-                    <thead className="sticky top-0 bg-gray-100 z-10">
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left px-3 py-2 border-b text-slate-700 font-semibold whitespace-nowrap">STT</th>
+                    <thead className="sticky top-0 bg-slate-100/80 backdrop-blur-md z-10 border-b border-slate-200">
+                      <tr>
+                        <th className="text-left px-4 py-3 text-slate-700 font-bold whitespace-nowrap">STT</th>
                         {previewData.columns.map((c) => (
-                          <th key={c} className="text-left px-3 py-2 border-b text-slate-700 font-semibold whitespace-nowrap">
+                          <th key={c} className="text-left px-4 py-3 text-slate-700 font-bold whitespace-nowrap">
                             {Heardertable[c] || c}
                           </th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-slate-100">
                       {pagedRows.map((row, i) => {
                         const isDrillable = activeLayer === 'gold' && activeGoldTable === DRILLABLE_SOURCE_TABLE;
                         const globalIdx = (page - 1) * PAGE_SIZE + i + 1;
@@ -317,12 +323,12 @@ const PipelineDataExplorer = () => {
                           <tr
                             key={i}
                             onClick={() => handleRowDrillDown(row)}
-                            className={`odd:bg-white even:bg-gray-50 ${isDrillable ? 'cursor-pointer hover:bg-blue-50' : ''}`}
+                            className={`hover:bg-slate-50 transition-colors ${isDrillable ? 'cursor-pointer hover:bg-blue-50/50' : ''}`}
                             title={isDrillable ? 'Click để xem chi tiết đơn vị này' : undefined}
                           >
-                            <td className="px-3 py-1.5 border-b border-gray-100 whitespace-nowrap text-gray-400">{globalIdx}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-slate-400 font-medium">{globalIdx}</td>
                             {previewData.columns.map((c) => (
-                              <td key={c} className="px-3 py-1.5 border-b border-gray-100 whitespace-nowrap">
+                              <td key={c} className="px-4 py-3 whitespace-nowrap text-slate-600 font-medium">
                                 {String(row[c] ?? '')}
                               </td>
                             ))}
@@ -330,7 +336,7 @@ const PipelineDataExplorer = () => {
                         );
                       })}
                       {pagedRows.length === 0 && (
-                        <tr><td colSpan={previewData.columns.length + 1} className="text-center py-8 text-gray-400">Không có kết quả phù hợp.</td></tr>
+                        <tr><td colSpan={previewData.columns.length + 1} className="text-center py-10 text-slate-400 font-medium">Không có kết quả phù hợp.</td></tr>
                       )}
                     </tbody>
                   </table>

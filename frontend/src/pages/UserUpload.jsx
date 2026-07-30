@@ -343,7 +343,7 @@ const UserUpload = () => {
                 <iframe
                    src={supersetUrl}
                    title="Superset Chart"
-                   className="w-full h-full border border-gray-200 bg-white rounded-xl shadow-inner pointer-events-none select-none"
+                   className="w-full h-full border border-gray-200 bg-white rounded-xl shadow-inner "
                 ></iframe>
              </div>
           </div>

@@ -95,6 +95,7 @@ def get_s3_client():
     return boto3.client(
         "s3", endpoint_url=MINIO_ENDPOINT,
         aws_access_key_id=MINIO_ACCESS_KEY, aws_secret_access_key=MINIO_SECRET_KEY,
+        verify=False
     )
 
 
@@ -219,7 +220,7 @@ def archive_processed_bronze_files(s3_client):
         archive_key = key.replace(BRONZE_PREFIX, BRONZE_ARCHIVE_PREFIX, 1)
         s3_client.copy_object(
             Bucket=MINIO_BUCKET_NAME,
-            CopySource={"Bucket": MINIO_BUCKET_NAME, "Key": key},
+            CopySource=f"{MINIO_BUCKET_NAME}/{key}",
             Key=archive_key,
         )
         s3_client.delete_object(Bucket=MINIO_BUCKET_NAME, Key=key)
@@ -248,8 +249,9 @@ def main():
 
         try:
             df_bronze = spark.read.option("mergeSchema", "true").parquet(bronze_parquet_path)
-        except Exception:
-            print(f"Không tìm thấy dữ liệu Parquet tại {bronze_parquet_path}. Có thể chưa có file nào được ingest.")
+        except Exception as e:
+            print(f"LỖI KHI ĐỌC PARQUET ({bronze_parquet_path}): {e}")
+            print(f"Không tìm thấy dữ liệu Parquet hoặc lỗi kết nối MinIO. Có thể chưa có file nào được ingest.")
             return
 
         # [MỚI] Dedup theo khóa nghiệp vụ (ma_chi_tieu, quy_danh_gia), không chỉ checksum

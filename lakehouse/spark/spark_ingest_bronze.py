@@ -143,12 +143,12 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
             raise ValueError("Không thể trích xuất văn bản từ file DOCX.")
 
         prompt = (
-            "Bạn là một chuyên gia phân tích dữ liệu KPI giáo dục. "
-            "Hãy đọc văn bản dưới đây và trích xuất tất cả các dòng chỉ tiêu KPI trong bảng. "
-            "Trả về một mảng JSON các đối tượng có các trường (keys) đúng theo cấu trúc được yêu cầu. "
+            "Bạn là một chuyên gia phân tích dữ liệu. "
+            "Hãy đọc tài liệu dưới đây và trích xuất tất cả các dòng dữ liệu trong bảng ĐÁNH GIÁ MỤC TIÊU (KPI). "
+            "Trả về một mảng JSON các đối tượng có cấu trúc yêu cầu. "
             "Lưu ý: "
             "1. ma_chi_tieu là cột MÃ trong bảng, hãy lấy nguyên văn (VD: ĐT-MT01, QTCL MT001). "
-            "2. quy_danh_gia phải có dạng Q[1-4]/[Năm], ví dụ Q1/2026. Nếu không tìm thấy, để trống hoặc 'N/A'. "
+            "2. quy_danh_gia hãy lấy từ tiêu đề (VD: QUÝ 4/2026). Nếu không thấy thì để 'N/A'. "
             "3. Nếu không có giá trị ở ô nào, trả về 'N/A' hoặc chuỗi rỗng. "
             "4. Đảm bảo trích xuất đầy đủ tất cả các trang, không bỏ sót dòng nào."
             "\n\nVĂN BẢN:\n" + file_text
@@ -156,7 +156,7 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
 
         def make_api_call():
             return client.models.generate_content(
-                model="models/gemini-flash-lite-latest",
+                model="gemini-1.5-flash",
                 contents=[prompt],
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
@@ -187,19 +187,19 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
 
             print(f"File {file_key} is ready. Requesting extraction...")
             prompt = (
-                "Bạn là một chuyên gia phân tích dữ liệu KPI giáo dục. "
-                "Hãy đọc tài liệu đính kèm và trích xuất tất cả các dòng chỉ tiêu KPI trong bảng. "
-                "Trả về một mảng JSON các đối tượng có các trường (keys) đúng theo cấu trúc được yêu cầu. "
+                "Bạn là một chuyên gia phân tích dữ liệu. "
+                "Hãy đọc hình ảnh/tài liệu đính kèm và trích xuất tất cả các dòng dữ liệu trong bảng ĐÁNH GIÁ MỤC TIÊU (KPI). "
+                "Trả về một mảng JSON các đối tượng có cấu trúc yêu cầu. "
                 "Lưu ý: "
                 "1. ma_chi_tieu là cột MÃ trong bảng, hãy lấy nguyên văn (VD: ĐT-MT01, QTCL MT001). "
-                "2. quy_danh_gia phải có dạng Q[1-4]/[Năm], ví dụ Q1/2026. Nếu không tìm thấy, để trống hoặc 'N/A'. "
+                "2. quy_danh_gia hãy lấy từ tiêu đề (VD: QUÝ 4/2026). Nếu không thấy thì để 'N/A'. "
                 "3. Nếu không có giá trị ở ô nào, trả về 'N/A' hoặc chuỗi rỗng. "
                 "4. Đảm bảo trích xuất đầy đủ tất cả các trang, không bỏ sót dòng nào."
             )
 
             def make_api_call():
                 return client.models.generate_content(
-                    model="models/gemini-flash-lite-latest",
+                    model="gemini-1.5-flash",
                     contents=[uploaded_file, prompt],
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
@@ -235,7 +235,7 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
         ma = item.get("ma_chi_tieu", "N/A")
         quy = item.get("quy_danh_gia", "N/A")
 
-        if "MT" in str(ma).upper():
+        if str(ma).strip() != "" and str(ma) != "N/A":
             rows.append((
                 ma,
                 item.get("noi_dung_muc_tieu", "N/A"),
@@ -378,7 +378,7 @@ def main():
             archive_key = key.replace(SOURCE_PREFIX, ARCHIVE_PREFIX, 1)
             s3_client.copy_object(
                 Bucket=BUCKET_NAME,
-                CopySource={"Bucket": BUCKET_NAME, "Key": key},
+                CopySource=f"{BUCKET_NAME}/{key}",
                 Key=archive_key,
             )
             s3_client.delete_object(Bucket=BUCKET_NAME, Key=key)

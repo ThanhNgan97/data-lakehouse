@@ -156,7 +156,7 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
 
         def make_api_call():
             return client.models.generate_content(
-                model="gemini-1.5-flash",
+                model="gemini-3.6-flash",
                 contents=[prompt],
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
@@ -199,7 +199,7 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
 
             def make_api_call():
                 return client.models.generate_content(
-                    model="gemini-1.5-flash",
+                    model="gemini-3.6-flash",
                     contents=[uploaded_file, prompt],
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",

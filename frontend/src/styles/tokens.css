@@ -1,0 +1,39 @@
+/* Design tokens cho giao diện "Data Console" của Lakehouse Portal.
+   Thêm dòng: import "./styles/tokens.css"; ngay sau import "./index.css";
+   trong file src/index.jsx (không cần cài thêm package nào). */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background: #F5F6FA;
+  color: #10131C;
+  font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Thanh cuộn mảnh, hợp giao diện kỹ thuật */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #C7CBDA transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #C7CBDA;
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #9AA1BA;
+}
+
+/* Focus rõ ràng cho bàn phím, giữ accessibility */
+:focus-visible {
+  outline: 2px solid #0F97A8;
+  outline-offset: 2px;
+}

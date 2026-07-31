@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { History, Tag, GitBranch, Circle, Dot, User } from 'lucide-react';
+import Icon from '../components/icons';
+import { Badge, EmptyState } from '../components/ui';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
@@ -20,95 +21,99 @@ const CatalogHistoryTimeline = () => {
       .catch(() => setError('Không thể tải danh sách branch/tag từ Nessie.'));
   }, []);
 
-  const fetchLog = async (refName) => {
+  useEffect(() => {
     setLoading(true);
     setError('');
-    try {
-      const res = await axios.get(`${API_URL}/catalog/history`, {
+    axios
+      .get(`${API_URL}/catalog/history`, {
         headers: authHeader,
-        params: { ref: refName, limit: 50 },
-      });
-      setCommits(res.data.commits || []);
-    } catch (e) {
-      setError(`Không thể tải lịch sử commit cho ref '${refName}'.`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchLog(selectedRef);
+        params: { ref: selectedRef, limit: 50 },
+      })
+      .then((res) => setCommits(res.data.commits || []))
+      .catch(() => setError(`Không thể tải lịch sử commit cho ref '${selectedRef}'.`))
+      .finally(() => setLoading(false));
   }, [selectedRef]);
 
+  const formatTime = (iso) => {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString('vi-VN');
+  };
+
   return (
-    <div className="p-6 h-full overflow-y-auto bg-slate-50/50">
-      {/* Header */}
-      <div className="mb-8">
-        <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2 tracking-tight">
-          <History className="w-6 h-6 text-blue-600" /> Lịch sử Dữ liệu (Iceberg Nessie)
-        </h3>
-        <p className="text-sm text-slate-500 mt-1.5 font-medium">
-          Xem lịch sử commit, thay đổi tag/branch trực tiếp trên Iceberg Nessie.
-        </p>
+    <div className="p-6 overflow-y-auto h-full bg-[#FAFBFD]">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+        <div>
+          <p className="font-data text-[11px] uppercase tracking-widest text-lake-600 font-semibold mb-1">
+            Git-for-data
+          </p>
+          <h3 className="text-lg font-bold text-ink-900">Lịch sử Phiên bản Catalog (Nessie)</h3>
+          <p className="text-sm text-ink-400 mt-1">
+            Mỗi dòng thời gian tương ứng với 1 commit (ingest/merge/tag) trên Iceberg catalog.
+          </p>
+        </div>
+        <div className="relative">
+          <Icon name="gitBranch" className="w-3.5 h-3.5 text-ink-300 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <select
+            value={selectedRef}
+            onChange={(e) => setSelectedRef(e.target.value)}
+            className="border border-ink-100 rounded-lg pl-8 pr-3 py-2 text-sm bg-white shrink-0 font-data focus:outline-none focus:ring-2 focus:ring-lake-300"
+          >
+            {references.length === 0 && <option value="main">main</option>}
+            {references.map((r) => (
+              <option key={r.name} value={r.name}>
+                {r.type === 'TAG' ? '🏷 ' : '⑂ '}
+                {r.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      <div className="flex items-center gap-3 mb-8">
-        <select
-          className="border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm"
-          value={selectedRef}
-          onChange={(e) => {
-            setSelectedRef(e.target.value);
-          }}
-        >
-          {references.length === 0 && <option value="main">main</option>}
-          {references.map((r) => (
-            <option key={r.name} value={r.name}>
-              {r.type === 'TAG' ? '[TAG] ' : '[BRANCH] '}
-              {r.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Loading / Error / Empty */}
-      {loading && <div className="text-slate-400 py-10 font-medium">Đang tải lịch sử...</div>}
-      {error && <div className="text-red-500 py-10 font-medium">{error}</div>}
-      {!loading && !error && commits.length === 0 && (
-        <div className="text-slate-400 py-10 font-medium">Không có lịch sử commit nào trên nhánh này.</div>
+      {error && (
+        <div className="bg-rose-50 text-rose-600 border border-rose-200 p-3 rounded-xl mb-4 text-sm flex items-center gap-2">
+          <Icon name="alertTriangle" className="w-4 h-4 shrink-0" /> {error}
+        </div>
       )}
 
-      {/* Timeline */}
-      {!loading && !error && commits.length > 0 && (
-        <div className="relative border-l-2 border-slate-200 ml-4 space-y-8 pb-10">
-          {commits.map((c) => (
-            <div key={c.hash} className="relative">
-              {/* Timeline Marker */}
-              <div className="absolute -left-3.5 top-1.5 w-7 h-7 bg-white border-[3px] border-blue-500 rounded-full flex items-center justify-center shadow-sm">
-                <div className="w-2.5 h-2.5 bg-blue-500 rounded-full"></div>
-              </div>
-
-              {/* Content Card */}
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hover:shadow-lg hover:border-slate-200 transition-all duration-300 ml-6">
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-bold text-slate-800 text-[15px]">{c.message || 'No commit message'}</h4>
-                  <span className="text-[11px] text-slate-400 font-medium bg-slate-50 px-2.5 py-1 rounded-full whitespace-nowrap border border-slate-100">
-                    {new Date(c.commit_time).toLocaleString('vi-VN')}
+      {loading ? (
+        <div className="flex items-center gap-2 text-ink-400 text-sm py-8">
+          <Icon name="refresh" className="w-4 h-4 animate-spin" /> Đang tải lịch sử commit...
+        </div>
+      ) : commits.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-ink-100">
+          <EmptyState icon="gitBranch" title="Chưa có commit nào trên ref này" />
+        </div>
+      ) : (
+        <ol className="relative border-l-2 border-lake-100 ml-3">
+          {commits.map((c, idx) => (
+            <li key={c.hash || idx} className="mb-6 ml-6">
+              <span className={`absolute flex items-center justify-center w-6 h-6 rounded-full -left-3 ring-4 ring-[#FAFBFD] ${
+                idx === 0 ? 'bg-lake-500' : 'bg-ink-200'
+              }`}>
+                <span className={`w-2 h-2 rounded-full ${idx === 0 ? 'bg-white' : 'bg-white/70'}`} />
+              </span>
+              <div className="bg-white border border-ink-100 rounded-xl p-4 shadow-sm hover:border-lake-200 transition">
+                <div className="flex justify-between items-start gap-4">
+                  <p className="font-semibold text-ink-800 text-sm">
+                    {c.message || '(không có message)'}
+                  </p>
+                  {idx === 0 && <Badge tone="lake">Mới nhất</Badge>}
+                </div>
+                <div className="mt-2.5 flex items-center gap-3 text-xs text-ink-400 font-data">
+                  <span className="bg-ink-50 border border-ink-100 px-2 py-0.5 rounded">
+                    {c.hash ? c.hash.slice(0, 8) : '—'}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Icon name="users" className="w-3 h-3" /> {c.author || 'unknown'}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Icon name="clock" className="w-3 h-3" /> {formatTime(c.commit_time)}
                   </span>
                 </div>
-                <div className="flex flex-col gap-1.5 text-xs text-slate-500 mt-3 font-medium">
-                  <div className="flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5" /> <span className="text-slate-700">{c.author || 'Unknown'}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-slate-600 border border-slate-200">
-                      hash: {c.hash ? c.hash.slice(0, 8) : '—'}
-                    </span>
-                  </div>
-                </div>
               </div>
-            </div>
+            </li>
           ))}
-        </div>
+        </ol>
       )}
     </div>
   );

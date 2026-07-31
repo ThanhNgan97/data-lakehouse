@@ -113,8 +113,9 @@ def init_silver_table_if_needed(spark, branch_name="main"):
             muc_dat STRING,
             muc_dat_numeric DOUBLE,
             ket_qua_he_thong STRING,
-            nguyen_nhan STRING,
             hanh_dong_khac_phuc STRING,
+            minh_chung_type STRING,
+            minh_chung_path STRING,
             checksum_sha256 STRING,
             thoi_gian_ingest_silver TIMESTAMP
         ) USING iceberg
@@ -147,6 +148,8 @@ def init_silver_table_if_needed(spark, branch_name="main"):
         "hanh_dong_khac_phuc": "STRING",
         "muc_dang_ky_numeric": "DOUBLE",
         "muc_dat_numeric": "DOUBLE",
+        "minh_chung_type": "STRING",
+        "minh_chung_path": "STRING",
     }
     for col_name, col_type in new_columns.items():
         if col_name not in existing_columns:
@@ -268,19 +271,21 @@ def main():
                 t.ket_qua_he_thong = s.ket_qua_he_thong,
                 t.nguyen_nhan = s.nguyen_nhan,
                 t.hanh_dong_khac_phuc = s.hanh_dong_khac_phuc,
+                t.minh_chung_type = s.minh_chung_type,
+                t.minh_chung_path = s.minh_chung_path,
                 t.checksum_sha256 = s.checksum_sha256,
                 t.thoi_gian_ingest_silver = s.thoi_gian_ingest_silver
             WHEN NOT MATCHED THEN
               INSERT (
                 file_nguon, ma_chi_tieu, nhom_don_vi, quy_danh_gia, noi_dung_muc_tieu,
                 dinh_ky_thu_thap, muc_dang_ky, muc_dang_ky_numeric, muc_dat, muc_dat_numeric,
-                ket_qua_he_thong, nguyen_nhan, hanh_dong_khac_phuc, checksum_sha256,
+                ket_qua_he_thong, nguyen_nhan, hanh_dong_khac_phuc, minh_chung_type, minh_chung_path, checksum_sha256,
                 thoi_gian_ingest_silver
               )
               VALUES (
                 s.file_nguon, s.ma_chi_tieu, s.nhom_don_vi, s.quy_danh_gia, s.noi_dung_muc_tieu,
                 s.dinh_ky_thu_thap, s.muc_dang_ky, s.muc_dang_ky_numeric, s.muc_dat, s.muc_dat_numeric,
-                s.ket_qua_he_thong, s.nguyen_nhan, s.hanh_dong_khac_phuc, s.checksum_sha256,
+                s.ket_qua_he_thong, s.nguyen_nhan, s.hanh_dong_khac_phuc, s.minh_chung_type, s.minh_chung_path, s.checksum_sha256,
                 s.thoi_gian_ingest_silver
               )
         """)

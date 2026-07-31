@@ -277,15 +277,18 @@ def main():
         raw_rows, quy_danh_gia, ky_candidates = [], None, set()
         
         # Xử lý bằng Gemini thay vì pdfplumber/docx
-        if ext in [".pdf", ".docx"]:
+        if ext in [".pdf", ".docx", ".jpg", ".jpeg", ".png"]:
             try:
                 raw_rows, quy_danh_gia, ky_candidates = parse_with_gemini(file_bytes, ext, file_key)
                 
                 # Rate limiting: wait 65 seconds between API calls to respect per-minute quota
-                print("⏳ Rate limiting: waiting 30 seconds before next API call...")
+                print("Rate limiting: waiting 30 seconds before next API call...")
                 time.sleep(30)  # Wait 30 seconds to avoid hitting the quota limi
             except Exception as exc:
                 print(f"WARNING: Lỗi bóc tách qua AI cho file {file_key}: {exc}")
+        elif ext in [".mp4", ".mov"]:
+            print(f"SKIP: File video {file_key} được lưu trữ thô thành công nhưng chưa trích xuất (chờ Phase 2).")
+            successful_keys.append(file_key) # Đánh dấu thành công để archive
         else:
             print(f"SKIP: Định dạng không hỗ trợ cho file {file_key}")
 
@@ -307,8 +310,7 @@ def main():
         for ma, noi_dung, dk, m_dk, m_dat, kq, nguyen_nhan, hanh_dong in raw_rows:
             nhom = str(ma).split("-")[0].strip().upper()
             
-            # --- VALIDATION CHECKSUM & CLEANING ---
-            # Làm sạch chuỗi trước khi băm để tránh trùng lặp do khoảng trắng sinh ra từ AI
+          
             ma_clean = str(ma).strip().upper()
             quy_clean = str(quy_danh_gia_final).strip().upper()
             dk_clean = str(dk).strip().lower()
@@ -334,6 +336,8 @@ def main():
                 "ket_qua_he_thong": kq_clean,
                 "nguyen_nhan": str(nguyen_nhan).strip(),
                 "hanh_dong_khac_phuc": str(hanh_dong).strip(),
+                "minh_chung_type": ext.replace(".", "").lower(),
+                "minh_chung_path": file_key,
                 "checksum_sha256": checksum,
             })
 

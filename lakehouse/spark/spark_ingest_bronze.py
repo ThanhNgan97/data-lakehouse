@@ -147,7 +147,7 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
             "Hãy đọc văn bản dưới đây và trích xuất tất cả các dòng chỉ tiêu KPI trong bảng. "
             "Trả về một mảng JSON các đối tượng có các trường (keys) đúng theo cấu trúc được yêu cầu. "
             "Lưu ý: "
-            "1. ma_chi_tieu phải là định dạng chữ HOA và có dấu gạch ngang (VD: ĐT-MT01, HT-MT05). "
+            "1. ma_chi_tieu là cột MÃ trong bảng, hãy lấy nguyên văn (VD: ĐT-MT01, QTCL MT001). "
             "2. quy_danh_gia phải có dạng Q[1-4]/[Năm], ví dụ Q1/2026. Nếu không tìm thấy, để trống hoặc 'N/A'. "
             "3. Nếu không có giá trị ở ô nào, trả về 'N/A' hoặc chuỗi rỗng. "
             "4. Đảm bảo trích xuất đầy đủ tất cả các trang, không bỏ sót dòng nào."
@@ -191,7 +191,7 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
                 "Hãy đọc tài liệu đính kèm và trích xuất tất cả các dòng chỉ tiêu KPI trong bảng. "
                 "Trả về một mảng JSON các đối tượng có các trường (keys) đúng theo cấu trúc được yêu cầu. "
                 "Lưu ý: "
-                "1. ma_chi_tieu phải là định dạng chữ HOA và có dấu gạch ngang (VD: ĐT-MT01, HT-MT05). "
+                "1. ma_chi_tieu là cột MÃ trong bảng, hãy lấy nguyên văn (VD: ĐT-MT01, QTCL MT001). "
                 "2. quy_danh_gia phải có dạng Q[1-4]/[Năm], ví dụ Q1/2026. Nếu không tìm thấy, để trống hoặc 'N/A'. "
                 "3. Nếu không có giá trị ở ô nào, trả về 'N/A' hoặc chuỗi rỗng. "
                 "4. Đảm bảo trích xuất đầy đủ tất cả các trang, không bỏ sót dòng nào."
@@ -247,9 +247,11 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
                 item.get("hanh_dong_khac_phuc", "")
             ))
 
-            quy_match = re.search(r"Q[1-4]/\d{4}", str(quy).upper())
+            quy_raw = str(quy).upper()
+            quy_match = re.search(r"(?:Q|QUÝ|QUY)\s*([1-4])\s*/\s*(\d{4})", quy_raw)
             if quy_match:
-                quy_list.append(quy_match.group(0))
+                standardized_quy = f"Q{quy_match.group(1)}/{quy_match.group(2)}"
+                quy_list.append(standardized_quy)
 
     quy_danh_gia_final = None
     if quy_list:
@@ -314,10 +316,14 @@ def main():
             )
 
         for ma, noi_dung, dk, m_dk, m_dat, kq, nguyen_nhan, hanh_dong in raw_rows:
-            nhom = str(ma).split("-")[0].strip().upper()
+            ma_str = str(ma).strip().upper()
+            if "-" in ma_str:
+                nhom = ma_str.split("-")[0].strip()
+            else:
+                nhom = ma_str.split(" ")[0].strip()
             
           
-            ma_clean = str(ma).strip().upper()
+            ma_clean = ma_str
             quy_clean = str(quy_danh_gia_final).strip().upper()
             dk_clean = str(dk).strip().lower()
             mdk_clean = str(m_dk).strip().lower()

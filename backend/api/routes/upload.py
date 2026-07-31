@@ -128,16 +128,30 @@ async def get_pipeline_status(
                     "end_date": t.get("end_date")
                 })
         
-        # Cập nhật pipeline_status vào DB
+        # Cập nhật pipeline_status vào DB (nếu chưa bị set cứng từ Spark thành failed)
         record = db.query(UploadHistory).filter(UploadHistory.dag_run_id == dag_run_id).first()
-        if record and state != "unknown":
-            record.pipeline_status = state
-            db.commit()
+        
+        # Nếu Spark đã đánh dấu failed trong DB (kèm error_message), ghi đè state bằng failed 
+        # và lấy thông báo lỗi ra trả về FE.
+        error_message = None
+        parsed_data = None
+        if record:
+            if record.pipeline_status == "failed" and record.metadata_info:
+                state = "failed"
+                error_message = record.metadata_info.get("error_message")
+            elif state != "unknown" and record.pipeline_status != "failed":
+                record.pipeline_status = state
+                db.commit()
+                
+            if record.metadata_info:
+                parsed_data = record.metadata_info.get("parsed_data")
             
         return {
             "dag_run_id": dag_run_id,
             "state": state,
-            "tasks": tasks
+            "tasks": tasks,
+            "error_message": error_message,
+            "parsed_data": parsed_data
         }
     except Exception as e:
         return {"state": "unreachable", "error": str(e), "tasks": []}

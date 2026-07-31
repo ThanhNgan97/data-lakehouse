@@ -26,6 +26,8 @@ import os
 import sys
 from datetime import datetime
 import boto3
+import argparse
+from db_utils import update_pipeline_error
 from pyspark.sql import SparkSession, Window
 from pyspark.sql.functions import current_timestamp, row_number, desc
 
@@ -227,6 +229,10 @@ def archive_processed_bronze_files(s3_client):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Bronze to Silver")
+    parser.add_argument("--run_id", type=str, help="Airflow DAG Run ID", default="")
+    args = parser.parse_args()
+
     sys.stdout.reconfigure(encoding='utf-8')
     spark = get_spark_session()
     bronze_parquet_path = "s3a://university-lakehouse/bronze/data_extracted_*.parquet"
@@ -328,10 +334,12 @@ def main():
 
     except DataQualityError as dqe:
         use_main(spark)
+        err_msg = f"Kiểm tra chất lượng thất bại: {dqe}"
         print(f"❌ DỮ LIỆU KHÔNG ĐẠT CHẤT LƯỢNG: {dqe}")
         print(f"Branch '{branch_name}' được giữ nguyên (không merge vào main) để kiểm tra thủ công.")
         print(f"Xem lại dữ liệu lỗi bằng: SELECT * FROM {SILVER_TABLE}@{branch_name}")
         print(f"(Bronze KHÔNG bị archive vì chưa merge thành công - có thể sửa lỗi rồi chạy lại.)")
+        update_pipeline_error(args.run_id, err_msg)
         sys.exit(1)
 
     except Exception as e:

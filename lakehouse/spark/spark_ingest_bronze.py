@@ -20,6 +20,8 @@ import tempfile
 from datetime import datetime
 import pandas as pd
 from pydantic import BaseModel
+import argparse
+from db_utils import update_pipeline_error, save_parsed_data
 
 from google import genai
 from google.genai import types
@@ -257,6 +259,10 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Bronze Ingestion")
+    parser.add_argument("--run_id", type=str, help="Airflow DAG Run ID", default="")
+    args = parser.parse_args()
+    
     sys.stdout.reconfigure(encoding="utf-8")
     s3_client = get_s3_client()
     extracted_data = []
@@ -347,6 +353,9 @@ def main():
             failed_keys.append(file_key)
 
     if extracted_data:
+        # Lưu dữ liệu thô vừa parse được vào DB để Frontend hiển thị cho người dùng xem
+        save_parsed_data(args.run_id, extracted_data)
+        
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_key = f"bronze/data_extracted_{timestamp}.parquet"
 
@@ -375,7 +384,9 @@ def main():
         print("Các file lỗi được giữ nguyên ở staging/ để kiểm tra và xử lý.")
 
     if not extracted_data and failed_keys:
-        print("❌ ERROR: Không tạo được file Parquet nào do tất cả các file nguồn đều bóc tách thất bại.")
+        err_msg = "AI OCR: File không đúng định dạng KPI hoặc chất lượng ảnh quá kém, không trích xuất được dữ liệu."
+        print(f"❌ ERROR: {err_msg}")
+        update_pipeline_error(args.run_id, err_msg)
         sys.exit(1)
 
 

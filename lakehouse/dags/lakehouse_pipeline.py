@@ -25,13 +25,13 @@ with DAG(
     # Task 1: Ingest unstructured file to Parquet (Bronze)
     ingest_bronze = BashOperator(
         task_id='ingest_bronze',
-        bash_command='cd /opt/airflow/spark && python spark_ingest_bronze.py',
+        bash_command='cd /opt/airflow/spark && python spark_ingest_bronze.py --run_id {{ run_id }}',
     )
 
     # Task 2: Merge Parquet to Iceberg (Silver) with Nessie
     bronze_to_silver = BashOperator(
         task_id='bronze_to_silver',
-        bash_command='cd /opt/airflow/spark && python spark_bronze_to_silver.py',
+        bash_command='cd /opt/airflow/spark && python spark_bronze_to_silver.py --run_id {{ run_id }}',
     )
 
     # Task 3: Aggregate Silver to Gold Data Marts

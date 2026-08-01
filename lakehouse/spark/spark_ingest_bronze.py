@@ -66,7 +66,6 @@ KETQUA_DAT           = "ĐẠT"
 KETQUA_CHUA_DEN_KY   = "CHƯA ĐẾN KỲ ĐÁNH GIÁ"
 QUY_DANH_GIA_UNKNOWN = "UNKNOWN_KY"
 
-# Khai báo cấu trúc Schema ép Gemini trả về
 class KpiRecord(BaseModel):
     ma_chi_tieu: str
     quy_danh_gia: str

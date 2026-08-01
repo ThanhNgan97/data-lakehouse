@@ -164,14 +164,12 @@ const UserUpload = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
-      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200/60 px-6 md:px-8 py-4 flex justify-between items-center sticky top-0 z-50">
+      <header className="bg-white border-b border-slate-200 px-6 md:px-8 py-3.5 flex justify-between items-center sticky top-0 z-50 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
-            <span className="text-white font-bold text-xl">E</span>
-          </div>
+          <img src="/CUSC Logo Series.png" alt="CUSC Logo" className="h-10 w-auto object-contain" />
           <div>
-            <h1 className="text-lg md:text-xl font-bold text-slate-800 leading-tight tracking-tight">EduLakehouse Portal</h1>
-            <p className="text-[11px] md:text-xs text-slate-500 font-medium">Cổng nạp & Xử lý dữ liệu trung tâm</p>
+            <h1 className="text-base md:text-lg font-bold text-slate-900 leading-tight tracking-tight">CUSC ANALYSIS PLATFORM</h1>
+            <p className="text-[11px] md:text-xs text-slate-500 font-medium">Trung tâm Công nghệ Thông tin - Đại học Cần Thơ</p>
           </div>
         </div>
         <button onClick={handleLogout} className="px-4 md:px-5 py-2 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 rounded-lg text-sm font-semibold transition-all duration-200 shadow-sm">

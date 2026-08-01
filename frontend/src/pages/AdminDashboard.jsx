@@ -39,15 +39,14 @@ const AdminDashboard = () => {
   return (
     <div className="flex h-screen bg-gray-100 font-sans">
       {/* Sidebar */}
-      <div className="w-64 bg-gradient-to-b from-slate-900 to-[#0f172a] text-white flex flex-col shadow-2xl shrink-0 z-20">
-        <div className="h-16 flex items-center px-6 border-b border-slate-800/50">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-teal-400 flex items-center justify-center shadow-lg shadow-blue-500/30">
-              <span className="text-white font-bold text-lg">E</span>
-            </div>
-            <h1 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-300 tracking-tight">
-              EduLakehouse
-            </h1>
+      <div className="w-64 bg-slate-900 text-white flex flex-col shadow-2xl shrink-0 z-20 border-r border-slate-800">
+        <div className="h-20 flex items-center px-5 border-b border-slate-800 gap-3">
+          <div className="p-1.5 bg-white rounded-lg shrink-0 shadow-sm">
+            <img src="/CUSC Logo Series.png" alt="CUSC Logo" className="h-7 w-auto object-contain" />
+          </div>
+          <div>
+            <h1 className="text-[13px] font-bold text-white tracking-tight leading-tight mt-1">CUSC ANALYSIS PLATFORM</h1>
+            <p className="text-[9px] text-slate-400 font-medium">Trung tâm Công nghệ Thông tin - ĐHCT</p>
           </div>
         </div>
 

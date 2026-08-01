@@ -26,6 +26,8 @@ import os
 import sys
 from datetime import datetime
 import boto3
+import argparse
+from db_utils import update_pipeline_error
 from pyspark.sql import SparkSession, Window
 from pyspark.sql.functions import current_timestamp, row_number, desc
 
@@ -86,6 +88,7 @@ def get_spark_session():
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
         .config("spark.hadoop.fs.s3a.aws.credentials.provider",
                 "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
+        .config("spark.sql.parquet.enableVectorizedReader", "false") \
         .getOrCreate()
 
 
@@ -93,6 +96,7 @@ def get_s3_client():
     return boto3.client(
         "s3", endpoint_url=MINIO_ENDPOINT,
         aws_access_key_id=MINIO_ACCESS_KEY, aws_secret_access_key=MINIO_SECRET_KEY,
+        verify=False
     )
 
 
@@ -113,8 +117,9 @@ def init_silver_table_if_needed(spark, branch_name="main"):
             muc_dat STRING,
             muc_dat_numeric DOUBLE,
             ket_qua_he_thong STRING,
-            nguyen_nhan STRING,
             hanh_dong_khac_phuc STRING,
+            minh_chung_type STRING,
+            minh_chung_path STRING,
             checksum_sha256 STRING,
             thoi_gian_ingest_silver TIMESTAMP
         ) USING iceberg
@@ -147,6 +152,8 @@ def init_silver_table_if_needed(spark, branch_name="main"):
         "hanh_dong_khac_phuc": "STRING",
         "muc_dang_ky_numeric": "DOUBLE",
         "muc_dat_numeric": "DOUBLE",
+        "minh_chung_type": "STRING",
+        "minh_chung_path": "STRING",
     }
     for col_name, col_type in new_columns.items():
         if col_name not in existing_columns:
@@ -214,7 +221,7 @@ def archive_processed_bronze_files(s3_client):
         archive_key = key.replace(BRONZE_PREFIX, BRONZE_ARCHIVE_PREFIX, 1)
         s3_client.copy_object(
             Bucket=MINIO_BUCKET_NAME,
-            CopySource={"Bucket": MINIO_BUCKET_NAME, "Key": key},
+            CopySource=f"{MINIO_BUCKET_NAME}/{key}",
             Key=archive_key,
         )
         s3_client.delete_object(Bucket=MINIO_BUCKET_NAME, Key=key)
@@ -224,6 +231,10 @@ def archive_processed_bronze_files(s3_client):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Bronze to Silver")
+    parser.add_argument("--run_id", type=str, help="Airflow DAG Run ID", default="")
+    args = parser.parse_args()
+
     sys.stdout.reconfigure(encoding='utf-8')
     spark = get_spark_session()
     bronze_parquet_path = "s3a://university-lakehouse/bronze/data_extracted_*.parquet"
@@ -238,9 +249,30 @@ def main():
         init_silver_table_if_needed(spark, branch_name)
 
         try:
-            df_bronze = spark.read.option("mergeSchema", "true").parquet(bronze_parquet_path)
-        except Exception:
-            print(f"Không tìm thấy dữ liệu Parquet tại {bronze_parquet_path}. Có thể chưa có file nào được ingest.")
+            spark.conf.set("spark.sql.parquet.enableVectorizedReader", "false")
+            from pyspark.sql.types import StructType, StructField, StringType, DoubleType
+            bronze_schema = StructType([
+                StructField("file_nguon", StringType(), True),
+                StructField("ma_chi_tieu", StringType(), True),
+                StructField("nhom_don_vi", StringType(), True),
+                StructField("quy_danh_gia", StringType(), True),
+                StructField("noi_dung_muc_tieu", StringType(), True),
+                StructField("dinh_ky_thu_thap", StringType(), True),
+                StructField("muc_dang_ky", StringType(), True),
+                StructField("muc_dang_ky_numeric", DoubleType(), True),
+                StructField("muc_dat", StringType(), True),
+                StructField("muc_dat_numeric", DoubleType(), True),
+                StructField("ket_qua_he_thong", StringType(), True),
+                StructField("nguyen_nhan", StringType(), True),
+                StructField("hanh_dong_khac_phuc", StringType(), True),
+                StructField("minh_chung_type", StringType(), True),
+                StructField("minh_chung_path", StringType(), True),
+                StructField("checksum_sha256", StringType(), True)
+            ])
+            df_bronze = spark.read.schema(bronze_schema).parquet(bronze_parquet_path)
+        except Exception as e:
+            print(f"LỖI KHI ĐỌC PARQUET ({bronze_parquet_path}): {e}")
+            print(f"Không tìm thấy dữ liệu Parquet hoặc lỗi kết nối MinIO. Có thể chưa có file nào được ingest.")
             return
 
         # [MỚI] Dedup theo khóa nghiệp vụ (ma_chi_tieu, quy_danh_gia), không chỉ checksum
@@ -268,19 +300,21 @@ def main():
                 t.ket_qua_he_thong = s.ket_qua_he_thong,
                 t.nguyen_nhan = s.nguyen_nhan,
                 t.hanh_dong_khac_phuc = s.hanh_dong_khac_phuc,
+                t.minh_chung_type = s.minh_chung_type,
+                t.minh_chung_path = s.minh_chung_path,
                 t.checksum_sha256 = s.checksum_sha256,
                 t.thoi_gian_ingest_silver = s.thoi_gian_ingest_silver
             WHEN NOT MATCHED THEN
               INSERT (
                 file_nguon, ma_chi_tieu, nhom_don_vi, quy_danh_gia, noi_dung_muc_tieu,
                 dinh_ky_thu_thap, muc_dang_ky, muc_dang_ky_numeric, muc_dat, muc_dat_numeric,
-                ket_qua_he_thong, nguyen_nhan, hanh_dong_khac_phuc, checksum_sha256,
+                ket_qua_he_thong, nguyen_nhan, hanh_dong_khac_phuc, minh_chung_type, minh_chung_path, checksum_sha256,
                 thoi_gian_ingest_silver
               )
               VALUES (
                 s.file_nguon, s.ma_chi_tieu, s.nhom_don_vi, s.quy_danh_gia, s.noi_dung_muc_tieu,
                 s.dinh_ky_thu_thap, s.muc_dang_ky, s.muc_dang_ky_numeric, s.muc_dat, s.muc_dat_numeric,
-                s.ket_qua_he_thong, s.nguyen_nhan, s.hanh_dong_khac_phuc, s.checksum_sha256,
+                s.ket_qua_he_thong, s.nguyen_nhan, s.hanh_dong_khac_phuc, s.minh_chung_type, s.minh_chung_path, s.checksum_sha256,
                 s.thoi_gian_ingest_silver
               )
         """)
@@ -323,10 +357,12 @@ def main():
 
     except DataQualityError as dqe:
         use_main(spark)
+        err_msg = f"Kiểm tra chất lượng thất bại: {dqe}"
         print(f"❌ DỮ LIỆU KHÔNG ĐẠT CHẤT LƯỢNG: {dqe}")
         print(f"Branch '{branch_name}' được giữ nguyên (không merge vào main) để kiểm tra thủ công.")
         print(f"Xem lại dữ liệu lỗi bằng: SELECT * FROM {SILVER_TABLE}@{branch_name}")
         print(f"(Bronze KHÔNG bị archive vì chưa merge thành công - có thể sửa lỗi rồi chạy lại.)")
+        update_pipeline_error(args.run_id, err_msg)
         sys.exit(1)
 
     except Exception as e:

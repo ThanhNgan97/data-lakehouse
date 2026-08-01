@@ -108,7 +108,7 @@ GOLD_DETAIL_COLUMNS = [
     "noi_dung_muc_tieu", "dinh_ky_thu_thap",
     "muc_dang_ky", "muc_dat", "muc_dat_numeric", "ket_qua_he_thong",
     "nguyen_nhan", "hanh_dong_khac_phuc",
-    "file_nguon", "thoi_gian_dong_goi_gold",
+    "file_nguon", "minh_chung_type", "minh_chung_path", "thoi_gian_dong_goi_gold",
 ]
 GOLD_COMPARISON_COLUMNS = [
     "ma_chi_tieu", "nhom_don_vi", "ten_phong_ban",
@@ -327,7 +327,8 @@ def main():
             "ma_chi_tieu", "nhom_don_vi", "quy_danh_gia",
             "noi_dung_muc_tieu", "dinh_ky_thu_thap",
             "muc_dang_ky", "muc_dat", "muc_dat_numeric", "ket_qua_he_thong",
-            "nguyen_nhan", "hanh_dong_khac_phuc", "file_nguon"
+            "nguyen_nhan", "hanh_dong_khac_phuc", "file_nguon",
+            "minh_chung_type", "minh_chung_path"
         ).withColumn("thoi_gian_dong_goi_gold", current_timestamp())
 
         df_detail = with_ten_phong_ban(df_detail)          # [Yêu cầu 3]

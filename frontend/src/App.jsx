@@ -10,6 +10,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import CatalogHistoryTimeline from "./pages/CatalogHistoryTimeline";
 import Login from "./pages/auth/Login";
 import UserUpload from "./pages/UserUpload";
+import Landing from "./pages/Landing";
 
 // Axios global 401 interceptor — tự động logout khi token hết hạn
 axios.interceptors.response.use(
@@ -41,7 +42,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Login setToken={setToken} setRole={setRole} />} />
+        <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login setToken={setToken} setRole={setRole} />} />
 
         <Route

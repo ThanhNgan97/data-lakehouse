@@ -4,6 +4,8 @@ import CatalogHistoryTimeline from './CatalogHistoryTimeline';
 import PipelineDataExplorer from './Pipelinedataexplorer';
 import UserManagement from './UserManagement';
 import UploadHistory from './UploadHistory';
+import Icon from '../components/icons';
+import { ConnChip, LakehouseMark } from '../components/ui';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -11,7 +13,7 @@ const AdminDashboard = () => {
 
   const supersetUrl =
     import.meta.env.VITE_SUPERSET_DASHBOARD_URL ||
-    'http://localhost:8088/superset/dashboard/1/?native_filters_key=8TNRVjTeKm37iM9LWUB6EX-Z6hUKzsb-3BK6RuTaYCHmOLIwd75IMSdjyh913EeT&standalone=2';
+    'http://localhost:8088/superset/dashboard/1/?standalone=3';
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -20,63 +22,90 @@ const AdminDashboard = () => {
   };
 
   const NAV = [
-    { key: 'dashboard', icon: '📊', label: 'Báo cáo Tổng hợp (Gold)' },
-    { key: 'pipeline',  icon: '🔗', label: 'Dữ liệu Pipeline' },
-    { key: 'catalog',   icon: '🌿', label: 'Lịch sử Branch/Merge' },
-    { key: 'history',   icon: '🕒', label: 'Lịch sử Upload' },
-    { key: 'users',     icon: '👥', label: 'Quản lý Người dùng' },
+    { key: 'dashboard', icon: 'grid', label: 'Báo cáo Tổng hợp', sub: 'Gold Layer' },
+    { key: 'pipeline', icon: 'layers', label: 'Dữ liệu Pipeline', sub: 'Bronze · Silver · Gold' },
+    { key: 'catalog', icon: 'gitBranch', label: 'Lịch sử Branch/Merge', sub: 'Nessie Catalog' },
+    { key: 'history', icon: 'history', label: 'Lịch sử Upload', sub: 'Audit trail' },
+    { key: 'users', icon: 'users', label: 'Quản lý Người dùng', sub: 'Phân quyền' },
   ];
 
   const TAB_TITLES = {
-    dashboard: 'Báo cáo Thường niên chất lượng Giáo dục (Apache Superset)',
-    pipeline:  'Pipeline Dữ liệu: Bronze → Silver → Gold',
-    catalog:   'Lịch sử Pipeline (Nessie Catalog)',
-    history:   'Lịch sử Tải lên dữ liệu',
-    users:     'Quản lý Người dùng',
+    dashboard: 'Báo cáo Thường niên Chất lượng Giáo dục',
+    pipeline: 'Pipeline Dữ liệu: Bronze → Silver → Gold',
+    catalog: 'Lịch sử Pipeline (Nessie Catalog)',
+    history: 'Lịch sử Tải lên Dữ liệu',
+    users: 'Quản lý Người dùng',
+  };
+  const TAB_DESC = {
+    dashboard: 'Trực quan hóa dữ liệu bằng Apache Superset',
+    pipeline: 'Xem dữ liệu thật ở từng tầng, giống trạng thái chạy trên Airflow',
+    catalog: 'Mỗi mốc thời gian tương ứng 1 commit ingest/merge/tag trên Iceberg',
+    history: 'Toàn bộ nhật ký tải lên và trạng thái xử lý',
+    users: 'Thêm, khoá và phân quyền tài khoản trong hệ thống',
   };
 
   return (
-    <div className="flex h-screen bg-gray-100 font-sans">
+    <div className="flex h-screen bg-[#F5F6FA] font-sans text-ink-900">
       {/* Sidebar */}
-      <div className="w-64 bg-slate-900 text-white flex flex-col shadow-2xl shrink-0">
-        <div className="h-20 flex items-center justify-center border-b border-slate-800">
-          <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-300">
-            Lakehouse
-          </h1>
+      <div className="w-64 bg-slate-900 text-white flex flex-col shadow-2xl shrink-0 z-20 border-r border-slate-800">
+        <div className="h-20 flex items-center px-5 border-b border-slate-800 gap-3">
+          <div className="p-1.5 bg-white rounded-lg shrink-0 shadow-sm">
+            <img src="/CUSC Logo Series.png" alt="CUSC Logo" className="h-7 w-auto object-contain" />
+          </div>
+          <div>
+            <h1 className="text-[13px] font-bold text-white tracking-tight leading-tight mt-1">CUSC ANALYSIS PLATFORM</h1>
+            <p className="text-[9px] text-slate-400 font-medium">Trung tâm Công nghệ Thông tin - ĐHCT</p>
+          </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1 mt-4 overflow-y-auto">
-          <div className="text-xs text-slate-400 uppercase font-semibold mb-3">Quản trị hệ thống</div>
-          {NAV.map(({ key, icon, label }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`w-full text-left py-3 px-4 rounded-lg transition text-sm flex items-center gap-2 ${
-                activeTab === key
-                  ? 'bg-blue-600 shadow text-white'
-                  : 'text-slate-300 hover:bg-slate-800'
-              }`}
-            >
-              <span>{icon}</span>
-              <span>{label}</span>
-            </button>
-          ))}
+        <nav className="flex-1 px-3 py-5 space-y-1 overflow-y-auto">
+          <p className="px-3 text-[10px] font-data uppercase tracking-widest text-ink-400 mb-2">
+            Quản trị hệ thống
+          </p>
+          {NAV.map(({ key, icon, label, sub }) => {
+            const active = activeTab === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key)}
+                className={`w-full group flex items-center gap-3 py-2.5 px-3 rounded-xl text-sm transition relative ${
+                  active ? 'bg-white/[0.08] text-white' : 'text-ink-300 hover:bg-white/[0.05] hover:text-white'
+                }`}
+              >
+                {active && (
+                  <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-lake-400" />
+                )}
+                <span
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition ${
+                    active ? 'bg-lake-500/20 text-lake-300' : 'bg-white/[0.04] text-ink-400 group-hover:text-ink-200'
+                  }`}
+                >
+                  <Icon name={icon} className="w-4 h-4" />
+                </span>
+                <span className="flex flex-col items-start min-w-0">
+                  <span className="font-semibold truncate w-full text-left">{label}</span>
+                  <span className="text-[10.5px] text-ink-400 font-data truncate w-full text-left">{sub}</span>
+                </span>
+              </button>
+            );
+          })}
         </nav>
 
-        <div className="p-5 border-t border-slate-800">
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-blue-500 flex items-center justify-center font-bold text-lg shrink-0">
+        <div className="p-4 border-t border-white/10">
+          <div className="flex items-center gap-3 mb-3 px-2">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-lake-400 to-lake-700 flex items-center justify-center font-bold text-sm shrink-0">
               A
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-medium truncate">Ban Giám Hiệu</p>
-              <p className="text-xs text-slate-400">Admin</p>
+              <p className="text-sm font-semibold truncate">Ban Giám Hiệu</p>
+              <p className="text-[11px] text-ink-400 font-data">admin</p>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="w-full text-center py-2 bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white rounded-lg transition text-sm"
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-white/[0.05] hover:bg-rose-500/90 text-ink-200 hover:text-white rounded-lg transition text-sm font-semibold"
           >
+            <Icon name="logOut" className="w-4 h-4" />
             Đăng xuất
           </button>
         </div>
@@ -84,33 +113,32 @@ const AdminDashboard = () => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 bg-white shadow-sm flex items-center justify-between px-8 z-10 shrink-0">
-          <h2 className="text-base font-semibold text-gray-800">{TAB_TITLES[activeTab]}</h2>
-          <div className="text-xs text-gray-500">
-            Kết nối:{' '}
-            <span className="text-green-600 font-semibold">Nessie · Trino · MinIO · Superset</span>
+        <header className="h-16 bg-white/80 backdrop-blur border-b border-ink-100 flex items-center justify-between px-8 shrink-0">
+          <div>
+            <h2 className="text-sm font-bold text-ink-900">{TAB_TITLES[activeTab]}</h2>
+            <p className="text-[12px] text-ink-400">{TAB_DESC[activeTab]}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <ConnChip label="Nessie" />
+            <ConnChip label="Trino" />
+            <ConnChip label="MinIO" />
+            <ConnChip label="Superset" />
+            {activeTab === 'dashboard' && (
+              <a
+                href={supersetUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="ml-2 inline-flex items-center gap-1.5 text-xs font-semibold text-lake-700 bg-lake-50 hover:bg-lake-100 border border-lake-200 px-3 py-1.5 rounded-lg transition"
+              >
+                Mở toàn màn hình
+                <Icon name="externalLink" className="w-3.5 h-3.5" />
+              </a>
+            )}
           </div>
         </header>
 
-        <main className="flex-1 overflow-hidden p-5 bg-gray-50">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 h-full overflow-hidden flex flex-col">
-            {/* Tiêu đề phụ (ẩn với pipeline vì nó tự có) */}
-            {activeTab !== 'pipeline' && (
-              <div className="px-5 py-3 border-b bg-gray-50 flex justify-between items-center shrink-0">
-                <h3 className="font-medium text-gray-700 text-sm">{TAB_TITLES[activeTab]}</h3>
-                {activeTab === 'dashboard' && (
-                  <a
-                    href={supersetUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs text-blue-600 hover:underline"
-                  >
-                    Mở toàn màn hình ↗
-                  </a>
-                )}
-              </div>
-            )}
-
+        <main className="flex-1 overflow-hidden p-6 bg-[#F5F6FA]">
+          <div className="bg-white rounded-2xl border border-ink-100 shadow-card h-full overflow-hidden flex flex-col">
             <div className={`flex-1 overflow-auto ${activeTab === 'dashboard' ? 'overflow-hidden' : ''}`}>
               {activeTab === 'dashboard' && (
                 <iframe
@@ -120,9 +148,9 @@ const AdminDashboard = () => {
                 />
               )}
               {activeTab === 'pipeline' && <PipelineDataExplorer />}
-              {activeTab === 'catalog'  && <CatalogHistoryTimeline />}
-              {activeTab === 'history'  && <UploadHistory />}
-              {activeTab === 'users'    && <UserManagement />}
+              {activeTab === 'catalog' && <CatalogHistoryTimeline />}
+              {activeTab === 'history' && <UploadHistory />}
+              {activeTab === 'users' && <UserManagement />}
             </div>
           </div>
         </main>

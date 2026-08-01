@@ -20,6 +20,8 @@ import tempfile
 from datetime import datetime
 import pandas as pd
 from pydantic import BaseModel
+import argparse
+from db_utils import update_pipeline_error, save_parsed_data
 
 from google import genai
 from google.genai import types
@@ -64,7 +66,6 @@ KETQUA_DAT           = "ĐẠT"
 KETQUA_CHUA_DEN_KY   = "CHƯA ĐẾN KỲ ĐÁNH GIÁ"
 QUY_DANH_GIA_UNKNOWN = "UNKNOWN_KY"
 
-# Khai báo cấu trúc Schema ép Gemini trả về
 class KpiRecord(BaseModel):
     ma_chi_tieu: str
     quy_danh_gia: str
@@ -141,12 +142,12 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
             raise ValueError("Không thể trích xuất văn bản từ file DOCX.")
 
         prompt = (
-            "Bạn là một chuyên gia phân tích dữ liệu KPI giáo dục. "
-            "Hãy đọc văn bản dưới đây và trích xuất tất cả các dòng chỉ tiêu KPI trong bảng. "
-            "Trả về một mảng JSON các đối tượng có các trường (keys) đúng theo cấu trúc được yêu cầu. "
+            "Bạn là một chuyên gia phân tích dữ liệu. "
+            "Hãy đọc tài liệu dưới đây và trích xuất tất cả các dòng dữ liệu trong bảng ĐÁNH GIÁ MỤC TIÊU (KPI). "
+            "Trả về một mảng JSON các đối tượng có cấu trúc yêu cầu. "
             "Lưu ý: "
-            "1. ma_chi_tieu phải là định dạng chữ HOA và có dấu gạch ngang (VD: ĐT-MT01, HT-MT05). "
-            "2. quy_danh_gia phải có dạng Q[1-4]/[Năm], ví dụ Q1/2026. Nếu không tìm thấy, để trống hoặc 'N/A'. "
+            "1. ma_chi_tieu là cột MÃ trong bảng, hãy lấy nguyên văn (VD: ĐT-MT01, QTCL MT001). "
+            "2. quy_danh_gia hãy lấy từ tiêu đề (VD: QUÝ 4/2026). Nếu không thấy thì để 'N/A'. "
             "3. Nếu không có giá trị ở ô nào, trả về 'N/A' hoặc chuỗi rỗng. "
             "4. Đảm bảo trích xuất đầy đủ tất cả các trang, không bỏ sót dòng nào."
             "\n\nVĂN BẢN:\n" + file_text
@@ -154,7 +155,7 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
 
         def make_api_call():
             return client.models.generate_content(
-                model="models/gemini-flash-lite-latest",
+                model="gemini-3.6-flash",
                 contents=[prompt],
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
@@ -185,19 +186,19 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
 
             print(f"File {file_key} is ready. Requesting extraction...")
             prompt = (
-                "Bạn là một chuyên gia phân tích dữ liệu KPI giáo dục. "
-                "Hãy đọc tài liệu đính kèm và trích xuất tất cả các dòng chỉ tiêu KPI trong bảng. "
-                "Trả về một mảng JSON các đối tượng có các trường (keys) đúng theo cấu trúc được yêu cầu. "
+                "Bạn là một chuyên gia phân tích dữ liệu. "
+                "Hãy đọc hình ảnh/tài liệu đính kèm và trích xuất tất cả các dòng dữ liệu trong bảng ĐÁNH GIÁ MỤC TIÊU (KPI). "
+                "Trả về một mảng JSON các đối tượng có cấu trúc yêu cầu. "
                 "Lưu ý: "
-                "1. ma_chi_tieu phải là định dạng chữ HOA và có dấu gạch ngang (VD: ĐT-MT01, HT-MT05). "
-                "2. quy_danh_gia phải có dạng Q[1-4]/[Năm], ví dụ Q1/2026. Nếu không tìm thấy, để trống hoặc 'N/A'. "
+                "1. ma_chi_tieu là cột MÃ trong bảng, hãy lấy nguyên văn (VD: ĐT-MT01, QTCL MT001). "
+                "2. quy_danh_gia hãy lấy từ tiêu đề (VD: QUÝ 4/2026). Nếu không thấy thì để 'N/A'. "
                 "3. Nếu không có giá trị ở ô nào, trả về 'N/A' hoặc chuỗi rỗng. "
                 "4. Đảm bảo trích xuất đầy đủ tất cả các trang, không bỏ sót dòng nào."
             )
 
             def make_api_call():
                 return client.models.generate_content(
-                    model="models/gemini-flash-lite-latest",
+                    model="gemini-3.6-flash",
                     contents=[uploaded_file, prompt],
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
@@ -233,7 +234,7 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
         ma = item.get("ma_chi_tieu", "N/A")
         quy = item.get("quy_danh_gia", "N/A")
 
-        if "MT" in str(ma).upper():
+        if str(ma).strip() != "" and str(ma) != "N/A":
             rows.append((
                 ma,
                 item.get("noi_dung_muc_tieu", "N/A"),
@@ -245,9 +246,11 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
                 item.get("hanh_dong_khac_phuc", "")
             ))
 
-            quy_match = re.search(r"Q[1-4]/\d{4}", str(quy).upper())
+            quy_raw = str(quy).upper()
+            quy_match = re.search(r"(?:Q|QUÝ|QUY)\s*([1-4])\s*/\s*(\d{4})", quy_raw)
             if quy_match:
-                quy_list.append(quy_match.group(0))
+                standardized_quy = f"Q{quy_match.group(1)}/{quy_match.group(2)}"
+                quy_list.append(standardized_quy)
 
     quy_danh_gia_final = None
     if quy_list:
@@ -257,6 +260,10 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Bronze Ingestion")
+    parser.add_argument("--run_id", type=str, help="Airflow DAG Run ID", default="")
+    args = parser.parse_args()
+    
     sys.stdout.reconfigure(encoding="utf-8")
     s3_client = get_s3_client()
     extracted_data = []
@@ -277,15 +284,18 @@ def main():
         raw_rows, quy_danh_gia, ky_candidates = [], None, set()
         
         # Xử lý bằng Gemini thay vì pdfplumber/docx
-        if ext in [".pdf", ".docx"]:
+        if ext in [".pdf", ".docx", ".jpg", ".jpeg", ".png"]:
             try:
                 raw_rows, quy_danh_gia, ky_candidates = parse_with_gemini(file_bytes, ext, file_key)
                 
                 # Rate limiting: wait 65 seconds between API calls to respect per-minute quota
-                print("⏳ Rate limiting: waiting 30 seconds before next API call...")
+                print("Rate limiting: waiting 30 seconds before next API call...")
                 time.sleep(30)  # Wait 30 seconds to avoid hitting the quota limi
             except Exception as exc:
                 print(f"WARNING: Lỗi bóc tách qua AI cho file {file_key}: {exc}")
+        elif ext in [".mp4", ".mov"]:
+            print(f"SKIP: File video {file_key} được lưu trữ thô thành công nhưng chưa trích xuất (chờ Phase 2).")
+            successful_keys.append(file_key) # Đánh dấu thành công để archive
         else:
             print(f"SKIP: Định dạng không hỗ trợ cho file {file_key}")
 
@@ -305,11 +315,14 @@ def main():
             )
 
         for ma, noi_dung, dk, m_dk, m_dat, kq, nguyen_nhan, hanh_dong in raw_rows:
-            nhom = str(ma).split("-")[0].strip().upper()
+            ma_str = str(ma).strip().upper()
+            if "-" in ma_str:
+                nhom = ma_str.split("-")[0].strip()
+            else:
+                nhom = ma_str.split(" ")[0].strip()
             
-            # --- VALIDATION CHECKSUM & CLEANING ---
-            # Làm sạch chuỗi trước khi băm để tránh trùng lặp do khoảng trắng sinh ra từ AI
-            ma_clean = str(ma).strip().upper()
+          
+            ma_clean = ma_str
             quy_clean = str(quy_danh_gia_final).strip().upper()
             dk_clean = str(dk).strip().lower()
             mdk_clean = str(m_dk).strip().lower()
@@ -334,6 +347,8 @@ def main():
                 "ket_qua_he_thong": kq_clean,
                 "nguyen_nhan": str(nguyen_nhan).strip(),
                 "hanh_dong_khac_phuc": str(hanh_dong).strip(),
+                "minh_chung_type": ext.replace(".", "").lower(),
+                "minh_chung_path": file_key,
                 "checksum_sha256": checksum,
             })
 
@@ -343,6 +358,9 @@ def main():
             failed_keys.append(file_key)
 
     if extracted_data:
+        # Lưu dữ liệu thô vừa parse được vào DB để Frontend hiển thị cho người dùng xem
+        save_parsed_data(args.run_id, extracted_data)
+        
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_key = f"bronze/data_extracted_{timestamp}.parquet"
 
@@ -359,7 +377,7 @@ def main():
             archive_key = key.replace(SOURCE_PREFIX, ARCHIVE_PREFIX, 1)
             s3_client.copy_object(
                 Bucket=BUCKET_NAME,
-                CopySource={"Bucket": BUCKET_NAME, "Key": key},
+                CopySource=f"{BUCKET_NAME}/{key}",
                 Key=archive_key,
             )
             s3_client.delete_object(Bucket=BUCKET_NAME, Key=key)
@@ -371,7 +389,9 @@ def main():
         print("Các file lỗi được giữ nguyên ở staging/ để kiểm tra và xử lý.")
 
     if not extracted_data and failed_keys:
-        print("❌ ERROR: Không tạo được file Parquet nào do tất cả các file nguồn đều bóc tách thất bại.")
+        err_msg = "AI OCR: File không đúng định dạng KPI hoặc chất lượng ảnh quá kém, không trích xuất được dữ liệu."
+        print(f"❌ ERROR: {err_msg}")
+        update_pipeline_error(args.run_id, err_msg)
         sys.exit(1)
 
 

@@ -88,6 +88,7 @@ def get_spark_session():
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
         .config("spark.hadoop.fs.s3a.aws.credentials.provider",
                 "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
+        .config("spark.sql.parquet.enableVectorizedReader", "false") \
         .getOrCreate()
 
 
@@ -248,7 +249,27 @@ def main():
         init_silver_table_if_needed(spark, branch_name)
 
         try:
-            df_bronze = spark.read.option("mergeSchema", "true").parquet(bronze_parquet_path)
+            spark.conf.set("spark.sql.parquet.enableVectorizedReader", "false")
+            from pyspark.sql.types import StructType, StructField, StringType, DoubleType
+            bronze_schema = StructType([
+                StructField("file_nguon", StringType(), True),
+                StructField("ma_chi_tieu", StringType(), True),
+                StructField("nhom_don_vi", StringType(), True),
+                StructField("quy_danh_gia", StringType(), True),
+                StructField("noi_dung_muc_tieu", StringType(), True),
+                StructField("dinh_ky_thu_thap", StringType(), True),
+                StructField("muc_dang_ky", StringType(), True),
+                StructField("muc_dang_ky_numeric", DoubleType(), True),
+                StructField("muc_dat", StringType(), True),
+                StructField("muc_dat_numeric", DoubleType(), True),
+                StructField("ket_qua_he_thong", StringType(), True),
+                StructField("nguyen_nhan", StringType(), True),
+                StructField("hanh_dong_khac_phuc", StringType(), True),
+                StructField("minh_chung_type", StringType(), True),
+                StructField("minh_chung_path", StringType(), True),
+                StructField("checksum_sha256", StringType(), True)
+            ])
+            df_bronze = spark.read.schema(bronze_schema).parquet(bronze_parquet_path)
         except Exception as e:
             print(f"LỖI KHI ĐỌC PARQUET ({bronze_parquet_path}): {e}")
             print(f"Không tìm thấy dữ liệu Parquet hoặc lỗi kết nối MinIO. Có thể chưa có file nào được ingest.")

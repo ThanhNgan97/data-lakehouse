@@ -1,13 +1,11 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
+  BarChart3,
+  ChevronRight,
   Database,
   Server,
-  BarChart3,
-  ShieldCheck,
-  ChevronRight,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -42,7 +40,7 @@ const Landing = () => {
             <div className="flex items-center gap-4">
               <button
                 onClick={() => navigate("/login")}
-                className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm gap-2"
+                className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-white bg-blue-800 rounded-full hover:bg-blue-700 transition-colors shadow-sm gap-2"
               >
                 Đăng nhập hệ thống
                 <ArrowRight className="w-4 h-4" />
@@ -68,7 +66,7 @@ const Landing = () => {
             <div className="flex justify-center gap-4">
               <button
                 onClick={() => navigate("/login")}
-                className="px-8 py-3.5 text-base font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-md flex items-center gap-2"
+                className="px-8 py-5 text-base font-bold text-white bg-blue-800 rounded-full hover:bg-blue-700 transition-colors shadow-md flex items-center gap-2"
               >
                 Bắt đầu sử dụng
                 <ChevronRight className="w-5 h-5" />
@@ -80,8 +78,8 @@ const Landing = () => {
         {/* Workflow Overview */}
         <section className="py-16 bg-white border-b border-slate-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-2xl font-bold text-slate-900 mb-10">
-              Quy trình Vận hành Toàn trình{" "}
+            <h2 className="text-3xl font-extrabold text-slate-900 mb-10">
+              Quy trình Vận hành
             </h2>
             <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8">
               <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl flex-1 w-full shadow-sm hover:shadow-md transition-shadow text-left md:text-center">
@@ -92,7 +90,7 @@ const Landing = () => {
                   Data Ingestion
                 </h4>
                 <p className="text-sm text-slate-600">
-                  Tiếp nhận tài liệu hành chính (Word, PDF, Excel), chuẩn hóa
+                  Tiếp nhận tài liệu hành chính (Word, PDF, Excel, Images), chuẩn hóa
                   định dạng và đưa vào hệ thống lưu trữ phân tán MinIO S3 an
                   toàn.
                 </p>

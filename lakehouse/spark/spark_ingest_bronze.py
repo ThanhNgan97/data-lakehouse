@@ -49,7 +49,7 @@ def retry_with_backoff(func, max_retries=3, initial_delay=15):
         except Exception as e:
             error_str = str(e)
             # Check for quota/rate limit errors
-            if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str or "quota" in error_str.lower():
+            if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str or "quota" in error_str.lower() or "503" in error_str or "UNAVAILABLE" in error_str or "high demand" in error_str.lower():
                 if attempt < max_retries - 1:
                     wait_time = initial_delay * (2 ** attempt)
                     print(f"⚠️ Quota exceeded. Retrying in {wait_time}s (Attempt {attempt + 1}/{max_retries})...")
@@ -155,7 +155,7 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
 
         def make_api_call():
             return client.models.generate_content(
-                model="gemini-3.6-flash",
+                model="gemini-flash-lite-latest",
                 contents=[prompt],
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
@@ -198,7 +198,7 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
 
             def make_api_call():
                 return client.models.generate_content(
-                    model="gemini-3.6-flash",
+                    model="gemini-flash-lite-latest",
                     contents=[uploaded_file, prompt],
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
@@ -247,10 +247,22 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
             ))
 
             quy_raw = str(quy).upper()
-            quy_match = re.search(r"(?:Q|QUÝ|QUY)\s*([1-4])\s*/\s*(\d{4})", quy_raw)
+            # Bắt "Quý X/YYYY", "Quý X năm YYYY", "Q X - YYYY"
+            quy_match = re.search(r"(?:Q|QUÝ|QUY)\s*([1-4])\s*(?:/|-|NĂM|NAM)\s*(\d{4})", quy_raw)
             if quy_match:
                 standardized_quy = f"Q{quy_match.group(1)}/{quy_match.group(2)}"
                 quy_list.append(standardized_quy)
+            else:
+                # Bắt các định dạng Tháng hoặc Năm
+                nam_match = re.search(r"(?:NĂM|NAM)\s*(\d{4})", quy_raw)
+                thang_match = re.search(r"(?:THÁNG|THANG|T)\s*([0-9]{1,2})\s*(?:/|-|NĂM|NAM)\s*(\d{4})", quy_raw)
+                
+                if nam_match:
+                    quy_list.append(f"NĂM {nam_match.group(1)}")
+                elif thang_match:
+                    quy_list.append(f"T{thang_match.group(1)}/{thang_match.group(2)}")
+                elif quy_raw and quy_raw not in ["N/A", "NONE", "NULL", ""]:
+                    quy_list.append(quy_raw)
 
     quy_danh_gia_final = None
     if quy_list:

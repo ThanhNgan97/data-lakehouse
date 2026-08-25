@@ -47,7 +47,7 @@ else:
 
 PG_PORT           = int(os.environ.get("PG_PORT",       "5432"))
 PG_USER           = os.environ.get("PG_USER",           "postgres")
-PG_PASSWORD       = os.environ.get("PG_PASSWORD",       "")
+PG_PASSWORD       = os.environ.get("PG_PASSWORD",       "240203")
 PG_MAINTENANCE_DB = os.environ.get("PG_MAINTENANCE_DB", "postgres")
 NESSIE_DB         = os.environ.get("NESSIE_DB",         "nessie_db")
 

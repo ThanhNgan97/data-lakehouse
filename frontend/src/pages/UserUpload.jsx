@@ -405,6 +405,15 @@ const UserUpload = () => {
                   );
                 })}
               </div>
+              {activePipeline.error_message && (
+                <div className="mt-6 p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3 text-rose-800 text-sm">
+                  <Icon name="alertTriangle" className="w-5 h-5 shrink-0 mt-0.5 text-rose-600" />
+                  <div>
+                    <p className="font-bold mb-1">Lỗi Pipeline:</p>
+                    <p className="font-medium whitespace-pre-wrap">{activePipeline.error_message}</p>
+                  </div>
+                </div>
+              )}
             </Card>
           )}
         </div>
@@ -450,41 +459,49 @@ const UserUpload = () => {
                     return (
                       <div
                         key={item.id || i}
-                        className="bg-white border border-ink-100 rounded-xl p-3.5 hover:border-lake-200 hover:shadow-sm transition-all flex items-center justify-between gap-4"
+                        className="bg-white border border-ink-100 rounded-xl p-3.5 hover:border-lake-200 hover:shadow-sm transition-all flex flex-col gap-3"
                       >
-                        <div className="flex items-center gap-3.5 min-w-0">
-                          <div className="w-10 h-10 rounded-lg bg-lake-50 text-lake-600 border border-lake-100 flex items-center justify-center shrink-0">
-                            <Icon name="file" className="w-4.5 h-4.5" />
-                          </div>
-                          <div className="min-w-0">
-                            <h4
-                              className="font-semibold text-ink-800 text-sm truncate"
-                              title={item.filename}
-                            >
-                              {item.filename}
-                            </h4>
-                            <div className="text-[11px] text-ink-400 mt-1 flex items-center gap-2 truncate font-data">
-                              <span className="font-medium text-ink-500">
-                                {item.username}
-                              </span>
-                              <span className="text-ink-200">•</span>
-                              <span title={item.dag_run_id}>
-                                {item.dag_run_id?.slice(0, 12)}...
-                              </span>
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <div className="w-10 h-10 rounded-lg bg-lake-50 text-lake-600 border border-lake-100 flex items-center justify-center shrink-0">
+                              <Icon name="file" className="w-4.5 h-4.5" />
+                            </div>
+                            <div className="min-w-0">
+                              <h4
+                                className="font-semibold text-ink-800 text-sm truncate"
+                                title={item.filename}
+                              >
+                                {item.filename}
+                              </h4>
+                              <div className="text-[11px] text-ink-400 mt-1 flex items-center gap-2 truncate font-data">
+                                <span className="font-medium text-ink-500">
+                                  {item.username}
+                                </span>
+                                <span className="text-ink-200">•</span>
+                                <span title={item.dag_run_id}>
+                                  {item.dag_run_id?.slice(0, 12)}...
+                                </span>
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        <div className="flex flex-col items-end shrink-0 gap-1.5">
-                          <Badge tone={st.tone}>{st.label}</Badge>
-                          <span className="text-[10px] text-ink-300 font-data">
-                            {item.uploaded_at
-                              ? new Date(item.uploaded_at + "Z").toLocaleString(
-                                  "vi-VN",
-                                )
-                              : "—"}
-                          </span>
+                          <div className="flex flex-col items-end shrink-0 gap-1.5">
+                            <Badge tone={st.tone}>{st.label}</Badge>
+                            <span className="text-[10px] text-ink-300 font-data">
+                              {item.uploaded_at
+                                ? new Date(item.uploaded_at + "Z").toLocaleString(
+                                    "vi-VN",
+                                  )
+                                : "—"}
+                            </span>
+                          </div>
                         </div>
+                        {item.metadata_info?.error_message && (
+                          <div className="bg-rose-50 border border-rose-100 rounded-lg p-2.5 text-xs text-rose-700 flex items-start gap-2">
+                            <Icon name="alertTriangle" className="w-4 h-4 shrink-0 mt-0.5" />
+                            <span className="font-medium line-clamp-2" title={item.metadata_info.error_message}>{item.metadata_info.error_message}</span>
+                          </div>
+                        )}
                       </div>
                     );
                   })}

@@ -7,22 +7,21 @@ default_args = {
     'depends_on_past': False,
     'email_on_failure': False,
     'email_on_retry': False,
-    # Cấu hình retry tự động nếu pipeline gặp lỗi
-    'retries': 1,
+    'retries': 0,
     'retry_delay': timedelta(minutes=1),
 }
 
 with DAG(
     'lakehouse_pipeline',
     default_args=default_args,
-    description='Pipeline for Lakehouse: Bronze -> Silver -> Gold',
+    description='Pipeline for Lakehouse: Bronze -> Silver -> Gold (Tối ưu hóa 4 bước)',
     schedule_interval=None, # Triggered externally via API
     start_date=datetime(2023, 1, 1),
     catchup=False,
     tags=['lakehouse'],
 ) as dag:
 
-    # Task 1: Ingest unstructured file to Parquet (Bronze)
+    # Task 1: Ingest unstructured file to Parquet (Bronze) - Tối ưu đa luồng & Hybrid AI
     ingest_bronze = BashOperator(
         task_id='ingest_bronze',
         bash_command='cd /opt/airflow/spark && python spark_ingest_bronze.py --run_id {{ run_id }}',
@@ -46,5 +45,5 @@ with DAG(
         bash_command='cd /opt/airflow/spark && python spark_predictive_analysis.py',
     )
 
-    # Define the pipeline flow
+    # Define the 4-step pipeline flow for Frontend & Airflow tracking
     ingest_bronze >> bronze_to_silver >> silver_to_gold >> predictive_analysis

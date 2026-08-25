@@ -1,16 +1,24 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
+  BarChart3,
+  ChevronRight,
   Database,
   Server,
-  BarChart3,
-  ShieldCheck,
-  ChevronRight,
+  Upload,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Landing = () => {
   const navigate = useNavigate();
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("token"));
+
+  // Đồng bộ khi localStorage thay đổi (logout từ tab khác)
+  useEffect(() => {
+    const sync = () => setIsLoggedIn(!!localStorage.getItem("token"));
+    window.addEventListener("storage", sync);
+    return () => window.removeEventListener("storage", sync);
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
@@ -39,14 +47,24 @@ const Landing = () => {
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate("/login")}
-                className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm gap-2"
-              >
-                Đăng nhập hệ thống
-                <ArrowRight className="w-4 h-4" />
-              </button>
+            <div className="flex items-center gap-3">
+              {isLoggedIn ? (
+                <button
+                  onClick={() => navigate("/user")}
+                  className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-white bg-blue-800 rounded-full hover:bg-blue-700 transition-colors shadow-sm gap-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  Tải lên dữ liệu
+                </button>
+              ) : (
+                <button
+                  onClick={() => navigate("/login")}
+                  className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-white bg-blue-800 rounded-full hover:bg-blue-700 transition-colors shadow-sm gap-2"
+                >
+                  Đăng nhập hệ thống
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -58,7 +76,7 @@ const Landing = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28 text-center">
             <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight mb-6">
               Nền tảng Phân tích Dữ liệu <br className="hidden sm:block" />
-              <span className="text-blue-600">Giáo dục & Hành chính Công</span>
+              <span className="text-blue-600">Giáo dục &amp; Hành chính Công</span>
             </h1>
             <p className="mt-4 max-w-2xl text-lg text-slate-600 mx-auto mb-10 leading-relaxed">
               Hệ thống Data Lakehouse tích hợp toàn diện quy trình Thu thập, Xử
@@ -66,13 +84,23 @@ const Landing = () => {
               hiện đại phục vụ công tác ra quyết định chiến lược.
             </p>
             <div className="flex justify-center gap-4">
-              <button
-                onClick={() => navigate("/login")}
-                className="px-8 py-3.5 text-base font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-md flex items-center gap-2"
-              >
-                Bắt đầu sử dụng
-                <ChevronRight className="w-5 h-5" />
-              </button>
+              {isLoggedIn ? (
+                <button
+                  onClick={() => navigate("/user")}
+                  className="px-8 py-5 text-base font-bold text-white bg-blue-800 rounded-full hover:bg-blue-700 transition-colors shadow-md flex items-center gap-2"
+                >
+                  Tải lên dữ liệu
+                  <Upload className="w-5 h-5" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => navigate("/login")}
+                  className="px-8 py-5 text-base font-bold text-white bg-blue-800 rounded-full hover:bg-blue-700 transition-colors shadow-md flex items-center gap-2"
+                >
+                  Bắt đầu sử dụng
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              )}
             </div>
           </div>
         </section>
@@ -80,8 +108,8 @@ const Landing = () => {
         {/* Workflow Overview */}
         <section className="py-16 bg-white border-b border-slate-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-2xl font-bold text-slate-900 mb-10">
-              Quy trình Vận hành Toàn trình{" "}
+            <h2 className="text-3xl font-extrabold text-slate-900 mb-10">
+              Quy trình Vận hành
             </h2>
             <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8">
               <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl flex-1 w-full shadow-sm hover:shadow-md transition-shadow text-left md:text-center">
@@ -92,7 +120,7 @@ const Landing = () => {
                   Data Ingestion
                 </h4>
                 <p className="text-sm text-slate-600">
-                  Tiếp nhận tài liệu hành chính (Word, PDF, Excel), chuẩn hóa
+                  Tiếp nhận tài liệu hành chính (Word, PDF, Excel, Images), chuẩn hóa
                   định dạng và đưa vào hệ thống lưu trữ phân tán MinIO S3 an
                   toàn.
                 </p>

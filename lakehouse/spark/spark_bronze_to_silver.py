@@ -3,25 +3,8 @@
 spark_bronze_to_silver.py (Có Nessie Catalog Versioning)
 ------------------------------------------------------------
 TẦNG SILVER - GHI ĐẦY ĐỦ CỘT NGHIỆP VỤ VÀO APACHE ICEBERG
-
-[CẬP NHẬT MỚI]
-  1. Dedup theo KHÓA NGHIỆP VỤ (ma_chi_tieu, quy_danh_gia) trong CÙNG 1 batch
-     Bronze, không chỉ dedup theo checksum_sha256 nữa. Nếu 1 file bị nộp lặp
-     dưới tên khác nhau (checksum khác nhưng nội dung/kỳ giống nhau), CHỈ giữ
-     lại bản ghi MỚI NHẤT theo thoi_gian_ingest_silver.
-  2. Các bản ghi bị loại (KHÔNG bị xóa âm thầm) được ghi lại thành 1 file
-     Parquet riêng tại bronze_discarded_duplicates/ để admin audit sau này -
-     đề phòng trường hợp 2 dữ liệu THỰC SỰ khác kỳ (VD do lỗi trích xuất
-     quy_danh_gia sai) bị nhầm là trùng.
-  3. Sau khi merge vào main THÀNH CÔNG, các file Parquet Bronze đã xử lý được
-     chuyển sang bronze_archive/ (KHÔNG xóa, chỉ archive) - để lần chạy sau
-     KHÔNG đọc lại rác cũ nữa (trước đây mỗi lần chạy đọc TOÀN BỘ lịch sử
-     bronze/data_extracted_*.parquet, khiến dữ liệu test tích luỹ mãi và gây
-     trùng khóa nghiệp vụ liên tục).
-------------------------------------------------------------
 """
 
-from env_config import MINIO_ENDPOINT
 import os
 import sys
 from datetime import datetime
@@ -43,7 +26,7 @@ from nessie_catalog_utils import (
 )
 from openmetadata_lineage_utils import get_client, ensure_bronze_table, push_lineage_safe
 from env_config import (
-    MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_BUCKET_NAME,
+    MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_BUCKET_NAME,
     NESSIE_API_URL, HADOOP_HOME, SPARK_LOCAL_IP,
 )
 
@@ -53,6 +36,7 @@ os.environ["AWS_ACCESS_KEY_ID"]     = MINIO_ACCESS_KEY
 os.environ["AWS_SECRET_ACCESS_KEY"] = MINIO_SECRET_KEY
 os.environ["SPARK_LOCAL_IP"]        = SPARK_LOCAL_IP
 os.environ["PYSPARK_SUBMIT_ARGS"] = (
+    "--driver-java-options \"-Djava.net.preferIPv4Stack=true\" "
     "--packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.4.3,"
     "org.projectnessie.nessie-integrations:nessie-spark-extensions-3.5_2.12:0.77.1,"
     "org.apache.hadoop:hadoop-aws:3.3.4 "
@@ -76,6 +60,7 @@ def get_spark_session():
         .config("spark.sql.catalog.lakehouse", "org.apache.iceberg.spark.SparkCatalog") \
         .config("spark.sql.catalog.lakehouse.catalog-impl", "org.apache.iceberg.nessie.NessieCatalog") \
         .config("spark.sql.catalog.lakehouse.uri", NESSIE_API_URL) \
+        .config("spark.sql.catalog.lakehouse.ref", "main") \
         .config("spark.sql.catalog.lakehouse.warehouse", "s3a://university-lakehouse/iceberg-warehouse") \
         .config("spark.sql.catalog.lakehouse.cache-enabled", "false") \
         .config("spark.sql.catalogImplementation", "in-memory") \
@@ -88,6 +73,9 @@ def get_spark_session():
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
         .config("spark.hadoop.fs.s3a.aws.credentials.provider",
                 "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
+        .config("spark.hadoop.fs.s3a.fast.upload", "true") \
+        .config("spark.hadoop.fs.s3a.connection.maximum", "100") \
+        .config("spark.sql.shuffle.partitions", "4") \
         .config("spark.sql.parquet.enableVectorizedReader", "false") \
         .getOrCreate()
 
@@ -101,8 +89,7 @@ def get_s3_client():
 
 
 def init_silver_table_if_needed(spark, branch_name="main"):
-    """Đảm bảo namespace + bảng Silver tồn tại, và tự bổ sung cột mới
-    (schema evolution) nếu bảng cũ đã tồn tại từ trước khi có các cột này."""
+    """Đảm bảo namespace + bảng Silver tồn tại, và tự bổ sung cột mới nếu cần."""
     spark.sql("CREATE NAMESPACE IF NOT EXISTS lakehouse.silver")
     create_sql = f"""
         CREATE TABLE IF NOT EXISTS {SILVER_TABLE} (
@@ -144,35 +131,29 @@ def init_silver_table_if_needed(spark, branch_name="main"):
         else:
             raise
 
-    # Bổ sung cột mới nếu bảng cũ đã tồn tại từ trước (schema evolution, không mất dữ liệu cũ)
-    existing_columns = {f.name for f in spark.table(SILVER_TABLE).schema.fields}
-    new_columns = {
-        "noi_dung_muc_tieu": "STRING",
-        "nguyen_nhan": "STRING",
-        "hanh_dong_khac_phuc": "STRING",
-        "muc_dang_ky_numeric": "DOUBLE",
-        "muc_dat_numeric": "DOUBLE",
-        "minh_chung_type": "STRING",
-        "minh_chung_path": "STRING",
-    }
-    for col_name, col_type in new_columns.items():
-        if col_name not in existing_columns:
-            print(f"🔧 Đang bổ sung cột '{col_name}' vào bảng {SILVER_TABLE}...")
-            spark.sql(f"ALTER TABLE {SILVER_TABLE} ADD COLUMN {col_name} {col_type}")
+    # Schema evolution
+    try:
+        existing_columns = {f.name for f in spark.table(SILVER_TABLE).schema.fields}
+        new_columns = {
+            "noi_dung_muc_tieu": "STRING",
+            "nguyen_nhan": "STRING",
+            "hanh_dong_khac_phuc": "STRING",
+            "muc_dang_ky_numeric": "DOUBLE",
+            "muc_dat_numeric": "DOUBLE",
+            "minh_chung_type": "STRING",
+            "minh_chung_path": "STRING",
+        }
+        for col_name, col_type in new_columns.items():
+            if col_name not in existing_columns:
+                print(f"🔧 Đang bổ sung cột '{col_name}' vào bảng {SILVER_TABLE}...")
+                spark.sql(f"ALTER TABLE {SILVER_TABLE} ADD COLUMN {col_name} {col_type}")
+    except Exception:
+        pass
 
 
 def dedup_by_business_key(df_bronze):
-    """
-    [MỚI] Dedup theo khóa nghiệp vụ thật sự (ma_chi_tieu, quy_danh_gia), không
-    chỉ theo checksum_sha256. Nếu 1 file bị nộp lặp dưới tên khác nhau (VD
-    'test.docx', 'h.docx', 'BM09...Copy.docx' đều là cùng 1 báo cáo Q1/2026),
-    checksum sẽ khác nhau (vì checksum có tính cả file_nguon) nên KHÔNG bị
-    dedup ở bước checksum -> phải chặn thêm ở đây bằng khóa nghiệp vụ.
-
-    Trả về: (df_staging_sạch, df_bị_loại)
-    """
+    """Dedup theo khóa nghiệp vụ (ma_chi_tieu, quy_danh_gia)."""
     df_with_ts = df_bronze.withColumn("thoi_gian_ingest_silver", current_timestamp())
-
     w = Window.partitionBy("ma_chi_tieu", "quy_danh_gia").orderBy(desc("thoi_gian_ingest_silver"))
     df_ranked = df_with_ts.withColumn("_rn", row_number().over(w))
 
@@ -183,9 +164,7 @@ def dedup_by_business_key(df_bronze):
 
 
 def save_discarded_duplicates(df_discarded, s3_client):
-    """[MỚI] Ghi lại các bản ghi bị loại do trùng khóa nghiệp vụ trong batch,
-    KHÔNG xóa âm thầm - để admin kiểm tra sau này (VD nghi ngờ lỗi trích xuất
-    quy_danh_gia sai khiến 2 kỳ thật khác nhau bị nhầm thành 1)."""
+    """Ghi lại các bản ghi bị loại do trùng khóa nghiệp vụ."""
     dup_count = df_discarded.count()
     if dup_count == 0:
         return
@@ -194,27 +173,19 @@ def save_discarded_duplicates(df_discarded, s3_client):
     discard_path = f"s3a://university-lakehouse/{BRONZE_DISCARDED_PREFIX}discarded_{timestamp_str}.parquet"
 
     print(
-        f"⚠️  CẢNH BÁO: phát hiện {dup_count} bản ghi trùng (ma_chi_tieu, quy_danh_gia) "
-        f"trong batch Bronze hiện tại (có thể do 1 báo cáo bị nộp lặp qua nhiều file "
-        f"tên khác nhau). Chỉ giữ lại bản MỚI NHẤT theo thoi_gian_ingest_silver."
+        f"⚠️ CẢNH BÁO: phát hiện {dup_count} bản ghi trùng (ma_chi_tieu, quy_danh_gia). "
+        f"Chỉ giữ lại bản MỚI NHẤT theo thoi_gian_ingest_silver."
     )
     df_discarded.write.mode("overwrite").parquet(discard_path)
-    print(f"📝 Đã ghi {dup_count} bản ghi bị loại vào '{discard_path}' để audit thủ công.")
+    print(f"📝 Đã ghi {dup_count} bản ghi bị loại vào '{discard_path}'.")
 
 
 def archive_processed_bronze_files(s3_client):
-    """
-    [MỚI] Sau khi merge vào main THÀNH CÔNG, chuyển các file Parquet Bronze
-    (bronze/data_extracted_*.parquet) sang bronze_archive/ - KHÔNG xóa.
-    Việc này ngăn tình trạng mỗi lần chạy pipeline đọc lại TOÀN BỘ lịch sử
-    Bronze (kể cả file test cũ đã merge từ nhiều ngày trước), vốn là nguyên
-    nhân chính gây ra lỗi trùng khóa nghiệp vụ liên tục.
-    """
+    """Sau khi merge vào main THÀNH CÔNG, chuyển Parquet Bronze sang bronze_archive/."""
     resp = s3_client.list_objects_v2(Bucket=MINIO_BUCKET_NAME, Prefix=f"{BRONZE_PREFIX}data_extracted_")
     contents = resp.get("Contents", [])
     if not contents:
         return
-
 
     for obj in contents:
         key = obj["Key"]
@@ -226,19 +197,24 @@ def archive_processed_bronze_files(s3_client):
         )
         s3_client.delete_object(Bucket=MINIO_BUCKET_NAME, Key=key)
 
-    print(f"🗑️  Đã archive {len(contents)} file Parquet Bronze đã merge thành công "
-          f"sang '{BRONZE_ARCHIVE_PREFIX}' (lần chạy sau sẽ không đọc lại nữa).")
+    print(f"🗑️ Đã archive {len(contents)} file Parquet Bronze sang '{BRONZE_ARCHIVE_PREFIX}'.")
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Bronze to Silver")
-    parser.add_argument("--run_id", type=str, help="Airflow DAG Run ID", default="")
-    args = parser.parse_args()
+def run_bronze_to_silver(spark, run_id=""):
+    """Thực thi toàn bộ luồng Bronze -> Silver trên SparkSession được truyền vào."""
+    # Đảm bảo bảng Silver luôn tồn tại trên main
+    init_silver_table_if_needed(spark, "main")
 
-    sys.stdout.reconfigure(encoding='utf-8')
-    spark = get_spark_session()
+    s3_client = get_s3_client()
+    resp = s3_client.list_objects_v2(Bucket=MINIO_BUCKET_NAME, Prefix=f"{BRONZE_PREFIX}data_extracted_")
+    parquet_contents = [obj["Key"] for obj in resp.get("Contents", []) if obj["Key"].endswith(".parquet")]
+    
+    if not parquet_contents:
+        print(f"ℹ️ Không tìm thấy file Bronze Parquet nào mới trong '{BRONZE_PREFIX}'. Bỏ qua bước Silver (chờ Ingestion).")
+        return True
+
+    print(f"📁 Tìm thấy {len(parquet_contents)} file Bronze Parquet cần nạp vào Silver...")
     bronze_parquet_path = "s3a://university-lakehouse/bronze/data_extracted_*.parquet"
-
     branch_name = make_branch_name("ingest_bronze_silver")
 
     try:
@@ -248,37 +224,29 @@ def main():
 
         init_silver_table_if_needed(spark, branch_name)
 
-        try:
-            spark.conf.set("spark.sql.parquet.enableVectorizedReader", "false")
-            from pyspark.sql.types import StructType, StructField, StringType, DoubleType
-            bronze_schema = StructType([
-                StructField("file_nguon", StringType(), True),
-                StructField("ma_chi_tieu", StringType(), True),
-                StructField("nhom_don_vi", StringType(), True),
-                StructField("quy_danh_gia", StringType(), True),
-                StructField("noi_dung_muc_tieu", StringType(), True),
-                StructField("dinh_ky_thu_thap", StringType(), True),
-                StructField("muc_dang_ky", StringType(), True),
-                StructField("muc_dang_ky_numeric", DoubleType(), True),
-                StructField("muc_dat", StringType(), True),
-                StructField("muc_dat_numeric", DoubleType(), True),
-                StructField("ket_qua_he_thong", StringType(), True),
-                StructField("nguyen_nhan", StringType(), True),
-                StructField("hanh_dong_khac_phuc", StringType(), True),
-                StructField("minh_chung_type", StringType(), True),
-                StructField("minh_chung_path", StringType(), True),
-                StructField("checksum_sha256", StringType(), True)
-            ])
-            df_bronze = spark.read.schema(bronze_schema).parquet(bronze_parquet_path)
-        except Exception as e:
-            print(f"LỖI KHI ĐỌC PARQUET ({bronze_parquet_path}): {e}")
-            print(f"Không tìm thấy dữ liệu Parquet hoặc lỗi kết nối MinIO. Có thể chưa có file nào được ingest.")
-            return
-
-        # [MỚI] Dedup theo khóa nghiệp vụ (ma_chi_tieu, quy_danh_gia), không chỉ checksum
+        from pyspark.sql.types import StructType, StructField, StringType, DoubleType
+        bronze_schema = StructType([
+            StructField("file_nguon", StringType(), True),
+            StructField("ma_chi_tieu", StringType(), True),
+            StructField("nhom_don_vi", StringType(), True),
+            StructField("quy_danh_gia", StringType(), True),
+            StructField("noi_dung_muc_tieu", StringType(), True),
+            StructField("dinh_ky_thu_thap", StringType(), True),
+            StructField("muc_dang_ky", StringType(), True),
+            StructField("muc_dang_ky_numeric", DoubleType(), True),
+            StructField("muc_dat", StringType(), True),
+            StructField("muc_dat_numeric", DoubleType(), True),
+            StructField("ket_qua_he_thong", StringType(), True),
+            StructField("nguyen_nhan", StringType(), True),
+            StructField("hanh_dong_khac_phuc", StringType(), True),
+            StructField("minh_chung_type", StringType(), True),
+            StructField("minh_chung_path", StringType(), True),
+            StructField("checksum_sha256", StringType(), True)
+        ])
+        
+        df_bronze = spark.read.schema(bronze_schema).parquet(bronze_parquet_path)
         df_staging, df_discarded = dedup_by_business_key(df_bronze)
 
-        s3_client = get_s3_client()
         save_discarded_duplicates(df_discarded, s3_client)
 
         df_staging.createOrReplaceTempView("bronze_staging_view")
@@ -318,25 +286,20 @@ def main():
                 s.thoi_gian_ingest_silver
               )
         """)
-        print(f"✅ Đã ghi/cập nhật dữ liệu vào bảng Iceberg trên branch tạm thời '{branch_name}'.")
+        print(f"✅ Đã ghi/cập nhật dữ liệu vào bảng Iceberg trên branch '{branch_name}'.")
 
-        # Data quality check TRÊN BRANCH (bao gồm check trùng khóa nghiệp vụ và UNKNOWN_KY)
         check_quality_silver(spark, SILVER_TABLE)
-
         merge_branch_to_main(spark, branch_name)
         use_main(spark)
 
-        # Archive các file Bronze đã xử lý thành công - chỉ làm SAU KHI merge thành công
         archive_processed_bronze_files(s3_client)
 
-        print("\n📊 CHI TIẾT DỮ LIỆU CHUẨN HÓA TRONG BẢNG ICEBERG SILVER (main):")
+        print("\n📊 CHI TIẾT DỮ LIỆU TRONG BẢNG ICEBERG SILVER (main):")
         spark.sql(f"""
             SELECT ma_chi_tieu, nhom_don_vi, quy_danh_gia, dinh_ky_thu_thap, muc_dang_ky, muc_dat, ket_qua_he_thong
             FROM {SILVER_TABLE}
             ORDER BY nhom_don_vi, ma_chi_tieu
-        """).show(100, truncate=False)
-
-        print(f"\n🌟 HOÀN THÀNH. Branch '{branch_name}' đã merge vào main và vẫn được giữ lại để audit.")
+        """).show(20, truncate=False)
 
         try:
             om_client = get_client()
@@ -349,28 +312,35 @@ def main():
                     "USING bronze_staging_view s ON t.ma_chi_tieu = s.ma_chi_tieu AND t.quy_danh_gia = s.quy_danh_gia "
                     "WHEN MATCHED THEN UPDATE * WHEN NOT MATCHED THEN INSERT *"
                 ),
-                description="Nạp dữ liệu KPI đã trích xuất từ PDF/DOCX (Bronze) vào bảng Iceberg Silver, "
-                             "chạy bởi spark_bronze_to_silver.py",
+                description="Nạp dữ liệu KPI từ Bronze vào Iceberg Silver",
             )
         except Exception as e:
-            print(f"⚠️  Không đẩy được lineage lên OpenMetadata (bỏ qua, không ảnh hưởng dữ liệu): {e}")
+            print(f"⚠️ Không đẩy được lineage lên OpenMetadata (bỏ qua): {e}")
+
+        return True
 
     except DataQualityError as dqe:
         use_main(spark)
         err_msg = f"Kiểm tra chất lượng thất bại: {dqe}"
         print(f"❌ DỮ LIỆU KHÔNG ĐẠT CHẤT LƯỢNG: {dqe}")
-        print(f"Branch '{branch_name}' được giữ nguyên (không merge vào main) để kiểm tra thủ công.")
-        print(f"Xem lại dữ liệu lỗi bằng: SELECT * FROM {SILVER_TABLE}@{branch_name}")
-        print(f"(Bronze KHÔNG bị archive vì chưa merge thành công - có thể sửa lỗi rồi chạy lại.)")
-        update_pipeline_error(args.run_id, err_msg)
-        sys.exit(1)
+        update_pipeline_error(run_id, err_msg)
+        raise dqe
 
     except Exception as e:
         use_main(spark)
-        print(f"❌ Lỗi xử lý đường ống dữ liệu: {str(e)}")
-        print(f"    Branch '{branch_name}' được giữ nguyên để kiểm tra.")
-        sys.exit(1)
+        print(f"❌ Lỗi xử lý đường ống Silver: {str(e)}")
+        raise e
 
+
+def main():
+    parser = argparse.ArgumentParser(description="Bronze to Silver")
+    parser.add_argument("--run_id", type=str, help="Airflow DAG Run ID", default="")
+    args = parser.parse_args()
+
+    sys.stdout.reconfigure(encoding='utf-8')
+    spark = get_spark_session()
+    try:
+        run_bronze_to_silver(spark, args.run_id)
     finally:
         spark.stop()
 

@@ -56,7 +56,7 @@ export const EmptyState = ({ icon = 'inbox', title, description, action }) => (
   </div>
 );
 
-/* Chip nhỏ báo trạng thái kết nối hệ thống (Nessie · Trino · MinIO...) */
+  /* Chip nhỏ báo trạng thái kết nối hệ thống (Nessie · Trino · MinIO...) */
 export const ConnChip = ({ label, ok = true }) => (
   <span className="inline-flex items-center gap-1.5 text-[11px] font-data text-ink-500 bg-white border border-ink-100 rounded-full px-2.5 py-1">
     <span className={`w-1.5 h-1.5 rounded-full ${ok ? 'bg-emerald-500' : 'bg-rose-400'}`} />
@@ -64,8 +64,6 @@ export const ConnChip = ({ label, ok = true }) => (
   </span>
 );
 
-/* Logo dạng khối 3 lớp Bronze/Silver/Gold xếp chồng — gắn liền với kiến trúc
-   Medallion của chính sản phẩm, dùng làm dấu hiệu nhận diện xuyên suốt. */
 export const LakehouseMark = ({ className = 'w-9 h-9' }) => (
   <svg viewBox="0 0 36 36" className={className} aria-hidden="true">
     <path d="M18 4 4 12l14 8 14-8-14-8Z" fill="#EAC569" />

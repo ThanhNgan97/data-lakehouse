@@ -1,5 +1,16 @@
 import psycopg2
 import json
+from env_config import PG_HOST, PG_PORT, PG_USER, PG_PASSWORD
+
+def get_db_connection():
+    """Tạo kết nối tới database PostgreSQL dựa trên cấu hình linh hoạt (Docker vs Host)."""
+    return psycopg2.connect(
+        dbname="university_db",
+        user=PG_USER,
+        password=PG_PASSWORD,
+        host=PG_HOST,
+        port=PG_PORT
+    )
 
 def update_pipeline_error(run_id, error_message):
     """
@@ -11,15 +22,7 @@ def update_pipeline_error(run_id, error_message):
         return
 
     try:
-        # Tạm thời hardcode config từ docker-compose, có thể dùng .env nếu cần
-        # Vì Spark script chạy bên trong Airflow container, host là postgres
-        conn = psycopg2.connect(
-            dbname="university_db",
-            user="postgres",
-            password="240203",
-            host="postgres",
-            port="5432"
-        )
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Lấy metadata_info hiện tại
@@ -28,7 +31,6 @@ def update_pipeline_error(run_id, error_message):
         
         if row:
             metadata = row[0] if row[0] is not None else {}
-            # Ensure metadata is a dictionary (SQLAlchemy JSONB returns a dict, but just in case)
             if isinstance(metadata, str):
                 metadata = json.loads(metadata)
                 
@@ -58,13 +60,7 @@ def save_parsed_data(run_id, data):
         return
 
     try:
-        conn = psycopg2.connect(
-            dbname="university_db",
-            user="postgres",
-            password="240203",
-            host="postgres",
-            port="5432"
-        )
+        conn = get_db_connection()
         cur = conn.cursor()
         
         cur.execute("SELECT metadata_info FROM upload_history WHERE dag_run_id = %s", (run_id,))

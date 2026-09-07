@@ -2,6 +2,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 
 from core.security import get_password_hash, verify_password, create_access_token
 from db.database import get_db, get_user
@@ -23,7 +24,15 @@ async def login(
     username = form_data.username
     password = form_data.password
 
-    user = get_user(username=username, db=db)
+    try:
+        user = get_user(username=username, db=db)
+    except SQLAlchemyError:
+        # A database outage is not an authentication failure.  Returning a
+        # response here also lets the client release its loading state.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Không thể kết nối cơ sở dữ liệu. Vui lòng thử lại sau."
+        )
     
     # Lấy thông tin hashed_password và role tùy thuộc vào loại đối tượng user (ORM hay Dict)
     if isinstance(user, User):
@@ -123,4 +132,4 @@ async def get_me(current_user = Depends(get_current_user)):
         "created_at": None
     }
 
-
+

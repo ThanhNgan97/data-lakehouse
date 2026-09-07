@@ -17,7 +17,9 @@ RUN pip install --no-cache-dir \
     pyspark==3.5.0 \
     minio \
     python-docx \
+    python-pptx \
     pdfplumber \
     boto3 \
     psycopg2-binary \
     google-genai
+

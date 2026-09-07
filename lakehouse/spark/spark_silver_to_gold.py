@@ -51,7 +51,9 @@ GOLD_COMPARISON_TABLE = "lakehouse.gold.kpi_so_sanh_ky"
 GOLD_DICT_TABLE       = "lakehouse.gold.dm_chi_tieu"
 
 GOLD_SUMMARY_COLUMNS = [
-    "quy_danh_gia", "nhom_don_vi",
+    # Giữ nguồn dữ liệu trong mart tổng hợp để các chart Superset dùng
+    # kpi_tong_hop_don_vi cũng nhận được native filter `file_nguon`.
+    "file_nguon", "quy_danh_gia", "nhom_don_vi",
     "tong_chi_tieu_danh_gia", "so_chi_tieu_dat", "so_chi_tieu_khong_dat",
     "ty_le_hoan_thanh_phan_tram", "thoi_gian_dong_goi_gold",
 ]
@@ -63,7 +65,9 @@ GOLD_DETAIL_COLUMNS = [
     "file_nguon", "minh_chung_type", "minh_chung_path", "thoi_gian_dong_goi_gold",
 ]
 GOLD_COMPARISON_COLUMNS = [
-    "ma_chi_tieu", "nhom_don_vi", "ten_phong_ban",
+    # Tương tự mart tổng hợp, tránh việc một chart dùng mart so sánh
+    # bị bỏ ra ngoài khi dashboard lọc theo file.
+    "file_nguon", "ma_chi_tieu", "nhom_don_vi", "ten_phong_ban",
     "quy_danh_gia", "muc_dat_numeric",
     "quy_danh_gia_ky_truoc", "muc_dat_numeric_ky_truoc",
     "tang_truong_phan_tram", "thoi_gian_dong_goi_gold",
@@ -212,7 +216,11 @@ def run_silver_to_gold(spark):
         print("⚙️ Nghiệp vụ 1: Tính toán tỷ lệ hoàn thành KPI nghiệp vụ...")
         df_filtered = df_silver.filter(col("ket_qua_he_thong") != "CHƯA ĐẾN KỲ ĐÁNH GIÁ")
 
-        df_summary = df_filtered.groupBy("quy_danh_gia", "nhom_don_vi").agg(
+        # file_nguon phải là một phần của group key. Nếu không, số liệu của
+        # nhiều file sẽ bị cộng chung và Superset không thể lọc đúng theo file.
+        df_summary = df_filtered.groupBy(
+            "file_nguon", "quy_danh_gia", "nhom_don_vi"
+        ).agg(
             count("*").alias("tong_chi_tieu_danh_gia"),
             count(when(col("ket_qua_he_thong") == "ĐẠT", True)).alias("so_chi_tieu_dat"),
             count(when(col("ket_qua_he_thong") == "KHÔNG ĐẠT", True)).alias("so_chi_tieu_khong_dat")
@@ -240,12 +248,22 @@ def run_silver_to_gold(spark):
 
         # DATA MART 3: SO SÁNH GIỮA CÁC KỲ
         print("⚙️ Nghiệp vụ 3: Tính tăng/giảm % của từng mã chỉ tiêu...")
-        window_spec = Window.partitionBy("ma_chi_tieu").orderBy("quy_danh_gia_sort_key")
+        window_spec = (
+            Window.partitionBy("file_nguon", "ma_chi_tieu")
+            .orderBy("quy_danh_gia_sort_key")
+        )
 
         df_comparison = (
             df_silver
-            .withColumn("quy_danh_gia_ky_truoc", lag("quy_danh_gia").over(window_spec))
-            .withColumn("muc_dat_numeric_ky_truoc", lag("muc_dat_numeric").over(window_spec))
+            # So sánh kỳ chỉ có ý nghĩa trong cùng một file nguồn.
+            .withColumn(
+                "quy_danh_gia_ky_truoc",
+                lag("quy_danh_gia").over(window_spec),
+            )
+            .withColumn(
+                "muc_dat_numeric_ky_truoc",
+                lag("muc_dat_numeric").over(window_spec),
+            )
             .withColumn(
                 "tang_truong_phan_tram",
                 when(

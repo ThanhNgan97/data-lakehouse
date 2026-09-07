@@ -12,6 +12,11 @@ TẦNG BRONZE - AI & NATIVE HYBRID INGESTION
 import io
 import os
 import sys
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 import hashlib
 import re
 import zipfile
@@ -221,6 +226,219 @@ def extract_table_from_docx_fast(file_bytes: bytes):
     return None
 
 
+def extract_table_from_pptx_fast(file_bytes: bytes):
+    """
+    Trích xuất bảng trực tiếp từ slide XML trong PPTX (xử lý siêu nhanh < 0.05s).
+    Tìm bảng có cấu trúc hợp lệ (chứa cột KPI: MÃ, MỤC TIÊU, MỨC ĐẠT...).
+    Trả về (rows, quy_danh_gia, ky_candidates) hoặc None nếu không có bảng chuẩn để fallback sang Gemini API.
+    """
+    try:
+        with zipfile.ZipFile(io.BytesIO(file_bytes)) as z:
+            slide_names = [
+                n for n in z.namelist()
+                if n.startswith("ppt/slides/slide") and n.endswith(".xml")
+            ]
+            if not slide_names:
+                return None
+
+            ns = {
+                "p": "http://schemas.openxmlformats.org/presentationml/2006/main",
+                "a": "http://schemas.openxmlformats.org/drawingml/2006/main",
+            }
+
+            all_slide_texts = []
+            extracted_rows = []
+
+            def slide_sort_key(name):
+                match = re.search(r"slide(\d+)\.xml", name)
+                return int(match.group(1)) if match else 9999
+
+            for name in sorted(slide_names, key=slide_sort_key):
+                xml_content = z.read(name)
+                root = ET.fromstring(xml_content)
+
+                # Thu thập toàn bộ text trên slide để nhận diện kỳ/quý đánh giá
+                slide_texts = [
+                    node.text.strip()
+                    for node in root.findall(".//a:t", ns)
+                    if node.text and node.text.strip()
+                ]
+                if slide_texts:
+                    all_slide_texts.extend(slide_texts)
+
+                # Tìm các bảng trong slide (<a:tbl>)
+                tables = root.findall(".//a:tbl", ns)
+                for table in tables:
+                    rows = table.findall(".//a:tr", ns)
+                    if len(rows) < 2:
+                        continue
+
+                    header_cells = rows[0].findall(".//a:tc", ns)
+                    headers = [
+                        "".join([node.text for node in c.findall(".//a:t", ns) if node.text]).strip().upper()
+                        for c in header_cells
+                    ]
+                    header_str = " ".join(headers)
+
+                    if not any(k in header_str for k in ["MÃ", "MA", "MỤC TIÊU", "MUC TIEU", "MỨC ĐẠT", "MUC DAT", "MỨC ĐĂNG KÝ"]):
+                        continue
+
+                    col_map = {}
+                    for idx, h in enumerate(headers):
+                        if re.search(r"^(MÃ|MA|MÃ CHỈ TIÊU)$", h) or "MÃ" in h:
+                            col_map.setdefault("ma", idx)
+                        elif "NỘI DUNG" in h or "MỤC TIÊU" in h or "CHỈ TIÊU" in h:
+                            col_map.setdefault("noi_dung", idx)
+                        elif "ĐỊNH KỲ" in h or "DINH KY" in h or "THU THẬP" in h:
+                            col_map.setdefault("dinh_ky", idx)
+                        elif "ĐĂNG KÝ" in h or "DANG KY" in h or "KẾ HOẠCH" in h:
+                            col_map.setdefault("muc_dang_ky", idx)
+                        elif "MỨC ĐẠT" in h or "MUC DAT" in h or "KẾT QUẢ ĐẠT" in h:
+                            col_map.setdefault("muc_dat", idx)
+                        elif "KẾT QUẢ" in h or "KET QUA" in h or "ĐÁNH GIÁ" in h:
+                            col_map.setdefault("ket_qua", idx)
+                        elif "NGUYÊN NHÂN" in h or "NGUYEN NHAN" in h:
+                            col_map.setdefault("nguyen_nhan", idx)
+                        elif "HÀNH ĐỘNG" in h or "KHẮC PHỤC" in h or "HANH DONG" in h:
+                            col_map.setdefault("hanh_dong", idx)
+
+                    if "ma" not in col_map:
+                        continue
+
+                    for r in rows[1:]:
+                        cells = r.findall(".//a:tc", ns)
+                        cell_texts = [
+                            "".join([node.text for node in c.findall(".//a:t", ns) if node.text]).strip()
+                            for c in cells
+                        ]
+                        if not cell_texts or len(cell_texts) <= col_map["ma"]:
+                            continue
+
+                        ma_val = cell_texts[col_map["ma"]].strip()
+                        if not ma_val or ma_val.upper() in ["N/A", "STT", "TT", "MÃ", "MA"] or len(ma_val) < 2:
+                            continue
+
+                        def get_c(key, default="N/A"):
+                            idx = col_map.get(key)
+                            if idx is not None and idx < len(cell_texts):
+                                val = cell_texts[idx].strip()
+                                return val if val else default
+                            return default
+
+                        extracted_rows.append((
+                            ma_val,
+                            get_c("noi_dung", "N/A"),
+                            get_c("dinh_ky", "N/A"),
+                            get_c("muc_dang_ky", "N/A"),
+                            get_c("muc_dat", "N/A"),
+                            get_c("ket_qua", "N/A"),
+                            get_c("nguyen_nhan", ""),
+                            get_c("hanh_dong", "")
+                        ))
+
+            full_text = "\n".join(all_slide_texts)
+            quy_danh_gia_candidate = None
+            quy_match = re.search(r"(?:Q|QUÝ|QUY)\s*([1-4])\s*(?:/|-|NĂM|NAM)\s*(\d{4})", full_text, re.IGNORECASE)
+            if quy_match:
+                quy_danh_gia_candidate = f"Q{quy_match.group(1)}/{quy_match.group(2)}"
+            else:
+                nam_match = re.search(r"(?:NĂM|NAM)\s*(\d{4})", full_text, re.IGNORECASE)
+                if nam_match:
+                    quy_danh_gia_candidate = f"NĂM {nam_match.group(1)}"
+
+            if extracted_rows:
+                print(f"⚡ [Fast Native PPTX Parser] Đã trích xuất thành công {len(extracted_rows)} dòng từ PPTX trong < 0.05s!")
+                return extracted_rows, quy_danh_gia_candidate, {quy_danh_gia_candidate} if quy_danh_gia_candidate else set()
+
+    except Exception as e:
+        print(f"DEBUG: Fast PPTX parsing failed ({e}), fallback sang Gemini.")
+
+    return None
+
+
+def extract_text_from_pptx(file_bytes: bytes) -> str:
+    """Trích xuất toàn bộ nội dung văn bản từ slide và ghi chú trong file PPTX hoặc PPT."""
+    text_runs = []
+    # 1. Xử lý định dạng .pptx (OpenXML ZIP)
+    try:
+        with zipfile.ZipFile(io.BytesIO(file_bytes)) as z:
+            ns = {
+                "p": "http://schemas.openxmlformats.org/presentationml/2006/main",
+                "a": "http://schemas.openxmlformats.org/drawingml/2006/main"
+            }
+            slide_names = [
+                n for n in z.namelist() 
+                if n.startswith("ppt/slides/slide") and n.endswith(".xml")
+            ]
+            def slide_sort_key(name):
+                match = re.search(r"slide(\d+)\.xml", name)
+                return int(match.group(1)) if match else 9999
+
+            for name in sorted(slide_names, key=slide_sort_key):
+                slide_num = re.search(r"slide(\d+)\.xml", name)
+                s_idx = slide_num.group(1) if slide_num else ""
+                xml_content = z.read(name)
+                root = ET.fromstring(xml_content)
+                slide_texts = [node.text for node in root.findall(".//a:t", ns) if node.text and node.text.strip()]
+                if slide_texts:
+                    text_runs.append(f"--- Slide {s_idx} ---")
+                    text_runs.append("\n".join(slide_texts))
+
+            # Lấy thêm ghi chú (notes) nếu có
+            note_names = [
+                n for n in z.namelist() 
+                if n.startswith("ppt/notesSlides/notesSlide") and n.endswith(".xml")
+            ]
+            for name in note_names:
+                xml_content = z.read(name)
+                root = ET.fromstring(xml_content)
+                note_texts = [node.text for node in root.findall(".//a:t", ns) if node.text and node.text.strip()]
+                if note_texts:
+                    text_runs.append(f"--- Slide Notes ---")
+                    text_runs.append("\n".join(note_texts))
+
+            if text_runs:
+                return "\n\n".join(text_runs)
+    except Exception:
+        pass
+
+    # 2. Xử lý file .ppt nhị phân legacy (bằng cách quét các chuỗi văn bản UTF-16LE và ASCII)
+    try:
+        content = file_bytes
+        # Trích xuất chuỗi UTF-16LE (ít nhất 4 ký tự in được)
+        utf16_matches = re.findall(rb"(?:[\x20-\x7e\xa0-\xff]\x00){4,}", content)
+        for m in utf16_matches:
+            try:
+                decoded = m.decode("utf-16le").strip()
+                if len(decoded) >= 4 and not decoded.isnumeric():
+                    text_runs.append(decoded)
+            except Exception:
+                continue
+
+        # Trích xuất chuỗi ASCII (ít nhất 5 ký tự in được)
+        ascii_matches = re.findall(rb"[\x20-\x7e]{5,}", content)
+        for m in ascii_matches:
+            try:
+                decoded = m.decode("ascii", errors="ignore").strip()
+                if len(decoded) >= 5 and not decoded.startswith("http"):
+                    text_runs.append(decoded)
+            except Exception:
+                continue
+
+        if text_runs:
+            seen = set()
+            unique_runs = []
+            for t in text_runs:
+                if t not in seen:
+                    seen.add(t)
+                    unique_runs.append(t)
+            return "\n".join(unique_runs)
+    except Exception as e:
+        print(f"DEBUG: PPT text extraction fallback failed: {e}")
+
+    return ""
+
+
 def extract_text_from_docx(file_bytes: bytes) -> str:
     """Trích xuất văn bản thô từ file DOCX."""
     text_runs = []
@@ -259,7 +477,24 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
         "4. Đảm bảo trích xuất đầy đủ tất cả các trang, không bỏ sót dòng nào."
     )
 
-    if ext == ".docx":
+    if ext in [".pptx", ".ppt"]:
+        prompt = (
+            "Bạn là một chuyên gia phân tích dữ liệu và báo cáo KPI. "
+            "Hãy đọc tài liệu thuyết trình PowerPoint đính kèm và trích xuất tất cả các chỉ số, mục tiêu đo lường, kết quả hoạt động hoặc bảng số liệu KPI. "
+            "Trả về một mảng JSON các đối tượng KpiRecord. "
+            "Lưu ý quan trọng: "
+            "1. ma_chi_tieu: Lấy mã chỉ tiêu nếu có (VD: ĐT-MT01, QTCL MT001). Nếu slide không có cột mã sẵn, hãy tự tạo mã ngắn gọn theo tên chỉ tiêu hoặc slide (VD: KPI-01, PPT-MTR01, RETAIL-01) để định danh, tuyệt đối KHÔNG để 'N/A' hay bỏ trống. "
+            "2. quy_danh_gia: Lấy từ tiêu đề hoặc ngữ cảnh thời gian (VD: Q1/2026, NĂM 2024, Tháng 1/2026). Nếu không thấy thì để 'N/A'. "
+            "3. noi_dung_muc_tieu: Mô tả rõ ràng nội dung chỉ tiêu/mục tiêu đo lường. "
+            "4. muc_dang_ky và muc_dat: Lấy số liệu kế hoạch và thực tế (hoặc tỷ lệ %, con số thống kê). "
+            "5. ket_qua_he_thong: Đánh giá ĐẠT, KHÔNG ĐẠT hoặc CHƯA ĐẾN KỲ ĐÁNH GIÁ (hoặc trạng thái tương ứng). "
+            "6. Đảm bảo trích xuất các chỉ số chính xuất hiện trong slide, không bỏ sót dòng nào."
+        )
+        file_text = extract_text_from_pptx(file_bytes)
+        if not file_text.strip():
+            raise ValueError(f"Không thể trích xuất văn bản từ file {ext.upper()}.")
+        full_contents = [f"{prompt}\n\nVĂN BẢN THUYẾT TRÌNH {ext.upper()}:\n{file_text}"]
+    elif ext == ".docx":
         file_text = extract_text_from_docx(file_bytes)
         if not file_text.strip():
             raise ValueError("Không thể trích xuất văn bản từ file DOCX.")
@@ -296,11 +531,17 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
 
     rows = []
     quy_list = []
-    for item in data:
+    for idx, item in enumerate(data, start=1):
         ma = item.get("ma_chi_tieu", "N/A")
         quy = item.get("quy_danh_gia", "N/A")
 
-        if str(ma).strip() != "" and str(ma) != "N/A":
+        # Nếu model để N/A hoặc rỗng, tự động sinh mã định danh để không làm mất dữ liệu
+        if not ma or str(ma).strip() in ["", "N/A", "None", "NULL"]:
+            noi_dung = item.get("noi_dung_muc_tieu", "")
+            prefix = re.sub(r'[^A-Z0-9]', '', str(noi_dung).upper()[:8]) or "KPI"
+            ma = f"{prefix}-{idx:02d}"
+
+        if str(ma).strip() != "":
             rows.append((
                 ma,
                 item.get("noi_dung_muc_tieu", "N/A"),
@@ -348,6 +589,17 @@ def process_single_file(s3_client, file_key):
         if fast_result is not None:
             raw_rows, quy_danh_gia, ky_candidates = fast_result
         else:
+            try:
+                raw_rows, quy_danh_gia, ky_candidates = parse_with_gemini(file_bytes, ext, file_key)
+            except Exception as exc:
+                print(f"WARNING: Lỗi bóc tách qua AI cho file {file_key}: {exc}")
+    elif ext in [".pptx", ".ppt"]:
+        # Thử parse nhanh bảng PPTX trước
+        if ext == ".pptx":
+            fast_result = extract_table_from_pptx_fast(file_bytes)
+            if fast_result is not None:
+                raw_rows, quy_danh_gia, ky_candidates = fast_result
+        if not raw_rows:
             try:
                 raw_rows, quy_danh_gia, ky_candidates = parse_with_gemini(file_bytes, ext, file_key)
             except Exception as exc:

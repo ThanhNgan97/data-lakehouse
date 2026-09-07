@@ -21,6 +21,30 @@ services:
     networks:
       - lakehouse-network
 
+  # MySQL Operational KPI Source
+  mysql:
+    image: mysql:8.0
+    container_name: lakehouse-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: cusc_kpi_operational
+      MYSQL_USER: kpi_user
+      MYSQL_PASSWORD: kpi_password123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - lakehouse-network
+
   # Kafka
   kafka:
     image: apache/kafka:4.1.1
@@ -229,6 +253,7 @@ services:
 
 volumes:
   postgres_data:
+  mysql_data:
   minio_data:
   superset_home:
 

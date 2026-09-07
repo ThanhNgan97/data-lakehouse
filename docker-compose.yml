@@ -12,6 +12,12 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d university_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     networks:
       - lakehouse-network
 
@@ -110,7 +116,9 @@ services:
       - QUARKUS_DATASOURCE_USERNAME=postgres
       - QUARKUS_DATASOURCE_PASSWORD=240203
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
     networks:
       - lakehouse-network
 
@@ -205,6 +213,7 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:240203@postgres:5432/airflow_db
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
+      AIRFLOW__WEBSERVER__SECRET_KEY: 'university_lakehouse_secret_key'
       MINIO_ENDPOINT: 'http://minio:9000'
       NESSIE_API_URL: 'http://nessie:19120/api/v1'
     volumes:

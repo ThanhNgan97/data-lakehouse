@@ -51,6 +51,26 @@ PG_PASSWORD       = os.environ.get("PG_PASSWORD",       "240203")
 PG_MAINTENANCE_DB = os.environ.get("PG_MAINTENANCE_DB", "postgres")
 NESSIE_DB         = os.environ.get("NESSIE_DB",         "nessie_db")
 
+
+# ── MySQL OLTP (nguồn KPI có cấu trúc) ──────────────────────
+_mysql_host = os.environ.get("MYSQL_HOST", "127.0.0.1")
+if IS_DOCKER and (_mysql_host in ["127.0.0.1", "localhost"]):
+    MYSQL_HOST = "mysql"
+else:
+    MYSQL_HOST = _mysql_host
+
+MYSQL_PORT     = int(os.environ.get("MYSQL_PORT", "3306"))
+MYSQL_DATABASE = os.environ.get("MYSQL_DATABASE", "cusc_kpi_operational")
+MYSQL_USER     = os.environ.get("MYSQL_USER", "kpi_user")
+MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "kpi_password123")
+
+MYSQL_JDBC_JAR = os.environ.get(
+    "MYSQL_JDBC_JAR",
+    "/opt/airflow/jars/mysql-connector-j-8.2.0.jar"
+    if IS_DOCKER
+    else str(_ROOT_DIR / "jars" / "mysql-connector-j-8.2.0.jar"),
+)
+
 # ── Nessie ───────────────────────────────────────────────────
 _nessie_url = os.environ.get("NESSIE_API_URL", "http://localhost:19120/api/v1")
 if IS_DOCKER and ("127.0.0.1" in _nessie_url or "localhost" in _nessie_url):

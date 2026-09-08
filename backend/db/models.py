@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Float, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -60,4 +60,96 @@ class UploadHistory(Base):
             "dag_run_id": self.dag_run_id,
             "pipeline_status": self.pipeline_status,
             "uploaded_at": self.uploaded_at.isoformat() if self.uploaded_at else None,
+        }
+
+
+class DataConnector(Base):
+    __tablename__ = "data_connectors"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+
+    name = Column(String(100), unique=True, index=True, nullable=False)
+    connector_type = Column(String(30), default="MYSQL", nullable=False)
+
+    host = Column(String(255), nullable=False)
+    port = Column(Integer, default=3306, nullable=False)
+    database_name = Column(String(100), nullable=False)
+    username = Column(String(100), nullable=False)
+
+    # Không bao giờ trả trực tiếp field này về frontend/API.
+    password_encrypted = Column(Text, nullable=False)
+
+    source_config = Column(JSONB, nullable=True)
+    schema_mapping = Column(JSONB, nullable=True)
+
+    is_default = Column(Boolean, default=False, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    last_test_status = Column(String(30), default="not_tested", nullable=False)
+    last_test_message = Column(String(500), nullable=True)
+    last_tested_at = Column(DateTime(timezone=True), nullable=True)
+
+    last_sync_status = Column(String(30), nullable=True)
+    last_sync_at = Column(DateTime(timezone=True), nullable=True)
+
+    created_by = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=True,
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    creator = relationship("User", foreign_keys=[created_by])
+
+    def to_dict(self):
+        """Safe representation for API responses; excludes password_encrypted."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "connector_type": self.connector_type,
+            "host": self.host,
+            "port": self.port,
+            "database_name": self.database_name,
+            "username": self.username,
+            "source_config": self.source_config,
+            "schema_mapping": self.schema_mapping,
+            "is_default": self.is_default,
+            "is_active": self.is_active,
+            "last_test_status": self.last_test_status,
+            "last_test_message": self.last_test_message,
+            "last_tested_at": (
+                self.last_tested_at.isoformat()
+                if self.last_tested_at
+                else None
+            ),
+            "last_sync_status": self.last_sync_status,
+            "last_sync_at": (
+                self.last_sync_at.isoformat()
+                if self.last_sync_at
+                else None
+            ),
+            "created_by": self.created_by,
+            "created_at": (
+                self.created_at.isoformat()
+                if self.created_at
+                else None
+            ),
+            "updated_at": (
+                self.updated_at.isoformat()
+                if self.updated_at
+                else None
+            ),
+            "has_password": bool(self.password_encrypted),
         }

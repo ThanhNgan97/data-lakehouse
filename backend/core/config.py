@@ -13,6 +13,7 @@ except ImportError:
 SECRET_KEY = os.getenv("SECRET_KEY", "nhuquynh_data_lakehouse_secret_key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 12
+FERNET_KEY = os.getenv("FERNET_KEY")
 
 # MinIO Config
 MINIO_URL         = os.getenv("MINIO_URL",         "127.0.0.1:9000")

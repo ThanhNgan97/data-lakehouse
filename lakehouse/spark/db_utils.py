@@ -71,7 +71,12 @@ def save_parsed_data(run_id, data):
             if isinstance(metadata, str):
                 metadata = json.loads(metadata)
                 
-            metadata["parsed_data"] = data
+            # Chỉ lưu tối đa 5 record đầu tiên để frontend preview (nếu cần), tránh làm phình to DB
+            if isinstance(data, list) and len(data) > 5:
+                metadata["parsed_data"] = data[:5]
+                metadata["parsed_data_truncated"] = True
+            else:
+                metadata["parsed_data"] = data
             
             cur.execute(
                 "UPDATE upload_history SET metadata_info = %s WHERE dag_run_id = %s",

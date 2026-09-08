@@ -123,12 +123,14 @@ const UserUpload = () => {
       } catch {}
     })();
 
+    let errorCount = 0;
     pollingRef.current = setInterval(async () => {
       try {
         const res = await axios.get(
           `${API_URL}/upload/pipeline-status/${dagRunId}`,
           { headers: authHeader() },
         );
+        errorCount = 0; // Reset lỗi nếu thành công
         const state = res.data.state;
         setActivePipeline(res.data);
         if (["success", "failed", "unreachable"].includes(state)) {
@@ -145,7 +147,11 @@ const UserUpload = () => {
           });
         }
       } catch {
-        clearInterval(pollingRef.current);
+        errorCount++;
+        // Chỉ dừng lại nếu lỗi liên tục 10 lần (20 giây)
+        if (errorCount > 10) {
+          clearInterval(pollingRef.current);
+        }
       }
     }, 2000);
   };
@@ -516,7 +522,16 @@ const UserUpload = () => {
                 return (
                   <div className="space-y-3">
                     {filteredHistory.map((item, i) => {
-                    const st = getStatus(item);
+                    let currentStatus = item.pipeline_status;
+                    if (activePipeline && item.dag_run_id === activePipeline.dag_run_id) {
+                      const isAnalyzeSuccess = activePipeline.tasks?.some(t => t.task_id === "analyze_predict" && t.state === "success");
+                      if (isAnalyzeSuccess || activePipeline.state === "success") {
+                        currentStatus = "success";
+                      } else if (activePipeline.state && activePipeline.state !== "unknown") {
+                        currentStatus = activePipeline.state;
+                      }
+                    }
+                    const st = getStatus({ ...item, pipeline_status: currentStatus });
                     const isSelected = selectedHistoryId === (item.id || item.dag_run_id);
                     return (
                       <div

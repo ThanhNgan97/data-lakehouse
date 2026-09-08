@@ -809,7 +809,14 @@ def main():
         save_parsed_data(args.run_id, extracted_data)
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_key = f"bronze/data_extracted_{timestamp}.parquet"
+        
+        # Use run_id to isolate pipeline runs, avoiding reading leftovers from old failed runs
+        if args.run_id:
+            # clean run_id to avoid invalid S3 chars
+            safe_run_id = "".join([c if c.isalnum() else "_" for c in args.run_id])
+            output_key = f"bronze/data_extracted_{safe_run_id}.parquet"
+        else:
+            output_key = f"bronze/data_extracted_{timestamp}.parquet"
 
         df = pd.DataFrame(extracted_data)
         parquet_buffer = io.BytesIO()
@@ -832,7 +839,11 @@ def main():
             for row in extracted_data
         ]
 
-        output_json_key = f"bronze/data_extracted_{timestamp}.json"
+        if args.run_id:
+            safe_run_id = "".join([c if c.isalnum() else "_" for c in args.run_id])
+            output_json_key = f"bronze/data_extracted_{safe_run_id}.json"
+        else:
+            output_json_key = f"bronze/data_extracted_{timestamp}.json"
         json_bytes = json.dumps(json_payload, ensure_ascii=False, indent=2).encode("utf-8")
         s3_client.put_object(
             Bucket=BUCKET_NAME,

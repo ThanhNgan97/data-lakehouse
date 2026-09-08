@@ -1,0 +1,48 @@
+slice_name: "Chi ti\u1EBFt ch\u1EC9 ti\xEAu theo \u0111\u01A1n v\u1ECB"
+description: null
+certified_by: null
+certification_details: null
+viz_type: table
+params:
+  datasource: 1__table
+  viz_type: table
+  query_mode: raw
+  groupby: []
+  time_grain_sqla: P1D
+  temporal_columns_lookup:
+    thoi_gian_dong_goi_gold: true
+  all_columns:
+  - ma_chi_tieu
+  - nhom_don_vi
+  - noi_dung_muc_tieu
+  - dinh_ky_thu_thap
+  - muc_dang_ky
+  - muc_dat
+  - ket_qua_he_thong
+  - nguyen_nhan
+  - hanh_dong_khac_phuc
+  percent_metrics: []
+  adhoc_filters:
+  - clause: WHERE
+    subject: thoi_gian_dong_goi_gold
+    operator: TEMPORAL_RANGE
+    comparator: No filter
+    expressionType: SIMPLE
+  order_by_cols:
+  - '["ket_qua_he_thong", true]'
+  row_limit: 250
+  server_page_length: 10
+  order_desc: true
+  table_timestamp_format: smart_date
+  show_cell_bars: true
+  color_pn: true
+  extra_form_data: {}
+  dashboards:
+  - 1
+query_context: '{"datasource":{"id":1,"type":"table"},"force":false,"queries":[{"filters":[{"col":"thoi_gian_dong_goi_gold","op":"TEMPORAL_RANGE","val":"No
+  filter"}],"extras":{"time_grain_sqla":"P1D","having":"","where":""},"applied_time_extras":{},"columns":["ma_chi_tieu","nhom_don_vi","noi_dung_muc_tieu","dinh_ky_thu_thap","muc_dang_ky","muc_dat","ket_qua_he_thong","nguyen_nhan","hanh_dong_khac_phuc"],"orderby":[["ket_qua_he_thong",true]],"annotation_layers":[],"row_limit":250,"series_limit":0,"order_desc":true,"url_params":{},"custom_params":{},"custom_form_data":{},"post_processing":[]}],"form_data":{"datasource":"1__table","viz_type":"table","query_mode":"raw","groupby":[],"time_grain_sqla":"P1D","temporal_columns_lookup":{"thoi_gian_dong_goi_gold":true},"all_columns":["ma_chi_tieu","nhom_don_vi","noi_dung_muc_tieu","dinh_ky_thu_thap","muc_dang_ky","muc_dat","ket_qua_he_thong","nguyen_nhan","hanh_dong_khac_phuc"],"percent_metrics":[],"adhoc_filters":[{"clause":"WHERE","subject":"thoi_gian_dong_goi_gold","operator":"TEMPORAL_RANGE","comparator":"No
+  filter","expressionType":"SIMPLE"}],"order_by_cols":["[\"ket_qua_he_thong\", true]"],"row_limit":250,"server_page_length":10,"order_desc":true,"table_timestamp_format":"smart_date","show_cell_bars":true,"color_pn":true,"extra_form_data":{},"dashboards":[1],"force":false,"result_format":"json","result_type":"full","include_time":false},"result_format":"json","result_type":"full"}'
+cache_timeout: null
+uuid: fe4b1cc4-018d-4988-a774-8af7086cc819
+version: 1.0.0
+dataset_uuid: fca1b0d2-7f88-492a-b588-53ce3c3df840

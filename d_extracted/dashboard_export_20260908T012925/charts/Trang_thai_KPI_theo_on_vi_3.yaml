@@ -1,0 +1,174 @@
+slice_name: "Tr\u1EA1ng th\xE1i KPI theo \u0111\u01A1n v\u1ECB"
+description: null
+certified_by: null
+certification_details: null
+viz_type: echarts_timeseries_bar
+params:
+  datasource: 1__table
+  viz_type: echarts_timeseries_bar
+  x_axis: nhom_don_vi
+  time_grain_sqla: P1D
+  x_axis_sort_asc: true
+  x_axis_sort_series: name
+  x_axis_sort_series_ascending: true
+  metrics:
+  - expressionType: SQL
+    sqlExpression: COUNT(ma_chi_tieu)
+    column: null
+    aggregate: null
+    datasourceWarning: false
+    hasCustomLabel: true
+    label: "T\u1ED5ng ch\u1EC9 ti\xEAu"
+    optionName: metric_wey6dchmmlt_uyb08i71yk
+  - expressionType: SQL
+    sqlExpression: "COUNT(CASE WHEN\r\nket_qua_he_thong =\r\n'\u0110\u1EA0T' THEN\
+      \ 1 END)"
+    column: null
+    aggregate: null
+    datasourceWarning: false
+    hasCustomLabel: true
+    label: "S\u1ED1 \u0111\u1EA1t"
+    optionName: metric_xlrm8r6uqz_lsjrjaw9k38
+  - expressionType: SQL
+    sqlExpression: "COUNT(CASE WHEN\r\nket_qua_he_thong =\r\n'KH\xD4NG \u0110\u1EA0\
+      T' THEN 1\r\nEND)"
+    column: null
+    aggregate: null
+    datasourceWarning: false
+    hasCustomLabel: true
+    label: "S\u1ED1 kh\xF4ng \u0111\u1EA1t"
+    optionName: metric_ts79rhbxsyl_04x886qaejtu
+  - expressionType: SQL
+    sqlExpression: "COUNT(CASE WHEN\r\nket_qua_he_thong\r\nIN ('CH\u01AFA \u0110\u1EBE\
+      N K\u1EF2\r\n\u0110\xC1NH GI\xC1','\u0110\xC1NH\r\nGI\xC1 V\xC0O K\u1EF2 SAU')\r\
+      \nTHEN 1 END)"
+    column: null
+    aggregate: null
+    datasourceWarning: false
+    hasCustomLabel: true
+    label: "Ch\u01B0a \u0111\xE1nh gi\xE1"
+    optionName: metric_hd5fr1tj06d_qnsw75i6n1s
+  - expressionType: SQL
+    sqlExpression: "COUNT(CASE WHEN\r\nket_qua_he_thong =\r\n'\u0110\u1EA0T' THEN\
+      \ 1 END)\r\n* 1.0 /\r\nNULLIF(COUNT(CASE\r\nWHEN\r\nket_qua_he_thong\r\nNOT\
+      \ IN ('CH\u01AFA \u0110\u1EBEN\r\nK\u1EF2 \u0110\xC1NH GI\xC1','\u0110\xC1NH\r\
+      \nGI\xC1 V\xC0O K\u1EF2 SAU')\r\nTHEN 1 END), 0)"
+    column: null
+    aggregate: null
+    datasourceWarning: false
+    hasCustomLabel: true
+    label: "% \u0111\u1EA1t"
+    optionName: metric_al4pn2a9lfe_55dtubwfgdb
+  groupby: []
+  adhoc_filters:
+  - clause: WHERE
+    subject: thoi_gian_dong_goi_gold
+    operator: TEMPORAL_RANGE
+    comparator: No filter
+    expressionType: SIMPLE
+  order_desc: true
+  row_limit: 10000
+  truncate_metric: true
+  show_empty_columns: true
+  comparison_type: values
+  annotation_layers: []
+  forecastPeriods: 10
+  forecastInterval: 0.8
+  orientation: vertical
+  x_axis_title_margin: 15
+  y_axis_title_margin: 15
+  y_axis_title_position: Left
+  sort_series_type: sum
+  color_scheme: supersetColors
+  only_total: true
+  show_legend: true
+  legendType: scroll
+  legendOrientation: top
+  x_axis_time_format: smart_date
+  y_axis_format: SMART_NUMBER
+  truncateXAxis: true
+  y_axis_bounds:
+  - null
+  - null
+  rich_tooltip: true
+  tooltipTimeFormat: smart_date
+  extra_form_data: {}
+  dashboards:
+  - 1
+query_context: "{\"datasource\":{\"id\":1,\"type\":\"table\"},\"force\":false,\"queries\"\
+  :[{\"filters\":[{\"col\":\"thoi_gian_dong_goi_gold\",\"op\":\"TEMPORAL_RANGE\",\"\
+  val\":\"No filter\"}],\"extras\":{\"time_grain_sqla\":\"P1D\",\"having\":\"\",\"\
+  where\":\"\"},\"applied_time_extras\":{},\"columns\":[{\"timeGrain\":\"P1D\",\"\
+  columnType\":\"BASE_AXIS\",\"sqlExpression\":\"nhom_don_vi\",\"label\":\"nhom_don_vi\"\
+  ,\"expressionType\":\"SQL\"}],\"metrics\":[{\"expressionType\":\"SQL\",\"sqlExpression\"\
+  :\"COUNT(ma_chi_tieu)\",\"column\":null,\"aggregate\":null,\"datasourceWarning\"\
+  :false,\"hasCustomLabel\":true,\"label\":\"T\u1ED5ng ch\u1EC9 ti\xEAu\",\"optionName\"\
+  :\"metric_wey6dchmmlt_uyb08i71yk\"},{\"expressionType\":\"SQL\",\"sqlExpression\"\
+  :\"COUNT(CASE WHEN\\r\\nket_qua_he_thong =\\r\\n'\u0110\u1EA0T' THEN 1 END)\",\"\
+  column\":null,\"aggregate\":null,\"datasourceWarning\":false,\"hasCustomLabel\"\
+  :true,\"label\":\"S\u1ED1 \u0111\u1EA1t\",\"optionName\":\"metric_xlrm8r6uqz_lsjrjaw9k38\"\
+  },{\"expressionType\":\"SQL\",\"sqlExpression\":\"COUNT(CASE WHEN\\r\\nket_qua_he_thong\
+  \ =\\r\\n'KH\xD4NG \u0110\u1EA0T' THEN 1\\r\\nEND)\",\"column\":null,\"aggregate\"\
+  :null,\"datasourceWarning\":false,\"hasCustomLabel\":true,\"label\":\"S\u1ED1 kh\xF4\
+  ng \u0111\u1EA1t\",\"optionName\":\"metric_ts79rhbxsyl_04x886qaejtu\"},{\"expressionType\"\
+  :\"SQL\",\"sqlExpression\":\"COUNT(CASE WHEN\\r\\nket_qua_he_thong\\r\\nIN ('CH\u01AF\
+  A \u0110\u1EBEN K\u1EF2\\r\\n\u0110\xC1NH GI\xC1','\u0110\xC1NH\\r\\nGI\xC1 V\xC0\
+  O K\u1EF2 SAU')\\r\\nTHEN 1 END)\",\"column\":null,\"aggregate\":null,\"datasourceWarning\"\
+  :false,\"hasCustomLabel\":true,\"label\":\"Ch\u01B0a \u0111\xE1nh gi\xE1\",\"optionName\"\
+  :\"metric_hd5fr1tj06d_qnsw75i6n1s\"},{\"expressionType\":\"SQL\",\"sqlExpression\"\
+  :\"COUNT(CASE WHEN\\r\\nket_qua_he_thong =\\r\\n'\u0110\u1EA0T' THEN 1 END)\\r\\\
+  n* 1.0 /\\r\\nNULLIF(COUNT(CASE\\r\\nWHEN\\r\\nket_qua_he_thong\\r\\nNOT IN ('CH\u01AF\
+  A \u0110\u1EBEN\\r\\nK\u1EF2 \u0110\xC1NH GI\xC1','\u0110\xC1NH\\r\\nGI\xC1 V\xC0\
+  O K\u1EF2 SAU')\\r\\nTHEN 1 END), 0)\",\"column\":null,\"aggregate\":null,\"datasourceWarning\"\
+  :false,\"hasCustomLabel\":true,\"label\":\"% \u0111\u1EA1t\",\"optionName\":\"metric_al4pn2a9lfe_55dtubwfgdb\"\
+  }],\"orderby\":[[{\"expressionType\":\"SQL\",\"sqlExpression\":\"COUNT(ma_chi_tieu)\"\
+  ,\"column\":null,\"aggregate\":null,\"datasourceWarning\":false,\"hasCustomLabel\"\
+  :true,\"label\":\"T\u1ED5ng ch\u1EC9 ti\xEAu\",\"optionName\":\"metric_wey6dchmmlt_uyb08i71yk\"\
+  },false]],\"annotation_layers\":[],\"row_limit\":10000,\"series_columns\":[],\"\
+  series_limit\":0,\"order_desc\":true,\"url_params\":{},\"custom_params\":{},\"custom_form_data\"\
+  :{},\"time_offsets\":[],\"post_processing\":[{\"operation\":\"pivot\",\"options\"\
+  :{\"index\":[\"nhom_don_vi\"],\"columns\":[],\"aggregates\":{\"T\u1ED5ng ch\u1EC9\
+  \ ti\xEAu\":{\"operator\":\"mean\"},\"S\u1ED1 \u0111\u1EA1t\":{\"operator\":\"mean\"\
+  },\"S\u1ED1 kh\xF4ng \u0111\u1EA1t\":{\"operator\":\"mean\"},\"Ch\u01B0a \u0111\xE1\
+  nh gi\xE1\":{\"operator\":\"mean\"},\"% \u0111\u1EA1t\":{\"operator\":\"mean\"}},\"\
+  drop_missing_columns\":false}},{\"operation\":\"flatten\"}]}],\"form_data\":{\"\
+  datasource\":\"1__table\",\"viz_type\":\"echarts_timeseries_bar\",\"x_axis\":\"\
+  nhom_don_vi\",\"time_grain_sqla\":\"P1D\",\"x_axis_sort_asc\":true,\"x_axis_sort_series\"\
+  :\"name\",\"x_axis_sort_series_ascending\":true,\"metrics\":[{\"expressionType\"\
+  :\"SQL\",\"sqlExpression\":\"COUNT(ma_chi_tieu)\",\"column\":null,\"aggregate\"\
+  :null,\"datasourceWarning\":false,\"hasCustomLabel\":true,\"label\":\"T\u1ED5ng\
+  \ ch\u1EC9 ti\xEAu\",\"optionName\":\"metric_wey6dchmmlt_uyb08i71yk\"},{\"expressionType\"\
+  :\"SQL\",\"sqlExpression\":\"COUNT(CASE WHEN\\r\\nket_qua_he_thong =\\r\\n'\u0110\
+  \u1EA0T' THEN 1 END)\",\"column\":null,\"aggregate\":null,\"datasourceWarning\"\
+  :false,\"hasCustomLabel\":true,\"label\":\"S\u1ED1 \u0111\u1EA1t\",\"optionName\"\
+  :\"metric_xlrm8r6uqz_lsjrjaw9k38\"},{\"expressionType\":\"SQL\",\"sqlExpression\"\
+  :\"COUNT(CASE WHEN\\r\\nket_qua_he_thong =\\r\\n'KH\xD4NG \u0110\u1EA0T' THEN 1\\\
+  r\\nEND)\",\"column\":null,\"aggregate\":null,\"datasourceWarning\":false,\"hasCustomLabel\"\
+  :true,\"label\":\"S\u1ED1 kh\xF4ng \u0111\u1EA1t\",\"optionName\":\"metric_ts79rhbxsyl_04x886qaejtu\"\
+  },{\"expressionType\":\"SQL\",\"sqlExpression\":\"COUNT(CASE WHEN\\r\\nket_qua_he_thong\\\
+  r\\nIN ('CH\u01AFA \u0110\u1EBEN K\u1EF2\\r\\n\u0110\xC1NH GI\xC1','\u0110\xC1NH\\\
+  r\\nGI\xC1 V\xC0O K\u1EF2 SAU')\\r\\nTHEN 1 END)\",\"column\":null,\"aggregate\"\
+  :null,\"datasourceWarning\":false,\"hasCustomLabel\":true,\"label\":\"Ch\u01B0a\
+  \ \u0111\xE1nh gi\xE1\",\"optionName\":\"metric_hd5fr1tj06d_qnsw75i6n1s\"},{\"expressionType\"\
+  :\"SQL\",\"sqlExpression\":\"COUNT(CASE WHEN\\r\\nket_qua_he_thong =\\r\\n'\u0110\
+  \u1EA0T' THEN 1 END)\\r\\n* 1.0 /\\r\\nNULLIF(COUNT(CASE\\r\\nWHEN\\r\\nket_qua_he_thong\\\
+  r\\nNOT IN ('CH\u01AFA \u0110\u1EBEN\\r\\nK\u1EF2 \u0110\xC1NH GI\xC1','\u0110\xC1\
+  NH\\r\\nGI\xC1 V\xC0O K\u1EF2 SAU')\\r\\nTHEN 1 END), 0)\",\"column\":null,\"aggregate\"\
+  :null,\"datasourceWarning\":false,\"hasCustomLabel\":true,\"label\":\"% \u0111\u1EA1\
+  t\",\"optionName\":\"metric_al4pn2a9lfe_55dtubwfgdb\"}],\"groupby\":[],\"adhoc_filters\"\
+  :[{\"clause\":\"WHERE\",\"subject\":\"thoi_gian_dong_goi_gold\",\"operator\":\"\
+  TEMPORAL_RANGE\",\"comparator\":\"No filter\",\"expressionType\":\"SIMPLE\"}],\"\
+  order_desc\":true,\"row_limit\":10000,\"truncate_metric\":true,\"show_empty_columns\"\
+  :true,\"comparison_type\":\"values\",\"annotation_layers\":[],\"forecastPeriods\"\
+  :10,\"forecastInterval\":0.8,\"orientation\":\"vertical\",\"x_axis_title_margin\"\
+  :15,\"y_axis_title_margin\":15,\"y_axis_title_position\":\"Left\",\"sort_series_type\"\
+  :\"sum\",\"color_scheme\":\"supersetColors\",\"only_total\":true,\"show_legend\"\
+  :true,\"legendType\":\"scroll\",\"legendOrientation\":\"top\",\"x_axis_time_format\"\
+  :\"smart_date\",\"y_axis_format\":\"SMART_NUMBER\",\"truncateXAxis\":true,\"y_axis_bounds\"\
+  :[null,null],\"rich_tooltip\":true,\"tooltipTimeFormat\":\"smart_date\",\"extra_form_data\"\
+  :{},\"dashboards\":[1],\"force\":false,\"result_format\":\"json\",\"result_type\"\
+  :\"full\"},\"result_format\":\"json\",\"result_type\":\"full\"}"
+cache_timeout: null
+uuid: d2997677-72a8-4a49-a115-d4c0003b3d31
+version: 1.0.0
+dataset_uuid: fca1b0d2-7f88-492a-b588-53ce3c3df840

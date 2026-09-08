@@ -180,9 +180,15 @@ def save_discarded_duplicates(df_discarded, s3_client):
     print(f"📝 Đã ghi {dup_count} bản ghi bị loại vào '{discard_path}'.")
 
 
-def archive_processed_bronze_files(s3_client):
+def archive_processed_bronze_files(s3_client, run_id=""):
     """Sau khi merge vào main THÀNH CÔNG, chuyển Parquet Bronze sang bronze_archive/."""
-    resp = s3_client.list_objects_v2(Bucket=MINIO_BUCKET_NAME, Prefix=f"{BRONZE_PREFIX}data_extracted_")
+    if run_id:
+        safe_run_id = "".join([c if c.isalnum() else "_" for c in run_id])
+        prefix = f"{BRONZE_PREFIX}data_extracted_{safe_run_id}"
+    else:
+        prefix = f"{BRONZE_PREFIX}data_extracted_"
+        
+    resp = s3_client.list_objects_v2(Bucket=MINIO_BUCKET_NAME, Prefix=prefix)
     contents = resp.get("Contents", [])
     if not contents:
         return
@@ -206,15 +212,23 @@ def run_bronze_to_silver(spark, run_id=""):
     init_silver_table_if_needed(spark, "main")
 
     s3_client = get_s3_client()
-    resp = s3_client.list_objects_v2(Bucket=MINIO_BUCKET_NAME, Prefix=f"{BRONZE_PREFIX}data_extracted_")
+    
+    if run_id:
+        safe_run_id = "".join([c if c.isalnum() else "_" for c in run_id])
+        prefix = f"{BRONZE_PREFIX}data_extracted_{safe_run_id}.parquet"
+        bronze_parquet_path = f"s3a://university-lakehouse/{prefix}"
+    else:
+        prefix = f"{BRONZE_PREFIX}data_extracted_"
+        bronze_parquet_path = "s3a://university-lakehouse/bronze/data_extracted_*.parquet"
+        
+    resp = s3_client.list_objects_v2(Bucket=MINIO_BUCKET_NAME, Prefix=prefix)
     parquet_contents = [obj["Key"] for obj in resp.get("Contents", []) if obj["Key"].endswith(".parquet")]
     
     if not parquet_contents:
-        print(f"ℹ️ Không tìm thấy file Bronze Parquet nào mới trong '{BRONZE_PREFIX}'. Bỏ qua bước Silver (chờ Ingestion).")
+        print(f"ℹ️ Không tìm thấy file Bronze Parquet nào mới. Bỏ qua bước Silver (chờ Ingestion).")
         return True
 
     print(f"📁 Tìm thấy {len(parquet_contents)} file Bronze Parquet cần nạp vào Silver...")
-    bronze_parquet_path = "s3a://university-lakehouse/bronze/data_extracted_*.parquet"
     branch_name = make_branch_name("ingest_bronze_silver")
 
     try:
@@ -292,7 +306,7 @@ def run_bronze_to_silver(spark, run_id=""):
         merge_branch_to_main(spark, branch_name)
         use_main(spark)
 
-        archive_processed_bronze_files(s3_client)
+        archive_processed_bronze_files(s3_client, run_id)
 
         print("\n📊 CHI TIẾT DỮ LIỆU TRONG BẢNG ICEBERG SILVER (main):")
         spark.sql(f"""

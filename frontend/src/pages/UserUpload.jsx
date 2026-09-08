@@ -72,6 +72,8 @@ const UserUpload = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [activePipeline, setActivePipeline] = useState(null);
   const [filterStatus, setFilterStatus] = useState("all");
+  const [iframeKey, setIframeKey] = useState(Date.now());
+  const [selectedFile, setSelectedFile] = useState("");
   const pollingRef = useRef(null);
 
   const fetchHistory = useCallback(async () => {
@@ -91,8 +93,9 @@ const UserUpload = () => {
           pollPipelineStatus(hist[0].dag_run_id);
         }
       }
+      return hist;
     } catch {
-      /* silence */
+      return [];
     } finally {
       setHistoryLoading(false);
     }
@@ -129,12 +132,18 @@ const UserUpload = () => {
         setActivePipeline(res.data);
         if (["success", "failed", "unreachable"].includes(state)) {
           clearInterval(pollingRef.current);
-          fetchHistory();
+          fetchHistory().then((hist) => {
+             if (state === "success" && hist) {
+                const finishedItem = hist.find((h) => h.dag_run_id === dagRunId);
+                if (finishedItem) setSelectedFile(finishedItem.filename);
+                setIframeKey(Date.now());
+             }
+          });
         }
       } catch {
         clearInterval(pollingRef.current);
       }
-    }, 5000);
+    }, 2000);
   };
 
   const handleLogout = () => {
@@ -196,11 +205,25 @@ const UserUpload = () => {
     if (e.dataTransfer.files.length > 0) processFile(e.dataTransfer.files[0]);
   };
 
+  const handleHistoryClick = (item) => {
+    if (item.pipeline_status === "success") {
+      setSelectedFile(item.filename);
+      setIframeKey(Date.now());
+    }
+  };
+
   const getStatus = (item) =>
     STATUS_CONFIG[item.pipeline_status] || {
       label: item.pipeline_status,
       tone: "ink",
     };
+
+  let finalSupersetUrl = supersetUrl;
+  if (selectedFile) {
+    const risonStr = `(NATIVE_FILTER-file_nguon:(__cache:(label:'${selectedFile}',value:!('${selectedFile}')),extraFormData:(filters:!((col:file_nguon,op:IN,val:!('${selectedFile}')))),filterState:(label:'${selectedFile}',value:!('${selectedFile}')),id:NATIVE_FILTER-file_nguon,ownState:()))`;
+    finalSupersetUrl += `&native_filters=${encodeURIComponent(risonStr)}`;
+  }
+  finalSupersetUrl += `&force=true&_t=${iframeKey}`;
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
@@ -489,28 +512,38 @@ const UserUpload = () => {
                   <div className="space-y-3">
                     {filteredHistory.map((item, i) => {
                     const st = getStatus(item);
+                    const isSelected = selectedFile === item.filename;
                     return (
                       <div
                         key={item.id || i}
-                        className="bg-white border border-ink-100 rounded-xl p-3.5 hover:border-lake-200 hover:shadow-sm transition-all flex flex-col gap-3"
+                        onClick={() => handleHistoryClick(item)}
+                        className={`border rounded-xl p-3.5 hover:shadow-sm transition-all flex flex-col gap-3 ${
+                          item.pipeline_status === "success" ? "cursor-pointer" : ""
+                        } ${
+                          isSelected
+                            ? "bg-lake-50/50 border-lake-300 ring-1 ring-lake-200"
+                            : "bg-white border-ink-100 hover:border-lake-200"
+                        }`}
                       >
                         <div className="flex items-center justify-between gap-4">
                           <div className="flex items-center gap-3.5 min-w-0">
-                            <div className="w-10 h-10 rounded-lg bg-lake-50 text-lake-600 border border-lake-100 flex items-center justify-center shrink-0">
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border ${
+                              isSelected ? "bg-lake-500 text-white border-lake-600" : "bg-lake-50 text-lake-600 border-lake-100"
+                            }`}>
                               <Icon name="file" className="w-4.5 h-4.5" />
                             </div>
                             <div className="min-w-0">
                               <h4
-                                className="font-semibold text-ink-800 text-sm truncate"
+                                className={`font-semibold text-sm truncate ${isSelected ? "text-lake-900" : "text-ink-800"}`}
                                 title={item.filename}
                               >
                                 {item.filename}
                               </h4>
-                              <div className="text-[11px] text-ink-400 mt-1 flex items-center gap-2 truncate font-data">
-                                <span className="font-medium text-ink-500">
+                              <div className={`text-[11px] mt-1 flex items-center gap-2 truncate font-data ${isSelected ? "text-lake-600" : "text-ink-400"}`}>
+                                <span className="font-medium">
                                   {item.username}
                                 </span>
-                                <span className="text-ink-200">•</span>
+                                <span className="opacity-50">•</span>
                                 <span title={item.dag_run_id}>
                                   {item.dag_run_id?.slice(0, 12)}...
                                 </span>
@@ -552,22 +585,36 @@ const UserUpload = () => {
                   Báo cáo Phân tích
                 </h3>
                 <p className="text-[11px] text-ink-400 mt-0.5 font-data">
-                  Gold Layer · Apache Superset
+                  {selectedFile ? `Đang xem: ${selectedFile}` : "Toàn bộ dữ liệu"} · Apache Superset
                 </p>
               </div>
-              <a
-                href={supersetUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs text-lake-700 hover:text-lake-800 bg-lake-50 hover:bg-lake-100 px-3 py-1.5 rounded-lg transition font-semibold flex items-center gap-1.5"
-              >
-                Mở tab mới
-                <Icon name="externalLink" className="w-3.5 h-3.5" />
-              </a>
+              <div className="flex items-center gap-3">
+                {selectedFile && (
+                  <button
+                    onClick={() => {
+                      setSelectedFile("");
+                      setIframeKey(Date.now());
+                    }}
+                    className="text-xs text-ink-500 hover:text-rose-600 bg-ink-50 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition font-semibold"
+                  >
+                    Bỏ lọc
+                  </button>
+                )}
+                <a
+                  href={supersetUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-lake-700 hover:text-lake-800 bg-lake-50 hover:bg-lake-100 px-3 py-1.5 rounded-lg transition font-semibold flex items-center gap-1.5"
+                >
+                  Mở tab mới
+                  <Icon name="externalLink" className="w-3.5 h-3.5" />
+                </a>
+              </div>
             </div>
             <div className="flex-1 bg-[#FAFBFD] relative p-3">
               <iframe
-                src={supersetUrl}
+                key={iframeKey}
+                src={finalSupersetUrl}
                 title="Superset Chart"
                 className="w-full h-full border border-ink-100 bg-white rounded-xl shadow-inner"
               ></iframe>

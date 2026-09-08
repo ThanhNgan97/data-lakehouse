@@ -1,0 +1,233 @@
+dashboard_title: KPI Dashboard
+description: null
+css: null
+slug: null
+certified_by: null
+certification_details: null
+published: false
+uuid: 15156430-17e7-49c7-9ee7-0126fd683b8a
+metadata:
+  shared_label_colors: {}
+  color_scheme_domain: []
+  timed_refresh_immune_slices: []
+  expanded_slices: {}
+  refresh_frequency: 0
+  color_scheme: ''
+  label_colors: {}
+  cross_filters_enabled: true
+  native_filter_configuration:
+  - filterType: filter_select
+    id: NATIVE_FILTER-file_nguon
+    defaultDataMask:
+      extraFormData: {}
+      filterState: {}
+      ownState: {}
+    controlValues:
+      enableEmptyFilter: false
+      defaultToFirstItem: false
+      multiSelect: false
+      searchAllOptions: false
+      inverseSelection: false
+    cascadeParentIds: []
+    name: "Ch\u1ECDn File Ngu\u1ED3n"
+    targets:
+    - column:
+        name: file_nguon
+      datasetUuid: fca1b0d2-7f88-492a-b588-53ce3c3df840
+    scope:
+      excluded: []
+      rootPath:
+      - ROOT_ID
+    chartsInScope:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    tabsInScope: []
+    type: NATIVE_FILTER
+    description: ''
+  chart_configuration:
+    '2':
+      id: 2
+      crossFilters:
+        scope: global
+        chartsInScope:
+        - 1
+        - 3
+        - 4
+        - 5
+        - 6
+    '3':
+      id: 3
+      crossFilters:
+        scope: global
+        chartsInScope:
+        - 1
+        - 2
+        - 4
+        - 5
+        - 6
+    '4':
+      id: 4
+      crossFilters:
+        scope: global
+        chartsInScope:
+        - 1
+        - 2
+        - 3
+        - 5
+        - 6
+    '5':
+      id: 5
+      crossFilters:
+        scope: global
+        chartsInScope:
+        - 1
+        - 2
+        - 3
+        - 4
+        - 6
+    '6':
+      id: 6
+      crossFilters:
+        scope: global
+        chartsInScope:
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+  global_chart_configuration:
+    scope:
+      rootPath:
+      - ROOT_ID
+      excluded: []
+    chartsInScope:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+position:
+  DASHBOARD_VERSION_KEY: v2
+  ROOT_ID:
+    children:
+    - GRID_ID
+    id: ROOT_ID
+    type: ROOT
+  GRID_ID:
+    children:
+    - ROW-N-80KCV5C8
+    id: GRID_ID
+    parents:
+    - ROOT_ID
+    type: GRID
+  HEADER_ID:
+    id: HEADER_ID
+    meta:
+      text: KPI Dashboard
+    type: HEADER
+  ROW-N-80KCV5C8:
+    children:
+    - CHART-1JGU6QNT
+    - CHART-1Q04JDLC
+    - CHART-15WUWVM4
+    - CHART-JZ06LC16
+    - CHART-ZRZRFOIX
+    - CHART-0EV8HNR1
+    id: ROW-N-80KCV5C8
+    meta:
+      '0': ROOT_ID
+      background: BACKGROUND_TRANSPARENT
+    type: ROW
+    parents:
+    - ROOT_ID
+    - GRID_ID
+  CHART-1JGU6QNT:
+    children: []
+    id: CHART-1JGU6QNT
+    meta:
+      chartId: 2
+      height: 50
+      sliceName: "Ph\xE2n b\u1ED1 tr\u1EA1ng th\xE1i"
+      uuid: e2eb5710-139f-4d19-a1d4-852076707644
+      width: 4
+    type: CHART
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-N-80KCV5C8
+  CHART-1Q04JDLC:
+    children: []
+    id: CHART-1Q04JDLC
+    meta:
+      chartId: 3
+      height: 50
+      sliceName: "Tr\u1EA1ng th\xE1i KPI theo \u0111\u01A1n v\u1ECB"
+      uuid: d2997677-72a8-4a49-a115-d4c0003b3d31
+      width: 4
+    type: CHART
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-N-80KCV5C8
+  CHART-15WUWVM4:
+    children: []
+    id: CHART-15WUWVM4
+    meta:
+      chartId: 1
+      height: 50
+      sliceName: "T\u1ED5ng s\u1ED1 ch\u1EC9 ti\xEAu"
+      uuid: 25ba9f7b-e79a-41ec-bc07-f3d451453d75
+      width: 4
+    type: CHART
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-N-80KCV5C8
+  CHART-JZ06LC16:
+    children: []
+    id: CHART-JZ06LC16
+    meta:
+      chartId: 6
+      height: 50
+      sliceName: "T\u1ED5ng h\u1EE3p KPI theo \u0111\u01A1n v\u1ECB"
+      uuid: aeca3b65-ae62-40bf-8330-830d6e899cf5
+      width: 4
+    type: CHART
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-N-80KCV5C8
+  CHART-ZRZRFOIX:
+    children: []
+    id: CHART-ZRZRFOIX
+    meta:
+      chartId: 5
+      height: 50
+      sliceName: "Ph\xE2n b\u1ED1 theo \u0111\u1ECBnh k\u1EF3 thu th\u1EADp"
+      uuid: b881ad6f-e8cf-4c7a-8a06-77b564247ab2
+      width: 4
+    type: CHART
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-N-80KCV5C8
+  CHART-0EV8HNR1:
+    children: []
+    id: CHART-0EV8HNR1
+    meta:
+      chartId: 4
+      height: 50
+      sliceName: "Chi ti\u1EBFt ch\u1EC9 ti\xEAu theo \u0111\u01A1n v\u1ECB"
+      uuid: fe4b1cc4-018d-4988-a774-8af7086cc819
+      width: 4
+    type: CHART
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-N-80KCV5C8
+version: 1.0.0

@@ -2,7 +2,6 @@
 """
 spark_ingest_mysql.py
 ------------------------------------------------------------
-NGÀY 2 - INGEST MYSQL OLTP -> MINIO BRONZE
 
 Luồng:
 MySQL 8.0 (3 bảng quan hệ)
@@ -243,7 +242,13 @@ def write_single_parquet_to_minio(df):
 
     pandas_df = df.toPandas()
     parquet_buffer = io.BytesIO()
-    pandas_df.to_parquet(parquet_buffer, index=False, engine="pyarrow")
+    pandas_df.to_parquet(
+        parquet_buffer,
+        index=False,
+        engine="pyarrow",
+        coerce_timestamps="us",
+        allow_truncated_timestamps=True,
+    )
 
     s3_client = get_s3_client()
     s3_client.put_object(

@@ -6,7 +6,7 @@ Các hàm tiện ích dùng chung cho việc quản lý phiên bản catalog
 qua Nessie (branch / merge / tag) trong các pipeline Spark.
 
 [CẬP NHẬT theo Yêu cầu 4] check_quality_silver() bổ sung 2 kiểm tra mới:
-  - Trùng khóa nghiệp vụ (ma_chi_tieu, quy_danh_gia): phát hiện lỗi ingest lặp
+  - Trùng khóa nghiệp vụ (ma_chi_tieu, quy_danh_gia, nhom_don_vi): phát hiện lỗi ingest lặp
     cho cùng 1 kỳ (khác với checksum trùng ở chỗ: đây là trùng logic, không
     nhất thiết trùng checksum).
   - quy_danh_gia = 'UNKNOWN_KY': dữ liệu không xác định được kỳ đánh giá từ
@@ -117,7 +117,7 @@ def check_quality_silver(spark, table_name: str):
       1. Bảng phải có ít nhất 1 dòng dữ liệu (không rỗng)
       2. Không có bản ghi thiếu ma_chi_tieu hoặc ket_qua_he_thong (NULL)
       3. Không có checksum_sha256 bị trùng lặp
-      4. [MỚI] Không có tổ hợp (ma_chi_tieu, quy_danh_gia) bị trùng -> nghi ngờ
+      4. [MỚI] Không có tổ hợp (ma_chi_tieu, quy_danh_gia, nhom_don_vi) bị trùng
          ingest lặp cho cùng 1 kỳ đánh giá.
       5. [MỚI] Không còn bản ghi nào có quy_danh_gia = 'UNKNOWN_KY' -> không
          xác định được kỳ đánh giá từ nội dung file nguồn, cần admin xử lý
@@ -132,11 +132,19 @@ def check_quality_silver(spark, table_name: str):
         raise DataQualityError("Bảng Silver rỗng, không có dữ liệu để merge.")
 
     null_key_rows = df.filter(
-        "ma_chi_tieu IS NULL OR ket_qua_he_thong IS NULL"
+        "ma_chi_tieu IS NULL OR quy_danh_gia IS NULL OR nhom_don_vi IS NULL OR ket_qua_he_thong IS NULL"
     ).count()
     if null_key_rows > 0:
         raise DataQualityError(
-            f"Phát hiện {null_key_rows} bản ghi thiếu ma_chi_tieu hoặc ket_qua_he_thong."
+            f"Phát hiện {null_key_rows} bản ghi thiếu thành phần khóa nghiệp vụ hoặc ket_qua_he_thong."
+        )
+
+    missing_source_rows = df.filter(
+        "nguon_du_lieu IS NULL OR TRIM(nguon_du_lieu) = ''"
+    ).count()
+    if missing_source_rows > 0:
+        raise DataQualityError(
+            f"Phát hiện {missing_source_rows} bản ghi chưa có nguon_du_lieu."
         )
 
     total_checksum = df.select("checksum_sha256").count()
@@ -147,16 +155,16 @@ def check_quality_silver(spark, table_name: str):
             f"Phát hiện {dup_count} bản ghi có checksum_sha256 bị trùng lặp."
         )
 
-    # [MỚI - Yêu cầu 4] Khóa nghiệp vụ thật sự là (ma_chi_tieu, quy_danh_gia)
+    # Khóa nghiệp vụ mở rộng để phân biệt cùng KPI/kỳ giữa các đơn vị
     dup_key_rows = (
-        df.groupBy("ma_chi_tieu", "quy_danh_gia")
+        df.groupBy("ma_chi_tieu", "quy_danh_gia", "nhom_don_vi")
         .count()
         .filter("count > 1")
         .count()
     )
     if dup_key_rows > 0:
         raise DataQualityError(
-            f"Phát hiện {dup_key_rows} tổ hợp (ma_chi_tieu, quy_danh_gia) bị trùng — "
+            f"Phát hiện {dup_key_rows} tổ hợp (ma_chi_tieu, quy_danh_gia, nhom_don_vi) bị trùng — "
             f"có thể do dữ liệu bị nạp lại/ghi đè cho cùng 1 kỳ đánh giá. "
             f"Kiểm tra lại nguồn dữ liệu trước khi merge."
         )
@@ -171,8 +179,8 @@ def check_quality_silver(spark, table_name: str):
         )
 
     print(f"✅ Dữ liệu đạt chất lượng: {total_rows} dòng, không NULL khoá chính, "
-          f"không trùng checksum, không trùng (ma_chi_tieu, quy_danh_gia), "
-          f"không còn kỳ đánh giá UNKNOWN_KY.")
+          f"không trùng checksum, không trùng (ma_chi_tieu, quy_danh_gia, nhom_don_vi), "
+          f"có metadata nguồn và không còn kỳ đánh giá UNKNOWN_KY.")
     return True
 
 

@@ -14,7 +14,7 @@ default_args = {
 with DAG(
     'lakehouse_pipeline',
     default_args=default_args,
-    description='Pipeline for Lakehouse: Bronze -> Silver -> Gold (Tối ưu hóa 4 bước)',
+    description='Multi-source Lakehouse: Document/MySQL -> Bronze -> Silver -> Gold',
     schedule_interval=None, # Triggered externally via API
     start_date=datetime(2023, 1, 1),
     catchup=False,
@@ -25,6 +25,12 @@ with DAG(
     ingest_bronze = BashOperator(
         task_id='ingest_bronze',
         bash_command='cd /opt/airflow/spark && python spark_ingest_bronze.py --run_id {{ run_id }}',
+    )
+
+    # Task 1b: Ingest dữ liệu KPI có cấu trúc từ MySQL qua JDBC vào Bronze
+    ingest_mysql = BashOperator(
+        task_id='ingest_mysql',
+        bash_command='cd /opt/airflow/spark && python spark_ingest_mysql.py --run_id {{ run_id }}',
     )
 
     # Task 2: Merge Parquet to Iceberg (Silver) with Nessie
@@ -45,5 +51,5 @@ with DAG(
         bash_command='cd /opt/airflow/spark && python spark_predictive_analysis.py',
     )
 
-    # Define the 4-step pipeline flow for Frontend & Airflow tracking
-    ingest_bronze >> bronze_to_silver >> silver_to_gold >> predictive_analysis
+    # Hai nguồn ingest độc lập chạy song song; Silver chỉ chạy khi cả hai hoàn tất.
+    [ingest_bronze, ingest_mysql] >> bronze_to_silver >> silver_to_gold >> predictive_analysis

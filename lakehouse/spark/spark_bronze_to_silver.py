@@ -12,7 +12,7 @@ import boto3
 import argparse
 from db_utils import update_pipeline_error
 from pyspark.sql import SparkSession, Window
-from pyspark.sql.functions import current_timestamp, row_number, desc
+from pyspark.sql.functions import row_number, desc, lit, col, trim, when
 
 from nessie_catalog_utils import (
     make_branch_name,
@@ -47,6 +47,10 @@ SILVER_TABLE = "lakehouse.silver.kpi_cusc_master"
 BRONZE_PREFIX          = "bronze/"
 BRONZE_ARCHIVE_PREFIX  = "bronze_archive/"
 BRONZE_DISCARDED_PREFIX = "bronze_discarded_duplicates/"
+DOCUMENT_SOURCE = "DOCUMENT_FILE"
+MYSQL_SOURCE = "MYSQL_RDBMS"
+DOCUMENT_BRONZE_PREFIX = f"{BRONZE_PREFIX}data_extracted_"
+MYSQL_BRONZE_PREFIX = f"{BRONZE_PREFIX}data_mysql_extracted_"
 
 
 def get_spark_session():
@@ -94,6 +98,7 @@ def init_silver_table_if_needed(spark, branch_name="main"):
     create_sql = f"""
         CREATE TABLE IF NOT EXISTS {SILVER_TABLE} (
             file_nguon STRING,
+            nguon_du_lieu STRING,
             ma_chi_tieu STRING,
             nhom_don_vi STRING,
             quy_danh_gia STRING,
@@ -142,6 +147,7 @@ def init_silver_table_if_needed(spark, branch_name="main"):
             "muc_dat_numeric": "DOUBLE",
             "minh_chung_type": "STRING",
             "minh_chung_path": "STRING",
+            "nguon_du_lieu": "STRING",
         }
         for col_name, col_type in new_columns.items():
             if col_name not in existing_columns:
@@ -152,12 +158,26 @@ def init_silver_table_if_needed(spark, branch_name="main"):
 
 
 def dedup_by_business_key(df_bronze):
-    """Dedup theo khóa nghiệp vụ (ma_chi_tieu, quy_danh_gia)."""
-    df_with_ts = df_bronze.withColumn("thoi_gian_ingest_silver", current_timestamp())
-    w = Window.partitionBy("ma_chi_tieu", "quy_danh_gia").orderBy(desc("thoi_gian_ingest_silver"))
+    """
+    Dedup theo khóa nghiệp vụ (ma_chi_tieu, quy_danh_gia, nhom_don_vi).
+
+    Nếu có nhiều snapshot Bronze cho cùng một khóa, ưu tiên file Bronze có tên/path
+    mới hơn. Tên file của cả pipeline tài liệu và MySQL đều chứa timestamp nên thứ tự
+    này ổn định hơn việc chỉ dùng current_timestamp() cho toàn batch.
+    """
+    # Dùng literal timestamp tạo ở Python để MERGE Iceberg nhận source plan là deterministic.
+    batch_ingest_ts = datetime.now()
+    df_with_ts = df_bronze.withColumn(
+        "thoi_gian_ingest_silver",
+        lit(batch_ingest_ts).cast("timestamp"),
+    )
+    w = (
+        Window.partitionBy("ma_chi_tieu", "quy_danh_gia", "nhom_don_vi")
+        .orderBy(desc("_bronze_input_path"), desc("checksum_sha256"))
+    )
     df_ranked = df_with_ts.withColumn("_rn", row_number().over(w))
 
-    df_staging  = df_ranked.filter("_rn = 1").drop("_rn")
+    df_staging = df_ranked.filter("_rn = 1").drop("_rn")
     df_discarded = df_ranked.filter("_rn > 1").drop("_rn")
 
     return df_staging, df_discarded
@@ -173,22 +193,112 @@ def save_discarded_duplicates(df_discarded, s3_client):
     discard_path = f"s3a://university-lakehouse/{BRONZE_DISCARDED_PREFIX}discarded_{timestamp_str}.parquet"
 
     print(
-        f"⚠️ CẢNH BÁO: phát hiện {dup_count} bản ghi trùng (ma_chi_tieu, quy_danh_gia). "
-        f"Chỉ giữ lại bản MỚI NHẤT theo thoi_gian_ingest_silver."
+        f"⚠️ CẢNH BÁO: phát hiện {dup_count} bản ghi trùng (ma_chi_tieu, quy_danh_gia, nhom_don_vi). "
+        f"Chỉ giữ lại snapshot Bronze mới nhất theo đường dẫn/timestamp file."
     )
     df_discarded.write.mode("overwrite").parquet(discard_path)
     print(f"📝 Đã ghi {dup_count} bản ghi bị loại vào '{discard_path}'.")
 
 
-def archive_processed_bronze_files(s3_client):
-    """Sau khi merge vào main THÀNH CÔNG, chuyển Parquet Bronze sang bronze_archive/."""
-    resp = s3_client.list_objects_v2(Bucket=MINIO_BUCKET_NAME, Prefix=f"{BRONZE_PREFIX}data_extracted_")
-    contents = resp.get("Contents", [])
-    if not contents:
+def list_new_bronze_parquet_keys(s3_client):
+    """Liệt kê đúng 2 nhóm Bronze được Silver hỗ trợ: tài liệu cũ và MySQL mới."""
+    paginator = s3_client.get_paginator("list_objects_v2")
+    document_keys = []
+    mysql_keys = []
+
+    for page in paginator.paginate(Bucket=MINIO_BUCKET_NAME, Prefix=BRONZE_PREFIX):
+        for obj in page.get("Contents", []):
+            key = obj["Key"]
+            if not key.endswith(".parquet"):
+                continue
+            if key.startswith(DOCUMENT_BRONZE_PREFIX):
+                document_keys.append(key)
+            elif key.startswith(MYSQL_BRONZE_PREFIX):
+                mysql_keys.append(key)
+
+    return sorted(document_keys), sorted(mysql_keys)
+
+
+def read_multisource_bronze(spark, document_keys, mysql_keys):
+    """Đọc hai loại Bronze rồi chuẩn hóa metadata nguồn trước khi hợp nhất."""
+    dataframes = []
+
+    if document_keys:
+        # Đọc từng file và gắn path bằng lit(key), thay vì input_file_name().
+        # input_file_name() là biểu thức non-deterministic và Iceberg MERGE sẽ từ chối
+        # khi nó còn nằm trong lineage của source DataFrame.
+        for key in document_keys:
+            path = f"s3a://{MINIO_BUCKET_NAME}/{key}"
+            df_document = (
+                spark.read.parquet(path)
+                .withColumn("_bronze_input_path", lit(key))
+                .withColumn("nguon_du_lieu", lit(DOCUMENT_SOURCE))
+            )
+            dataframes.append(df_document)
+        print(f"📄 Bronze tài liệu: {len(document_keys)} file Parquet.")
+
+    if mysql_keys:
+        for key in mysql_keys:
+            path = f"s3a://{MINIO_BUCKET_NAME}/{key}"
+            df_mysql = (
+                spark.read.parquet(path)
+                .withColumn("_bronze_input_path", lit(key))
+            )
+
+            if "nguon_du_lieu" not in df_mysql.columns:
+                df_mysql = df_mysql.withColumn("nguon_du_lieu", lit(MYSQL_SOURCE))
+            else:
+                df_mysql = df_mysql.withColumn(
+                    "nguon_du_lieu",
+                    when(
+                        col("nguon_du_lieu").isNull() | (trim(col("nguon_du_lieu")) == ""),
+                        lit(MYSQL_SOURCE),
+                    ).otherwise(col("nguon_du_lieu")),
+                )
+
+            dataframes.append(df_mysql)
+        print(f"🗄️ Bronze MySQL: {len(mysql_keys)} file Parquet.")
+
+    if not dataframes:
+        return None
+
+    df_bronze = dataframes[0]
+    for df_next in dataframes[1:]:
+        df_bronze = df_bronze.unionByName(df_next, allowMissingColumns=True)
+
+    required_columns = [
+        "file_nguon", "nguon_du_lieu", "ma_chi_tieu", "nhom_don_vi",
+        "quy_danh_gia", "noi_dung_muc_tieu", "dinh_ky_thu_thap",
+        "muc_dang_ky", "muc_dang_ky_numeric", "muc_dat", "muc_dat_numeric",
+        "ket_qua_he_thong", "nguyen_nhan", "hanh_dong_khac_phuc",
+        "minh_chung_type", "minh_chung_path", "checksum_sha256",
+        "_bronze_input_path",
+    ]
+
+    # Cho phép Bronze cũ thiếu một số cột mới; Silver sẽ nhận NULL thay vì làm job lỗi.
+    for col_name in required_columns:
+        if col_name not in df_bronze.columns:
+            df_bronze = df_bronze.withColumn(col_name, lit(None))
+
+    return df_bronze.select(*required_columns)
+
+
+def backfill_existing_source_labels(spark):
+    """Gán nhãn nguồn cho các dòng Silver cũ được tạo trước khi có nguon_du_lieu."""
+    spark.sql(f"""
+        UPDATE {SILVER_TABLE}
+        SET nguon_du_lieu = '{DOCUMENT_SOURCE}'
+        WHERE nguon_du_lieu IS NULL OR TRIM(nguon_du_lieu) = ''
+    """)
+    print(f"🏷️ Đã bảo đảm các dòng Silver cũ có nguon_du_lieu='{DOCUMENT_SOURCE}'.")
+
+
+def archive_processed_bronze_files(s3_client, processed_keys):
+    """Chỉ archive đúng các file đã tham gia batch Silver thành công."""
+    if not processed_keys:
         return
 
-    for obj in contents:
-        key = obj["Key"]
+    for key in processed_keys:
         archive_key = key.replace(BRONZE_PREFIX, BRONZE_ARCHIVE_PREFIX, 1)
         s3_client.copy_object(
             Bucket=MINIO_BUCKET_NAME,
@@ -197,8 +307,7 @@ def archive_processed_bronze_files(s3_client):
         )
         s3_client.delete_object(Bucket=MINIO_BUCKET_NAME, Key=key)
 
-    print(f"🗑️ Đã archive {len(contents)} file Parquet Bronze sang '{BRONZE_ARCHIVE_PREFIX}'.")
-
+    print(f"🗑️ Đã archive {len(processed_keys)} file Bronze đã xử lý sang '{BRONZE_ARCHIVE_PREFIX}'.")
 
 def run_bronze_to_silver(spark, run_id=""):
     """Thực thi toàn bộ luồng Bronze -> Silver trên SparkSession được truyền vào."""
@@ -206,15 +315,17 @@ def run_bronze_to_silver(spark, run_id=""):
     init_silver_table_if_needed(spark, "main")
 
     s3_client = get_s3_client()
-    resp = s3_client.list_objects_v2(Bucket=MINIO_BUCKET_NAME, Prefix=f"{BRONZE_PREFIX}data_extracted_")
-    parquet_contents = [obj["Key"] for obj in resp.get("Contents", []) if obj["Key"].endswith(".parquet")]
-    
+    document_keys, mysql_keys = list_new_bronze_parquet_keys(s3_client)
+    parquet_contents = document_keys + mysql_keys
+
     if not parquet_contents:
-        print(f"ℹ️ Không tìm thấy file Bronze Parquet nào mới trong '{BRONZE_PREFIX}'. Bỏ qua bước Silver (chờ Ingestion).")
+        print(f"ℹ️ Không tìm thấy Bronze Parquet mới từ tài liệu hoặc MySQL trong '{BRONZE_PREFIX}'. Bỏ qua bước Silver.")
         return True
 
-    print(f"📁 Tìm thấy {len(parquet_contents)} file Bronze Parquet cần nạp vào Silver...")
-    bronze_parquet_path = "s3a://university-lakehouse/bronze/data_extracted_*.parquet"
+    print(
+        f"📁 Tìm thấy {len(parquet_contents)} file Bronze cần nạp "
+        f"({len(document_keys)} tài liệu, {len(mysql_keys)} MySQL)."
+    )
     branch_name = make_branch_name("ingest_bronze_silver")
 
     try:
@@ -223,28 +334,9 @@ def run_bronze_to_silver(spark, run_id=""):
         use_branch(spark, branch_name)
 
         init_silver_table_if_needed(spark, branch_name)
+        backfill_existing_source_labels(spark)
 
-        from pyspark.sql.types import StructType, StructField, StringType, DoubleType
-        bronze_schema = StructType([
-            StructField("file_nguon", StringType(), True),
-            StructField("ma_chi_tieu", StringType(), True),
-            StructField("nhom_don_vi", StringType(), True),
-            StructField("quy_danh_gia", StringType(), True),
-            StructField("noi_dung_muc_tieu", StringType(), True),
-            StructField("dinh_ky_thu_thap", StringType(), True),
-            StructField("muc_dang_ky", StringType(), True),
-            StructField("muc_dang_ky_numeric", DoubleType(), True),
-            StructField("muc_dat", StringType(), True),
-            StructField("muc_dat_numeric", DoubleType(), True),
-            StructField("ket_qua_he_thong", StringType(), True),
-            StructField("nguyen_nhan", StringType(), True),
-            StructField("hanh_dong_khac_phuc", StringType(), True),
-            StructField("minh_chung_type", StringType(), True),
-            StructField("minh_chung_path", StringType(), True),
-            StructField("checksum_sha256", StringType(), True)
-        ])
-        
-        df_bronze = spark.read.schema(bronze_schema).parquet(bronze_parquet_path)
+        df_bronze = read_multisource_bronze(spark, document_keys, mysql_keys)
         df_staging, df_discarded = dedup_by_business_key(df_bronze)
 
         save_discarded_duplicates(df_discarded, s3_client)
@@ -254,10 +346,13 @@ def run_bronze_to_silver(spark, run_id=""):
         spark.sql(f"""
             MERGE INTO {SILVER_TABLE} t
             USING bronze_staging_view s
-            ON t.ma_chi_tieu = s.ma_chi_tieu AND t.quy_danh_gia = s.quy_danh_gia
+            ON t.ma_chi_tieu = s.ma_chi_tieu
+               AND t.quy_danh_gia = s.quy_danh_gia
+               AND t.nhom_don_vi = s.nhom_don_vi
             WHEN MATCHED THEN
               UPDATE SET
                 t.file_nguon = s.file_nguon,
+                t.nguon_du_lieu = s.nguon_du_lieu,
                 t.nhom_don_vi = s.nhom_don_vi,
                 t.noi_dung_muc_tieu = s.noi_dung_muc_tieu,
                 t.dinh_ky_thu_thap = s.dinh_ky_thu_thap,
@@ -274,13 +369,13 @@ def run_bronze_to_silver(spark, run_id=""):
                 t.thoi_gian_ingest_silver = s.thoi_gian_ingest_silver
             WHEN NOT MATCHED THEN
               INSERT (
-                file_nguon, ma_chi_tieu, nhom_don_vi, quy_danh_gia, noi_dung_muc_tieu,
+                file_nguon, nguon_du_lieu, ma_chi_tieu, nhom_don_vi, quy_danh_gia, noi_dung_muc_tieu,
                 dinh_ky_thu_thap, muc_dang_ky, muc_dang_ky_numeric, muc_dat, muc_dat_numeric,
                 ket_qua_he_thong, nguyen_nhan, hanh_dong_khac_phuc, minh_chung_type, minh_chung_path, checksum_sha256,
                 thoi_gian_ingest_silver
               )
               VALUES (
-                s.file_nguon, s.ma_chi_tieu, s.nhom_don_vi, s.quy_danh_gia, s.noi_dung_muc_tieu,
+                s.file_nguon, s.nguon_du_lieu, s.ma_chi_tieu, s.nhom_don_vi, s.quy_danh_gia, s.noi_dung_muc_tieu,
                 s.dinh_ky_thu_thap, s.muc_dang_ky, s.muc_dang_ky_numeric, s.muc_dat, s.muc_dat_numeric,
                 s.ket_qua_he_thong, s.nguyen_nhan, s.hanh_dong_khac_phuc, s.minh_chung_type, s.minh_chung_path, s.checksum_sha256,
                 s.thoi_gian_ingest_silver
@@ -292,11 +387,11 @@ def run_bronze_to_silver(spark, run_id=""):
         merge_branch_to_main(spark, branch_name)
         use_main(spark)
 
-        archive_processed_bronze_files(s3_client)
+        archive_processed_bronze_files(s3_client, parquet_contents)
 
         print("\n📊 CHI TIẾT DỮ LIỆU TRONG BẢNG ICEBERG SILVER (main):")
         spark.sql(f"""
-            SELECT ma_chi_tieu, nhom_don_vi, quy_danh_gia, dinh_ky_thu_thap, muc_dang_ky, muc_dat, ket_qua_he_thong
+            SELECT nguon_du_lieu, ma_chi_tieu, nhom_don_vi, quy_danh_gia, dinh_ky_thu_thap, muc_dang_ky, muc_dat, ket_qua_he_thong
             FROM {SILVER_TABLE}
             ORDER BY nhom_don_vi, ma_chi_tieu
         """).show(20, truncate=False)
@@ -309,10 +404,10 @@ def run_bronze_to_silver(spark, run_id=""):
                 om_client, bronze_fqn, silver_fqn,
                 sql_query=(
                     "MERGE INTO lakehouse.silver.kpi_cusc_master t "
-                    "USING bronze_staging_view s ON t.ma_chi_tieu = s.ma_chi_tieu AND t.quy_danh_gia = s.quy_danh_gia "
+                    "USING bronze_staging_view s ON t.ma_chi_tieu = s.ma_chi_tieu AND t.quy_danh_gia = s.quy_danh_gia AND t.nhom_don_vi = s.nhom_don_vi "
                     "WHEN MATCHED THEN UPDATE * WHEN NOT MATCHED THEN INSERT *"
                 ),
-                description="Nạp dữ liệu KPI từ Bronze vào Iceberg Silver",
+                description="Nạp dữ liệu KPI đa nguồn (tài liệu/MySQL) từ Bronze vào Iceberg Silver",
             )
         except Exception as e:
             print(f"⚠️ Không đẩy được lineage lên OpenMetadata (bỏ qua): {e}")

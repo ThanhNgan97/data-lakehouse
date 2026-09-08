@@ -60,7 +60,7 @@ GOLD_DETAIL_COLUMNS = [
     "noi_dung_muc_tieu", "dinh_ky_thu_thap",
     "muc_dang_ky", "muc_dat", "muc_dat_numeric", "ket_qua_he_thong",
     "nguyen_nhan", "hanh_dong_khac_phuc",
-    "file_nguon", "minh_chung_type", "minh_chung_path", "thoi_gian_dong_goi_gold",
+    "nguon_du_lieu", "file_nguon", "minh_chung_type", "minh_chung_path", "thoi_gian_dong_goi_gold",
 ]
 GOLD_COMPARISON_COLUMNS = [
     "ma_chi_tieu", "nhom_don_vi", "ten_phong_ban",
@@ -231,7 +231,7 @@ def run_silver_to_gold(spark):
             "ma_chi_tieu", "nhom_don_vi", "quy_danh_gia",
             "noi_dung_muc_tieu", "dinh_ky_thu_thap",
             "muc_dang_ky", "muc_dat", "muc_dat_numeric", "ket_qua_he_thong",
-            "nguyen_nhan", "hanh_dong_khac_phuc", "file_nguon",
+            "nguyen_nhan", "hanh_dong_khac_phuc", "nguon_du_lieu", "file_nguon",
             "minh_chung_type", "minh_chung_path"
         ).withColumn("thoi_gian_dong_goi_gold", current_timestamp())
 
@@ -240,7 +240,7 @@ def run_silver_to_gold(spark):
 
         # DATA MART 3: SO SÁNH GIỮA CÁC KỲ
         print("⚙️ Nghiệp vụ 3: Tính tăng/giảm % của từng mã chỉ tiêu...")
-        window_spec = Window.partitionBy("ma_chi_tieu").orderBy("quy_danh_gia_sort_key")
+        window_spec = Window.partitionBy("ma_chi_tieu", "nhom_don_vi").orderBy("quy_danh_gia_sort_key")
 
         df_comparison = (
             df_silver

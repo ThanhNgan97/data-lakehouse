@@ -179,7 +179,7 @@ services:
       AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth'
       AIRFLOW__WEBSERVER__SECRET_KEY: 'university_lakehouse_secret_key'
       AIRFLOW__WEBSERVER__WEB_SERVER_SESSION_LIFETIME: '604800'
-      AIRFLOW__WEBSERVER__SESSION_COOKIE_SAMESITE: 'None'
+      AIRFLOW__WEBSERVER__SESSION_COOKIE_SAMESITE: 'Lax'
       AIRFLOW__WEBSERVER__SESSION_COOKIE_SECURE: 'False'
       MINIO_ENDPOINT: 'http://minio:9000'
       NESSIE_API_URL: 'http://nessie:19120/api/v1'

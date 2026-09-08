@@ -176,7 +176,7 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:240203@postgres:5432/airflow_db
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-      AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
+      AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth'
       AIRFLOW__WEBSERVER__SECRET_KEY: 'university_lakehouse_secret_key'
       AIRFLOW__WEBSERVER__WEB_SERVER_SESSION_LIFETIME: '604800'
       AIRFLOW__WEBSERVER__SESSION_COOKIE_SAMESITE: 'None'
@@ -204,7 +204,7 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:240203@postgres:5432/airflow_db
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-      AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
+      AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth'
       MINIO_ENDPOINT: 'http://minio:9000'
       NESSIE_API_URL: 'http://nessie:19120/api/v1'
     volumes:

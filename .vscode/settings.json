@@ -1,10 +1,9 @@
 {
-  "python.defaultInterpreterPath": "C:\\Users\\Admin\\Desktop\\lakehouse\\lakehouse\\.venv_lakehouse\\Scripts\\python.exe",
+  "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
   "python.analysis.extraPaths": [
-    "C:\\Users\\Admin\\Desktop\\lakehouse\\lakehouse\\.venv_lakehouse\\Lib\\site-packages"
+    "${workspaceFolder}/backend"
   ],
   "[python]": {
     "editor.defaultFormatter": "ms-python.python"
   }
 }
-

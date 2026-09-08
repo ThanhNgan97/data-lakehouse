@@ -1,0 +1,35 @@
+[
+  {
+    "ma": "KPI_JSON_001",
+    "noi_dung_muc_tieu": "Tối ưu hóa thời gian tải trang web",
+    "quy_danh_gia": "Q2/2026",
+    "dinh_ky_thu_thap": "Hàng tuần",
+    "muc_dang_ky": "Dưới 2 giây",
+    "muc_dat": "1.5 giây",
+    "ket_qua": "Đạt",
+    "nguyen_nhan": "",
+    "hanh_dong": "Duy trì sử dụng CDN hiện tại"
+  },
+  {
+    "ma": "KPI_JSON_002",
+    "noi_dung_muc_tieu": "Nâng cấp cơ sở dữ liệu PostgreSQL",
+    "quy_danh_gia": "Q2/2026",
+    "dinh_ky_thu_thap": "Hàng quý",
+    "muc_dang_ky": "Hoàn thành 100%",
+    "muc_dat": "80%",
+    "ket_qua": "Không Đạt",
+    "nguyen_nhan": "Lỗi tương thích phiên bản mới",
+    "hanh_dong": "Liên hệ đội ngũ support và lùi lịch deploy sang tuần sau"
+  },
+  {
+    "ma": "KPI_JSON_003",
+    "noi_dung_muc_tieu": "Tổ chức training nội bộ về AI",
+    "quy_danh_gia": "Q2/2026",
+    "dinh_ky_thu_thap": "Hàng tháng",
+    "muc_dang_ky": "2 buổi",
+    "muc_dat": "2 buổi",
+    "ket_qua": "Đạt",
+    "nguyen_nhan": "",
+    "hanh_dong": ""
+  }
+]

@@ -1,0 +1,67 @@
+﻿[
+  {
+    "ma_chi_tieu": "JSON_CNTT_01",
+    "nhom_don_vi": "CNTT",
+    "ten_phong_ban": "Khoa Công nghệ Thông tin",
+    "quy_danh_gia": "Q2/2026",
+    "noi_dung_muc_tieu": "Tối ưu hóa thời gian phản hồi hệ thống Lakehouse API",
+    "dinh_ky_thu_thap": "Hàng tuần",
+    "muc_dang_ky": "Dưới 500ms",
+    "muc_dat": "320ms",
+    "ket_qua": "Đạt",
+    "nguyen_nhan": "",
+    "hanh_dong": "Duy trì cơ chế caching và indexing Trino"
+  },
+  {
+    "ma_chi_tieu": "JSON_CNTT_02",
+    "nhom_don_vi": "CNTT",
+    "ten_phong_ban": "Khoa Công nghệ Thông tin",
+    "quy_danh_gia": "Q2/2026",
+    "noi_dung_muc_tieu": "Tổ chức hội thảo chuyên đề Big Data & Generative AI",
+    "dinh_ky_thu_thap": "Hàng quý",
+    "muc_dang_ky": "2 buổi",
+    "muc_dat": "2 buổi",
+    "ket_qua": "Đạt",
+    "nguyen_nhan": "",
+    "hanh_dong": "Tổng kết tài liệu và chia sẻ lên cổng nội bộ"
+  },
+  {
+    "ma_chi_tieu": "JSON_DT_01",
+    "nhom_don_vi": "DT",
+    "ten_phong_ban": "Phòng Đào tạo",
+    "quy_danh_gia": "Q2/2026",
+    "noi_dung_muc_tieu": "Tỷ lệ sinh viên hoàn thành khảo sát chất lượng giảng dạy",
+    "dinh_ky_thu_thap": "Hàng quý",
+    "muc_dang_ky": ">= 90%",
+    "muc_dat": "82%",
+    "ket_qua": "Không Đạt",
+    "nguyen_nhan": "Hệ thống khảo sát bị nghẽn mạng trong tuần thi",
+    "hanh_dong": "Mở rộng thời gian khảo sát thêm 1 tuần và gửi email nhắc nhở"
+  },
+  {
+    "ma_chi_tieu": "JSON_QTCL_01",
+    "nhom_don_vi": "QTCL",
+    "ten_phong_ban": "Phòng Quản trị Chất lượng",
+    "quy_danh_gia": "Q2/2026",
+    "noi_dung_muc_tieu": "Kiểm định định kỳ quy trình vận hành ISO 9001:2015",
+    "dinh_ky_thu_thap": "6 tháng",
+    "muc_dang_ky": "Hoàn thành 100%",
+    "muc_dat": "100%",
+    "ket_qua": "Đạt",
+    "nguyen_nhan": "",
+    "hanh_dong": "Lưu trữ biên bản đánh giá nội bộ"
+  },
+  {
+    "ma_chi_tieu": "JSON_PM_01",
+    "nhom_don_vi": "PM",
+    "ten_phong_ban": "Trung tâm Phần mềm",
+    "quy_danh_gia": "Q2/2026",
+    "noi_dung_muc_tieu": "Triển khai đúng tiến độ dự án Nâng cấp Cổng thông tin CUSC",
+    "dinh_ky_thu_thap": "Hàng tháng",
+    "muc_dang_ky": "Đúng hạn",
+    "muc_dat": "Đúng hạn",
+    "ket_qua": "Đạt",
+    "nguyen_nhan": "",
+    "hanh_dong": "Bàn giao giai đoạn 1 cho khách hàng"
+  }
+]

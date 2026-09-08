@@ -59,7 +59,12 @@ async def upload_file(
         dag_run_id = None
         try:
             # Assuming airflow-init sets up admin user with 'airflow:airflow'
-            resp = requests.post(airflow_url, json={}, auth=("airflow", "airflow"), timeout=5)
+            resp = requests.post(
+                airflow_url, 
+                json={"conf": {"file_key": object_name}}, 
+                auth=("airflow", "airflow"), 
+                timeout=5
+            )
             if resp.status_code in [200, 201]:
                 logging.info("Airflow pipeline triggered successfully.")
                 dag_run_id = resp.json().get("dag_run_id")

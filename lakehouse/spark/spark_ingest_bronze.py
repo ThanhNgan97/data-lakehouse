@@ -576,6 +576,86 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
     return rows, quy_danh_gia_final, set(quy_list)
 
 
+def extract_structured_data(file_bytes: bytes, ext: str):
+    """
+    Trích xuất dữ liệu từ các file có cấu trúc (CSV, Excel, JSON).
+    """
+    rows = []
+    quy_list = set()
+    try:
+        if ext == ".csv":
+            df = pd.read_csv(io.BytesIO(file_bytes))
+        elif ext in [".xlsx", ".xls"]:
+            df = pd.read_excel(io.BytesIO(file_bytes))
+        elif ext == ".json":
+            data = json.loads(file_bytes.decode('utf-8'))
+            if isinstance(data, list):
+                df = pd.DataFrame(data)
+            elif isinstance(data, dict):
+                # Giả định data chứa 1 mảng các bản ghi ở root
+                for k, v in data.items():
+                    if isinstance(v, list):
+                        df = pd.DataFrame(v)
+                        break
+                else:
+                    df = pd.DataFrame([data])
+        else:
+            return None
+
+        if df.empty:
+            return None
+
+        # Chuẩn hóa tên cột
+        df.columns = [str(c).strip().lower() for c in df.columns]
+        
+        # Hàm tiện ích lấy giá trị cột
+        def get_val(row, possible_names, default="N/A"):
+            for n in possible_names:
+                for c in df.columns:
+                    # Chấp nhận chứa keyword
+                    if n in c or c.replace("_", "") in n.replace("_", ""):
+                        val = row.get(c)
+                        if pd.isna(val) or str(val).strip() == "":
+                            return default
+                        return str(val).strip()
+            return default
+
+        for _, row in df.iterrows():
+            ma = get_val(row, ["ma", "id", "code"], "N/A")
+            if ma == "N/A":
+                continue # Bỏ qua dòng không có mã
+            
+            noi_dung = get_val(row, ["noi_dung", "muc_tieu", "chi_tieu", "content", "target", "noidungmuctieu"], "N/A")
+            dk = get_val(row, ["dinh_ky", "thu_thap", "period", "dinhkythuthap"], "N/A")
+            m_dk = get_val(row, ["muc_dang_ky", "ke_hoach", "plan", "dang_ky", "mucdangky"], "N/A")
+            m_dat = get_val(row, ["muc_dat", "thuc_te", "actual", "dat", "mucdat"], "N/A")
+            kq = get_val(row, ["ket_qua", "danh_gia", "status", "result", "ketqua"], "N/A")
+            nguyen_nhan = get_val(row, ["nguyen_nhan", "cause", "reason", "nguyennhan"], "")
+            hanh_dong = get_val(row, ["hanh_dong", "khac_phuc", "action", "solution", "hanhdongkehoachkhacphuc"], "")
+            
+            quy = get_val(row, ["quy", "ky", "quarter", "time", "quydanhgia"], "N/A")
+            if quy != "N/A":
+                quy_raw = str(quy).upper()
+                quy_match = re.search(r"(?:Q|QUÝ|QUY)\s*([1-4])\s*(?:/|-|NĂM|NAM)\s*(\d{4})", quy_raw)
+                if quy_match:
+                    quy_list.add(f"Q{quy_match.group(1)}/{quy_match.group(2)}")
+                else:
+                    quy_list.add(quy_raw)
+
+            rows.append((ma, noi_dung, dk, m_dk, m_dat, kq, nguyen_nhan, hanh_dong))
+            
+        quy_danh_gia_final = None
+        if quy_list:
+            quy_list_l = list(quy_list)
+            quy_danh_gia_final = max(set(quy_list_l), key=quy_list_l.count)
+            
+        return rows, quy_danh_gia_final, quy_list
+        
+    except Exception as e:
+        print(f"Lỗi parse dữ liệu có cấu trúc: {e}")
+        return None
+
+
 def process_single_file(s3_client, file_key):
     """Xử lý trích xuất dữ liệu cho 1 file từ S3."""
     ext = os.path.splitext(file_key)[1].lower()
@@ -609,6 +689,13 @@ def process_single_file(s3_client, file_key):
             raw_rows, quy_danh_gia, ky_candidates = parse_with_gemini(file_bytes, ext, file_key)
         except Exception as exc:
             print(f"WARNING: Lỗi bóc tách qua AI cho file {file_key}: {exc}")
+    elif ext in [".csv", ".xlsx", ".xls", ".json"]:
+        try:
+            res = extract_structured_data(file_bytes, ext)
+            if res:
+                raw_rows, quy_danh_gia, ky_candidates = res
+        except Exception as exc:
+            print(f"WARNING: Lỗi bóc tách dữ liệu có cấu trúc cho file {file_key}: {exc}")
     elif ext in [".mp4", ".mov"]:
         print(f"SKIP: File video {file_key} được lưu trữ thô thành công.")
         return file_key, [], True
@@ -663,24 +750,30 @@ def process_single_file(s3_client, file_key):
 def main():
     parser = argparse.ArgumentParser(description="Bronze Ingestion")
     parser.add_argument("--run_id", type=str, help="Airflow DAG Run ID", default="")
+    parser.add_argument("--file_key", type=str, help="S3 file key to process", default="")
     args = parser.parse_args()
     
     sys.stdout.reconfigure(encoding="utf-8")
     s3_client = get_s3_client()
     extracted_data = []
-    response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=SOURCE_PREFIX)
-    if "Contents" not in response:
-        print("Không có file nào trong staging.")
-        sys.exit(0)
+    
+    if args.file_key:
+        file_keys = [args.file_key]
+        print(f"🎯 Chỉ định xử lý duy nhất file: {args.file_key}")
+    else:
+        response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=SOURCE_PREFIX)
+        if "Contents" not in response:
+            print("Không có file nào trong staging.")
+            sys.exit(0)
+            
+        file_keys = [
+            obj["Key"] for obj in response["Contents"] 
+            if not obj["Key"].endswith("/")
+        ]
 
-    file_keys = [
-        obj["Key"] for obj in response["Contents"] 
-        if not obj["Key"].endswith("/")
-    ]
-
-    if not file_keys:
-        print("Không có file hợp lệ trong staging.")
-        sys.exit(0)
+        if not file_keys:
+            print("Không có file hợp lệ trong staging.")
+            sys.exit(0)
 
     successful_keys = []
     failed_keys = []
@@ -764,8 +857,21 @@ def main():
         print(f"✨ HOÀN THÀNH INGEST! Đã dọn dẹp {len(successful_keys)} file(s) thành công khỏi staging.")
 
     if failed_keys:
-        print(f"⚠️ CẢNH BÁO: {len(failed_keys)} file(s) trong staging không trích xuất được dữ liệu: {failed_keys}")
-        print("Các file lỗi được giữ nguyên ở staging/ để kiểm tra và xử lý.")
+        print(f"⚠️ CẢNH BÁO: {len(failed_keys)} file(s) không trích xuất được dữ liệu: {failed_keys}")
+        print("Chuyển các file lỗi sang failed_staging/ để cách ly.")
+        for key in failed_keys:
+            if not key.startswith(SOURCE_PREFIX):
+                continue
+            failed_key = key.replace(SOURCE_PREFIX, "failed_staging/", 1)
+            try:
+                s3_client.copy_object(
+                    Bucket=BUCKET_NAME,
+                    CopySource=f"{BUCKET_NAME}/{key}",
+                    Key=failed_key,
+                )
+                s3_client.delete_object(Bucket=BUCKET_NAME, Key=key)
+            except Exception as e:
+                print(f"Lỗi khi di chuyển file rác {key}: {e}")
 
     if not extracted_data and failed_keys:
         err_msg = "AI OCR: File không đúng định dạng KPI hoặc chất lượng ảnh quá kém, không trích xuất được dữ liệu."

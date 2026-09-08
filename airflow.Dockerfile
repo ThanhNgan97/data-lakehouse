@@ -21,5 +21,6 @@ RUN pip install --no-cache-dir \
     pdfplumber \
     boto3 \
     psycopg2-binary \
-    google-genai
-
+    google-genai \
+    pandas \
+    openpyxl

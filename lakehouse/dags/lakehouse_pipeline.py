@@ -24,7 +24,7 @@ with DAG(
     # Task 1: Ingest unstructured file to Parquet (Bronze) - Tối ưu đa luồng & Hybrid AI
     ingest_bronze = BashOperator(
         task_id='ingest_bronze',
-        bash_command='cd /opt/airflow/spark && python spark_ingest_bronze.py --run_id {{ run_id }}',
+        bash_command='cd /opt/airflow/spark && python spark_ingest_bronze.py --run_id {{ run_id }}{% if dag_run.conf and dag_run.conf.get("file_key") %} --file_key "{{ dag_run.conf.get("file_key") }}"{% endif %}',
     )
 
     # Task 2: Merge Parquet to Iceberg (Silver) with Nessie

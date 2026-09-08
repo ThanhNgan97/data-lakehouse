@@ -71,6 +71,7 @@ const UserUpload = () => {
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [activePipeline, setActivePipeline] = useState(null);
+  const [filterStatus, setFilterStatus] = useState("all");
   const pollingRef = useRef(null);
 
   const fetchHistory = useCallback(async () => {
@@ -249,7 +250,7 @@ const UserUpload = () => {
               type="file"
               ref={fileInputRef}
               onChange={(e) => processFile(e.target.files[0])}
-              accept=".pdf,.docx,.ppt,.pptx"
+              accept=".pdf,.docx,.ppt,.pptx,.json,.csv,.xlsx,.xls"
               className="hidden"
             />
 
@@ -282,7 +283,7 @@ const UserUpload = () => {
                   : "Kéo thả file hoặc bấm để chọn"}
               </p>
               <p className="text-[11px] text-ink-400 mt-1.5 font-data">
-                Hỗ trợ định dạng: PDF, DOCX, PPT, PPTX
+                Hỗ trợ định dạng: PDF, DOCX, PPT, PPTX, JSON, CSV, EXCEL
               </p>
 
               {uploading && uploadProgress > 0 && (
@@ -427,9 +428,27 @@ const UserUpload = () => {
                 <h3 className="font-bold text-ink-900 text-base">
                   Lịch sử tải lên
                 </h3>
-                <p className="text-[11px] text-ink-400 mt-0.5">
-                  Tự động đồng bộ trạng thái Pipeline mỗi 5 giây
-                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  {["all", "running", "success", "failed"].map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setFilterStatus(f)}
+                      className={`text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-md transition ${
+                        filterStatus === f
+                          ? "bg-lake-100 text-lake-700"
+                          : "bg-ink-50 text-ink-400 hover:bg-ink-100"
+                      }`}
+                    >
+                      {f === "all"
+                        ? "Tất cả"
+                        : f === "running"
+                        ? "Đang xử lý"
+                        : f === "success"
+                        ? "Thành công"
+                        : "Lỗi"}
+                    </button>
+                  ))}
+                </div>
               </div>
               <button
                 onClick={fetchHistory}
@@ -445,16 +464,30 @@ const UserUpload = () => {
             </div>
 
             <div className="flex-1 overflow-auto bg-[#FAFBFD] p-4">
-              {history.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-ink-300">
-                  <Icon name="inbox" className="w-9 h-9 mb-3 opacity-60" />
-                  <p className="text-sm font-medium text-ink-400">
-                    Chưa có dữ liệu nào được tải lên hệ thống.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {history.map((item, i) => {
+              {(() => {
+                const filteredHistory = history.filter((item) => {
+                  if (filterStatus === "all") return true;
+                  const st = item.pipeline_status;
+                  if (filterStatus === "success") return st === "success";
+                  if (filterStatus === "failed") return ["failed", "upload_failed", "trigger_failed", "unreachable"].includes(st);
+                  if (filterStatus === "running") return ["pending", "uploaded", "triggered", "running", "queued"].includes(st);
+                  return true;
+                });
+
+                if (filteredHistory.length === 0) {
+                  return (
+                    <div className="h-full flex flex-col items-center justify-center text-ink-300">
+                      <Icon name="inbox" className="w-9 h-9 mb-3 opacity-60" />
+                      <p className="text-sm font-medium text-ink-400">
+                        Chưa có dữ liệu phù hợp.
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-3">
+                    {filteredHistory.map((item, i) => {
                     const st = getStatus(item);
                     return (
                       <div
@@ -505,8 +538,9 @@ const UserUpload = () => {
                       </div>
                     );
                   })}
-                </div>
-              )}
+                  </div>
+                );
+              })()}
             </div>
           </Card>
 

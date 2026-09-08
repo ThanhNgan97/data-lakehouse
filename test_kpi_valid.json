@@ -1,0 +1,24 @@
+[
+  {
+    "ma_chi_tieu": "IT_DEV_001",
+    "noi_dung_muc_tieu": "Hoàn thành nền tảng Data Lakehouse",
+    "quy_danh_gia": "Q3/2026",
+    "dinh_ky_thu_thap": "Tháng",
+    "muc_dang_ky": "100%",
+    "muc_dat": "100%",
+    "ket_qua_he_thong": "ĐẠT",
+    "nguyen_nhan": "",
+    "hanh_dong_khac_phuc": ""
+  },
+  {
+    "ma_chi_tieu": "IT_DEV_002",
+    "noi_dung_muc_tieu": "Nâng cấp bảo mật máy chủ",
+    "quy_danh_gia": "Q3/2026",
+    "dinh_ky_thu_thap": "Quý",
+    "muc_dang_ky": "95%",
+    "muc_dat": "80%",
+    "ket_qua_he_thong": "KHÔNG ĐẠT",
+    "nguyen_nhan": "Thiếu hụt kỹ sư",
+    "hanh_dong_khac_phuc": "Tuyển dụng bổ sung vào tháng 10"
+  }
+]

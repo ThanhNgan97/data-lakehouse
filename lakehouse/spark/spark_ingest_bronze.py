@@ -608,41 +608,59 @@ def extract_structured_data(file_bytes: bytes, ext: str):
         # Chuẩn hóa tên cột
         df.columns = [str(c).strip().lower() for c in df.columns]
         
-        # Hàm tiện ích lấy giá trị cột
-        def get_val(row, possible_names, default="N/A"):
+        # Hàm tiện ích tìm cột duy nhất 1 lần
+        def find_col(possible_names):
             for n in possible_names:
                 for c in df.columns:
-                    # Chấp nhận chứa keyword
                     if n in c or c.replace("_", "") in n.replace("_", ""):
-                        val = row.get(c)
-                        if pd.isna(val) or str(val).strip() == "":
-                            return default
-                        return str(val).strip()
-            return default
+                        return c
+            return None
 
-        for _, row in df.iterrows():
-            ma = get_val(row, ["ma", "id", "code"], "N/A")
+        col_ma = find_col(["ma", "id", "code"])
+        col_nd = find_col(["noi_dung", "muc_tieu", "chi_tieu", "content", "target", "noidungmuctieu"])
+        col_dk = find_col(["dinh_ky", "thu_thap", "period", "dinhkythuthap"])
+        col_mdk = find_col(["muc_dang_ky", "ke_hoach", "plan", "dang_ky", "mucdangky"])
+        col_mdat = find_col(["muc_dat", "thuc_te", "actual", "dat", "mucdat"])
+        col_kq = find_col(["ket_qua", "danh_gia", "status", "result", "ketqua"])
+        col_nn = find_col(["nguyen_nhan", "cause", "reason", "nguyennhan"])
+        col_hd = find_col(["hanh_dong", "khac_phuc", "action", "solution", "hanhdongkehoachkhacphuc"])
+        col_quy = find_col(["quy", "ky", "quarter", "time", "quydanhgia"])
+
+        # Hàm trích xuất thành danh sách siêu tốc
+        def get_fast_list(col_name, default):
+            if col_name and col_name in df.columns:
+                # Đưa về string, strip và fillna
+                s = df[col_name].fillna(default).astype(str).str.strip()
+                # Thay chuỗi rỗng bằng default
+                s = s.replace("", default)
+                return s.tolist()
+            else:
+                return [default] * len(df)
+
+        list_ma = get_fast_list(col_ma, "N/A")
+        list_nd = get_fast_list(col_nd, "N/A")
+        list_dk = get_fast_list(col_dk, "N/A")
+        list_mdk = get_fast_list(col_mdk, "N/A")
+        list_mdat = get_fast_list(col_mdat, "N/A")
+        list_kq = get_fast_list(col_kq, "N/A")
+        list_nn = get_fast_list(col_nn, "")
+        list_hd = get_fast_list(col_hd, "")
+        list_quy = get_fast_list(col_quy, "N/A")
+
+        # Zip loop: Nhanh hơn df.iterrows() hàng nghìn lần
+        for ma, nd, dk, mdk, mdat, kq, nn, hd, quy in zip(list_ma, list_nd, list_dk, list_mdk, list_mdat, list_kq, list_nn, list_hd, list_quy):
             if ma == "N/A":
                 continue # Bỏ qua dòng không có mã
             
-            noi_dung = get_val(row, ["noi_dung", "muc_tieu", "chi_tieu", "content", "target", "noidungmuctieu"], "N/A")
-            dk = get_val(row, ["dinh_ky", "thu_thap", "period", "dinhkythuthap"], "N/A")
-            m_dk = get_val(row, ["muc_dang_ky", "ke_hoach", "plan", "dang_ky", "mucdangky"], "N/A")
-            m_dat = get_val(row, ["muc_dat", "thuc_te", "actual", "dat", "mucdat"], "N/A")
-            kq = get_val(row, ["ket_qua", "danh_gia", "status", "result", "ketqua"], "N/A")
-            nguyen_nhan = get_val(row, ["nguyen_nhan", "cause", "reason", "nguyennhan"], "")
-            hanh_dong = get_val(row, ["hanh_dong", "khac_phuc", "action", "solution", "hanhdongkehoachkhacphuc"], "")
-            
-            quy = get_val(row, ["quy", "ky", "quarter", "time", "quydanhgia"], "N/A")
             if quy != "N/A":
-                quy_raw = str(quy).upper()
+                quy_raw = quy.upper()
                 quy_match = re.search(r"(?:Q|QUÝ|QUY)\s*([1-4])\s*(?:/|-|NĂM|NAM)\s*(\d{4})", quy_raw)
                 if quy_match:
                     quy_list.add(f"Q{quy_match.group(1)}/{quy_match.group(2)}")
                 else:
                     quy_list.add(quy_raw)
 
-            rows.append((ma, noi_dung, dk, m_dk, m_dat, kq, nguyen_nhan, hanh_dong))
+            rows.append((ma, nd, dk, mdk, mdat, kq, nn, hd))
             
         quy_danh_gia_final = None
         if quy_list:
@@ -885,7 +903,13 @@ def main():
                 print(f"Lỗi khi di chuyển file rác {key}: {e}")
 
     if not extracted_data and failed_keys:
-        err_msg = "AI OCR: File không đúng định dạng KPI hoặc chất lượng ảnh quá kém, không trích xuất được dữ liệu."
+        # Lấy đuôi file của file đầu tiên bị lỗi để báo lỗi chính xác
+        ext = os.path.splitext(failed_keys[0])[1].lower() if failed_keys else ""
+        if ext in [".pdf", ".jpg", ".png", ".jpeg"]:
+            err_msg = "AI OCR: File không đúng định dạng KPI hoặc chất lượng ảnh quá kém, không trích xuất được dữ liệu."
+        else:
+            err_msg = f"Lỗi trích xuất: File {ext} không chứa các cột KPI hợp lệ (Mã, Nội dung, Quý...) hoặc dữ liệu trống."
+            
         print(f"❌ ERROR: {err_msg}")
         update_pipeline_error(args.run_id, err_msg)
         sys.exit(1)

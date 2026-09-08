@@ -74,6 +74,7 @@ const UserUpload = () => {
   const [filterStatus, setFilterStatus] = useState("all");
   const [iframeKey, setIframeKey] = useState(Date.now());
   const [selectedFile, setSelectedFile] = useState("");
+  const [selectedHistoryId, setSelectedHistoryId] = useState("");
   const pollingRef = useRef(null);
 
   const fetchHistory = useCallback(async () => {
@@ -135,7 +136,10 @@ const UserUpload = () => {
           fetchHistory().then((hist) => {
              if (state === "success" && hist) {
                 const finishedItem = hist.find((h) => h.dag_run_id === dagRunId);
-                if (finishedItem) setSelectedFile(finishedItem.filename);
+                if (finishedItem) {
+                  setSelectedFile(finishedItem.filename);
+                  setSelectedHistoryId(finishedItem.id || finishedItem.dag_run_id);
+                }
                 setIframeKey(Date.now());
              }
           });
@@ -208,6 +212,7 @@ const UserUpload = () => {
   const handleHistoryClick = (item) => {
     if (item.pipeline_status === "success") {
       setSelectedFile(item.filename);
+      setSelectedHistoryId(item.id || item.dag_run_id);
       setIframeKey(Date.now());
     }
   };
@@ -512,7 +517,7 @@ const UserUpload = () => {
                   <div className="space-y-3">
                     {filteredHistory.map((item, i) => {
                     const st = getStatus(item);
-                    const isSelected = selectedFile === item.filename;
+                    const isSelected = selectedHistoryId === (item.id || item.dag_run_id);
                     return (
                       <div
                         key={item.id || i}
@@ -555,7 +560,7 @@ const UserUpload = () => {
                             <Badge tone={st.tone}>{st.label}</Badge>
                             <span className="text-[10px] text-ink-300 font-data">
                               {item.uploaded_at
-                                ? new Date(item.uploaded_at + "Z").toLocaleString(
+                                ? new Date(item.uploaded_at).toLocaleString(
                                     "vi-VN",
                                   )
                                 : "—"}
@@ -593,6 +598,7 @@ const UserUpload = () => {
                   <button
                     onClick={() => {
                       setSelectedFile("");
+                      setSelectedHistoryId("");
                       setIframeKey(Date.now());
                     }}
                     className="text-xs text-ink-500 hover:text-rose-600 bg-ink-50 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition font-semibold"

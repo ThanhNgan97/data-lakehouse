@@ -98,7 +98,8 @@ async def get_upload_history(
     Kèm theo thông tin người upload, metadata, kích thước...
     """
     try:
-        histories = db.query(UploadHistory).join(User, UploadHistory.user_id == User.id).order_by(UploadHistory.uploaded_at.desc()).limit(limit)
+        from sqlalchemy.orm import joinedload
+        histories = db.query(UploadHistory).options(joinedload(UploadHistory.uploader)).order_by(UploadHistory.uploaded_at.desc()).limit(limit).all()
         return [record.to_dict() for record in histories]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi lấy lịch sử: {str(e)}")

@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import logging
 
 import mysql.connector
+import requests
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.exc import IntegrityError
@@ -15,6 +16,7 @@ from api.schemas.connectors import (
     ConnectorTestResponse,
     ConnectorUpdate,
 )
+from core.config import AIRFLOW_WEBSERVER_URL
 from core.connector_crypto import decrypt_secret, encrypt_secret
 from db.database import get_db
 from db.models import DataConnector
@@ -441,6 +443,165 @@ def test_connector(
                     mysql_connection.close()
             except Exception:
                 pass
+
+
+@router.post(
+    "/{connector_id}/sync",
+)
+def sync_connector(
+    connector_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_admin),
+):
+    """
+    Admin kích hoạt đồng bộ một MySQL Data Connector.
+
+    Chỉ connector_id được truyền sang Airflow.
+    Host/username/password/ciphertext không được đưa vào DAG conf.
+    """
+    connector = (
+        db.query(DataConnector)
+        .filter(DataConnector.id == connector_id)
+        .first()
+    )
+
+    if not connector:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Data Connector không tồn tại.",
+        )
+
+    if not connector.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Data Connector đang bị vô hiệu hóa.",
+        )
+
+    if connector.connector_type.strip().upper() != "MYSQL":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Sync hiện chỉ hỗ trợ MySQL.",
+        )
+
+    airflow_url = (
+        f"{AIRFLOW_WEBSERVER_URL}"
+        "/api/v1/dags/mysql_connector_sync/dagRuns"
+    )
+
+    try:
+        response = requests.post(
+            airflow_url,
+            json={
+                "conf": {
+                    "connector_id": connector.id,
+                }
+            },
+            auth=("airflow", "airflow"),
+            timeout=10,
+        )
+
+        if response.status_code not in (200, 201):
+            connector.last_sync_status = "trigger_failed"
+            connector.last_sync_at = datetime.now(timezone.utc)
+            db.commit()
+
+            logging.warning(
+                "Failed to trigger connector sync ID %s. "
+                "Airflow status=%s",
+                connector.id,
+                response.status_code,
+            )
+
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Airflow không chấp nhận yêu cầu đồng bộ.",
+            )
+
+        try:
+            airflow_data = response.json()
+        except ValueError:
+            connector.last_sync_status = "trigger_failed"
+            connector.last_sync_at = datetime.now(timezone.utc)
+            db.commit()
+
+            logging.warning(
+                "Airflow returned invalid JSON for connector sync ID %s.",
+                connector.id,
+            )
+
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Airflow trả về phản hồi không hợp lệ.",
+            )
+
+        dag_run_id = airflow_data.get("dag_run_id")
+        airflow_state = airflow_data.get("state", "queued")
+
+        connector.last_sync_status = "triggered"
+        connector.last_sync_at = datetime.now(timezone.utc)
+
+        db.commit()
+        db.refresh(connector)
+
+        logging.info(
+            "Connector sync triggered: connector_id=%s dag_run_id=%s",
+            connector.id,
+            dag_run_id,
+        )
+
+        return {
+            "success": True,
+            "message": "Đã kích hoạt đồng bộ MySQL.",
+            "connector_id": connector.id,
+            "dag_id": "mysql_connector_sync",
+            "dag_run_id": dag_run_id,
+            "state": airflow_state,
+        }
+
+    except HTTPException:
+        raise
+
+    except requests.RequestException as exc:
+        db.rollback()
+
+        connector.last_sync_status = "airflow_unreachable"
+        connector.last_sync_at = datetime.now(timezone.utc)
+
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+
+        logging.warning(
+            "Airflow unreachable while syncing connector ID %s.",
+            connector_id,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Không thể kết nối tới Airflow.",
+        ) from exc
+
+    except Exception as exc:
+        db.rollback()
+
+        connector.last_sync_status = "trigger_error"
+        connector.last_sync_at = datetime.now(timezone.utc)
+
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+
+        logging.exception(
+            "Unexpected error while triggering sync for connector ID %s.",
+            connector_id,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Không thể kích hoạt đồng bộ Data Connector.",
+        ) from exc
 
 
 @router.delete(

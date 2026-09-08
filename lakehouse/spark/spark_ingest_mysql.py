@@ -4,7 +4,9 @@ spark_ingest_mysql.py
 ------------------------------------------------------------
 
 Luồng:
-MySQL 8.0 (3 bảng quan hệ)
+Data Connector (connector_id)
+    -> PostgreSQL metadata + Fernet decrypt
+    -> MySQL 8.0 (3 bảng quan hệ)
     -> PySpark JDBC
     -> Join + chuẩn hóa schema Bronze
     -> Parquet single-object
@@ -47,16 +49,11 @@ from env_config import (
     MINIO_BUCKET_NAME,
     MINIO_ENDPOINT,
     MINIO_SECRET_KEY,
-    MYSQL_DATABASE,
-    MYSQL_HOST,
     MYSQL_JDBC_JAR,
-    MYSQL_PASSWORD,
-    MYSQL_PORT,
-    MYSQL_USER,
 )
+from connector_runtime import load_connector, resolve_mysql_runtime_host
 
 MYSQL_DRIVER = "com.mysql.cj.jdbc.Driver"
-MYSQL_SOURCE_URI = f"mysql://{MYSQL_DATABASE}/ket_qua_danh_gia"
 BRONZE_PREFIX = "bronze/"
 SOURCE_NAME = "MYSQL_RDBMS"
 
@@ -90,22 +87,33 @@ def get_s3_client():
     )
 
 
-def read_mysql_table(spark, table_name):
+def read_mysql_table(spark, table_name, connector):
+    """
+    Đọc một bảng MySQL bằng credential của Data Connector tại runtime.
+
+    Password chỉ tồn tại trong memory và không được ghi ra log.
+    """
+    runtime_host = resolve_mysql_runtime_host(connector)
+
     jdbc_url = (
-        f"jdbc:mysql://{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}"
+        f"jdbc:mysql://{runtime_host}:{connector.port}/{connector.database_name}"
         "?useUnicode=true&characterEncoding=UTF-8"
         "&serverTimezone=Asia/Ho_Chi_Minh"
         "&useSSL=false&allowPublicKeyRetrieval=true"
     )
 
-    print(f"📥 JDBC read: {MYSQL_DATABASE}.{table_name} @ {MYSQL_HOST}:{MYSQL_PORT}")
+    print(
+        f"📥 JDBC read: {connector.database_name}.{table_name} "
+        f"@ {runtime_host}:{connector.port} "
+        f"(connector_id={connector.id})"
+    )
 
     return (
         spark.read.format("jdbc")
         .option("url", jdbc_url)
         .option("dbtable", table_name)
-        .option("user", MYSQL_USER)
-        .option("password", MYSQL_PASSWORD)
+        .option("user", connector.username)
+        .option("password", connector.password)
         .option("driver", MYSQL_DRIVER)
         .load()
     )
@@ -143,13 +151,30 @@ def normalize_status(column_name):
     )
 
 
-def build_bronze_dataframe(spark, run_id):
+def build_bronze_dataframe(spark, run_id, connector):
     """
-    Join 3 bảng MySQL thành schema KPI tương thích với Bronze hiện tại.
+    Join 3 bảng KPI MySQL thành schema tương thích với Bronze hiện tại.
+
+    Day 3 làm động phần connector/credential.
+    Schema Mapping cho tên bảng/cột khác chuẩn sẽ được xử lý ở bước riêng.
     """
-    df_kq = read_mysql_table(spark, "ket_qua_danh_gia").alias("kq")
-    df_mt = read_mysql_table(spark, "muc_tieu_kpi").alias("mt")
-    df_dv = read_mysql_table(spark, "don_vi").alias("dv")
+    source_config = connector.source_config or {}
+
+    # Hiện tại pipeline KPI chuẩn sử dụng ba bảng này.
+    # source_config.primary_table được dùng để ghi provenance.
+    table_kq = "ket_qua_danh_gia"
+    table_mt = "muc_tieu_kpi"
+    table_dv = "don_vi"
+    primary_table = source_config.get("primary_table") or table_kq
+
+    df_kq = read_mysql_table(spark, table_kq, connector).alias("kq")
+    df_mt = read_mysql_table(spark, table_mt, connector).alias("mt")
+    df_dv = read_mysql_table(spark, table_dv, connector).alias("dv")
+
+    mysql_source_uri = (
+        f"mysql://{connector.database_name}/{primary_table}"
+        f"?connector_id={connector.id}"
+    )
 
     joined = (
         df_kq
@@ -175,9 +200,9 @@ def build_bronze_dataframe(spark, run_id):
         .withColumn("muc_dang_ky_numeric", parse_simple_numeric("muc_dang_ky"))
         .withColumn("muc_dat_numeric", parse_simple_numeric("muc_dat"))
         .withColumn("hanh_dong_khac_phuc", lit(""))
-        .withColumn("file_nguon", lit(MYSQL_SOURCE_URI))
+        .withColumn("file_nguon", lit(mysql_source_uri))
         .withColumn("minh_chung_type", lit("mysql"))
-        .withColumn("minh_chung_path", lit(MYSQL_SOURCE_URI))
+        .withColumn("minh_chung_path", lit(mysql_source_uri))
         .withColumn("nguon_du_lieu", lit(SOURCE_NAME))
         .withColumn("thoi_gian_ingest_bronze", current_timestamp())
         .withColumn("run_id", lit(run_id or ""))
@@ -263,15 +288,49 @@ def write_single_parquet_to_minio(df):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="MySQL OLTP -> MinIO Bronze")
-    parser.add_argument("--run_id", type=str, default="", help="Airflow DAG Run ID")
+    parser = argparse.ArgumentParser(
+        description="Dynamic MySQL Data Connector -> MinIO Bronze"
+    )
+    parser.add_argument(
+        "--run_id",
+        type=str,
+        default="",
+        help="Airflow DAG Run ID",
+    )
+    parser.add_argument(
+        "--connector_id",
+        type=int,
+        required=True,
+        help="ID của Data Connector trong PostgreSQL",
+    )
     args = parser.parse_args()
 
     sys.stdout.reconfigure(encoding="utf-8")
 
+    # Đọc + decrypt credential trước khi khởi tạo Spark để fail-fast.
+    connector = load_connector(args.connector_id)
+
+    if connector.connector_type.strip().upper() != "MYSQL":
+        raise RuntimeError(
+            f"Connector ID {connector.id} không phải MYSQL."
+        )
+
+    runtime_host = resolve_mysql_runtime_host(connector)
+
+    print("🔌 Dynamic MySQL Connector")
+    print(f"   connector_id: {connector.id}")
+    print(f"   name: {connector.name}")
+    print(f"   database: {connector.database_name}")
+    print(f"   runtime_host: {runtime_host}:{connector.port}")
+    print("   credential: encrypted-at-rest / decrypted-in-memory")
+
     spark = get_spark_session()
     try:
-        df_bronze = build_bronze_dataframe(spark, args.run_id)
+        df_bronze = build_bronze_dataframe(
+            spark,
+            args.run_id,
+            connector,
+        )
 
         print("📊 Preview dữ liệu MySQL sau mapping:")
         df_bronze.select(
@@ -290,7 +349,8 @@ def main():
         if output_key:
             print(
                 f"✨ HOÀN THÀNH MYSQL INGEST: {row_count} dòng, "
-                f"s3://{MINIO_BUCKET_NAME}/{output_key}"
+                f"s3://{MINIO_BUCKET_NAME}/{output_key} "
+                f"(connector_id={connector.id})"
             )
 
     finally:

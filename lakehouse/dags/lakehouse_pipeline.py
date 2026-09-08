@@ -30,7 +30,7 @@ with DAG(
     # Task 1b: Ingest dữ liệu KPI có cấu trúc từ MySQL qua JDBC vào Bronze
     ingest_mysql = BashOperator(
         task_id='ingest_mysql',
-        bash_command='cd /opt/airflow/spark && python spark_ingest_mysql.py --run_id {{ run_id }}',
+        bash_command='cd /opt/airflow/spark && python spark_ingest_mysql.py --connector_id 1 --run_id "{{ run_id }}"',
     )
 
     # Task 2: Merge Parquet to Iceberg (Silver) with Nessie

@@ -88,3 +88,11 @@ class ConnectorResponse(BaseModel):
 class ConnectorTestResponse(BaseModel):
     success: bool
     message: str
+
+class ConnectorSyncResponse(BaseModel):
+    success: bool
+    message: str
+    connector_id: int
+    dag_id: str
+    dag_run_id: str | None = None
+    state: str | None = None

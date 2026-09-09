@@ -4,6 +4,7 @@ import CatalogHistoryTimeline from './CatalogHistoryTimeline';
 import PipelineDataExplorer from './Pipelinedataexplorer';
 import UserManagement from './UserManagement';
 import UploadHistory from './UploadHistory';
+import DataConnectors from './DataConnectors';
 import Icon from '../components/icons';
 import { ConnChip, LakehouseMark } from '../components/ui';
 
@@ -27,6 +28,7 @@ const AdminDashboard = () => {
     { key: 'catalog', icon: 'gitBranch', label: 'Lịch sử Branch/Merge', sub: 'Nessie Catalog' },
     { key: 'history', icon: 'history', label: 'Lịch sử Upload', sub: 'Audit trail' },
     { key: 'users', icon: 'users', label: 'Quản lý Người dùng', sub: 'Phân quyền' },
+    { key: 'connectors', icon: 'layers', label: 'Quản lý Nguồn Dữ liệu', sub: 'MySQL Connectors' },
   ];
 
   const TAB_TITLES = {
@@ -35,6 +37,7 @@ const AdminDashboard = () => {
     catalog: 'Lịch sử Pipeline (Nessie Catalog)',
     history: 'Lịch sử Tải lên Dữ liệu',
     users: 'Quản lý Người dùng',
+    connectors: 'Quản lý Nguồn Dữ liệu',
   };
   const TAB_DESC = {
     dashboard: 'Trực quan hóa dữ liệu bằng Apache Superset',
@@ -42,6 +45,7 @@ const AdminDashboard = () => {
     catalog: 'Mỗi mốc thời gian tương ứng 1 commit ingest/merge/tag trên Iceberg',
     history: 'Toàn bộ nhật ký tải lên và trạng thái xử lý',
     users: 'Thêm, khoá và phân quyền tài khoản trong hệ thống',
+    connectors: 'Cấu hình, kiểm tra và đồng bộ MySQL Data Connectors',
   };
 
   return (
@@ -151,6 +155,7 @@ const AdminDashboard = () => {
               {activeTab === 'catalog' && <CatalogHistoryTimeline />}
               {activeTab === 'history' && <UploadHistory />}
               {activeTab === 'users' && <UserManagement />}
+              {activeTab === 'connectors' && <DataConnectors />}
             </div>
           </div>
         </main>

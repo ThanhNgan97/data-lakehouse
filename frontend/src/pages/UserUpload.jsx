@@ -131,7 +131,19 @@ const UserUpload = () => {
           { headers: authHeader() },
         );
         errorCount = 0; // Reset lỗi nếu thành công
-        const state = res.data.state;
+        let state = res.data.state;
+        
+        // --- REALTIME SYNC FIX ---
+        // Airflow Scheduler thường bị delay 10-15s mới cập nhật state của DAG thành 'success'
+        // Mặc dù Task cuối cùng (predictive_analysis) đã chạy xong từ lâu.
+        // Ta cần ép nó thành 'success' ngay lập tức nếu Task cuối đã hoàn thành.
+        const tasks = res.data.tasks || [];
+        const finalTask = tasks.find((t) => t.task_id === "predictive_analysis");
+        if (state !== "success" && state !== "failed" && finalTask && finalTask.state === "success") {
+            state = "success";
+            res.data.state = "success"; // Override luôn trong activePipeline
+        }
+
         setActivePipeline(res.data);
         if (["success", "failed", "unreachable"].includes(state)) {
           clearInterval(pollingRef.current);

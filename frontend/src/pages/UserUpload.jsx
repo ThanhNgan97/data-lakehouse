@@ -16,12 +16,12 @@ const authHeader = () => ({
 const STATUS_CONFIG = {
   pending: { label: "Đang chờ", tone: "ink" },
   uploaded: { label: "Đã upload", tone: "lake" },
-  triggered: { label: "Pipeline đang chạy", tone: "warn" },
+  triggered: { label: "Đang xử lý", tone: "warn" },
   trigger_failed: { label: "Chưa kích hoạt pipeline", tone: "warn" },
   upload_failed: { label: "Upload thất bại", tone: "danger" },
-  running: { label: "Pipeline đang chạy", tone: "warn" },
+  running: { label: "Đang xử lý", tone: "warn" },
   success: { label: "Hoàn thành", tone: "success" },
-  failed: { label: "Pipeline lỗi", tone: "danger" },
+  failed: { label: "Lỗi", tone: "danger" },
   queued: { label: "Đang xếp hàng", tone: "lake" },
   unreachable: { label: "Airflow offline", tone: "ink" },
 };
@@ -108,6 +108,36 @@ const UserUpload = () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, [fetchHistory]);
+
+  const handleDeleteHistory = async (e, id) => {
+    e.stopPropagation();
+    if (!window.confirm("Bạn có chắc chắn muốn xóa bản ghi lỗi này khỏi lịch sử không?")) return;
+    try {
+      const res = await axios.delete(`${API_URL}/upload/history/${id}`, { headers: authHeader() });
+      if (res.status === 200) {
+        fetchHistory();
+      }
+    } catch (err) {
+      alert("Xóa thất bại!");
+      console.error(err);
+    }
+  };
+
+  const handleRetryHistory = async (e, id) => {
+    e.stopPropagation();
+    try {
+      const res = await axios.post(`${API_URL}/upload/retry/${id}`, {}, { headers: authHeader() });
+      if (res.status === 200 && res.data.dag_run_id) {
+        setActivePipeline({ dag_run_id: res.data.dag_run_id, state: "running", tasks: [] });
+        setFilterStatus("running");
+        pollPipelineStatus(res.data.dag_run_id);
+        fetchHistory();
+      }
+    } catch (err) {
+      alert(err.response?.data?.detail || "Thử lại thất bại!");
+      console.error(err);
+    }
+  };
 
   const pollPipelineStatus = (dagRunId) => {
     if (!dagRunId) return;
@@ -584,8 +614,34 @@ const UserUpload = () => {
                           </div>
 
                           <div className="flex flex-col items-end shrink-0 gap-1.5">
-                            <Badge tone={st.tone}>{st.label}</Badge>
-                            <span className="text-[10px] text-ink-300 font-data">
+                            <div className="flex items-center gap-2">
+                              <Badge tone={st.tone}>{st.label}</Badge>
+                              
+                              <div className="flex items-center gap-0.5 opacity-60 hover:opacity-100 transition-opacity">
+                                {/* Nút Thử lại: Cho phép thử lại nếu đang bị kẹt hoặc lỗi kết nối */}
+                                {["trigger_failed", "unreachable", "running", "queued", "pending", "uploaded"].includes(item.pipeline_status) && (
+                                  <button
+                                    onClick={(e) => handleRetryHistory(e, item.id)}
+                                    className="p-1.5 hover:bg-ink-100 rounded-md text-ink-500 hover:text-lake-600 transition-colors"
+                                    title="Thử lại / Chạy lại"
+                                  >
+                                    <Icon name="refresh" className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                                
+                                {/* Nút Xóa: Xuất hiện ở các trạng thái lỗi hoặc bị kẹt */}
+                                {["failed", "trigger_failed", "unreachable", "running", "queued", "pending", "uploaded"].includes(item.pipeline_status) && (
+                                  <button
+                                    onClick={(e) => handleDeleteHistory(e, item.id)}
+                                    className="p-1.5 hover:bg-rose-50 rounded-md text-ink-500 hover:text-rose-600 transition-colors"
+                                    title="Xóa khỏi lịch sử"
+                                  >
+                                    <Icon name="trash" className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            <span className="text-[10px] text-ink-300 font-data mr-1">
                               {item.uploaded_at
                                 ? new Date(item.uploaded_at).toLocaleString(
                                     "vi-VN",
@@ -597,7 +653,7 @@ const UserUpload = () => {
                         {item.metadata_info?.error_message && (
                           <div className="bg-rose-50 border border-rose-100 rounded-lg p-2.5 text-xs text-rose-700 flex items-start gap-2">
                             <Icon name="alertTriangle" className="w-4 h-4 shrink-0 mt-0.5" />
-                            <span className="font-medium line-clamp-2" title={item.metadata_info.error_message}>{item.metadata_info.error_message}</span>
+                            <span className="font-medium line-clamp-2 flex-1" title={item.metadata_info.error_message}>{item.metadata_info.error_message}</span>
                           </div>
                         )}
                       </div>
@@ -617,7 +673,7 @@ const UserUpload = () => {
                   Báo cáo Phân tích
                 </h3>
                 <p className="text-[11px] text-ink-400 mt-0.5 font-data">
-                  {selectedFile ? `Đang xem: ${selectedFile}` : "Toàn bộ dữ liệu"} · Apache Superset
+                  {selectedFile ? `Đang xem: ${selectedFile}` : "Toàn bộ dữ liệu"}
                 </p>
               </div>
               <div className="flex items-center gap-3">

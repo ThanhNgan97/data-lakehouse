@@ -219,13 +219,25 @@ const UserUpload = () => {
             </p>
           </div>
         </div>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 px-4 py-2 bg-ink-900 hover:bg-rose-600 text-white rounded-lg text-sm font-semibold transition"
-        >
-          <Icon name="logOut" className="w-4 h-4" />
-          Đăng xuất
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate("/user/connectors")}
+            className="flex items-center gap-2 px-3.5 py-2 bg-lake-50 hover:bg-lake-100 text-lake-700 border border-lake-200 rounded-lg text-sm font-semibold transition"
+            title="Quản lý các MySQL Connector của tôi"
+          >
+            <Icon name="layers" className="w-4 h-4" />
+            <span className="hidden sm:inline">Nguồn dữ liệu MySQL của tôi</span>
+            <span className="sm:hidden">MySQL</span>
+          </button>
+
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-4 py-2 bg-ink-900 hover:bg-rose-600 text-white rounded-lg text-sm font-semibold transition"
+          >
+            <Icon name="logOut" className="w-4 h-4" />
+            <span className="hidden sm:inline">Đăng xuất</span>
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 w-full max-w-[1400px] mx-auto p-4 md:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">

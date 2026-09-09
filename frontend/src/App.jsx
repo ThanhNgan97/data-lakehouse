@@ -10,6 +10,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import CatalogHistoryTimeline from "./pages/CatalogHistoryTimeline";
 import Login from "./pages/auth/Login";
 import UserUpload from "./pages/UserUpload";
+import MyDataConnectors from "./pages/MyDataConnectors";
 import Landing from "./pages/Landing";
 
 // Axios global 401 interceptor — tự động logout khi token hết hạn
@@ -29,7 +30,6 @@ function App() {
   const [token, setToken] = useState(localStorage.getItem("token") || "");
   const [role, setRole] = useState(localStorage.getItem("role") || "");
 
-  // Đồng bộ state khi localStorage thay đổi (vd: logout từ tab khác)
   useEffect(() => {
     const sync = () => {
       setToken(localStorage.getItem("token") || "");
@@ -51,6 +51,11 @@ function App() {
         />
 
         <Route
+          path="/user/connectors"
+          element={token ? <MyDataConnectors /> : <Navigate to="/login" />}
+        />
+
+        <Route
           path="/admin"
           element={
             token && role === "admin" ? (
@@ -61,8 +66,6 @@ function App() {
           }
         />
 
-        {/* /catalog được xử lý bên trong AdminDashboard (tab catalog),
-            giữ route này để backward-compatible với link trực tiếp */}
         <Route
           path="/catalog"
           element={token ? <CatalogHistoryTimeline /> : <Navigate to="/login" />}

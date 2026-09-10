@@ -1,5 +1,8 @@
 from datetime import datetime, timezone
+from urllib.parse import quote
+import json
 import logging
+import os
 
 import mysql.connector
 import requests
@@ -26,6 +29,248 @@ DEFAULT_SOURCE_CONFIG = {
     "tables": ["don_vi", "muc_tieu_kpi", "ket_qua_danh_gia"],
     "primary_table": "ket_qua_danh_gia",
 }
+
+
+def _required_env(name: str) -> str:
+    """
+    Lấy cấu hình runtime bắt buộc.
+    Không hardcode dashboard ID hay credential Superset vào source code.
+    """
+    value = os.getenv(name, "").strip()
+    if not value:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Thiếu cấu hình runtime {name}.",
+        )
+    return value
+
+
+def _superset_runtime_config():
+    return {
+        "api_url": _required_env("SUPERSET_API_URL").rstrip("/"),
+        "dashboard_id": _required_env("SUPERSET_DASHBOARD_ID"),
+        "username": _required_env("SUPERSET_API_USERNAME"),
+        "password": _required_env("SUPERSET_API_PASSWORD"),
+        "filter_name": os.getenv(
+            "SUPERSET_SOURCE_FILTER_NAME",
+            "Nguồn MySQL",
+        ).strip() or "Nguồn MySQL",
+        "filter_column": os.getenv(
+            "SUPERSET_SOURCE_FILTER_COLUMN",
+            "source_connector_name",
+        ).strip() or "source_connector_name",
+    }
+
+
+def _superset_access_headers(config: dict) -> dict:
+    """
+    Đăng nhập Superset server-to-server.
+    Access token và password chỉ tồn tại trong backend memory, không trả về frontend.
+    """
+    login_url = f'{config["api_url"]}/api/v1/security/login'
+    try:
+        response = requests.post(
+            login_url,
+            json={
+                "username": config["username"],
+                "password": config["password"],
+                "provider": "db",
+                "refresh": True,
+            },
+            timeout=10,
+        )
+    except requests.RequestException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Không thể kết nối tới Superset API.",
+        ) from exc
+
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Superset API không chấp nhận tài khoản dịch vụ.",
+        )
+
+    try:
+        token = response.json().get("access_token")
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Superset trả về phản hồi đăng nhập không hợp lệ.",
+        ) from exc
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Superset không trả về access token.",
+        )
+
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Các POST API của Superset có thể yêu cầu CSRF token.
+    csrf_url = f'{config["api_url"]}/api/v1/security/csrf_token/'
+    try:
+        csrf_response = requests.get(
+            csrf_url,
+            headers=headers,
+            timeout=10,
+        )
+        if csrf_response.status_code == 200:
+            csrf_token = (csrf_response.json() or {}).get("result")
+            if csrf_token:
+                headers["X-CSRFToken"] = csrf_token
+    except (requests.RequestException, ValueError):
+        # Không fail ở đây: một số cấu hình Superset/JWT không yêu cầu CSRF cho API này.
+        pass
+
+    return headers
+
+
+def _find_superset_source_filter(config: dict, headers: dict) -> str:
+    """
+    Tìm ID native filter từ metadata dashboard theo tên/cột.
+    Không hardcode NATIVE_FILTER-... vì ID này thay đổi khi dashboard được tạo lại.
+    """
+    dashboard_url = (
+        f'{config["api_url"]}/api/v1/dashboard/{config["dashboard_id"]}'
+    )
+
+    try:
+        response = requests.get(
+            dashboard_url,
+            headers=headers,
+            timeout=10,
+        )
+    except requests.RequestException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Không thể đọc metadata KPI Dashboard từ Superset.",
+        ) from exc
+
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Không thể đọc cấu hình Native Filter của KPI Dashboard.",
+        )
+
+    try:
+        payload = response.json()
+        result = payload.get("result") or payload
+        metadata = result.get("json_metadata") or {}
+        if isinstance(metadata, str):
+            metadata = json.loads(metadata)
+    except (ValueError, TypeError, json.JSONDecodeError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Metadata KPI Dashboard không hợp lệ.",
+        ) from exc
+
+    native_filters = metadata.get("native_filter_configuration") or []
+    by_name = None
+
+    for item in native_filters:
+        filter_id = item.get("id")
+        if not filter_id:
+            continue
+
+        if item.get("name") == config["filter_name"]:
+            by_name = filter_id
+
+        for target in item.get("targets") or []:
+            column = target.get("column") or {}
+            if column.get("name") == config["filter_column"]:
+                return filter_id
+
+    if by_name:
+        return by_name
+
+    raise HTTPException(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        detail=(
+            f'Không tìm thấy Native Filter "{config["filter_name"]}" '
+            f'cho cột "{config["filter_column"]}".'
+        ),
+    )
+
+
+def _create_superset_filter_state(connector: DataConnector) -> dict:
+    """
+    Tạo temporary native filter state để iframe mở ngay dữ liệu của connector
+    vừa đồng bộ thành công.
+    """
+    config = _superset_runtime_config()
+    headers = _superset_access_headers(config)
+    filter_id = _find_superset_source_filter(config, headers)
+
+    # Cấu trúc DataMask mà Superset Native Filter dùng cho filter_select.
+    data_mask = {
+        filter_id: {
+            "id": filter_id,
+            "ownState": {},
+            "extraFormData": {
+                "filters": [
+                    {
+                        "col": config["filter_column"],
+                        "op": "IN",
+                        "val": [connector.name],
+                    }
+                ]
+            },
+            "filterState": {
+                "label": connector.name,
+                "value": [connector.name],
+            },
+        }
+    }
+
+    state_url = (
+        f'{config["api_url"]}/api/v1/dashboard/'
+        f'{config["dashboard_id"]}/filter_state'
+    )
+
+    try:
+        response = requests.post(
+            state_url,
+            headers=headers,
+            json={
+                "value": json.dumps(
+                    data_mask,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+            },
+            timeout=10,
+        )
+    except requests.RequestException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Không thể tạo trạng thái filter trên Superset.",
+        ) from exc
+
+    if response.status_code not in (200, 201):
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Superset không thể tạo trạng thái Native Filter.",
+        )
+
+    try:
+        key = response.json().get("key")
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Superset trả về filter state không hợp lệ.",
+        ) from exc
+
+    if not key:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Superset không trả về native_filters_key.",
+        )
+
+    return {
+        "dashboard_id": config["dashboard_id"],
+        "native_filters_key": key,
+    }
 
 
 def _require_user_id(current_user) -> int:
@@ -309,6 +554,152 @@ def sync_my_connector(
         except Exception:
             db.rollback()
         raise HTTPException(503, "Không thể kết nối tới Airflow.") from exc
+
+
+@router.get("/{connector_id}/runs/{dag_run_id}")
+def get_my_connector_sync_status(
+    connector_id: int,
+    dag_run_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Trả trạng thái DAG run MySQL của connector thuộc user hiện tại.
+
+    Backend xác minh ownership của connector và kiểm tra DAG run thực sự
+    được trigger với đúng connector_id trước khi trả task states.
+    """
+    user_id = _require_user_id(current_user)
+    connector = _owned(db, user_id, connector_id)
+
+    encoded_run_id = quote(dag_run_id, safe="")
+    run_url = (
+        f"{AIRFLOW_WEBSERVER_URL}"
+        f"/api/v1/dags/mysql_connector_sync/dagRuns/{encoded_run_id}"
+    )
+    tasks_url = f"{run_url}/taskInstances"
+
+    try:
+        run_response = requests.get(
+            run_url,
+            auth=("airflow", "airflow"),
+            timeout=10,
+        )
+
+        if run_response.status_code == 404:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Không tìm thấy tiến trình đồng bộ này.",
+            )
+
+        if run_response.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Không thể lấy trạng thái DAG run từ Airflow.",
+            )
+
+        try:
+            run_data = run_response.json()
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Airflow trả về trạng thái DAG không hợp lệ.",
+            ) from exc
+
+        run_conf = run_data.get("conf") or {}
+        run_connector_id = run_conf.get("connector_id")
+
+        # Không cho user dùng connector của mình để đọc trạng thái DAG
+        # thuộc connector khác.
+        if str(run_connector_id) != str(connector.id):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Không tìm thấy tiến trình đồng bộ này.",
+            )
+
+        tasks_response = requests.get(
+            tasks_url,
+            auth=("airflow", "airflow"),
+            timeout=10,
+        )
+
+        if tasks_response.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Không thể lấy trạng thái task từ Airflow.",
+            )
+
+        try:
+            tasks_data = tasks_response.json()
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Airflow trả về trạng thái task không hợp lệ.",
+            ) from exc
+
+        tasks = []
+        for item in tasks_data.get("task_instances", []):
+            tasks.append(
+                {
+                    "task_id": item.get("task_id"),
+                    "state": item.get("state"),
+                    "start_date": item.get("start_date"),
+                    "end_date": item.get("end_date"),
+                    "duration": item.get("duration"),
+                    "try_number": item.get("try_number"),
+                }
+            )
+
+        return {
+            "connector_id": connector.id,
+            "connector_name": connector.name,
+            "dag_id": "mysql_connector_sync",
+            "dag_run_id": run_data.get("dag_run_id", dag_run_id),
+            "state": run_data.get("state", "queued"),
+            "execution_date": run_data.get("execution_date"),
+            "start_date": run_data.get("start_date"),
+            "end_date": run_data.get("end_date"),
+            "tasks": tasks,
+        }
+
+    except HTTPException:
+        raise
+    except requests.RequestException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Không thể kết nối tới Airflow.",
+        ) from exc
+
+
+@router.post("/{connector_id}/dashboard-filter")
+def create_my_connector_dashboard_filter(
+    connector_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Sinh native_filters_key cho đúng connector thuộc user hiện tại.
+
+    Endpoint này chỉ tạo trạng thái hiển thị Superset; pipeline dữ liệu đã hoàn thành
+    độc lập trước đó. Credential/token Superset không được trả về frontend.
+    """
+    user_id = _require_user_id(current_user)
+    connector = _owned(db, user_id, connector_id)
+
+    if connector.connector_type.strip().upper() != "MYSQL":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Auto-filter hiện chỉ hỗ trợ MySQL Connector.",
+        )
+
+    filter_state = _create_superset_filter_state(connector)
+
+    return {
+        "success": True,
+        "connector_id": connector.id,
+        "connector_name": connector.name,
+        **filter_state,
+    }
 
 
 @router.delete("/{connector_id}", status_code=204)

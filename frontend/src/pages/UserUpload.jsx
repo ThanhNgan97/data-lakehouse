@@ -3,11 +3,10 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Icon from "../components/icons";
 import { Badge, Card, LakehouseMark } from "../components/ui";
+import { SUPERSET_DASHBOARD_URL } from "../config/appConfig";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
-const supersetUrl =
-  import.meta.env.VITE_SUPERSET_DASHBOARD_URL ||
-  "http://localhost:8088/superset/dashboard/1/?standalone=3";
+const supersetUrl = SUPERSET_DASHBOARD_URL;
 const authHeader = () => ({
   Authorization: `Bearer ${localStorage.getItem("token")}`,
 });

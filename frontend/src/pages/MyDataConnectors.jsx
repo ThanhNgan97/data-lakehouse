@@ -1,8 +1,40 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import Icon from '../components/icons';
+import { Card } from '../components/ui';
+import { SUPERSET_DASHBOARD_URL } from '../config/appConfig';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+
+const supersetUrl = SUPERSET_DASHBOARD_URL;
+
+const MYSQL_PIPELINE_TASKS = [
+  {
+    id: 'ingest_mysql',
+    label: 'Ingest',
+    sub: 'Bronze',
+    dot: 'bg-bronze-500',
+  },
+  {
+    id: 'bronze_to_silver',
+    label: 'Transform',
+    sub: 'Silver',
+    dot: 'bg-silver-500',
+  },
+  {
+    id: 'silver_to_gold',
+    label: 'Load',
+    sub: 'Gold',
+    dot: 'bg-gold-500',
+  },
+  {
+    id: 'predictive_analysis',
+    label: 'Analyze',
+    sub: 'Predict',
+    dot: 'bg-lake-500',
+  },
+];
 
 const authHeader = () => ({
   Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -92,6 +124,17 @@ const MyDataConnectors = () => {
   const [saving, setSaving] = useState(false);
 
   const [operationKey, setOperationKey] = useState('');
+  const [activePipeline, setActivePipeline] = useState(null);
+  const [activeConnector, setActiveConnector] = useState(null);
+  const [dashboardUrl, setDashboardUrl] = useState(supersetUrl);
+  const pollingRef = useRef(null);
+  const lastAutoFilteredRunRef = useRef('');
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    navigate('/login');
+  };
 
   const activeCount = useMemo(
     () => connectors.filter((item) => item.is_active).length,
@@ -126,6 +169,12 @@ const MyDataConnectors = () => {
 
   useEffect(() => {
     fetchConnectors();
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
   }, []);
 
   const openCreateForm = () => {
@@ -276,6 +325,126 @@ const MyDataConnectors = () => {
     }
   };
 
+  const buildDashboardUrl = (nativeFiltersKey = '') => {
+    if (!supersetUrl) return '';
+
+    try {
+      const url = new URL(supersetUrl);
+      if (nativeFiltersKey) {
+        url.searchParams.set('native_filters_key', nativeFiltersKey);
+      } else {
+        url.searchParams.delete('native_filters_key');
+      }
+      return url.toString();
+    } catch {
+      return supersetUrl;
+    }
+  };
+
+  const resetDashboardToGold = () => {
+    lastAutoFilteredRunRef.current = '';
+    setDashboardUrl(buildDashboardUrl());
+    notify('Dashboard đã trở về Gold chung.');
+  };
+
+  const applyDashboardFilterForConnector = async (connector, dagRunId) => {
+    if (!connector?.id || !dagRunId) return;
+
+    // Một DAG run success chỉ sinh filter state một lần.
+    if (lastAutoFilteredRunRef.current === dagRunId) return;
+
+    try {
+      const res = await axios.post(
+        `${API_URL}/my-connectors/${connector.id}/dashboard-filter`,
+        {},
+        { headers: authHeader() },
+      );
+
+      const nativeFiltersKey = res.data?.native_filters_key;
+      if (!nativeFiltersKey) {
+        throw new Error('missing_native_filters_key');
+      }
+
+      lastAutoFilteredRunRef.current = dagRunId;
+      setDashboardUrl(buildDashboardUrl(nativeFiltersKey));
+
+      notify(
+        `Đồng bộ hoàn thành. Dashboard đã tự lọc theo "${connector.name}".`,
+      );
+    } catch (error) {
+      // Auto-filter là tiện ích UI: pipeline success vẫn được giữ nguyên.
+      notify(
+        error.response?.data?.detail ||
+          'Đồng bộ đã hoàn thành nhưng chưa thể tự áp dụng filter Superset.',
+        true,
+      );
+    }
+  };
+
+  const pollSyncStatus = async (connector, dagRunId) => {
+    if (!connector?.id || !dagRunId) return;
+
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+
+    setActiveConnector(connector);
+    setActivePipeline({
+      dag_run_id: dagRunId,
+      state: 'queued',
+      tasks: [],
+    });
+
+    const refreshStatus = async () => {
+      try {
+        const res = await axios.get(
+          `${API_URL}/my-connectors/${connector.id}/runs/${encodeURIComponent(dagRunId)}`,
+          { headers: authHeader() },
+        );
+
+        const data = res.data || {};
+        setActivePipeline(data);
+
+        if (['success', 'failed'].includes(data.state)) {
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+
+          if (data.state === 'success') {
+            await applyDashboardFilterForConnector(connector, dagRunId);
+          }
+
+          return true;
+        }
+
+        return false;
+      } catch (error) {
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
+
+        setActivePipeline((current) => ({
+          ...(current || {}),
+          dag_run_id: dagRunId,
+          state: 'unreachable',
+          error_message:
+            error.response?.data?.detail ||
+            'Không thể lấy trạng thái đồng bộ từ Airflow.',
+          tasks: current?.tasks || [],
+        }));
+        return true;
+      }
+    };
+
+    const finished = await refreshStatus();
+    if (!finished) {
+      pollingRef.current = setInterval(refreshStatus, 5000);
+    }
+  };
+
   const handleSync = async (connector) => {
     const key = `sync-${connector.id}`;
     setOperationKey(key);
@@ -293,6 +462,10 @@ const MyDataConnectors = () => {
           ? `Đã kích hoạt Sync Now. DAG run: ${dagRunId}`
           : `Đã kích hoạt Sync Now cho "${connector.name}".`,
       );
+
+      if (dagRunId) {
+        await pollSyncStatus(connector, dagRunId);
+      }
 
       await fetchConnectors();
     } catch (error) {
@@ -367,286 +540,362 @@ const MyDataConnectors = () => {
   };
 
   return (
-    <div className="p-6 min-h-full bg-[#F8FAFC]">
-      <div className="max-w-7xl mx-auto space-y-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="min-h-screen bg-slate-50 font-sans flex flex-col text-ink-900">
+      {/* Header đồng bộ với khu vực người dùng */}
+      <header className="bg-white border-b border-slate-200 px-6 md:px-8 py-3.5 flex justify-between items-center sticky top-0 z-50 shadow-sm">
+        <div className="flex items-center gap-3">
+          <img
+            src="/CUSC Logo Series.png"
+            alt="CUSC Logo"
+            className="h-10 w-auto object-contain"
+          />
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-lake-700">
-              Data Connectors
+            <h1 className="text-base md:text-lg font-bold text-slate-900 leading-tight tracking-tight">
+              CUSC ANALYSIS PLATFORM
+            </h1>
+            <p className="text-[11px] md:text-xs text-slate-500 font-medium">
+              Trung tâm Công nghệ Thông tin - Đại học Cần Thơ
             </p>
-            <h3 className="mt-1 text-xl font-bold text-slate-900">
-              Nguồn dữ liệu MySQL của tôi
-            </h3>
-            <p className="mt-1 text-sm text-slate-500 max-w-3xl">
-              Kết nối MySQL của bạn vào Lakehouse. Mỗi tài khoản chỉ xem và thao tác
-              trên connector do chính mình tạo; credential được mã hóa ở backend.
-            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate('/user')}
+            className="flex items-center gap-2 px-3.5 py-2 bg-lake-50 hover:bg-lake-100 text-lake-700 border border-lake-200 rounded-lg text-sm font-semibold transition"
+          >
+            <Icon name="layers" className="w-4 h-4" />
+            <span className="hidden sm:inline">Khu vực người dùng</span>
+            <span className="sm:hidden">Quay lại</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-4 py-2 bg-ink-900 hover:bg-rose-600 text-white rounded-lg text-sm font-semibold transition"
+          >
+            <Icon name="logOut" className="w-4 h-4" />
+            <span className="hidden sm:inline">Đăng xuất</span>
+          </button>
+        </div>
+      </header>
+
+      <main className="flex-1 w-full max-w-[1400px] mx-auto p-4 md:p-6 lg:p-8 space-y-6">
+        {/* Tiêu đề trang */}
+        <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="w-11 h-11 rounded-xl bg-lake-50 border border-lake-100 text-lake-600 flex items-center justify-center shrink-0">
+              <Icon name="layers" className="w-5 h-5" />
+            </div>
+
+            <div>
+              <p className="font-data text-[11px] uppercase tracking-widest text-lake-600 font-semibold mb-1">
+                Data Connectors
+              </p>
+              <h2 className="text-xl md:text-2xl font-bold text-ink-900 tracking-tight">
+                Nguồn dữ liệu MySQL của tôi
+              </h2>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => navigate('/user')}
-              className="px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              ← Quay lại
-            </button>
-
-            <button
-              type="button"
               onClick={fetchConnectors}
               disabled={loading}
-              className="px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-lake-200 bg-lake-50 text-sm font-semibold text-lake-700 hover:bg-lake-100 disabled:opacity-50 transition"
             >
+              <Icon
+                name="refresh"
+                className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`}
+              />
               {loading ? 'Đang tải...' : 'Làm mới'}
             </button>
 
             <button
               type="button"
               onClick={openCreateForm}
-              className="px-3.5 py-2 rounded-lg bg-slate-900 text-sm font-semibold text-white hover:bg-slate-800"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-ink-900 text-sm font-semibold text-white hover:bg-lake-700 transition"
             >
-              + Thêm MySQL Connector
+              <span className="text-base leading-none">+</span>
+              Thêm MySQL Connector
             </button>
           </div>
-        </div>
+        </section>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="bg-white border border-slate-200 rounded-xl p-4">
-            <p className="text-xs text-slate-500">Tổng connector</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">
-              {connectors.length}
-            </p>
-          </div>
+        {/* Thống kê */}
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-ink-400 font-medium">
+                  Tổng connector
+                </p>
+                <p className="mt-1 text-2xl font-bold text-ink-900">
+                  {connectors.length}
+                </p>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-lake-50 text-lake-600 border border-lake-100 flex items-center justify-center">
+                <Icon name="layers" className="w-4.5 h-4.5" />
+              </div>
+            </div>
+          </Card>
 
-          <div className="bg-white border border-slate-200 rounded-xl p-4">
-            <p className="text-xs text-slate-500">Đang hoạt động</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">
-              {activeCount}
-            </p>
-          </div>
+          <Card className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-ink-400 font-medium">
+                  Đang hoạt động
+                </p>
+                <p className="mt-1 text-2xl font-bold text-ink-900">
+                  {activeCount}
+                </p>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center">
+                <Icon name="activity" className="w-4.5 h-4.5" />
+              </div>
+            </div>
+          </Card>
 
-          <div className="bg-white border border-slate-200 rounded-xl p-4">
-            <p className="text-xs text-slate-500">Loại nguồn</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">
-              MySQL
-            </p>
-          </div>
-        </div>
+          <Card className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-ink-400 font-medium">
+                  Loại nguồn
+                </p>
+                <p className="mt-1 text-2xl font-bold text-ink-900">
+                  MySQL
+                </p>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center">
+                <Icon name="grid" className="w-4.5 h-4.5" />
+              </div>
+            </div>
+          </Card>
+        </section>
 
         {notice && (
           <div
-            className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+            className={`rounded-xl border px-4 py-3 text-sm font-medium flex items-start gap-2.5 ${
               notice.isError
                 ? 'bg-rose-50 text-rose-700 border-rose-200'
                 : 'bg-emerald-50 text-emerald-700 border-emerald-200'
             }`}
           >
-            {notice.message}
+            <Icon
+              name={notice.isError ? 'alertTriangle' : 'checkCircle'}
+              className="w-4 h-4 mt-0.5 shrink-0"
+            />
+            <span>{notice.message}</span>
           </div>
         )}
 
         {pageError && (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {pageError}
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 flex items-start gap-2.5">
+            <Icon name="alertTriangle" className="w-4 h-4 mt-0.5 shrink-0" />
+            <span>{pageError}</span>
           </div>
         )}
 
+        {/* Form tạo / sửa */}
         {showForm && (
-          <form
-            onSubmit={handleSave}
-            className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden"
-          >
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h4 className="font-bold text-slate-900">
-                  {editingConnector
-                    ? `Sửa Connector #${editingConnector.id}`
-                    : 'Thêm MySQL Connector'}
-                </h4>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {editingConnector
-                    ? 'Để trống password nếu muốn giữ credential hiện tại.'
-                    : 'Nhập thông tin kết nối tới MySQL nguồn.'}
-                </p>
+          <Card className="overflow-hidden">
+            <form onSubmit={handleSave}>
+              <div className="px-5 md:px-6 py-4 border-b border-ink-100 bg-white flex items-center justify-between">
+                <div>
+                  <p className="font-data text-[10px] uppercase tracking-widest text-lake-600 font-semibold mb-1">
+                    MySQL Connector
+                  </p>
+                  <h3 className="font-bold text-ink-900">
+                    {editingConnector
+                      ? `Sửa Connector #${editingConnector.id}`
+                      : 'Thêm MySQL Connector'}
+                  </h3>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={closeForm}
+                  className="text-sm font-semibold text-ink-400 hover:text-ink-800 transition"
+                >
+                  Đóng
+                </button>
               </div>
 
-              <button
-                type="button"
-                onClick={closeForm}
-                className="text-sm text-slate-500 hover:text-slate-900"
-              >
-                Đóng
-              </button>
-            </div>
+              <div className="p-5 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="space-y-1.5">
+                  <span className="text-xs font-semibold text-ink-700">
+                    Tên Connector
+                  </span>
+                  <input
+                    name="name"
+                    value={form.name}
+                    onChange={handleFormChange}
+                    className="w-full rounded-lg border border-ink-100 px-3 py-2.5 text-sm outline-none bg-white focus:ring-2 focus:ring-lake-100 focus:border-lake-400 transition"
+                    placeholder="Ví dụ: MySQL Phòng Đào tạo"
+                  />
+                </label>
 
-            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-slate-700">
-                  Tên Connector
-                </span>
-                <input
-                  name="name"
-                  value={form.name}
-                  onChange={handleFormChange}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-lake-200 focus:border-lake-400"
-                  placeholder="Ví dụ: MySQL Phòng Đào tạo"
-                />
-              </label>
+                <label className="space-y-1.5">
+                  <span className="text-xs font-semibold text-ink-700">
+                    Host
+                  </span>
+                  <input
+                    name="host"
+                    value={form.host}
+                    onChange={handleFormChange}
+                    className="w-full rounded-lg border border-ink-100 px-3 py-2.5 text-sm outline-none bg-white focus:ring-2 focus:ring-lake-100 focus:border-lake-400 transition"
+                    placeholder="192.168.1.20 hoặc db.example.local"
+                  />
+                </label>
 
-              <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-slate-700">
-                  Host
-                </span>
-                <input
-                  name="host"
-                  value={form.host}
-                  onChange={handleFormChange}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-lake-200 focus:border-lake-400"
-                  placeholder="192.168.1.20 hoặc db.example.local"
-                />
-              </label>
+                <label className="space-y-1.5">
+                  <span className="text-xs font-semibold text-ink-700">
+                    Port
+                  </span>
+                  <input
+                    name="port"
+                    type="number"
+                    min="1"
+                    max="65535"
+                    value={form.port}
+                    onChange={handleFormChange}
+                    className="w-full rounded-lg border border-ink-100 px-3 py-2.5 text-sm outline-none bg-white focus:ring-2 focus:ring-lake-100 focus:border-lake-400 transition"
+                  />
+                </label>
 
-              <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-slate-700">
-                  Port
-                </span>
-                <input
-                  name="port"
-                  type="number"
-                  min="1"
-                  max="65535"
-                  value={form.port}
-                  onChange={handleFormChange}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-lake-200 focus:border-lake-400"
-                />
-              </label>
+                <label className="space-y-1.5">
+                  <span className="text-xs font-semibold text-ink-700">
+                    Database
+                  </span>
+                  <input
+                    name="database_name"
+                    value={form.database_name}
+                    onChange={handleFormChange}
+                    className="w-full rounded-lg border border-ink-100 px-3 py-2.5 text-sm outline-none bg-white focus:ring-2 focus:ring-lake-100 focus:border-lake-400 transition"
+                    placeholder="cusc_kpi_operational"
+                  />
+                </label>
 
-              <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-slate-700">
-                  Database
-                </span>
-                <input
-                  name="database_name"
-                  value={form.database_name}
-                  onChange={handleFormChange}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-lake-200 focus:border-lake-400"
-                  placeholder="cusc_kpi_operational"
-                />
-              </label>
+                <label className="space-y-1.5">
+                  <span className="text-xs font-semibold text-ink-700">
+                    Username
+                  </span>
+                  <input
+                    name="username"
+                    value={form.username}
+                    onChange={handleFormChange}
+                    autoComplete="off"
+                    className="w-full rounded-lg border border-ink-100 px-3 py-2.5 text-sm outline-none bg-white focus:ring-2 focus:ring-lake-100 focus:border-lake-400 transition"
+                    placeholder="kpi_user"
+                  />
+                </label>
 
-              <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-slate-700">
-                  Username
-                </span>
-                <input
-                  name="username"
-                  value={form.username}
-                  onChange={handleFormChange}
-                  autoComplete="off"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-lake-200 focus:border-lake-400"
-                  placeholder="kpi_user"
-                />
-              </label>
+                <label className="space-y-1.5">
+                  <span className="text-xs font-semibold text-ink-700">
+                    Password
+                  </span>
+                  <input
+                    name="password"
+                    type="password"
+                    value={form.password}
+                    onChange={handleFormChange}
+                    autoComplete="new-password"
+                    className="w-full rounded-lg border border-ink-100 px-3 py-2.5 text-sm outline-none bg-white focus:ring-2 focus:ring-lake-100 focus:border-lake-400 transition"
+                    placeholder={
+                      editingConnector
+                        ? 'Để trống để giữ mật khẩu hiện tại'
+                        : 'Nhập mật khẩu MySQL'
+                    }
+                  />
+                </label>
 
-              <label className="space-y-1.5">
-                <span className="text-xs font-semibold text-slate-700">
-                  Password
-                </span>
-                <input
-                  name="password"
-                  type="password"
-                  value={form.password}
-                  onChange={handleFormChange}
-                  autoComplete="new-password"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-lake-200 focus:border-lake-400"
-                  placeholder={
-                    editingConnector
-                      ? 'Để trống để giữ mật khẩu hiện tại'
-                      : 'Nhập mật khẩu MySQL'
-                  }
-                />
-              </label>
-
-              <label className="md:col-span-2 flex items-center gap-2.5 rounded-lg border border-slate-200 px-3 py-2.5">
-                <input
-                  name="is_active"
-                  type="checkbox"
-                  checked={form.is_active}
-                  onChange={handleFormChange}
-                  className="h-4 w-4"
-                />
-                <span>
-                  <span className="block text-sm font-semibold text-slate-800">
+                <label className="md:col-span-2 flex items-center gap-3 rounded-xl border border-ink-100 bg-[#FAFBFD] px-4 py-3">
+                  <input
+                    name="is_active"
+                    type="checkbox"
+                    checked={form.is_active}
+                    onChange={handleFormChange}
+                    className="h-4 w-4 accent-teal-600"
+                  />
+                  <span className="text-sm font-semibold text-ink-800">
                     Connector đang hoạt động
                   </span>
-                  <span className="block text-xs text-slate-500">
-                    Connector bị vô hiệu hóa sẽ không được phép Sync Now.
-                  </span>
-                </span>
-              </label>
-            </div>
-
-            {formError && (
-              <div className="mx-5 mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                {formError}
+                </label>
               </div>
-            )}
 
-            <div className="px-5 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={closeForm}
-                disabled={saving}
-                className="px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
-              >
-                Hủy
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-4 py-2 rounded-lg bg-slate-900 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-              >
-                {saving
-                  ? 'Đang lưu...'
-                  : editingConnector
-                    ? 'Lưu thay đổi'
-                    : 'Tạo Connector'}
-              </button>
-            </div>
-          </form>
+              {formError && (
+                <div className="mx-5 md:mx-6 mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 flex items-start gap-2">
+                  <Icon name="alertTriangle" className="w-4 h-4 mt-0.5 shrink-0" />
+                  <span>{formError}</span>
+                </div>
+              )}
+
+              <div className="px-5 md:px-6 py-4 bg-[#FAFBFD] border-t border-ink-100 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closeForm}
+                  disabled={saving}
+                  className="px-4 py-2 rounded-lg border border-ink-100 bg-white text-sm font-semibold text-ink-700 hover:bg-ink-50 disabled:opacity-50 transition"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-4 py-2 rounded-lg bg-ink-900 text-sm font-semibold text-white hover:bg-lake-700 disabled:opacity-50 transition"
+                >
+                  {saving
+                    ? 'Đang lưu...'
+                    : editingConnector
+                      ? 'Lưu thay đổi'
+                      : 'Tạo Connector'}
+                </button>
+              </div>
+            </form>
+          </Card>
         )}
 
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100">
-            <h4 className="font-bold text-slate-900">
-              MySQL Data Connectors
-            </h4>
-            <p className="mt-0.5 text-xs text-slate-500">
-              Test Connection kiểm tra MySQL trực tiếp. Sync Now kích hoạt
-              Airflow để chạy MySQL → Bronze → Silver → Gold.
-            </p>
+        {/* Danh sách connector */}
+        <Card className="overflow-hidden">
+          <div className="px-5 md:px-6 py-4 border-b border-ink-100 bg-white flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-lake-50 text-lake-600 border border-lake-100 flex items-center justify-center">
+              <Icon name="layers" className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-bold text-ink-900 text-base">
+                MySQL Data Connectors
+              </h3>
+              <p className="text-[11px] text-ink-400 mt-0.5 font-data">
+                MySQL → Bronze → Silver → Gold
+              </p>
+            </div>
           </div>
 
           {loading ? (
-            <div className="p-10 text-center text-sm text-slate-500">
+            <div className="p-12 text-center text-sm text-ink-400">
+              <Icon name="refresh" className="w-6 h-6 mx-auto mb-3 animate-spin text-lake-500" />
               Đang tải danh sách connector...
             </div>
           ) : connectors.length === 0 ? (
-            <div className="p-10 text-center">
-              <p className="font-semibold text-slate-700">
+            <div className="p-12 text-center">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-lake-50 text-lake-500 border border-lake-100 flex items-center justify-center">
+                <Icon name="inbox" className="w-5 h-5" />
+              </div>
+              <p className="font-semibold text-ink-700">
                 Chưa có Data Connector
               </p>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-ink-400">
                 Thêm một MySQL Connector để bắt đầu.
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1080px] text-sm">
-                <thead className="bg-slate-50 text-slate-500">
+                <thead className="bg-[#FAFBFD] text-ink-400 border-b border-ink-100">
                   <tr>
-                    <th className="text-left px-4 py-3 font-semibold">
+                    <th className="text-left px-5 py-3 font-semibold">
                       Connector
                     </th>
                     <th className="text-left px-4 py-3 font-semibold">
@@ -661,13 +910,13 @@ const MyDataConnectors = () => {
                     <th className="text-left px-4 py-3 font-semibold">
                       Sync
                     </th>
-                    <th className="text-right px-4 py-3 font-semibold">
+                    <th className="text-right px-5 py-3 font-semibold">
                       Thao tác
                     </th>
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-ink-100 bg-white">
                   {connectors.map((connector, index) => {
                     const busy = operationKey.endsWith(`-${connector.id}`);
                     const testing = operationKey === `test-${connector.id}`;
@@ -676,31 +925,27 @@ const MyDataConnectors = () => {
                     return (
                       <tr
                         key={connector.id}
-                        className="align-top hover:bg-slate-50/60"
+                        className="align-top hover:bg-lake-50/30 transition-colors"
                       >
-                        <td className="px-4 py-4">
-                          <div className="flex items-start gap-2">
-                            <div>
-                              <div className="font-bold text-slate-900">
-                                {connector.name}
-                              </div>
-                              <div className="mt-1 flex flex-wrap gap-1.5">
-                                <span className="inline-flex rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                                  {index + 1}
-                                </span>
+                        <td className="px-5 py-4">
+                          <div className="font-bold text-ink-900">
+                            {connector.name}
+                          </div>
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            <span className="inline-flex rounded-full border border-ink-100 bg-ink-50 px-2 py-0.5 text-[11px] font-semibold text-ink-500 font-data">
+                              {String(index + 1).padStart(2, '0')}
+                            </span>
 
-                                {connector.has_password && (
-                                  <span className="inline-flex rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-500">
-                                    Credential đã lưu
-                                  </span>
-                                )}
-                              </div>
-                            </div>
+                            {connector.has_password && (
+                              <span className="inline-flex rounded-full border border-lake-100 bg-lake-50 px-2 py-0.5 text-[11px] font-semibold text-lake-700">
+                                Credential đã lưu
+                              </span>
+                            )}
                           </div>
                         </td>
 
-                        <td className="px-4 py-4 text-slate-600">
-                          <div className="font-medium text-slate-800">
+                        <td className="px-4 py-4 text-ink-500">
+                          <div className="font-semibold text-ink-800 font-data">
                             {connector.host}:{connector.port}
                           </div>
                           <div className="text-xs mt-1">
@@ -716,7 +961,7 @@ const MyDataConnectors = () => {
                             type="button"
                             disabled={busy}
                             onClick={() => handleToggleActive(connector)}
-                            className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusClass(
+                            className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold transition ${statusClass(
                               'active',
                               connector.is_active,
                             )} disabled:opacity-50`}
@@ -736,7 +981,7 @@ const MyDataConnectors = () => {
                           >
                             {testStatusLabel(connector.last_test_status)}
                           </span>
-                          <div className="mt-1.5 text-[11px] text-slate-400">
+                          <div className="mt-1.5 text-[11px] text-ink-300 font-data">
                             {formatDateTime(connector.last_tested_at)}
                           </div>
                         </td>
@@ -750,19 +995,20 @@ const MyDataConnectors = () => {
                           >
                             {syncStatusLabel(connector.last_sync_status)}
                           </span>
-                          <div className="mt-1.5 text-[11px] text-slate-400">
+                          <div className="mt-1.5 text-[11px] text-ink-300 font-data">
                             {formatDateTime(connector.last_sync_at)}
                           </div>
                         </td>
 
-                        <td className="px-4 py-4">
+                        <td className="px-5 py-4">
                           <div className="flex justify-end flex-wrap gap-1.5">
                             <button
                               type="button"
                               disabled={busy}
                               onClick={() => handleTest(connector)}
-                              className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-lake-200 bg-lake-50 text-xs font-semibold text-lake-700 hover:bg-lake-100 disabled:opacity-50 transition"
                             >
+                              <Icon name="activity" className="w-3.5 h-3.5" />
                               {testing ? 'Đang test...' : 'Test'}
                             </button>
 
@@ -770,8 +1016,12 @@ const MyDataConnectors = () => {
                               type="button"
                               disabled={busy || !connector.is_active}
                               onClick={() => handleSync(connector)}
-                              className="px-2.5 py-1.5 rounded-lg border border-blue-200 bg-blue-50 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-sky-200 bg-sky-50 text-xs font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-50 transition"
                             >
+                              <Icon
+                                name="refresh"
+                                className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`}
+                              />
                               {syncing ? 'Đang kích hoạt...' : 'Sync Now'}
                             </button>
 
@@ -779,7 +1029,7 @@ const MyDataConnectors = () => {
                               type="button"
                               disabled={busy}
                               onClick={() => openEditForm(connector)}
-                              className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                              className="px-2.5 py-1.5 rounded-lg border border-ink-100 bg-white text-xs font-semibold text-ink-700 hover:bg-ink-50 disabled:opacity-50 transition"
                             >
                               Sửa
                             </button>
@@ -789,7 +1039,7 @@ const MyDataConnectors = () => {
                               disabled={busy}
                               onClick={() => handleDelete(connector)}
                               title="Xóa connector"
-                              className="px-2.5 py-1.5 rounded-lg border border-rose-200 bg-rose-50 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                              className="px-2.5 py-1.5 rounded-lg border border-rose-200 bg-rose-50 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
                             >
                               Xóa
                             </button>
@@ -802,14 +1052,210 @@ const MyDataConnectors = () => {
               </table>
             </div>
           )}
-        </div>
+        </Card>
 
-        <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-4 text-xs text-blue-800">
-          <span className="font-bold">Quyền sở hữu:</span>{' '}
-          bạn chỉ có thể xem, sửa, test, sync hoặc xóa các connector do chính tài khoản của bạn tạo.
-          Schema Mapping cho database có tên bảng/cột khác sẽ được bổ sung ở bước tiếp theo.
-        </div>
-      </div>
+        {/* Theo dõi Sync MySQL + Superset */}
+        <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <Card className="lg:col-span-4 p-6">
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <p className="font-data text-[11px] uppercase tracking-widest text-lake-600 font-semibold mb-1">
+                  Đồng bộ dữ liệu
+                </p>
+                <h3 className="text-base font-bold text-ink-900">
+                  Tiến trình đồng bộ
+                </h3>
+                <p className="text-xs text-ink-400 mt-0.5">
+                  Airflow Orchestration
+                </p>
+              </div>
+
+              {activePipeline?.dag_run_id && (
+                <span
+                  className="text-[10px] font-data px-2 py-1 bg-ink-50 text-ink-500 rounded border border-ink-100"
+                  title={activePipeline.dag_run_id}
+                >
+                  ID: {activePipeline.dag_run_id.slice(0, 10)}...
+                </span>
+              )}
+            </div>
+
+            {activePipeline ? (
+              <>
+                <div className="mb-5 rounded-xl border border-lake-100 bg-lake-50/50 px-3.5 py-3">
+                  <p className="text-[10px] uppercase tracking-wider text-lake-600 font-data font-semibold">
+                    Connector đang theo dõi
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-ink-800">
+                    {activeConnector?.name || 'MySQL Connector'}
+                  </p>
+                  <p className="mt-1 text-[11px] font-data text-ink-400">
+                    Trạng thái DAG: {activePipeline.state || 'queued'}
+                  </p>
+                </div>
+
+                <div className="relative pl-5 border-l-2 border-ink-100 space-y-5 ml-2">
+                  {MYSQL_PIPELINE_TASKS.map((pt) => {
+                    const task = activePipeline.tasks?.find(
+                      (item) => item.task_id === pt.id,
+                    );
+                    const state = task?.state || 'pending';
+
+                    let dotClass = 'bg-ink-200 border-ink-100';
+                    let stateText = 'Đang đợi';
+                    let icon = 'clock';
+                    let textColor = 'text-ink-400';
+                    let cardBorder = 'border-ink-100';
+                    let cardBg = '';
+
+                    if (state === 'success') {
+                      dotClass = `${pt.dot} border-white shadow-[0_0_0_3px_rgba(16,185,129,0.15)]`;
+                      stateText = 'Thành công';
+                      icon = 'checkCircle';
+                      textColor = 'text-emerald-700';
+                      cardBorder = 'border-emerald-100';
+                    } else if (state === 'running') {
+                      dotClass = `${pt.dot} border-white animate-pulse shadow-[0_0_0_3px_rgba(15,151,168,0.2)]`;
+                      stateText = 'Đang xử lý...';
+                      icon = 'activity';
+                      textColor = 'text-lake-700';
+                      cardBorder = 'border-lake-200';
+                      cardBg = 'bg-lake-50/50';
+                    } else if (state === 'failed' || state === 'upstream_failed') {
+                      dotClass =
+                        'bg-rose-500 border-white shadow-[0_0_0_3px_rgba(244,63,94,0.15)]';
+                      stateText = 'Lỗi';
+                      icon = 'alertTriangle';
+                      textColor = 'text-rose-700';
+                      cardBorder = 'border-rose-200';
+                      cardBg = 'bg-rose-50/40';
+                    } else if (state === 'queued' || state === 'scheduled') {
+                      stateText = 'Đang xếp hàng';
+                      textColor = 'text-lake-600';
+                    }
+
+                    return (
+                      <div key={pt.id} className="relative">
+                        <div
+                          className={`absolute -left-[27px] top-2 w-3.5 h-3.5 rounded-full border-2 ${dotClass} z-10 transition-colors duration-300`}
+                        />
+
+                        <div
+                          className={`rounded-xl p-3 border ${cardBorder} ${cardBg} transition-all duration-300`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <p
+                              className={`font-semibold text-sm ${
+                                state === 'pending'
+                                  ? 'text-ink-400'
+                                  : 'text-ink-800'
+                              }`}
+                            >
+                              {pt.label}{' '}
+                              <span className="text-ink-300 font-data text-[11px] font-normal">
+                                · {pt.sub}
+                              </span>
+                            </p>
+                            <Icon
+                              name={icon}
+                              className={`w-4 h-4 ${textColor}`}
+                            />
+                          </div>
+
+                          <p
+                            className={`text-[11px] font-data font-medium mt-1 ${textColor}`}
+                          >
+                            {stateText}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {activePipeline.state === 'success' && (
+                  <div className="mt-5 p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm flex items-start gap-2.5">
+                    <Icon
+                      name="checkCircle"
+                      className="w-4 h-4 mt-0.5 shrink-0"
+                    />
+                    <span className="font-medium">
+                      Đồng bộ MySQL → Bronze → Silver → Gold đã hoàn thành.
+                    </span>
+                  </div>
+                )}
+
+                {activePipeline.error_message && (
+                  <div className="mt-5 p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-sm flex items-start gap-2.5">
+                    <Icon
+                      name="alertTriangle"
+                      className="w-4 h-4 mt-0.5 shrink-0"
+                    />
+                    <span className="font-medium">
+                      {activePipeline.error_message}
+                    </span>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="min-h-[310px] flex flex-col items-center justify-center text-center">
+                <div className="w-12 h-12 rounded-xl bg-lake-50 text-lake-500 border border-lake-100 flex items-center justify-center mb-3">
+                  <Icon name="activity" className="w-5 h-5" />
+                </div>
+                <p className="font-semibold text-ink-700">
+                  Chưa có tiến trình đồng bộ
+                </p>
+                <p className="mt-1 text-sm text-ink-400 max-w-[260px]">
+                  Bấm Sync Now trên một connector để theo dõi tiến trình tại đây.
+                </p>
+              </div>
+            )}
+          </Card>
+
+          <Card className="lg:col-span-8 overflow-hidden flex flex-col min-h-[520px]">
+            <div className="px-5 md:px-6 py-4 border-b border-ink-100 bg-white flex justify-between items-center shrink-0">
+              <div>
+                <h3 className="text-base font-bold text-ink-900">
+                  Báo cáo Phân tích
+                </h3>
+                <p className="text-[11px] text-ink-400 mt-0.5 font-data">
+                  Gold Layer · Apache Superset
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={resetDashboardToGold}
+                  className="text-xs text-ink-600 hover:text-ink-900 bg-white hover:bg-ink-50 border border-ink-100 px-3 py-1.5 rounded-lg transition font-semibold"
+                >
+                  Xem tất cả
+                </button>
+
+                <a
+                  href={dashboardUrl || supersetUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-lake-700 hover:text-lake-800 bg-lake-50 hover:bg-lake-100 px-3 py-1.5 rounded-lg transition font-semibold flex items-center gap-1.5"
+                >
+                  Mở tab mới
+                  <Icon name="externalLink" className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            </div>
+
+            <div className="flex-1 bg-[#FAFBFD] relative p-3 min-h-[450px]">
+              <iframe
+                key={dashboardUrl || supersetUrl}
+                src={dashboardUrl || supersetUrl}
+                title="Superset Dashboard"
+                className="w-full h-full min-h-[430px] border border-ink-100 bg-white rounded-xl shadow-inner"
+              />
+            </div>
+          </Card>
+        </section>
+
+      </main>
     </div>
   );
 };

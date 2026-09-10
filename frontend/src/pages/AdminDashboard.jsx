@@ -7,14 +7,13 @@ import UploadHistory from './UploadHistory';
 import DataConnectors from './DataConnectors';
 import Icon from '../components/icons';
 import { ConnChip, LakehouseMark } from '../components/ui';
+import { SUPERSET_DASHBOARD_URL } from '../config/appConfig';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  const supersetUrl =
-    import.meta.env.VITE_SUPERSET_DASHBOARD_URL ||
-    'http://localhost:8088/superset/dashboard/1/?standalone=3';
+  const supersetUrl = SUPERSET_DASHBOARD_URL;
 
   const handleLogout = () => {
     localStorage.removeItem('token');

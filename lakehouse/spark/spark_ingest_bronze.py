@@ -746,8 +746,8 @@ def extract_structured_data(file_bytes: bytes, ext: str):
 
             for ma, nd, dk, mdk, mdat, kq, nn, hd, quy in zip(list_ma, list_nd, list_dk, list_mdk, list_mdat, list_kq, list_nn, list_hd, list_quy):
                 ma_str = str(ma).strip()
-                if ma_str.upper() in ["N/A", "NAN", "NONE", ""]:
-                    continue # Bỏ qua dòng không có mã
+                if ma_str.upper() in ["N/A", "NAN", "NONE"]:
+                    ma_str = "" # Để trống để đẩy sang bảng Quarantine ở Silver
 
                 quy_formatted = "N/A"
                 if str(quy).strip().upper() not in ["N/A", "NAN", "NONE", ""]:
@@ -834,8 +834,8 @@ def process_single_file(s3_client, file_key):
             row_quy = "N/A"
 
         ma_str = str(ma).strip().upper()
-        if ma_str in ["N/A", "NAN", "NONE", ""]:
-            continue
+        if ma_str in ["N/A", "NAN", "NONE"]:
+            ma_str = "" # Để trống để đẩy sang bảng Quarantine ở Silver
             
         nhom = None
         ma_clean = ma_str

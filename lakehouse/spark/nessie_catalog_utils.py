@@ -64,8 +64,10 @@ def delete_nessie_orphaned_key(table_name: str, branch_name: str = "main"):
 def make_branch_name(prefix: str) -> str:
     """Sinh tên branch duy nhất theo thời điểm chạy job.
     Nessie ref name không được chứa dấu ':' nên dùng định dạng YYYYMMDD_HHMMSS."""
+    import uuid
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return f"{prefix}_{ts}"
+    unique_id = uuid.uuid4().hex[:6]
+    return f"{prefix}_{ts}_{unique_id}"
 
 
 def create_branch(spark, branch_name: str, from_ref: str = "main"):
@@ -132,7 +134,8 @@ def check_quality_silver(spark, table_name: str):
         raise DataQualityError("Bảng Silver rỗng, không có dữ liệu để merge.")
 
     null_key_rows = df.filter(
-        "ma_chi_tieu IS NULL OR ket_qua_he_thong IS NULL"
+        "ma_chi_tieu IS NULL OR trim(ma_chi_tieu) = '' OR upper(trim(ma_chi_tieu)) IN ('N/A', 'NAN', 'NONE') "
+        "OR ket_qua_he_thong IS NULL OR trim(ket_qua_he_thong) = ''"
     ).count()
     if null_key_rows > 0:
         raise DataQualityError(

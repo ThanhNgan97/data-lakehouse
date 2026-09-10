@@ -181,7 +181,8 @@ const UserUpload = () => {
              if (state === "success" && hist) {
                 const finishedItem = hist.find((h) => h.dag_run_id === dagRunId);
                 if (finishedItem) {
-                  setSelectedFile(finishedItem.filename);
+                  const basename = finishedItem.s3_path ? finishedItem.s3_path.split('/').pop() : finishedItem.filename;
+                  setSelectedFile(basename);
                   setSelectedHistoryId(finishedItem.id || finishedItem.dag_run_id);
                 }
                 setIframeKey(Date.now());
@@ -259,7 +260,8 @@ const UserUpload = () => {
 
   const handleHistoryClick = (item) => {
     if (item.pipeline_status === "success") {
-      setSelectedFile(item.filename);
+      const basename = item.s3_path ? item.s3_path.split('/').pop() : item.filename;
+      setSelectedFile(basename);
       setSelectedHistoryId(item.id || item.dag_run_id);
       setIframeKey(Date.now());
     }
@@ -566,7 +568,7 @@ const UserUpload = () => {
                     {filteredHistory.map((item, i) => {
                     let currentStatus = item.pipeline_status;
                     if (activePipeline && item.dag_run_id === activePipeline.dag_run_id) {
-                      const isAnalyzeSuccess = activePipeline.tasks?.some(t => t.task_id === "analyze_predict" && t.state === "success");
+                      const isAnalyzeSuccess = activePipeline.tasks?.some(t => t.task_id === "predictive_analysis" && t.state === "success");
                       if (isAnalyzeSuccess || activePipeline.state === "success") {
                         currentStatus = "success";
                       } else if (activePipeline.state && activePipeline.state !== "unknown") {
@@ -619,7 +621,7 @@ const UserUpload = () => {
                               
                               <div className="flex items-center gap-0.5 opacity-60 hover:opacity-100 transition-opacity">
                                 {/* Nút Thử lại: Cho phép thử lại nếu đang bị kẹt hoặc lỗi kết nối */}
-                                {["trigger_failed", "unreachable", "running", "queued", "pending", "uploaded"].includes(item.pipeline_status) && (
+                                {["failed", "upload_failed", "trigger_failed", "unreachable"].includes(item.pipeline_status) && (
                                   <button
                                     onClick={(e) => handleRetryHistory(e, item.id)}
                                     className="p-1.5 hover:bg-ink-100 rounded-md text-ink-500 hover:text-lake-600 transition-colors"

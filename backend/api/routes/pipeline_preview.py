@@ -96,7 +96,11 @@ def get_pipeline_status(current_user=Depends(get_current_user)):
     try:
         s3 = _get_s3_client()
         resp = s3.list_objects_v2(Bucket=MINIO_BUCKET, Prefix="bronze/data_extracted_", MaxKeys=1)
-        status["bronze"] = "Contents" in resp and len(resp["Contents"]) > 0
+        if "Contents" in resp and len(resp["Contents"]) > 0:
+            status["bronze"] = True
+        else:
+            resp_archive = s3.list_objects_v2(Bucket=MINIO_BUCKET, Prefix="bronze_archive/data_extracted_", MaxKeys=1)
+            status["bronze"] = "Contents" in resp_archive and len(resp_archive["Contents"]) > 0
     except Exception:
         status["bronze"] = False
 
@@ -116,9 +120,10 @@ def get_pipeline_status(current_user=Depends(get_current_user)):
 
 
 @router.get("/bronze/preview")
-def preview_bronze(limit: int = Query(50, ge=1, le=500), current_user=Depends(get_current_user)):
+def preview_bronze(run_id: str | None = Query(None), limit: int = Query(50, ge=1, le=500), current_user=Depends(get_current_user)):
     """Đọc file Parquet Bronze MỚI NHẤT trên MinIO (không qua Trino được vì
     Bronze chỉ là file thô, chưa phải bảng Iceberg)."""
+    import pyarrow.parquet as pq
     s3 = _get_s3_client()
     resp_bronze = s3.list_objects_v2(Bucket=MINIO_BUCKET, Prefix="bronze/data_extracted_")
     resp_archive = s3.list_objects_v2(Bucket=MINIO_BUCKET, Prefix="bronze_archive/data_extracted_")
@@ -131,17 +136,28 @@ def preview_bronze(limit: int = Query(50, ge=1, le=500), current_user=Depends(ge
 
     if not contents:
         raise HTTPException(status_code=404, detail="Chưa có file Parquet nào ở tầng Bronze hoặc Archive.")
+        
+    if run_id:
+        safe_run_id = "".join([c if c.isalnum() else "_" for c in run_id])
+        contents = [c for c in contents if safe_run_id in c["Key"]]
+        if not contents:
+            raise HTTPException(status_code=404, detail=f"Không tìm thấy dữ liệu Bronze cho run_id: {run_id}")
 
     latest = max(contents, key=lambda o: o["LastModified"])
     file_bytes = s3.get_object(Bucket=MINIO_BUCKET, Key=latest["Key"])["Body"].read()
-    df = pd.read_parquet(io.BytesIO(file_bytes))
+    
+    parquet_file = pq.ParquetFile(io.BytesIO(file_bytes))
+    total_rows = parquet_file.metadata.num_rows
+    batch = next(parquet_file.iter_batches(batch_size=limit), None)
+    df = batch.to_pandas() if batch else pd.DataFrame()
+    
     return {
         "layer": "bronze",
         "source_file": latest["Key"],
         "last_modified": latest["LastModified"].isoformat(),
-        "total_rows": len(df),
+        "total_rows": total_rows,
         "columns": df.columns.tolist(),
-        "rows": df.head(limit).fillna("").to_dict(orient="records"),
+        "rows": df.fillna("").to_dict(orient="records"),
     }
 
 

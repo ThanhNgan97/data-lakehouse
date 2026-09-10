@@ -53,7 +53,7 @@ const KPICharts = () => {
       try {
         // Bảng tổng hợp: tỷ lệ hoàn thành theo đơn vị
         const summaryRes = await axios.get(
-          `${API_URL}/pipeline/gold/preview?table=kpi_tong_hop_don_vi&limit=500`,
+          `${API_URL}/pipeline/gold/preview?table=kpi_tong_hop_don_vi&limit=50000`,
           { headers: authHeader() },
         );
         setSummaryData(summaryRes.data.rows || []);
@@ -61,7 +61,7 @@ const KPICharts = () => {
         // Bảng so sánh kỳ
         try {
           const compareRes = await axios.get(
-            `${API_URL}/pipeline/gold/preview?table=kpi_so_sanh_ky&limit=500`,
+            `${API_URL}/pipeline/gold/preview?table=kpi_so_sanh_ky&limit=50000`,
             { headers: authHeader() },
           );
           setCompareData(compareRes.data.rows || []);
@@ -172,12 +172,15 @@ const KPICharts = () => {
                     </h4>
                     <ResponsiveContainer width="100%" height={320}>
                       <BarChart
-                        data={summaryData.map((r) => ({
-                          name: r.nhom_don_vi || r.ten_phong_ban || '?',
-                          'Tỷ lệ hoàn thành (%)': parseFloat(r.ty_le_hoan_thanh_phan_tram || 0),
-                          'Số đạt': parseInt(r.so_chi_tieu_dat || 0),
-                          'Tổng chỉ tiêu': parseInt(r.tong_chi_tieu_danh_gia || 0),
-                        }))}
+                        data={summaryData.map((r) => {
+                          const pct = parseFloat(r.ty_le_hoan_thanh_phan_tram);
+                          return {
+                            name: r.nhom_don_vi || r.ten_phong_ban || '?',
+                            'Tỷ lệ hoàn thành (%)': isNaN(pct) ? null : pct,
+                            'Số đạt': parseInt(r.so_chi_tieu_dat || 0),
+                            'Tổng chỉ tiêu': parseInt(r.tong_chi_tieu_danh_gia || 0),
+                          };
+                        })}
                         margin={{ top: 5, right: 20, left: 0, bottom: 40 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
@@ -277,12 +280,17 @@ const KPICharts = () => {
                   </h4>
                   <ResponsiveContainer width="100%" height={350}>
                     <BarChart
-                      data={compareData.map((r) => ({
-                        name: r.nhom_don_vi || r.ten_phong_ban || '?',
-                        'Kỳ này': parseFloat(r.muc_dat_numeric || 0),
-                        'Kỳ trước': parseFloat(r.muc_dat_numeric_ky_truoc || 0),
-                        'Tăng trưởng (%)': parseFloat(r.tang_truong_phan_tram || 0),
-                      }))}
+                      data={compareData.map((r) => {
+                        const kynay = parseFloat(r.muc_dat_numeric);
+                        const kytruoc = parseFloat(r.muc_dat_numeric_ky_truoc);
+                        const tangtruong = parseFloat(r.tang_truong_phan_tram);
+                        return {
+                          name: r.nhom_don_vi || r.ten_phong_ban || '?',
+                          'Kỳ này': isNaN(kynay) ? null : kynay,
+                          'Kỳ trước': isNaN(kytruoc) ? null : kytruoc,
+                          'Tăng trưởng (%)': isNaN(tangtruong) ? null : tangtruong,
+                        };
+                      })}
                       margin={{ top: 5, right: 20, left: 0, bottom: 40 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />

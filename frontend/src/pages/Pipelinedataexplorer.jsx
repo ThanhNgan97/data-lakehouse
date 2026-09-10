@@ -20,7 +20,7 @@ const Heardertable = {
   dinh_ky_thu_thap: 'Định kỳ thu thập',
   muc_dang_ky: 'Mức đăng ký',
   muc_dat: 'Mức đạt',
-  muc_dat_numberic: 'Mức đạt (số)',
+  muc_dat_numeric: 'Mức đạt (số)',
   ket_qua_he_thong: 'Kết quả hệ thống',
   nguyen_nhan: 'Nguyên nhân',
   hanh_dong_khac_phuc: 'Hành động khắc phục',
@@ -59,7 +59,11 @@ const PAGE_SIZE = 20;
 const exportCSV = (columns, rows, filename = 'export.csv') => {
   const header = columns.join(',');
   const body = rows.map((r) =>
-    columns.map((c) => `"${String(r[c] ?? '').replace(/"/g, '""')}"`).join(',')
+    columns.map((c) => {
+      let val = String(r[c] ?? '');
+      if (/^[=+\-@]/.test(val)) val = "'" + val;
+      return `"${val.replace(/"/g, '""')}"`;
+    }).join(',')
   ).join('\n');
   const blob = new Blob([`\uFEFF${header}\n${body}`], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);

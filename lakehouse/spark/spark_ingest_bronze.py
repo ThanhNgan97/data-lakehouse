@@ -61,7 +61,7 @@ def retry_with_backoff(func, max_retries=3, initial_delay=5):
             if any(k in error_str.lower() for k in ["429", "resource_exhausted", "quota", "503", "unavailable", "high demand"]):
                 if attempt < max_retries - 1:
                     wait_time = initial_delay * (2 ** attempt)
-                    print(f"⚠️ Quota/Rate limit exceeded. Retrying in {wait_time}s (Attempt {attempt + 1}/{max_retries})...")
+                    print(f" Quota/Rate limit exceeded. Retrying in {wait_time}s (Attempt {attempt + 1}/{max_retries})...")
                     time.sleep(wait_time)
                     continue
             raise
@@ -100,26 +100,13 @@ def generate_checksum(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def clean_status_text(text: str) -> str:
-    text = str(text).upper().strip()
-    if re.search(r"(KHÔNG ĐẠT|FAILED)", text):
-        return KETQUA_KHONG_DAT
-    if re.search(r"(CHƯA ĐẾN KỲ|NOT DUE)", text):
-        return KETQUA_CHUA_DEN_KY
-    if re.search(r"(ĐẠT|PASSED|SUCCESS)", text):
-        return KETQUA_DAT
-    return text.replace("\n", " ").strip()
+def clean_status_text_deprecated(text: str) -> str:
+    # Moved to Bronze->Silver step
+    return str(text).strip()
 
-
-def parse_percent_or_number(text):
-    if text is None or text == "N/A" or not str(text).strip():
-        return None
-    cleaned = str(text).strip().replace("%", "").replace(",", ".")
-    try:
-        return float(cleaned)
-    except ValueError:
-        return None
-
+def parse_percent_or_number_deprecated(text):
+    # Moved to Bronze->Silver step
+    return None
 
 def extract_table_from_docx_fast(file_bytes: bytes):
     """
@@ -164,20 +151,20 @@ def extract_table_from_docx_fast(file_bytes: bytes):
             headers = ["".join([node.text for node in c.findall(".//w:t", ns) if node.text]).strip().upper() for c in header_cells]
             header_str = " ".join(headers)
             
-            if not any(k in header_str for k in ["MÃ", "MA", "MỤC TIÊU", "MUC TIEU", "MỨC ĐẠT", "MUC DAT", "MỨC ĐĂNG KÝ"]):
+            if not any(k in header_str for k in ["MÃ", "MA", "MỤC TIÊU", "MUC TIEU", "MỨC ĐẠT", "MUC DAT", "MỨC ĐĂNG KÝ", "CHỈ SỐ", "KẾ HOẠCH", "KẾT QUẢ", "TIẾN ĐỘ"]):
                 continue
             
             col_map = {}
             for idx, h in enumerate(headers):
                 if re.search(r"^(MÃ|MA|MÃ CHỈ TIÊU)$", h) or "MÃ" in h:
                     col_map.setdefault("ma", idx)
-                elif "NỘI DUNG" in h or "MỤC TIÊU" in h or "CHỈ TIÊU" in h:
+                elif "NỘI DUNG" in h or "MỤC TIÊU" in h or "CHỈ TIÊU" in h or "CHỈ SỐ" in h:
                     col_map.setdefault("noi_dung", idx)
                 elif "ĐỊNH KỲ" in h or "DINH KY" in h or "THU THẬP" in h:
                     col_map.setdefault("dinh_ky", idx)
                 elif "ĐĂNG KÝ" in h or "DANG KY" in h or "KẾ HOẠCH" in h:
                     col_map.setdefault("muc_dang_ky", idx)
-                elif "MỨC ĐẠT" in h or "MUC DAT" in h or "KẾT QUẢ ĐẠT" in h:
+                elif "MỨC ĐẠT" in h or "MUC DAT" in h or "KẾT QUẢ ĐẠT" in h or "TIẾN ĐỘ" in h:
                     col_map.setdefault("muc_dat", idx)
                 elif "KẾT QUẢ" in h or "KET QUA" in h or "ĐÁNH GIÁ" in h:
                     col_map.setdefault("ket_qua", idx)
@@ -199,7 +186,7 @@ def extract_table_from_docx_fast(file_bytes: bytes):
                 if not ma_val or ma_val.upper() in ["N/A", "STT", "TT", "MÃ", "MA"] or len(ma_val) < 2:
                     continue
 
-                def get_c(key, default="N/A"):
+                def get_c(key, default=None):
                     idx = col_map.get(key)
                     if idx is not None and idx < len(cell_texts):
                         val = cell_texts[idx].strip()
@@ -208,13 +195,13 @@ def extract_table_from_docx_fast(file_bytes: bytes):
 
                 extracted_rows.append((
                     ma_val,
-                    get_c("noi_dung", "N/A"),
-                    get_c("dinh_ky", "N/A"),
-                    get_c("muc_dang_ky", "N/A"),
-                    get_c("muc_dat", "N/A"),
-                    get_c("ket_qua", "N/A"),
-                    get_c("nguyen_nhan", ""),
-                    get_c("hanh_dong", "")
+                    get_c("noi_dung"),
+                    get_c("dinh_ky"),
+                    get_c("muc_dang_ky"),
+                    get_c("muc_dat"),
+                    get_c("ket_qua"),
+                    get_c("nguyen_nhan"),
+                    get_c("hanh_dong")
                 ))
 
         if extracted_rows:
@@ -280,20 +267,20 @@ def extract_table_from_pptx_fast(file_bytes: bytes):
                     ]
                     header_str = " ".join(headers)
 
-                    if not any(k in header_str for k in ["MÃ", "MA", "MỤC TIÊU", "MUC TIEU", "MỨC ĐẠT", "MUC DAT", "MỨC ĐĂNG KÝ"]):
+                    if not any(k in header_str for k in ["MÃ", "MA", "MỤC TIÊU", "MUC TIEU", "MỨC ĐẠT", "MUC DAT", "MỨC ĐĂNG KÝ", "CHỈ SỐ", "KẾ HOẠCH", "KẾT QUẢ", "TIẾN ĐỘ"]):
                         continue
 
                     col_map = {}
                     for idx, h in enumerate(headers):
                         if re.search(r"^(MÃ|MA|MÃ CHỈ TIÊU)$", h) or "MÃ" in h:
                             col_map.setdefault("ma", idx)
-                        elif "NỘI DUNG" in h or "MỤC TIÊU" in h or "CHỈ TIÊU" in h:
+                        elif "NỘI DUNG" in h or "MỤC TIÊU" in h or "CHỈ TIÊU" in h or "CHỈ SỐ" in h:
                             col_map.setdefault("noi_dung", idx)
                         elif "ĐỊNH KỲ" in h or "DINH KY" in h or "THU THẬP" in h:
                             col_map.setdefault("dinh_ky", idx)
                         elif "ĐĂNG KÝ" in h or "DANG KY" in h or "KẾ HOẠCH" in h:
                             col_map.setdefault("muc_dang_ky", idx)
-                        elif "MỨC ĐẠT" in h or "MUC DAT" in h or "KẾT QUẢ ĐẠT" in h:
+                        elif "MỨC ĐẠT" in h or "MUC DAT" in h or "KẾT QUẢ ĐẠT" in h or "TIẾN ĐỘ" in h:
                             col_map.setdefault("muc_dat", idx)
                         elif "KẾT QUẢ" in h or "KET QUA" in h or "ĐÁNH GIÁ" in h:
                             col_map.setdefault("ket_qua", idx)
@@ -318,7 +305,7 @@ def extract_table_from_pptx_fast(file_bytes: bytes):
                         if not ma_val or ma_val.upper() in ["N/A", "STT", "TT", "MÃ", "MA"] or len(ma_val) < 2:
                             continue
 
-                        def get_c(key, default="N/A"):
+                        def get_c(key, default=None):
                             idx = col_map.get(key)
                             if idx is not None and idx < len(cell_texts):
                                 val = cell_texts[idx].strip()
@@ -327,13 +314,13 @@ def extract_table_from_pptx_fast(file_bytes: bytes):
 
                         extracted_rows.append((
                             ma_val,
-                            get_c("noi_dung", "N/A"),
-                            get_c("dinh_ky", "N/A"),
-                            get_c("muc_dang_ky", "N/A"),
-                            get_c("muc_dat", "N/A"),
-                            get_c("ket_qua", "N/A"),
-                            get_c("nguyen_nhan", ""),
-                            get_c("hanh_dong", "")
+                            get_c("noi_dung"),
+                            get_c("dinh_ky"),
+                            get_c("muc_dang_ky"),
+                            get_c("muc_dat"),
+                            get_c("ket_qua"),
+                            get_c("nguyen_nhan"),
+                            get_c("hanh_dong")
                         ))
 
             full_text = "\n".join(all_slide_texts)
@@ -471,7 +458,7 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
         "Hãy đọc tài liệu/hình ảnh đính kèm và trích xuất tất cả các dòng dữ liệu trong bảng ĐÁNH GIÁ MỤC TIÊU (KPI). "
         "Trả về một mảng JSON các đối tượng có cấu trúc yêu cầu. "
         "Lưu ý: "
-        "1. ma_chi_tieu là cột MÃ trong bảng, hãy lấy nguyên văn (VD: ĐT-MT01, QTCL MT001). "
+        "1. ma_chi_tieu là cột MÃ trong bảng, hãy lấy nguyên văn (VD: ĐT-MT01, QTCL MT001). TUYỆT ĐỐI KHÔNG tự bịa ra hoặc tạo mã mới nếu không có. "
         "2. quy_danh_gia hãy lấy từ tiêu đề (VD: QUÝ 4/2026). Nếu không thấy thì để 'N/A'. "
         "3. Nếu không có giá trị ở ô nào, trả về 'N/A' hoặc chuỗi rỗng. "
         "4. Đảm bảo trích xuất đầy đủ tất cả các trang, không bỏ sót dòng nào."
@@ -483,7 +470,7 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
             "Hãy đọc tài liệu thuyết trình PowerPoint đính kèm và trích xuất tất cả các chỉ số, mục tiêu đo lường, kết quả hoạt động hoặc bảng số liệu KPI. "
             "Trả về một mảng JSON các đối tượng KpiRecord. "
             "Lưu ý quan trọng: "
-            "1. ma_chi_tieu: Lấy mã chỉ tiêu nếu có (VD: ĐT-MT01, QTCL MT001). Nếu slide không có cột mã sẵn, hãy tự tạo mã ngắn gọn theo tên chỉ tiêu hoặc slide (VD: KPI-01, PPT-MTR01, RETAIL-01) để định danh, tuyệt đối KHÔNG để 'N/A' hay bỏ trống. "
+            "1. ma_chi_tieu: Lấy mã chỉ tiêu nếu có (VD: ĐT-MT01, QTCL MT001). TUYỆT ĐỐI KHÔNG tự bịa ra hoặc tạo mã mới nếu không có. Nếu không có mã thì để 'N/A' hoặc chuỗi rỗng. "
             "2. quy_danh_gia: Lấy từ tiêu đề hoặc ngữ cảnh thời gian (VD: Q1/2026, NĂM 2024, Tháng 1/2026). Nếu không thấy thì để 'N/A'. "
             "3. noi_dung_muc_tieu: Mô tả rõ ràng nội dung chỉ tiêu/mục tiêu đo lường. "
             "4. muc_dang_ky và muc_dat: Lấy số liệu kế hoạch và thực tế (hoặc tỷ lệ %, con số thống kê). "
@@ -535,11 +522,9 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
         ma = item.get("ma_chi_tieu", "N/A")
         quy = item.get("quy_danh_gia", "N/A")
 
-        # Nếu model để N/A hoặc rỗng, tự động sinh mã định danh để không làm mất dữ liệu
+        # Không tự sinh mã định danh nếu không có để tránh rác dữ liệu
         if not ma or str(ma).strip() in ["", "N/A", "None", "NULL"]:
-            noi_dung = item.get("noi_dung_muc_tieu", "")
-            prefix = re.sub(r'[^A-Z0-9]', '', str(noi_dung).upper()[:8]) or "KPI"
-            ma = f"{prefix}-{idx:02d}"
+            ma = ""
 
         if str(ma).strip() != "":
             rows.append((
@@ -581,93 +566,207 @@ def extract_structured_data(file_bytes: bytes, ext: str):
     Trích xuất dữ liệu từ các file có cấu trúc (CSV, Excel, JSON).
     """
     rows = []
-    quy_list = set()
+    quy_list = [] # Dùng list thay vì set để đếm tần suất đúng
+    dfs = [] # Hỗ trợ multiple sheets/DataFrames
+
     try:
         if ext == ".csv":
-            df = pd.read_csv(io.BytesIO(file_bytes))
+            def read_csv_safe(b):
+                for enc in ["utf-8", "utf-8-sig", "cp1258", "cp1252", "utf-16"]:
+                    try:
+                        text = b.decode(enc)
+                        for sep in [",", ";", "\t", "|"]:
+                            try:
+                                df = pd.read_csv(io.StringIO(text), sep=sep, dtype=str)
+                                if len(df.columns) > 1 or (len(df.columns) == 1 and sep == "|"):
+                                    return df
+                            except Exception:
+                                continue
+                        return pd.read_csv(io.StringIO(text), sep=",", dtype=str)
+                    except UnicodeDecodeError:
+                        continue
+                return pd.read_csv(io.BytesIO(b), dtype=str)
+            
+            df = read_csv_safe(file_bytes)
+            if not df.empty:
+                dfs.append(df)
+
         elif ext in [".xlsx", ".xls"]:
-            df = pd.read_excel(io.BytesIO(file_bytes))
+            # Quét tất cả các sheet, dùng dtype=str để không mất số 0
+            engine = "xlrd" if ext == ".xls" else "openpyxl"
+            try:
+                xls = pd.ExcelFile(io.BytesIO(file_bytes), engine=engine)
+            except Exception:
+                xls = pd.ExcelFile(io.BytesIO(file_bytes))
+            for sheet_name in xls.sheet_names:
+                df_sheet = pd.read_excel(xls, sheet_name=sheet_name, dtype=str)
+                if not df_sheet.empty:
+                    dfs.append(df_sheet)
+
         elif ext == ".json":
-            data = json.loads(file_bytes.decode('utf-8'))
-            if isinstance(data, list):
-                df = pd.DataFrame(data)
-            elif isinstance(data, dict):
-                # Giả định data chứa 1 mảng các bản ghi ở root
-                for k, v in data.items():
-                    if isinstance(v, list):
-                        df = pd.DataFrame(v)
-                        break
-                else:
-                    df = pd.DataFrame([data])
+            # Xử lý JSON hẹp (JSON Lines, mảng, v.v.)
+            try:
+                text = file_bytes.decode('utf-8')
+                lines = [line.strip() for line in text.strip().split("\n") if line.strip()]
+                is_json_lines = len(lines) > 1 and all(line.startswith("{") and line.endswith("}") for line in lines)
+                
+                if is_json_lines:
+                    try:
+                        df = pd.read_json(io.StringIO(text), lines=True, dtype=str)
+                        dfs.append(df)
+                    except Exception:
+                        pass
+                if not dfs:
+                    data = json.loads(text)
+                    if isinstance(data, list):
+                        dfs.append(pd.DataFrame(data, dtype=str))
+                    elif isinstance(data, dict):
+                        # Tìm array to nhất
+                        best_v = []
+                        for k, v in data.items():
+                            if isinstance(v, list) and len(v) > len(best_v):
+                                best_v = v
+                        if best_v:
+                            dfs.append(pd.DataFrame(best_v, dtype=str))
+                        else:
+                            dfs.append(pd.DataFrame([data], dtype=str))
+            except Exception as json_e:
+                print(f"Lỗi đọc JSON: {json_e}")
+                return None
         else:
             return None
 
-        if df.empty:
+        if not dfs:
             return None
 
-        # Chuẩn hóa tên cột
-        df.columns = [str(c).strip().lower() for c in df.columns]
-        
-        # Hàm tiện ích tìm cột duy nhất 1 lần
-        def find_col(possible_names):
-            for n in possible_names:
-                for c in df.columns:
-                    if n in c or c.replace("_", "") in n.replace("_", ""):
-                        return c
-            return None
+        # Xử lý tuần tự từng dataframe
+        for df in dfs:
+            if df.empty:
+                continue
 
-        col_ma = find_col(["ma", "id", "code"])
-        col_nd = find_col(["noi_dung", "muc_tieu", "chi_tieu", "content", "target", "noidungmuctieu"])
-        col_dk = find_col(["dinh_ky", "thu_thap", "period", "dinhkythuthap"])
-        col_mdk = find_col(["muc_dang_ky", "ke_hoach", "plan", "dang_ky", "mucdangky"])
-        col_mdat = find_col(["muc_dat", "thuc_te", "actual", "dat", "mucdat"])
-        col_kq = find_col(["ket_qua", "danh_gia", "status", "result", "ketqua"])
-        col_nn = find_col(["nguyen_nhan", "cause", "reason", "nguyennhan"])
-        col_hd = find_col(["hanh_dong", "khac_phuc", "action", "solution", "hanhdongkehoachkhacphuc"])
-        col_quy = find_col(["quy", "ky", "quarter", "time", "quydanhgia"])
+            # Thuật toán tìm Header thực sự (Smart Header Detection)
+            def count_header_matches(row_values):
+                keywords = [
+                    "mã", "ma", "id", "code", 
+                    "nội dung", "noi dung", "chỉ tiêu", "chi tieu", "mục tiêu", "muc tieu",
+                    "kết quả", "ket qua", "trạng thái", "trang thai", "đánh giá", "danh gia",
+                    "định kỳ", "dinh ky", "chu kỳ", "chu ky",
+                    "đạt", "dat", "thực tế", "thuc te",
+                    "đăng ký", "dang ky", "kế hoạch", "ke hoach", "target"
+                ]
+                score = 0
+                for val in row_values:
+                    val_str = str(val).lower()
+                    if any(kw in val_str for kw in keywords):
+                        score += 1
+                return score
 
-        # Hàm trích xuất thành danh sách siêu tốc
-        def get_fast_list(col_name, default):
-            if col_name and col_name in df.columns:
-                # Đưa về string, strip và fillna
-                s = df[col_name].fillna(default).astype(str).str.strip()
-                # Thay chuỗi rỗng bằng default
-                s = s.replace("", default)
-                return s.tolist()
-            else:
-                return [default] * len(df)
-
-        list_ma = get_fast_list(col_ma, "N/A")
-        list_nd = get_fast_list(col_nd, "N/A")
-        list_dk = get_fast_list(col_dk, "N/A")
-        list_mdk = get_fast_list(col_mdk, "N/A")
-        list_mdat = get_fast_list(col_mdat, "N/A")
-        list_kq = get_fast_list(col_kq, "N/A")
-        list_nn = get_fast_list(col_nn, "")
-        list_hd = get_fast_list(col_hd, "")
-        list_quy = get_fast_list(col_quy, "N/A")
-
-        # Zip loop: Nhanh hơn df.iterrows() hàng nghìn lần
-        for ma, nd, dk, mdk, mdat, kq, nn, hd, quy in zip(list_ma, list_nd, list_dk, list_mdk, list_mdat, list_kq, list_nn, list_hd, list_quy):
-            if ma == "N/A":
-                continue # Bỏ qua dòng không có mã
+            best_score = count_header_matches(df.columns)
+            best_row_idx = -1
             
-            if quy != "N/A":
-                quy_raw = quy.upper()
-                quy_match = re.search(r"(?:Q|QUÝ|QUY)\s*([1-4])\s*(?:/|-|NĂM|NAM)\s*(\d{4})", quy_raw)
-                if quy_match:
-                    quy_list.add(f"Q{quy_match.group(1)}/{quy_match.group(2)}")
-                else:
-                    quy_list.add(quy_raw)
+            for idx in range(min(20, len(df))):
+                row_vals = df.iloc[idx].values
+                score = count_header_matches(row_vals)
+                if score > best_score:
+                    best_score = score
+                    best_row_idx = idx
+                    
+            if best_row_idx >= 0 and best_score >= 2:
+                new_cols = df.iloc[best_row_idx].values
+                new_cols_str = " ".join([str(c).lower() for c in new_cols])
+                has_ma = any(kw in new_cols_str for kw in ["ma", "mã", "id", "code"])
+                has_other = any(kw in new_cols_str for kw in ["kết quả", "ket qua", "quy", "quý", "chỉ tiêu", "chi tieu"])
+                
+                if has_ma and has_other:
+                    df.columns = [str(c) if pd.notna(c) else f"Unnamed_{i}" for i, c in enumerate(new_cols)]
+                    df = df.iloc[best_row_idx + 1:].reset_index(drop=True)
 
-            rows.append((ma, nd, dk, mdk, mdat, kq, nn, hd))
+            df.columns = [str(c).strip().lower() for c in df.columns]
+            
+            import unicodedata
+            import re
+            def remove_accents(input_str):
+                if not isinstance(input_str, str):
+                    return ""
+                nfkd_form = unicodedata.normalize('NFKD', input_str)
+                return u"".join([c for c in nfkd_form if not unicodedata.combining(c)])
+
+            # Hàm tiện ích tìm cột duy nhất 1 lần an toàn
+            def find_col(possible_names):
+                # Ưu tiên khớp chính xác bằng từ nguyên vẹn
+                for n in possible_names:
+                    n_norm = remove_accents(n).lower().strip()
+                    for c in df.columns:
+                        c_norm = remove_accents(str(c)).lower().strip()
+                        if n_norm == c_norm:
+                            return c
+                
+                # Nếu không khớp chính xác, thử regex word boundary an toàn
+                for n in possible_names:
+                    n_norm = remove_accents(n).lower().strip()
+                    for c in df.columns:
+                        c_norm = remove_accents(str(c)).lower().strip()
+                        if re.search(r'\b' + re.escape(n_norm) + r'\b', c_norm):
+                            return c
+                return None
+
+            col_ma = find_col(["ma", "id", "code", "mã", "mã chỉ tiêu", "ma chi tieu"])
+            col_nd = find_col(["noi dung", "muc tieu", "chi tieu", "content", "target", "nội dung", "chỉ tiêu"])
+            col_dk = find_col(["dinh ky", "thu thap", "period", "chu ky", "định kỳ"])
+            col_mdk = find_col(["muc dang ky", "ke hoach", "plan", "dang ky", "kế hoạch"])
+            col_mdat = find_col(["muc dat", "thuc te", "actual", "dat", "thực tế", "tiến độ", "tien do", "thực hiện", "thuc hien"])
+            col_kq = find_col(["ket qua", "danh gia", "status", "result", "kết quả", "trạng thái", "trang thai"])
+            col_nn = find_col(["nguyen nhan", "cause", "reason", "lý do", "ly do"])
+            col_hd = find_col(["hanh dong", "khac phuc", "action", "solution", "giải pháp", "giai phap"])
+            col_quy = find_col(["quy", "ky", "quarter", "time", "thời gian", "thoi gian", "quý"])
+
+            def get_fast_list(col_name, default=None):
+                if col_name and col_name in df.columns:
+                    s = df[col_name].fillna("")
+                    s = s.astype(str).str.strip()
+                    s = s.replace("", default)
+                    s = s.replace("nan", default)
+                    return s.tolist()
+                else:
+                    return [default] * len(df)
+
+            list_ma = get_fast_list(col_ma)
+            list_nd = get_fast_list(col_nd)
+            list_dk = get_fast_list(col_dk)
+            list_mdk = get_fast_list(col_mdk)
+            list_mdat = get_fast_list(col_mdat)
+            list_kq = get_fast_list(col_kq)
+            list_nn = get_fast_list(col_nn)
+            list_hd = get_fast_list(col_hd)
+            list_quy = get_fast_list(col_quy)
+
+            # Validation: cảnh báo nếu không có cột mã
+            if col_ma is None:
+                print(f"⚠️ Cảnh báo: Không tìm thấy cột Mã Chỉ Tiêu trong cấu trúc dữ liệu!")
+
+            for ma, nd, dk, mdk, mdat, kq, nn, hd, quy in zip(list_ma, list_nd, list_dk, list_mdk, list_mdat, list_kq, list_nn, list_hd, list_quy):
+                ma_str = str(ma).strip()
+                if ma_str.upper() in ["N/A", "NAN", "NONE", ""]:
+                    continue # Bỏ qua dòng không có mã
+
+                quy_formatted = "N/A"
+                if str(quy).strip().upper() not in ["N/A", "NAN", "NONE", ""]:
+                    quy_raw = str(quy).strip().upper()
+                    quy_match = re.search(r"(?:Q|QUÝ|QUY)\s*([1-4])\s*(?:/|-|NĂM|NAM)?\s*(\d{4})", quy_raw)
+                    if quy_match:
+                        quy_formatted = f"Q{quy_match.group(1)}/{quy_match.group(2)}"
+                    else:
+                        quy_formatted = quy_raw
+                    quy_list.append(quy_formatted)
+
+                # Trả về 9 fields thay vì 8
+                rows.append((ma_str, nd, dk, mdk, mdat, kq, nn, hd, quy_formatted))
             
         quy_danh_gia_final = None
         if quy_list:
-            quy_list_l = list(quy_list)
-            quy_danh_gia_final = max(set(quy_list_l), key=quy_list_l.count)
+            quy_danh_gia_final = max(set(quy_list), key=quy_list.count)
             
-        return rows, quy_danh_gia_final, quy_list
+        return rows, quy_danh_gia_final, set(quy_list)
         
     except Exception as e:
         print(f"Lỗi parse dữ liệu có cấu trúc: {e}")
@@ -727,41 +826,61 @@ def process_single_file(s3_client, file_key):
     quy_danh_gia_final = quy_danh_gia or QUY_DANH_GIA_UNKNOWN
 
     file_extracted = []
-    for ma, noi_dung, dk, m_dk, m_dat, kq, nguyen_nhan, hanh_dong in raw_rows:
-        ma_str = str(ma).strip().upper()
-        nhom = ma_str.split("-")[0].strip() if "-" in ma_str else ma_str.split(" ")[0].strip()
+    for row_tuple in raw_rows:
+        if len(row_tuple) == 9:
+            ma, noi_dung, dk, m_dk, m_dat, kq, nguyen_nhan, hanh_dong, row_quy = row_tuple
+        else:
+            ma, noi_dung, dk, m_dk, m_dat, kq, nguyen_nhan, hanh_dong = row_tuple[:8]
+            row_quy = "N/A"
 
+        ma_str = str(ma).strip().upper()
+        if ma_str in ["N/A", "NAN", "NONE", ""]:
+            continue
+            
+        nhom = None
         ma_clean = ma_str
-        quy_clean = str(quy_danh_gia_final).strip().upper()
+        
+        if str(row_quy).strip().upper() not in ["N/A", "NAN", "NONE", ""]:
+            quy_raw = str(row_quy).strip().upper()
+            quy_match = re.search(r"(?:Q|QUÝ|QUY)\s*([1-4])\s*(?:/|-|NĂM|NAM)?\s*(\d{4})", quy_raw)
+            if quy_match:
+                quy_row_val = f"Q{quy_match.group(1)}/{quy_match.group(2)}"
+            else:
+                quy_row_val = quy_raw
+        else:
+            quy_row_val = str(quy_danh_gia_final).strip().upper()
+
+        quy_clean = quy_row_val
         dk_clean = str(dk).strip().lower()
         mdk_clean = str(m_dk).strip().lower()
         mdat_clean = str(m_dat).strip().lower()
-        kq_clean = clean_status_text(kq)
+        kq_clean = str(kq).strip()
 
         checksum = generate_checksum(
             f"{file_key}_{ma_clean}_{quy_clean}_{dk_clean}_{mdk_clean}_{mdat_clean}_{kq_clean}"
         )
 
+        def clean_val(v):
+            return str(v).strip() if v is not None and str(v).strip().upper() not in ["N/A", "NAN", "NONE", ""] else None
+
         file_extracted.append({
             "file_nguon": os.path.basename(file_key),
             "ma_chi_tieu": ma_str,
             "nhom_don_vi": nhom,
-            "quy_danh_gia": quy_danh_gia_final,
-            "noi_dung_muc_tieu": str(noi_dung).strip(),
-            "dinh_ky_thu_thap": str(dk).strip(),
-            "muc_dang_ky": str(m_dk).strip(),
-            "muc_dang_ky_numeric": parse_percent_or_number(m_dk),
-            "muc_dat": str(m_dat).strip(),
-            "muc_dat_numeric": parse_percent_or_number(m_dat),
-            "ket_qua_he_thong": kq_clean,
-            "nguyen_nhan": str(nguyen_nhan).strip(),
-            "hanh_dong_khac_phuc": str(hanh_dong).strip(),
+            "quy_danh_gia": quy_row_val,
+            "noi_dung_muc_tieu": clean_val(noi_dung),
+            "dinh_ky_thu_thap": clean_val(dk),
+            "muc_dang_ky": clean_val(m_dk),
+            "muc_dat": clean_val(m_dat),
+            "ket_qua_he_thong": clean_val(kq),
+            "nguyen_nhan": clean_val(nguyen_nhan),
+            "hanh_dong_khac_phuc": clean_val(hanh_dong),
             "minh_chung_type": ext.replace(".", "").lower(),
             "minh_chung_path": file_key,
             "checksum_sha256": checksum,
         })
 
-    is_success = bool(raw_rows)
+    is_success = len(file_extracted) > 0
     return file_key, file_extracted, is_success
 
 
@@ -779,16 +898,16 @@ def main():
         file_keys = [args.file_key]
         print(f"🎯 Chỉ định xử lý duy nhất file: {args.file_key}")
     else:
-        response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=SOURCE_PREFIX)
-        if "Contents" not in response:
-            print("Không có file nào trong staging.")
-            sys.exit(0)
-            
-        file_keys = [
-            obj["Key"] for obj in response["Contents"] 
-            if not obj["Key"].endswith("/")
-        ]
-
+        paginator = s3_client.get_paginator('list_objects_v2')
+        pages = paginator.paginate(Bucket=BUCKET_NAME, Prefix=SOURCE_PREFIX)
+        file_keys = []
+        for page in pages:
+            if "Contents" in page:
+                file_keys.extend([
+                    obj["Key"] for obj in page["Contents"] 
+                    if not obj["Key"].endswith("/")
+                ])
+                
         if not file_keys:
             print("Không có file hợp lệ trong staging.")
             sys.exit(0)
@@ -906,9 +1025,15 @@ def main():
         # Lấy đuôi file của file đầu tiên bị lỗi để báo lỗi chính xác
         ext = os.path.splitext(failed_keys[0])[1].lower() if failed_keys else ""
         if ext in [".pdf", ".jpg", ".png", ".jpeg"]:
-            err_msg = "AI OCR: File không đúng định dạng KPI hoặc chất lượng ảnh quá kém, không trích xuất được dữ liệu."
+            err_msg = "Hệ thống AI không thể đọc dữ liệu: Ảnh/PDF có thể bị mờ hoặc không chứa bảng KPI hợp lệ. Vui lòng tải lên file rõ nét hơn."
+        elif ext in [".xlsx", ".xls"]:
+            err_msg = "Không tìm thấy dữ liệu KPI trong file Excel vừa tải lên. Vui lòng kiểm tra xem file có bị trống hoặc đã có đủ các cột bắt buộc (Mã KPI, Nội dung, Quý...) chưa nhé."
+        elif ext == ".csv":
+            err_msg = "Không tìm thấy dữ liệu KPI trong file CSV vừa tải lên. Vui lòng kiểm tra lại cấu trúc các cột (Mã KPI, Nội dung, Quý...) hoặc dấu phân cách của file."
+        elif ext == ".json":
+            err_msg = "Không tìm thấy dữ liệu KPI trong file JSON vừa tải lên. Vui lòng kiểm tra lại cấu trúc file JSON xem đã đúng chuẩn danh sách các đối tượng KPI chưa nhé."
         else:
-            err_msg = f"Lỗi trích xuất: File {ext} không chứa các cột KPI hợp lệ (Mã, Nội dung, Quý...) hoặc dữ liệu trống."
+            err_msg = f"Định dạng file {ext} không chứa dữ liệu KPI hợp lệ hoặc không được hỗ trợ."
             
         print(f"❌ ERROR: {err_msg}")
         update_pipeline_error(args.run_id, err_msg)

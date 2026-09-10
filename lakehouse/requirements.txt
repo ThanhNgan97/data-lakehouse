@@ -152,4 +152,6 @@ zipp==4.1.0
 google-genai
 pydantic
 python-pptx
-openpyxl  
+openpyxl
+xlrd
+chardet

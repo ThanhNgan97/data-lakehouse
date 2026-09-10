@@ -208,13 +208,13 @@ def run_silver_to_gold(spark):
         create_branch(spark, branch_name, from_ref="main")
         use_branch(spark, branch_name)
 
-        print(f"📊 Đang đọc dữ liệu sạch ({silver_count} dòng) từ lakehouse.silver.kpi_cusc_master...")
+        print(f" Đang đọc dữ liệu sạch ({silver_count} dòng) từ lakehouse.silver.kpi_cusc_master...")
         df_silver = spark.read.table("lakehouse.silver.kpi_cusc_master")
         df_silver = add_quy_danh_gia_sort_key(df_silver)
 
         # DATA MART 1: TỔNG HỢP KPI THEO PHÒNG BAN
-        print("⚙️ Nghiệp vụ 1: Tính toán tỷ lệ hoàn thành KPI nghiệp vụ...")
-        df_filtered = df_silver.filter(col("ket_qua_he_thong") != "CHƯA ĐẾN KỲ ĐÁNH GIÁ")
+        print(" Nghiệp vụ 1: Tính toán tỷ lệ hoàn thành KPI nghiệp vụ...")
+        df_filtered = df_silver.filter(col("ket_qua_he_thong").isin(["DAT", "KHONG_DAT"]))
 
         # file_nguon phải là một phần của group key. Nếu không, số liệu của
         # nhiều file sẽ bị cộng chung và Superset không thể lọc đúng theo file.
@@ -222,8 +222,8 @@ def run_silver_to_gold(spark):
             "file_nguon", "quy_danh_gia", "nhom_don_vi"
         ).agg(
             count("*").alias("tong_chi_tieu_danh_gia"),
-            count(when(col("ket_qua_he_thong") == "ĐẠT", True)).alias("so_chi_tieu_dat"),
-            count(when(col("ket_qua_he_thong") == "KHÔNG ĐẠT", True)).alias("so_chi_tieu_khong_dat")
+            count(when(col("ket_qua_he_thong") == "DAT", True)).alias("so_chi_tieu_dat"),
+            count(when(col("ket_qua_he_thong") == "KHONG_DAT", True)).alias("so_chi_tieu_khong_dat")
         )
 
         df_summary = df_summary.withColumn(
@@ -234,7 +234,7 @@ def run_silver_to_gold(spark):
         df_summary = df_summary.select(*GOLD_SUMMARY_COLUMNS)
 
         # DATA MART 2: CHI TIẾT ĐẦY ĐỦ KPI + tên phòng ban
-        print("⚙️ Nghiệp vụ 2: Đồng bộ danh sách Rich Schema phục vụ tra cứu...")
+        print(" Nghiệp vụ 2: Đồng bộ danh sách Rich Schema phục vụ tra cứu...")
         df_detail = df_silver.select(
             "ma_chi_tieu", "nhom_don_vi", "quy_danh_gia",
             "noi_dung_muc_tieu", "dinh_ky_thu_thap",
@@ -247,7 +247,7 @@ def run_silver_to_gold(spark):
         df_detail = df_detail.select(*GOLD_DETAIL_COLUMNS)
 
         # DATA MART 3: SO SÁNH GIỮA CÁC KỲ
-        print("⚙️ Nghiệp vụ 3: Tính tăng/giảm % của từng mã chỉ tiêu...")
+        print(" Nghiệp vụ 3: Tính tăng/giảm % của từng mã chỉ tiêu...")
         window_spec = (
             Window.partitionBy("file_nguon", "ma_chi_tieu")
             .orderBy("quy_danh_gia_sort_key")
@@ -280,7 +280,7 @@ def run_silver_to_gold(spark):
         df_comparison = df_comparison.select(*GOLD_COMPARISON_COLUMNS)
 
         # DATA MART 4: DATA DICTIONARY CHO MÃ CHỈ TIÊU
-        print("⚙️ Nghiệp vụ 4: Xây bảng chú thích (data dictionary)...")
+        print(" Nghiệp vụ 4: Xây bảng chú thích (data dictionary)...")
         df_keyed = df_silver.withColumn(
             "ky_struct", struct(col("quy_danh_gia_sort_key"), col("quy_danh_gia"))
         )
@@ -308,23 +308,23 @@ def run_silver_to_gold(spark):
             .select(*GOLD_DICT_COLUMNS)
         )
 
-        print(f"🧊 Đang ghi Data Mart Tổng hợp lên branch '{branch_name}'...")
+        print(f" Đang ghi Data Mart Tổng hợp lên branch '{branch_name}'...")
         safe_write_gold_table(df_summary, GOLD_SUMMARY_TABLE, branch_name)
 
-        print(f"🧊 Đang ghi Data Mart Chi tiết lên branch '{branch_name}'...")
+        print(f" Đang ghi Data Mart Chi tiết lên branch '{branch_name}'...")
         safe_write_gold_table(df_detail, GOLD_DETAIL_TABLE, branch_name)
 
-        print(f"🧊 Đang ghi Data Mart So sánh kỳ lên branch '{branch_name}'...")
+        print(f" Đang ghi Data Mart So sánh kỳ lên branch '{branch_name}'...")
         safe_write_gold_table(df_comparison, GOLD_COMPARISON_TABLE, branch_name)
 
-        print(f"🧊 Đang ghi Data Dictionary lên branch '{branch_name}'...")
+        print(f" Đang ghi Data Dictionary lên branch '{branch_name}'...")
         safe_write_gold_table(df_dict, GOLD_DICT_TABLE, branch_name)
 
         check_quality_gold(spark, GOLD_SUMMARY_TABLE, GOLD_DETAIL_TABLE)
         merge_branch_to_main(spark, branch_name)
         use_main(spark)
 
-        print("\n🌟 HOÀN THÀNH TẦNG GOLD!")
+        print("\n HOÀN THÀNH TẦNG GOLD!")
 
         try:
             om_client = get_client()
@@ -336,17 +336,17 @@ def run_silver_to_gold(spark):
                 description="Tổng hợp tỷ lệ hoàn thành KPI theo đơn vị",
             )
         except Exception as e:
-            print(f"⚠️ Lineage update warning (bỏ qua): {e}")
+            print(f" Lineage update warning (bỏ qua): {e}")
 
         return True
 
     except DataQualityError as dqe:
         use_main(spark)
-        print(f"⚠️ DỮ LIỆU GOLD KHÔNG ĐẠT CHẤT LƯỢNG: {dqe}")
+        print(f" DỮ LIỆU GOLD KHÔNG ĐẠT CHẤT LƯỢNG: {dqe}")
         raise dqe
     except Exception as e:
         use_main(spark)
-        print(f"❌ Thất bại ở tiến trình Gold: {str(e)}")
+        print(f" Thất bại ở tiến trình Gold: {str(e)}")
         raise e
 
 

@@ -26,17 +26,17 @@ services:
     image: mysql:8.0
     container_name: lakehouse-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_ROOT_PASSWORD: ${DEMO_MYSQL_ROOT_PASSWORD:?DEMO_MYSQL_ROOT_PASSWORD is required}
       MYSQL_DATABASE: cusc_kpi_operational
       MYSQL_USER: kpi_user
-      MYSQL_PASSWORD: kpi_password123
+      MYSQL_PASSWORD: ${DEMO_MYSQL_PASSWORD:?DEMO_MYSQL_PASSWORD is required}
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./mysql-init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpassword"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
       interval: 5s
       timeout: 5s
       retries: 20

@@ -62,7 +62,7 @@ else:
 MYSQL_PORT     = int(os.environ.get("MYSQL_PORT", "3306"))
 MYSQL_DATABASE = os.environ.get("MYSQL_DATABASE", "cusc_kpi_operational")
 MYSQL_USER     = os.environ.get("MYSQL_USER", "kpi_user")
-MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "kpi_password123")
+MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD")
 
 MYSQL_JDBC_JAR = os.environ.get(
     "MYSQL_JDBC_JAR",

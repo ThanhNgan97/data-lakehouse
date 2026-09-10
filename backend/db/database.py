@@ -21,7 +21,13 @@ _pw = quote_plus(PG_PASSWORD)
 DATABASE_URL = f"postgresql://{PG_USER}:{_pw}@{PG_HOST}:{PG_PORT}/{PG_DATABASE}"
 
 # Create engine and session factory
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+# Do not let an unavailable PostgreSQL instance leave API requests hanging until
+# the operating-system TCP timeout expires.
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    connect_args={"connect_timeout": 5},
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # NOTE: In-memory fallback removed. Authentication now requires a real DB.
@@ -132,9 +138,5 @@ def get_user(username: str, db):
     `db` must be a SQLAlchemy `Session` provided by `get_db()`.
     Returns a `User` ORM instance or `None`.
     """
-    try:
-        from db.models import User
-        return db.query(User).filter(User.username == username).first()
-    except Exception as e:
-        logging.error(f"Database error when querying user '{username}': {e}")
-        return None
+    from db.models import User
+    return db.query(User).filter(User.username == username).first()

@@ -45,7 +45,11 @@ if IS_DOCKER and (_pg_host in ["127.0.0.1", "localhost"]):
 else:
     PG_HOST = _pg_host
 
-PG_PORT           = int(os.environ.get("PG_PORT",       "5432"))
+_pg_port = int(os.environ.get("PG_PORT", "5432"))
+if IS_DOCKER and PG_HOST == "postgres" and _pg_port == 5433:
+    PG_PORT = 5432
+else:
+    PG_PORT = _pg_port
 PG_USER           = os.environ.get("PG_USER",           "postgres")
 PG_PASSWORD       = os.environ.get("PG_PASSWORD",       "240203")
 PG_MAINTENANCE_DB = os.environ.get("PG_MAINTENANCE_DB", "postgres")

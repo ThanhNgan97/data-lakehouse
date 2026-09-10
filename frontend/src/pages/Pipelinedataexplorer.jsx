@@ -7,7 +7,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 /* Mỗi tầng dữ liệu dùng đúng tông kim loại theo tên gọi Medallion */
 const LAYER_INFO = {
-  bronze: { label: 'Bronze', desc: 'File Parquet thô (PDF/DOCX đã parse)', tone: 'bronze', ring: 'ring-bronze-300', dot: 'bg-bronze-500', text: 'text-bronze-700', bg: 'bg-bronze-100' },
+  bronze: { label: 'Bronze', desc: 'File Parquet thô (PDF/DOCX/PPT đã parse)', tone: 'bronze', ring: 'ring-bronze-300', dot: 'bg-bronze-500', text: 'text-bronze-700', bg: 'bg-bronze-100' },
   silver: { label: 'Silver', desc: 'Bảng Iceberg đã chuẩn hóa (kpi_cusc_master)', tone: 'silver', ring: 'ring-silver-300', dot: 'bg-silver-500', text: 'text-silver-700', bg: 'bg-silver-100' },
   gold: { label: 'Gold', desc: '4 Data Mart phục vụ báo cáo & dashboard', tone: 'gold', ring: 'ring-gold-300', dot: 'bg-gold-500', text: 'text-gold-700', bg: 'bg-gold-100' },
 };

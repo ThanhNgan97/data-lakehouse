@@ -10,9 +10,11 @@ minio_client = Minio(
 )
 
 def init_minio():
-    # Đảm bảo Bucket luôn sẵn sàng
-    if not minio_client.bucket_exists(MINIO_BUCKET_NAME):
-        minio_client.make_bucket(MINIO_BUCKET_NAME)
+    try:
+        # Đảm bảo Bucket luôn sẵn sàng (nếu MinIO online)
+        if not minio_client.bucket_exists(MINIO_BUCKET_NAME):
+            minio_client.make_bucket(MINIO_BUCKET_NAME)
+    except Exception:
+        pass
 
-# Khởi tạo ngay khi module được import
-init_minio()
+

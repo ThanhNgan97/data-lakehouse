@@ -89,7 +89,7 @@ def preflight_clean_predict_table(spark):
     except Exception as exc:
         error_text = str(exc).lower()
         if any(token in error_text for token in ["notfoundexception", "no such file or directory", "failed to open input stream"]):
-            print(f"⚠️ [Preflight] Bảng '{GOLD_PREDICT_TABLE}' bị orphaned metadata. Đang dọn dẹp key...")
+            print(f" [Preflight] Bảng '{GOLD_PREDICT_TABLE}' bị orphaned metadata. Đang dọn dẹp key...")
             delete_nessie_orphaned_key(GOLD_PREDICT_TABLE, "main")
 
 
@@ -99,10 +99,10 @@ def safe_write_predict_table(df, table_name, branch_name):
     except Exception as exc:
         error_text = str(exc).lower()
         if any(token in error_text for token in ["notfoundexception", "no such file or directory", "failed to open input stream"]):
-            print(f"⚠️ Bảng '{table_name}' bị orphaned metadata trên branch '{branch_name}'. Đang tự động dọn dẹp và ghi lại...")
+            print(f" Bảng '{table_name}' bị orphaned metadata trên branch '{branch_name}'. Đang tự động dọn dẹp và ghi lại...")
             delete_nessie_orphaned_key(table_name, branch_name)
             df.writeTo(table_name).createOrReplace()
-            print(f"✅ Đã phục hồi và ghi lại thành công bảng '{table_name}'.")
+            print(f" Đã phục hồi và ghi lại thành công bảng '{table_name}'.")
         else:
             raise
 
@@ -113,14 +113,14 @@ def run_predictive_analysis(spark):
 
     try:
         if not spark.catalog.tableExists(GOLD_COMPARISON_TABLE):
-            print(f"ℹ️ Bảng {GOLD_COMPARISON_TABLE} chưa tồn tại. Bỏ qua bước dự đoán.")
+            print(f" Bảng {GOLD_COMPARISON_TABLE} chưa tồn tại. Bỏ qua bước dự đoán.")
             return True
         
         if spark.table(GOLD_COMPARISON_TABLE).count() == 0:
-            print(f"ℹ️ Bảng {GOLD_COMPARISON_TABLE} đang rỗng (0 dòng). Bỏ qua bước dự đoán.")
+            print(f" Bảng {GOLD_COMPARISON_TABLE} đang rỗng (0 dòng). Bỏ qua bước dự đoán.")
             return True
     except Exception as e:
-        print(f"ℹ️ Không thể truy vấn bảng {GOLD_COMPARISON_TABLE}: {e}. Bỏ qua bước dự đoán.")
+        print(f" Không thể truy vấn bảng {GOLD_COMPARISON_TABLE}: {e}. Bỏ qua bước dự đoán.")
         return True
 
     branch_name = make_branch_name("predictive_analysis")
@@ -177,18 +177,18 @@ def run_predictive_analysis(spark):
             "thoi_gian_du_doan"
         )
         
-        print(f"🧊 Đang ghi Data Mart Dự đoán lên branch '{branch_name}'...")
+        print(f" Đang ghi Data Mart Dự đoán lên branch '{branch_name}'...")
         safe_write_predict_table(df_next, GOLD_PREDICT_TABLE, branch_name)
 
         merge_branch_to_main(spark, branch_name)
         use_main(spark)
         
-        print("\n🌟 HOÀN THÀNH TÍNH TOÁN DỰ ĐOÁN!")
+        print("\n HOÀN THÀNH TÍNH TOÁN DỰ ĐOÁN!")
         return True
         
     except Exception as e:
         use_main(spark)
-        print(f"❌ Thất bại ở bước dự đoán: {str(e)}")
+        print(f" Thất bại ở bước dự đoán: {str(e)}")
         raise e
 
 

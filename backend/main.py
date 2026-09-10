@@ -3,11 +3,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 
+import asyncio
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Khởi tạo DB (tạo bảng + seed users mặc định) khi server start."""
     from db.database import init_db
-    init_db()
+    asyncio.create_task(asyncio.to_thread(init_db))
     yield
 
 

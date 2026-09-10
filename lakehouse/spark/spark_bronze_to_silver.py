@@ -221,22 +221,42 @@ def init_silver_table_if_needed(spark, branch_name="main"):
                     spark.sql(f"ALTER TABLE {tbl} ADD COLUMN {col_name} {col_type}")
         except Exception:
             pass
+            
+    dedup_silver_master_if_needed(spark, SILVER_TABLE)
+
+
+def dedup_silver_master_if_needed(spark, table_name=SILVER_TABLE):
+    """Tự động dọn dẹp các dòng bị trùng khóa nghiệp vụ trong bảng Silver nếu có."""
+    try:
+        df = spark.table(table_name)
+        if df.count() == 0:
+            return
+        w = Window.partitionBy("ma_chi_tieu", "quy_danh_gia", "nhom_don_vi").orderBy(desc("thoi_gian_ingest_silver"))
+        df_ranked = df.withColumn("_rn", row_number().over(w))
+        dup_count = df_ranked.filter("_rn > 1").count()
+        if dup_count > 0:
+            print(f"🧹 Tự động làm sạch {dup_count} bản ghi bị trùng trong bảng {table_name}...")
+            df_dedup = df_ranked.filter("_rn = 1").drop("_rn")
+            df_dedup.writeTo(table_name).createOrReplace()
+            print(f"✅ Đã dọn dẹp xong bảng {table_name}.")
+    except Exception as e:
+        print(f"⚠️ Cảnh báo tự động làm sạch {table_name}: {e}")
 
 
 def dedup_by_business_key(df_bronze):
     """Dedup theo khóa nghiệp vụ (ma_chi_tieu, quy_danh_gia, nhom_don_vi)."""
-    from pyspark.sql.functions import monotonically_increasing_id
+    from pyspark.sql.functions import lit
     
-    df_with_ts = df_bronze.withColumn("thoi_gian_ingest_silver", current_timestamp()) \
-                          .withColumn("_row_id", monotonically_increasing_id())
+    now_ts = datetime.now()
+    df_with_ts = df_bronze.withColumn("thoi_gian_ingest_silver", lit(now_ts))
                           
-    w = Window.partitionBy("ma_chi_tieu", "quy_danh_gia") \
-              .orderBy(desc("thoi_gian_ingest_silver"), desc("_row_id"))
+    w = Window.partitionBy("ma_chi_tieu", "quy_danh_gia", "nhom_don_vi") \
+              .orderBy(desc("thoi_gian_ingest_silver"), desc("checksum_sha256"))
               
     df_ranked = df_with_ts.withColumn("_rn", row_number().over(w))
 
-    df_staging  = df_ranked.filter("_rn = 1").drop("_rn", "_row_id")
-    df_discarded = df_ranked.filter("_rn > 1").drop("_rn", "_row_id")
+    df_staging  = df_ranked.filter("_rn = 1").drop("_rn")
+    df_discarded = df_ranked.filter("_rn > 1").drop("_rn")
 
     return df_staging, df_discarded
 
@@ -311,8 +331,16 @@ def run_bronze_to_silver(spark, run_id=""):
         parquet_contents.extend([obj["Key"] for obj in page.get("Contents", []) if obj["Key"].endswith(".parquet")])
     
     if not parquet_contents:
-        print(f"ℹ️ Không tìm thấy file Bronze Parquet nào mới. Bỏ qua bước Silver (chờ Ingestion).")
-        raise ValueError("Không có dữ liệu Bronze mới để xử lý.")
+        # Fallback: kiểm tra xem có bất kỳ file Bronze Parquet nào khác trong thư mục bronze/ chưa được nạp
+        fallback_pages = paginator.paginate(Bucket=MINIO_BUCKET_NAME, Prefix=BRONZE_PREFIX)
+        all_parquet = [obj["Key"] for p in fallback_pages for obj in p.get("Contents", []) if obj["Key"].endswith(".parquet")]
+        if all_parquet:
+            print(f"ℹ️ Không tìm thấy file cho run_id '{run_id}', nhưng tìm thấy {len(all_parquet)} file Bronze Parquet chưa xử lý. Tiến hành nạp...")
+            bronze_parquet_path = "s3a://university-lakehouse/bronze/*.parquet"
+            parquet_contents = all_parquet
+        else:
+            print(f"ℹ️ Không tìm thấy file Bronze Parquet nào mới. Bỏ qua bước Silver (chờ Ingestion).")
+            return True
 
     print(f"📁 Tìm thấy {len(parquet_contents)} file Bronze Parquet cần nạp vào Silver...")
     branch_name = make_branch_name("ingest_bronze_silver")
@@ -373,7 +401,10 @@ def run_bronze_to_silver(spark, run_id=""):
         # Ghi data bẩn vào Quarantine Table
         if df_invalid.count() > 0:
             print(f"⚠️ Phát hiện {df_invalid.count()} bản ghi không hợp lệ, đang đẩy vào Quarantine...")
-            df_invalid.createOrReplaceTempView("bronze_invalid_view")
+            invalid_tmp_path = "s3a://university-lakehouse/bronze/tmp_staging_invalid"
+            df_invalid.write.mode("overwrite").parquet(invalid_tmp_path)
+            df_invalid_materialized = spark.read.parquet(invalid_tmp_path)
+            df_invalid_materialized.createOrReplaceTempView("bronze_invalid_view")
             spark.sql(f"""
                 INSERT INTO {SILVER_QUARANTINE_TABLE} 
                 (file_nguon, ma_chi_tieu, nhom_don_vi, quy_danh_gia, noi_dung_muc_tieu,
@@ -388,12 +419,14 @@ def run_bronze_to_silver(spark, run_id=""):
                 FROM bronze_invalid_view
             """)
 
-        df_valid.createOrReplaceTempView("bronze_staging_view")
-
+        tmp_path = "s3a://university-lakehouse/bronze/tmp_staging_valid"
+        df_valid.write.mode("overwrite").parquet(tmp_path)
+        df_valid_materialized = spark.read.parquet(tmp_path)
+        df_valid_materialized.createOrReplaceTempView("bronze_staging_view")
         spark.sql(f"""
             MERGE INTO {SILVER_TABLE} t
             USING bronze_staging_view s
-            ON t.ma_chi_tieu = s.ma_chi_tieu AND t.quy_danh_gia = s.quy_danh_gia AND t.nhom_don_vi = s.nhom_don_vi AND t.file_nguon = s.file_nguon
+            ON t.ma_chi_tieu = s.ma_chi_tieu AND t.quy_danh_gia = s.quy_danh_gia AND t.nhom_don_vi = s.nhom_don_vi
             WHEN MATCHED THEN
               UPDATE SET
                 t.file_nguon = s.file_nguon,
@@ -427,6 +460,7 @@ def run_bronze_to_silver(spark, run_id=""):
         """)
         print(f"✅ Đã ghi/cập nhật dữ liệu vào bảng Iceberg trên branch '{branch_name}'.")
 
+        dedup_silver_master_if_needed(spark, SILVER_TABLE)
         check_quality_silver(spark, SILVER_TABLE)
         merge_branch_to_main(spark, branch_name)
         use_main(spark)

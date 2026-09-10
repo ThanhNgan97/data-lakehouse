@@ -26,3 +26,7 @@ NESSIE_API_URL = os.getenv("NESSIE_API_URL", "http://localhost:19120/api/v1")
 # Airflow
 AIRFLOW_WEBSERVER_URL = os.getenv("AIRFLOW_WEBSERVER_URL", "http://localhost:8080")
 
+# Superset
+SUPERSET_API_URL = os.getenv("SUPERSET_API_URL", "http://localhost:8088")
+SUPERSET_ADMIN_USER = os.getenv("SUPERSET_ADMIN_USER", "admin")
+SUPERSET_ADMIN_PASSWORD = os.getenv("SUPERSET_ADMIN_PASSWORD", "admin")

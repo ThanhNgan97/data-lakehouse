@@ -41,6 +41,9 @@ app.include_router(pipeline_preview.router, prefix="/api/pipeline", tags=["Pipel
 from api.routes import users
 app.include_router(users.router, prefix="/api", tags=["Users"])
 
+# Superset Guest Token
+from api.routes import superset
+app.include_router(superset.router, prefix="/api/superset", tags=["Superset"])
 
 @app.get("/")
 async def root():

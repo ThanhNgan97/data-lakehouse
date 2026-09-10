@@ -11,6 +11,7 @@ import CatalogHistoryTimeline from "./pages/CatalogHistoryTimeline";
 import Login from "./pages/auth/Login";
 import UserUpload from "./pages/UserUpload";
 import Landing from "./pages/Landing";
+import DashboardPage from "./pages/DashboardPage";
 
 // Axios global 401 interceptor — tự động logout khi token hết hạn
 axios.interceptors.response.use(
@@ -59,6 +60,11 @@ function App() {
               <Navigate to="/login" />
             )
           }
+        />
+
+        <Route
+          path="/dashboard"
+          element={token ? <DashboardPage /> : <Navigate to="/login" />}
         />
 
         {/* /catalog được xử lý bên trong AdminDashboard (tab catalog),

@@ -204,6 +204,10 @@ def build_bronze_dataframe(spark, run_id, connector):
         .withColumn("minh_chung_type", lit("mysql"))
         .withColumn("minh_chung_path", lit(mysql_source_uri))
         .withColumn("nguon_du_lieu", lit(SOURCE_NAME))
+        # Lineage theo đúng Data Connector đang được user/admin chọn.
+        # Không lưu credential vào Bronze; chỉ lưu ID + tên connector để phục vụ lọc/trace.
+        .withColumn("source_connector_id", lit(int(connector.id)).cast("long"))
+        .withColumn("source_connector_name", lit(connector.name))
         .withColumn("thoi_gian_ingest_bronze", current_timestamp())
         .withColumn("run_id", lit(run_id or ""))
     )
@@ -215,6 +219,8 @@ def build_bronze_dataframe(spark, run_id, connector):
             concat_ws(
                 "||",
                 lit(SOURCE_NAME),
+                # Cùng một KPI từ hai connector khác nhau phải có checksum lineage khác nhau.
+                lit(str(connector.id)),
                 col("ma_chi_tieu"),
                 col("nhom_don_vi"),
                 col("quy_danh_gia"),
@@ -230,6 +236,8 @@ def build_bronze_dataframe(spark, run_id, connector):
     return df.select(
         "file_nguon",
         "nguon_du_lieu",
+        "source_connector_id",
+        "source_connector_name",
         "ma_chi_tieu",
         "nhom_don_vi",
         "quy_danh_gia",
@@ -342,6 +350,8 @@ def main():
             "muc_dat_numeric",
             "ket_qua_he_thong",
             "nguon_du_lieu",
+            "source_connector_id",
+            "source_connector_name",
         ).show(10, truncate=False)
 
         output_key, row_count = write_single_parquet_to_minio(df_bronze)

@@ -99,6 +99,8 @@ def init_silver_table_if_needed(spark, branch_name="main"):
         CREATE TABLE IF NOT EXISTS {SILVER_TABLE} (
             file_nguon STRING,
             nguon_du_lieu STRING,
+            source_connector_id BIGINT,
+            source_connector_name STRING,
             ma_chi_tieu STRING,
             nhom_don_vi STRING,
             quy_danh_gia STRING,
@@ -148,6 +150,8 @@ def init_silver_table_if_needed(spark, branch_name="main"):
             "minh_chung_type": "STRING",
             "minh_chung_path": "STRING",
             "nguon_du_lieu": "STRING",
+            "source_connector_id": "BIGINT",
+            "source_connector_name": "STRING",
         }
         for col_name, col_type in new_columns.items():
             if col_name not in existing_columns:
@@ -266,8 +270,16 @@ def read_multisource_bronze(spark, document_keys, mysql_keys):
     for df_next in dataframes[1:]:
         df_bronze = df_bronze.unionByName(df_next, allowMissingColumns=True)
 
+    # Hai cột lineage connector là nullable đối với nguồn tài liệu.
+    # Ép kiểu rõ ràng khi batch chỉ có document để Spark không tạo NullType.
+    if "source_connector_id" not in df_bronze.columns:
+        df_bronze = df_bronze.withColumn("source_connector_id", lit(None).cast("long"))
+    if "source_connector_name" not in df_bronze.columns:
+        df_bronze = df_bronze.withColumn("source_connector_name", lit(None).cast("string"))
+
     required_columns = [
-        "file_nguon", "nguon_du_lieu", "ma_chi_tieu", "nhom_don_vi",
+        "file_nguon", "nguon_du_lieu", "source_connector_id", "source_connector_name",
+        "ma_chi_tieu", "nhom_don_vi",
         "quy_danh_gia", "noi_dung_muc_tieu", "dinh_ky_thu_thap",
         "muc_dang_ky", "muc_dang_ky_numeric", "muc_dat", "muc_dat_numeric",
         "ket_qua_he_thong", "nguyen_nhan", "hanh_dong_khac_phuc",
@@ -353,6 +365,8 @@ def run_bronze_to_silver(spark, run_id=""):
               UPDATE SET
                 t.file_nguon = s.file_nguon,
                 t.nguon_du_lieu = s.nguon_du_lieu,
+                t.source_connector_id = s.source_connector_id,
+                t.source_connector_name = s.source_connector_name,
                 t.nhom_don_vi = s.nhom_don_vi,
                 t.noi_dung_muc_tieu = s.noi_dung_muc_tieu,
                 t.dinh_ky_thu_thap = s.dinh_ky_thu_thap,
@@ -369,13 +383,15 @@ def run_bronze_to_silver(spark, run_id=""):
                 t.thoi_gian_ingest_silver = s.thoi_gian_ingest_silver
             WHEN NOT MATCHED THEN
               INSERT (
-                file_nguon, nguon_du_lieu, ma_chi_tieu, nhom_don_vi, quy_danh_gia, noi_dung_muc_tieu,
+                file_nguon, nguon_du_lieu, source_connector_id, source_connector_name,
+                ma_chi_tieu, nhom_don_vi, quy_danh_gia, noi_dung_muc_tieu,
                 dinh_ky_thu_thap, muc_dang_ky, muc_dang_ky_numeric, muc_dat, muc_dat_numeric,
                 ket_qua_he_thong, nguyen_nhan, hanh_dong_khac_phuc, minh_chung_type, minh_chung_path, checksum_sha256,
                 thoi_gian_ingest_silver
               )
               VALUES (
-                s.file_nguon, s.nguon_du_lieu, s.ma_chi_tieu, s.nhom_don_vi, s.quy_danh_gia, s.noi_dung_muc_tieu,
+                s.file_nguon, s.nguon_du_lieu, s.source_connector_id, s.source_connector_name,
+                s.ma_chi_tieu, s.nhom_don_vi, s.quy_danh_gia, s.noi_dung_muc_tieu,
                 s.dinh_ky_thu_thap, s.muc_dang_ky, s.muc_dang_ky_numeric, s.muc_dat, s.muc_dat_numeric,
                 s.ket_qua_he_thong, s.nguyen_nhan, s.hanh_dong_khac_phuc, s.minh_chung_type, s.minh_chung_path, s.checksum_sha256,
                 s.thoi_gian_ingest_silver
@@ -391,7 +407,9 @@ def run_bronze_to_silver(spark, run_id=""):
 
         print("\n📊 CHI TIẾT DỮ LIỆU TRONG BẢNG ICEBERG SILVER (main):")
         spark.sql(f"""
-            SELECT nguon_du_lieu, ma_chi_tieu, nhom_don_vi, quy_danh_gia, dinh_ky_thu_thap, muc_dang_ky, muc_dat, ket_qua_he_thong
+            SELECT nguon_du_lieu, source_connector_id, source_connector_name,
+                   ma_chi_tieu, nhom_don_vi, quy_danh_gia, dinh_ky_thu_thap,
+                   muc_dang_ky, muc_dat, ket_qua_he_thong
             FROM {SILVER_TABLE}
             ORDER BY nhom_don_vi, ma_chi_tieu
         """).show(20, truncate=False)

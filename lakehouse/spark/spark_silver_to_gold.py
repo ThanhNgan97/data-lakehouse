@@ -51,24 +51,28 @@ GOLD_COMPARISON_TABLE = "lakehouse.gold.kpi_so_sanh_ky"
 GOLD_DICT_TABLE       = "lakehouse.gold.dm_chi_tieu"
 
 GOLD_SUMMARY_COLUMNS = [
+    "nguon_du_lieu", "source_connector_id", "source_connector_name",
     "quy_danh_gia", "nhom_don_vi",
     "tong_chi_tieu_danh_gia", "so_chi_tieu_dat", "so_chi_tieu_khong_dat",
     "ty_le_hoan_thanh_phan_tram", "thoi_gian_dong_goi_gold",
 ]
 GOLD_DETAIL_COLUMNS = [
+    "nguon_du_lieu", "source_connector_id", "source_connector_name",
     "ma_chi_tieu", "nhom_don_vi", "ten_phong_ban", "quy_danh_gia",
     "noi_dung_muc_tieu", "dinh_ky_thu_thap",
     "muc_dang_ky", "muc_dat", "muc_dat_numeric", "ket_qua_he_thong",
     "nguyen_nhan", "hanh_dong_khac_phuc",
-    "nguon_du_lieu", "file_nguon", "minh_chung_type", "minh_chung_path", "thoi_gian_dong_goi_gold",
+    "file_nguon", "minh_chung_type", "minh_chung_path", "thoi_gian_dong_goi_gold",
 ]
 GOLD_COMPARISON_COLUMNS = [
+    "nguon_du_lieu", "source_connector_id", "source_connector_name",
     "ma_chi_tieu", "nhom_don_vi", "ten_phong_ban",
     "quy_danh_gia", "muc_dat_numeric",
     "quy_danh_gia_ky_truoc", "muc_dat_numeric_ky_truoc",
     "tang_truong_phan_tram", "thoi_gian_dong_goi_gold",
 ]
 GOLD_DICT_COLUMNS = [
+    "nguon_du_lieu", "source_connector_id", "source_connector_name",
     "ma_chi_tieu", "nhom_don_vi", "ten_phong_ban",
     "noi_dung_muc_tieu",
     "ky_dau_tien_xuat_hien", "ky_gan_nhat_cap_nhat",
@@ -212,7 +216,15 @@ def run_silver_to_gold(spark):
         print("⚙️ Nghiệp vụ 1: Tính toán tỷ lệ hoàn thành KPI nghiệp vụ...")
         df_filtered = df_silver.filter(col("ket_qua_he_thong") != "CHƯA ĐẾN KỲ ĐÁNH GIÁ")
 
-        df_summary = df_filtered.groupBy("quy_danh_gia", "nhom_don_vi").agg(
+        # Giữ Gold chung, nhưng thêm dimension nguồn để Superset có thể lọc
+        # theo từng MySQL Connector. Khi không chọn filter, dashboard vẫn tổng hợp tất cả.
+        df_summary = df_filtered.groupBy(
+            "nguon_du_lieu",
+            "source_connector_id",
+            "source_connector_name",
+            "quy_danh_gia",
+            "nhom_don_vi",
+        ).agg(
             count("*").alias("tong_chi_tieu_danh_gia"),
             count(when(col("ket_qua_he_thong") == "ĐẠT", True)).alias("so_chi_tieu_dat"),
             count(when(col("ket_qua_he_thong") == "KHÔNG ĐẠT", True)).alias("so_chi_tieu_khong_dat")
@@ -231,8 +243,9 @@ def run_silver_to_gold(spark):
             "ma_chi_tieu", "nhom_don_vi", "quy_danh_gia",
             "noi_dung_muc_tieu", "dinh_ky_thu_thap",
             "muc_dang_ky", "muc_dat", "muc_dat_numeric", "ket_qua_he_thong",
-            "nguyen_nhan", "hanh_dong_khac_phuc", "nguon_du_lieu", "file_nguon",
-            "minh_chung_type", "minh_chung_path"
+            "nguyen_nhan", "hanh_dong_khac_phuc",
+            "nguon_du_lieu", "source_connector_id", "source_connector_name",
+            "file_nguon", "minh_chung_type", "minh_chung_path"
         ).withColumn("thoi_gian_dong_goi_gold", current_timestamp())
 
         df_detail = with_ten_phong_ban(df_detail)
@@ -240,7 +253,13 @@ def run_silver_to_gold(spark):
 
         # DATA MART 3: SO SÁNH GIỮA CÁC KỲ
         print("⚙️ Nghiệp vụ 3: Tính tăng/giảm % của từng mã chỉ tiêu...")
-        window_spec = Window.partitionBy("ma_chi_tieu", "nhom_don_vi").orderBy("quy_danh_gia_sort_key")
+        # Không so sánh chéo giữa document và các MySQL Connector khác nhau.
+        window_spec = Window.partitionBy(
+            "nguon_du_lieu",
+            "source_connector_id",
+            "ma_chi_tieu",
+            "nhom_don_vi",
+        ).orderBy("quy_danh_gia_sort_key")
 
         df_comparison = (
             df_silver
@@ -268,7 +287,13 @@ def run_silver_to_gold(spark):
         )
 
         df_dict = (
-            df_keyed.groupBy("ma_chi_tieu", "nhom_don_vi")
+            df_keyed.groupBy(
+                "nguon_du_lieu",
+                "source_connector_id",
+                "source_connector_name",
+                "ma_chi_tieu",
+                "nhom_don_vi",
+            )
             .agg(
                 first("noi_dung_muc_tieu", ignorenulls=True).alias("noi_dung_muc_tieu"),
                 spark_min("ky_struct").alias("_ky_dau_tien_struct"),

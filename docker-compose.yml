@@ -12,6 +12,36 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d university_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - lakehouse-network
+
+  # MySQL Operational KPI Source
+  mysql:
+    image: mysql:8.0
+    container_name: lakehouse-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DEMO_MYSQL_ROOT_PASSWORD:?DEMO_MYSQL_ROOT_PASSWORD is required}
+      MYSQL_DATABASE: cusc_kpi_operational
+      MYSQL_USER: kpi_user
+      MYSQL_PASSWORD: ${DEMO_MYSQL_PASSWORD:?DEMO_MYSQL_PASSWORD is required}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    restart: unless-stopped
     networks:
       - lakehouse-network
 
@@ -110,7 +140,9 @@ services:
       - QUARKUS_DATASOURCE_USERNAME=postgres
       - QUARKUS_DATASOURCE_PASSWORD=240203
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
     networks:
       - lakehouse-network
 
@@ -205,6 +237,7 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:240203@postgres:5432/airflow_db
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
+      AIRFLOW__WEBSERVER__SECRET_KEY: 'university_lakehouse_secret_key'
       MINIO_ENDPOINT: 'http://minio:9000'
       NESSIE_API_URL: 'http://nessie:19120/api/v1'
     volumes:
@@ -220,6 +253,7 @@ services:
 
 volumes:
   postgres_data:
+  mysql_data:
   minio_data:
   superset_home:
 

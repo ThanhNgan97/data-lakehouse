@@ -41,6 +41,14 @@ app.include_router(pipeline_preview.router, prefix="/api/pipeline", tags=["Pipel
 from api.routes import users
 app.include_router(users.router, prefix="/api", tags=["Users"])
 
+# Data Connectors (admin only)
+from api.routes import connectors
+app.include_router(connectors.router, prefix="/api", tags=["Data Connectors"])
+
+
+# User-owned Data Connectors (authenticated + ownership-scoped)
+from api.routes import my_connectors
+app.include_router(my_connectors.router, prefix="/api", tags=["My Data Connectors"])
 
 @app.get("/")
 async def root():

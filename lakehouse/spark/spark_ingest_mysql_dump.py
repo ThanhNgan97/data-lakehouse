@@ -99,6 +99,9 @@ def build_dump_bronze_from_parsed(
     run_id="",
     source_uri,
     source_identity,
+    source_file_name=None,
+    source_upload_id=None,
+    source_table="ket_qua_danh_gia",
 ):
     df_dv = parsed_table_to_dataframe(
         spark,
@@ -133,6 +136,9 @@ def build_dump_bronze_from_parsed(
         source_identity=source_identity,
         source_connector_id=None,
         source_connector_name=None,
+        source_file_name=source_file_name,
+        source_upload_id=source_upload_id,
+        source_table=source_table,
     )
 
 
@@ -159,6 +165,8 @@ def build_dump_bronze_dataframe(
             source_identity
             or dump_path.name
         ),
+        source_file_name=dump_path.name,
+        source_upload_id=None,
     )
 
 
@@ -233,6 +241,8 @@ def build_dump_bronze_from_object(
             f"s3://{MINIO_BUCKET_NAME}/{object_key}"
         ),
         source_identity=source_identity,
+        source_file_name=Path(object_key).name,
+        source_upload_id=upload_id,
     )
 
 
@@ -302,6 +312,9 @@ def main():
             "nguon_du_lieu",
             "source_connector_id",
             "source_connector_name",
+            "source_file_name",
+            "source_upload_id",
+            "source_table",
             "minh_chung_type",
             "minh_chung_path",
             "run_id",

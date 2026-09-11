@@ -32,6 +32,9 @@ BRONZE_COLUMNS = [
     "nguon_du_lieu",
     "source_connector_id",
     "source_connector_name",
+    "source_file_name",
+    "source_upload_id",
+    "source_table",
     "ma_chi_tieu",
     "nhom_don_vi",
     "quy_danh_gia",
@@ -88,6 +91,9 @@ def build_kpi_bronze_dataframe(
     source_identity,
     source_connector_id=None,
     source_connector_name=None,
+    source_file_name=None,
+    source_upload_id=None,
+    source_table="ket_qua_danh_gia",
 ):
     """Join the three KPI tables and produce the canonical Bronze schema.
 
@@ -140,6 +146,24 @@ def build_kpi_bronze_dataframe(
         else lit(None).cast("string")
     )
 
+    source_file_name_expr = (
+        lit(str(source_file_name))
+        if source_file_name is not None
+        else lit(None).cast("string")
+    )
+
+    source_upload_id_expr = (
+        lit(int(source_upload_id)).cast("long")
+        if source_upload_id is not None
+        else lit(None).cast("long")
+    )
+
+    source_table_expr = (
+        lit(str(source_table))
+        if source_table is not None
+        else lit(None).cast("string")
+    )
+
     df = (
         df
         .withColumn("muc_dang_ky_numeric", parse_simple_numeric("muc_dang_ky"))
@@ -151,6 +175,9 @@ def build_kpi_bronze_dataframe(
         .withColumn("nguon_du_lieu", lit(source_name))
         .withColumn("source_connector_id", connector_id_expr)
         .withColumn("source_connector_name", connector_name_expr)
+        .withColumn("source_file_name", source_file_name_expr)
+        .withColumn("source_upload_id", source_upload_id_expr)
+        .withColumn("source_table", source_table_expr)
         .withColumn("thoi_gian_ingest_bronze", current_timestamp())
         .withColumn("run_id", lit(run_id or ""))
     )

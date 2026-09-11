@@ -136,6 +136,7 @@ def build_bronze_dataframe(spark, run_id, connector):
         source_identity=str(connector.id),
         source_connector_id=connector.id,
         source_connector_name=connector.name,
+        source_table=table_kq,
     )
 
 def write_single_parquet_to_minio(df):

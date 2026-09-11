@@ -30,19 +30,6 @@ from datetime import datetime
 import boto3
 import pandas as pd
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import (
-    col,
-    concat_ws,
-    coalesce,
-    current_timestamp,
-    lit,
-    lower,
-    regexp_replace,
-    sha2,
-    trim,
-    upper,
-    when,
-)
 
 from env_config import (
     MINIO_ACCESS_KEY,
@@ -52,6 +39,7 @@ from env_config import (
     MYSQL_JDBC_JAR,
 )
 from connector_runtime import load_connector, resolve_mysql_runtime_host
+from kpi_bronze_mapping import build_kpi_bronze_dataframe
 
 MYSQL_DRIVER = "com.mysql.cj.jdbc.Driver"
 BRONZE_PREFIX = "bronze/"
@@ -119,145 +107,36 @@ def read_mysql_table(spark, table_name, connector):
     )
 
 
-def parse_simple_numeric(column_name):
-    """
-    Chỉ parse khi toàn bộ chuỗi là một số đơn giản, ví dụ:
-      100% -> 100.0
-      3,69 -> 3.69
-      9.5 -> 9.5
-
-    Chuỗi nghiệp vụ phức tạp như:
-      "Không phát sinh sự cố"
-      "99,5% (...) / 100% (...)"
-    sẽ trả NULL.
-    """
-    cleaned = regexp_replace(trim(col(column_name)), ",", ".")
-    cleaned = regexp_replace(cleaned, "%", "")
-
-    return when(
-        cleaned.rlike(r"^-?[0-9]+(?:\.[0-9]+)?$"),
-        cleaned.cast("double"),
-    ).otherwise(lit(None).cast("double"))
-
-
-def normalize_status(column_name):
-    raw = upper(trim(col(column_name)))
-
-    return (
-        when(raw.contains("CHƯA ĐẾN KỲ"), lit("CHƯA ĐẾN KỲ ĐÁNH GIÁ"))
-        .when(raw.contains("KHÔNG ĐẠT"), lit("KHÔNG ĐẠT"))
-        .when(raw.contains("ĐẠT"), lit("ĐẠT"))
-        .otherwise(raw)
-    )
-
-
 def build_bronze_dataframe(spark, run_id, connector):
-    """
-    Join 3 bảng KPI MySQL thành schema tương thích với Bronze hiện tại.
-
-    Day 3 làm động phần connector/credential.
-    Schema Mapping cho tên bảng/cột khác chuẩn sẽ được xử lý ở bước riêng.
-    """
+    """Read the three KPI tables from live MySQL and map them to canonical Bronze."""
     source_config = connector.source_config or {}
 
-    # Hiện tại pipeline KPI chuẩn sử dụng ba bảng này.
-    # source_config.primary_table được dùng để ghi provenance.
     table_kq = "ket_qua_danh_gia"
     table_mt = "muc_tieu_kpi"
     table_dv = "don_vi"
     primary_table = source_config.get("primary_table") or table_kq
 
-    df_kq = read_mysql_table(spark, table_kq, connector).alias("kq")
-    df_mt = read_mysql_table(spark, table_mt, connector).alias("mt")
-    df_dv = read_mysql_table(spark, table_dv, connector).alias("dv")
+    df_kq = read_mysql_table(spark, table_kq, connector)
+    df_mt = read_mysql_table(spark, table_mt, connector)
+    df_dv = read_mysql_table(spark, table_dv, connector)
 
     mysql_source_uri = (
         f"mysql://{connector.database_name}/{primary_table}"
         f"?connector_id={connector.id}"
     )
 
-    joined = (
-        df_kq
-        .join(df_mt, col("kq.ma_chi_tieu") == col("mt.ma_chi_tieu"), "left")
-        .join(df_dv, col("kq.ma_don_vi") == col("dv.ma_don_vi"), "left")
+    return build_kpi_bronze_dataframe(
+        df_kq,
+        df_mt,
+        df_dv,
+        run_id=run_id,
+        source_name=SOURCE_NAME,
+        source_uri=mysql_source_uri,
+        evidence_type="mysql",
+        source_identity=str(connector.id),
+        source_connector_id=connector.id,
+        source_connector_name=connector.name,
     )
-
-    df = joined.select(
-        upper(trim(col("kq.ma_chi_tieu"))).alias("ma_chi_tieu"),
-        upper(trim(col("kq.ma_don_vi"))).alias("nhom_don_vi"),
-        upper(trim(col("kq.quy_danh_gia"))).alias("quy_danh_gia"),
-        trim(col("mt.noi_dung")).alias("noi_dung_muc_tieu"),
-        trim(col("mt.dinh_ky")).alias("dinh_ky_thu_thap"),
-        trim(col("kq.muc_dang_ky")).alias("muc_dang_ky"),
-        trim(col("kq.muc_dat")).alias("muc_dat"),
-        normalize_status("kq.ket_qua_he_thong").alias("ket_qua_he_thong"),
-        coalesce(trim(col("kq.nguyen_nhan")), lit("")).alias("nguyen_nhan"),
-        col("kq.updated_at").alias("source_updated_at"),
-    )
-
-    df = (
-        df
-        .withColumn("muc_dang_ky_numeric", parse_simple_numeric("muc_dang_ky"))
-        .withColumn("muc_dat_numeric", parse_simple_numeric("muc_dat"))
-        .withColumn("hanh_dong_khac_phuc", lit(""))
-        .withColumn("file_nguon", lit(mysql_source_uri))
-        .withColumn("minh_chung_type", lit("mysql"))
-        .withColumn("minh_chung_path", lit(mysql_source_uri))
-        .withColumn("nguon_du_lieu", lit(SOURCE_NAME))
-        # Lineage theo đúng Data Connector đang được user/admin chọn.
-        # Không lưu credential vào Bronze; chỉ lưu ID + tên connector để phục vụ lọc/trace.
-        .withColumn("source_connector_id", lit(int(connector.id)).cast("long"))
-        .withColumn("source_connector_name", lit(connector.name))
-        .withColumn("thoi_gian_ingest_bronze", current_timestamp())
-        .withColumn("run_id", lit(run_id or ""))
-    )
-
-    # Checksum ổn định theo nội dung nghiệp vụ của bản ghi MySQL.
-    df = df.withColumn(
-        "checksum_sha256",
-        sha2(
-            concat_ws(
-                "||",
-                lit(SOURCE_NAME),
-                # Cùng một KPI từ hai connector khác nhau phải có checksum lineage khác nhau.
-                lit(str(connector.id)),
-                col("ma_chi_tieu"),
-                col("nhom_don_vi"),
-                col("quy_danh_gia"),
-                coalesce(col("muc_dang_ky"), lit("")),
-                coalesce(col("muc_dat"), lit("")),
-                coalesce(col("ket_qua_he_thong"), lit("")),
-                coalesce(col("nguyen_nhan"), lit("")),
-            ),
-            256,
-        ),
-    )
-
-    return df.select(
-        "file_nguon",
-        "nguon_du_lieu",
-        "source_connector_id",
-        "source_connector_name",
-        "ma_chi_tieu",
-        "nhom_don_vi",
-        "quy_danh_gia",
-        "noi_dung_muc_tieu",
-        "dinh_ky_thu_thap",
-        "muc_dang_ky",
-        "muc_dang_ky_numeric",
-        "muc_dat",
-        "muc_dat_numeric",
-        "ket_qua_he_thong",
-        "nguyen_nhan",
-        "hanh_dong_khac_phuc",
-        "minh_chung_type",
-        "minh_chung_path",
-        "checksum_sha256",
-        "source_updated_at",
-        "thoi_gian_ingest_bronze",
-        "run_id",
-    )
-
 
 def write_single_parquet_to_minio(df):
     """

@@ -171,27 +171,51 @@ def init_silver_table_if_needed(spark, branch_name="main"):
 
 
 def dedup_by_business_key(df_bronze):
-    """
-    Dedup theo khóa nghiệp vụ (ma_chi_tieu, quy_danh_gia, nhom_don_vi).
+    """Deduplicate Bronze snapshots by the KPI business key.
 
-    Nếu có nhiều snapshot Bronze cho cùng một khóa, ưu tiên file Bronze có tên/path
-    mới hơn. Tên file của cả pipeline tài liệu và MySQL đều chứa timestamp nên thứ tự
-    này ổn định hơn việc chỉ dùng current_timestamp() cho toàn batch.
+    Priority:
+    1. latest Bronze ingest timestamp;
+    2. Bronze object path as deterministic fallback;
+    3. checksum as final deterministic tie-break.
     """
-    # Dùng literal timestamp tạo ở Python để MERGE Iceberg nhận source plan là deterministic.
     batch_ingest_ts = datetime.now()
+
     df_with_ts = df_bronze.withColumn(
         "thoi_gian_ingest_silver",
         lit(batch_ingest_ts).cast("timestamp"),
     )
-    w = (
-        Window.partitionBy("ma_chi_tieu", "quy_danh_gia", "nhom_don_vi")
-        .orderBy(desc("_bronze_input_path"), desc("checksum_sha256"))
-    )
-    df_ranked = df_with_ts.withColumn("_rn", row_number().over(w))
 
-    df_staging = df_ranked.filter("_rn = 1").drop("_rn")
-    df_discarded = df_ranked.filter("_rn > 1").drop("_rn")
+    window_spec = (
+        Window.partitionBy(
+            "ma_chi_tieu",
+            "quy_danh_gia",
+            "nhom_don_vi",
+        )
+        .orderBy(
+            col(
+                "thoi_gian_ingest_bronze"
+            ).desc_nulls_last(),
+            desc("_bronze_input_path"),
+            desc("checksum_sha256"),
+        )
+    )
+
+    df_ranked = df_with_ts.withColumn(
+        "_rn",
+        row_number().over(window_spec),
+    )
+
+    df_staging = (
+        df_ranked
+        .filter("_rn = 1")
+        .drop("_rn")
+    )
+
+    df_discarded = (
+        df_ranked
+        .filter("_rn > 1")
+        .drop("_rn")
+    )
 
     return df_staging, df_discarded
 
@@ -350,6 +374,7 @@ def read_multisource_bronze(
         "source_file_name": "string",
         "source_upload_id": "long",
         "source_table": "string",
+        "thoi_gian_ingest_bronze": "timestamp",
     }
 
     for column_name, column_type in nullable_lineage_columns.items():
@@ -382,6 +407,7 @@ def read_multisource_bronze(
         "minh_chung_type",
         "minh_chung_path",
         "checksum_sha256",
+        "thoi_gian_ingest_bronze",
         "_bronze_input_path",
     ]
 

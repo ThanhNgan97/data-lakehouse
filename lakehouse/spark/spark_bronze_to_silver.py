@@ -49,8 +49,11 @@ BRONZE_ARCHIVE_PREFIX  = "bronze_archive/"
 BRONZE_DISCARDED_PREFIX = "bronze_discarded_duplicates/"
 DOCUMENT_SOURCE = "DOCUMENT_FILE"
 MYSQL_SOURCE = "MYSQL_RDBMS"
+MYSQL_DUMP_SOURCE = "MYSQL_DUMP"
+
 DOCUMENT_BRONZE_PREFIX = f"{BRONZE_PREFIX}data_extracted_"
 MYSQL_BRONZE_PREFIX = f"{BRONZE_PREFIX}data_mysql_extracted_"
+MYSQL_DUMP_BRONZE_PREFIX = f"{BRONZE_PREFIX}data_mysql_dump_extracted_"
 
 
 def get_spark_session():
@@ -101,6 +104,9 @@ def init_silver_table_if_needed(spark, branch_name="main"):
             nguon_du_lieu STRING,
             source_connector_id BIGINT,
             source_connector_name STRING,
+            source_file_name STRING,
+            source_upload_id BIGINT,
+            source_table STRING,
             ma_chi_tieu STRING,
             nhom_don_vi STRING,
             quy_danh_gia STRING,
@@ -152,6 +158,9 @@ def init_silver_table_if_needed(spark, branch_name="main"):
             "nguon_du_lieu": "STRING",
             "source_connector_id": "BIGINT",
             "source_connector_name": "STRING",
+            "source_file_name": "STRING",
+            "source_upload_id": "BIGINT",
+            "source_table": "STRING",
         }
         for col_name, col_type in new_columns.items():
             if col_name not in existing_columns:
@@ -205,92 +214,184 @@ def save_discarded_duplicates(df_discarded, s3_client):
 
 
 def list_new_bronze_parquet_keys(s3_client):
-    """Liệt kê đúng 2 nhóm Bronze được Silver hỗ trợ: tài liệu cũ và MySQL mới."""
+    """List Bronze Parquet files supported by Silver."""
     paginator = s3_client.get_paginator("list_objects_v2")
+
     document_keys = []
     mysql_keys = []
+    mysql_dump_keys = []
 
-    for page in paginator.paginate(Bucket=MINIO_BUCKET_NAME, Prefix=BRONZE_PREFIX):
+    for page in paginator.paginate(
+        Bucket=MINIO_BUCKET_NAME,
+        Prefix=BRONZE_PREFIX,
+    ):
         for obj in page.get("Contents", []):
             key = obj["Key"]
+
             if not key.endswith(".parquet"):
                 continue
-            if key.startswith(DOCUMENT_BRONZE_PREFIX):
+
+            # Check the more specific dump prefix first.
+            if key.startswith(MYSQL_DUMP_BRONZE_PREFIX):
+                mysql_dump_keys.append(key)
+            elif key.startswith(DOCUMENT_BRONZE_PREFIX):
                 document_keys.append(key)
             elif key.startswith(MYSQL_BRONZE_PREFIX):
                 mysql_keys.append(key)
 
-    return sorted(document_keys), sorted(mysql_keys)
+    return (
+        sorted(document_keys),
+        sorted(mysql_keys),
+        sorted(mysql_dump_keys),
+    )
 
 
-def read_multisource_bronze(spark, document_keys, mysql_keys):
-    """Đọc hai loại Bronze rồi chuẩn hóa metadata nguồn trước khi hợp nhất."""
+def read_multisource_bronze(
+    spark,
+    document_keys,
+    mysql_keys,
+    mysql_dump_keys,
+):
+    """Read supported Bronze sources and normalize provenance columns."""
     dataframes = []
 
     if document_keys:
-        # Đọc từng file và gắn path bằng lit(key), thay vì input_file_name().
-        # input_file_name() là biểu thức non-deterministic và Iceberg MERGE sẽ từ chối
-        # khi nó còn nằm trong lineage của source DataFrame.
         for key in document_keys:
             path = f"s3a://{MINIO_BUCKET_NAME}/{key}"
+
             df_document = (
                 spark.read.parquet(path)
                 .withColumn("_bronze_input_path", lit(key))
                 .withColumn("nguon_du_lieu", lit(DOCUMENT_SOURCE))
             )
+
             dataframes.append(df_document)
-        print(f"📄 Bronze tài liệu: {len(document_keys)} file Parquet.")
+
+        print(
+            f"Bronze documents: {len(document_keys)} Parquet file(s)."
+        )
 
     if mysql_keys:
         for key in mysql_keys:
             path = f"s3a://{MINIO_BUCKET_NAME}/{key}"
+
             df_mysql = (
                 spark.read.parquet(path)
                 .withColumn("_bronze_input_path", lit(key))
             )
 
             if "nguon_du_lieu" not in df_mysql.columns:
-                df_mysql = df_mysql.withColumn("nguon_du_lieu", lit(MYSQL_SOURCE))
+                df_mysql = df_mysql.withColumn(
+                    "nguon_du_lieu",
+                    lit(MYSQL_SOURCE),
+                )
             else:
                 df_mysql = df_mysql.withColumn(
                     "nguon_du_lieu",
                     when(
-                        col("nguon_du_lieu").isNull() | (trim(col("nguon_du_lieu")) == ""),
+                        col("nguon_du_lieu").isNull()
+                        | (trim(col("nguon_du_lieu")) == ""),
                         lit(MYSQL_SOURCE),
                     ).otherwise(col("nguon_du_lieu")),
                 )
 
             dataframes.append(df_mysql)
-        print(f"🗄️ Bronze MySQL: {len(mysql_keys)} file Parquet.")
+
+        print(
+            f"Bronze live MySQL: {len(mysql_keys)} Parquet file(s)."
+        )
+
+    if mysql_dump_keys:
+        for key in mysql_dump_keys:
+            path = f"s3a://{MINIO_BUCKET_NAME}/{key}"
+
+            df_dump = (
+                spark.read.parquet(path)
+                .withColumn("_bronze_input_path", lit(key))
+            )
+
+            if "nguon_du_lieu" not in df_dump.columns:
+                df_dump = df_dump.withColumn(
+                    "nguon_du_lieu",
+                    lit(MYSQL_DUMP_SOURCE),
+                )
+            else:
+                df_dump = df_dump.withColumn(
+                    "nguon_du_lieu",
+                    when(
+                        col("nguon_du_lieu").isNull()
+                        | (trim(col("nguon_du_lieu")) == ""),
+                        lit(MYSQL_DUMP_SOURCE),
+                    ).otherwise(col("nguon_du_lieu")),
+                )
+
+            dataframes.append(df_dump)
+
+        print(
+            f"Bronze MySQL dump: {len(mysql_dump_keys)} Parquet file(s)."
+        )
 
     if not dataframes:
         return None
 
     df_bronze = dataframes[0]
-    for df_next in dataframes[1:]:
-        df_bronze = df_bronze.unionByName(df_next, allowMissingColumns=True)
 
-    # Hai cột lineage connector là nullable đối với nguồn tài liệu.
-    # Ép kiểu rõ ràng khi batch chỉ có document để Spark không tạo NullType.
-    if "source_connector_id" not in df_bronze.columns:
-        df_bronze = df_bronze.withColumn("source_connector_id", lit(None).cast("long"))
-    if "source_connector_name" not in df_bronze.columns:
-        df_bronze = df_bronze.withColumn("source_connector_name", lit(None).cast("string"))
+    for df_next in dataframes[1:]:
+        df_bronze = df_bronze.unionByName(
+            df_next,
+            allowMissingColumns=True,
+        )
+
+    # Nullable provenance fields. Explicit types avoid NullType when a
+    # batch contains only a source that does not provide a given field.
+    nullable_lineage_columns = {
+        "source_connector_id": "long",
+        "source_connector_name": "string",
+        "source_file_name": "string",
+        "source_upload_id": "long",
+        "source_table": "string",
+    }
+
+    for column_name, column_type in nullable_lineage_columns.items():
+        if column_name not in df_bronze.columns:
+            df_bronze = df_bronze.withColumn(
+                column_name,
+                lit(None).cast(column_type),
+            )
 
     required_columns = [
-        "file_nguon", "nguon_du_lieu", "source_connector_id", "source_connector_name",
-        "ma_chi_tieu", "nhom_don_vi",
-        "quy_danh_gia", "noi_dung_muc_tieu", "dinh_ky_thu_thap",
-        "muc_dang_ky", "muc_dang_ky_numeric", "muc_dat", "muc_dat_numeric",
-        "ket_qua_he_thong", "nguyen_nhan", "hanh_dong_khac_phuc",
-        "minh_chung_type", "minh_chung_path", "checksum_sha256",
+        "file_nguon",
+        "nguon_du_lieu",
+        "source_connector_id",
+        "source_connector_name",
+        "source_file_name",
+        "source_upload_id",
+        "source_table",
+        "ma_chi_tieu",
+        "nhom_don_vi",
+        "quy_danh_gia",
+        "noi_dung_muc_tieu",
+        "dinh_ky_thu_thap",
+        "muc_dang_ky",
+        "muc_dang_ky_numeric",
+        "muc_dat",
+        "muc_dat_numeric",
+        "ket_qua_he_thong",
+        "nguyen_nhan",
+        "hanh_dong_khac_phuc",
+        "minh_chung_type",
+        "minh_chung_path",
+        "checksum_sha256",
         "_bronze_input_path",
     ]
 
-    # Cho phép Bronze cũ thiếu một số cột mới; Silver sẽ nhận NULL thay vì làm job lỗi.
-    for col_name in required_columns:
-        if col_name not in df_bronze.columns:
-            df_bronze = df_bronze.withColumn(col_name, lit(None))
+    # Older Bronze files remain compatible.
+    for column_name in required_columns:
+        if column_name not in df_bronze.columns:
+            df_bronze = df_bronze.withColumn(
+                column_name,
+                lit(None),
+            )
 
     return df_bronze.select(*required_columns)
 
@@ -327,8 +428,14 @@ def run_bronze_to_silver(spark, run_id=""):
     init_silver_table_if_needed(spark, "main")
 
     s3_client = get_s3_client()
-    document_keys, mysql_keys = list_new_bronze_parquet_keys(s3_client)
-    parquet_contents = document_keys + mysql_keys
+    document_keys, mysql_keys, mysql_dump_keys = (
+        list_new_bronze_parquet_keys(s3_client)
+    )
+    parquet_contents = (
+        document_keys
+        + mysql_keys
+        + mysql_dump_keys
+    )
 
     if not parquet_contents:
         print(f"ℹ️ Không tìm thấy Bronze Parquet mới từ tài liệu hoặc MySQL trong '{BRONZE_PREFIX}'. Bỏ qua bước Silver.")
@@ -336,7 +443,9 @@ def run_bronze_to_silver(spark, run_id=""):
 
     print(
         f"📁 Tìm thấy {len(parquet_contents)} file Bronze cần nạp "
-        f"({len(document_keys)} tài liệu, {len(mysql_keys)} MySQL)."
+        f"({len(document_keys)} documents, "
+        f"{len(mysql_keys)} MySQL live, "
+        f"{len(mysql_dump_keys)} MySQL dump)."
     )
     branch_name = make_branch_name("ingest_bronze_silver")
 
@@ -348,7 +457,12 @@ def run_bronze_to_silver(spark, run_id=""):
         init_silver_table_if_needed(spark, branch_name)
         backfill_existing_source_labels(spark)
 
-        df_bronze = read_multisource_bronze(spark, document_keys, mysql_keys)
+        df_bronze = read_multisource_bronze(
+            spark,
+            document_keys,
+            mysql_keys,
+            mysql_dump_keys,
+        )
         df_staging, df_discarded = dedup_by_business_key(df_bronze)
 
         save_discarded_duplicates(df_discarded, s3_client)
@@ -367,6 +481,9 @@ def run_bronze_to_silver(spark, run_id=""):
                 t.nguon_du_lieu = s.nguon_du_lieu,
                 t.source_connector_id = s.source_connector_id,
                 t.source_connector_name = s.source_connector_name,
+                t.source_file_name = s.source_file_name,
+                t.source_upload_id = s.source_upload_id,
+                t.source_table = s.source_table,
                 t.nhom_don_vi = s.nhom_don_vi,
                 t.noi_dung_muc_tieu = s.noi_dung_muc_tieu,
                 t.dinh_ky_thu_thap = s.dinh_ky_thu_thap,
@@ -384,6 +501,7 @@ def run_bronze_to_silver(spark, run_id=""):
             WHEN NOT MATCHED THEN
               INSERT (
                 file_nguon, nguon_du_lieu, source_connector_id, source_connector_name,
+                source_file_name, source_upload_id, source_table,
                 ma_chi_tieu, nhom_don_vi, quy_danh_gia, noi_dung_muc_tieu,
                 dinh_ky_thu_thap, muc_dang_ky, muc_dang_ky_numeric, muc_dat, muc_dat_numeric,
                 ket_qua_he_thong, nguyen_nhan, hanh_dong_khac_phuc, minh_chung_type, minh_chung_path, checksum_sha256,
@@ -391,6 +509,7 @@ def run_bronze_to_silver(spark, run_id=""):
               )
               VALUES (
                 s.file_nguon, s.nguon_du_lieu, s.source_connector_id, s.source_connector_name,
+                s.source_file_name, s.source_upload_id, s.source_table,
                 s.ma_chi_tieu, s.nhom_don_vi, s.quy_danh_gia, s.noi_dung_muc_tieu,
                 s.dinh_ky_thu_thap, s.muc_dang_ky, s.muc_dang_ky_numeric, s.muc_dat, s.muc_dat_numeric,
                 s.ket_qua_he_thong, s.nguyen_nhan, s.hanh_dong_khac_phuc, s.minh_chung_type, s.minh_chung_path, s.checksum_sha256,
@@ -408,6 +527,7 @@ def run_bronze_to_silver(spark, run_id=""):
         print("\n📊 CHI TIẾT DỮ LIỆU TRONG BẢNG ICEBERG SILVER (main):")
         spark.sql(f"""
             SELECT nguon_du_lieu, source_connector_id, source_connector_name,
+                   source_file_name, source_upload_id, source_table,
                    ma_chi_tieu, nhom_don_vi, quy_danh_gia, dinh_ky_thu_thap,
                    muc_dang_ky, muc_dat, ket_qua_he_thong
             FROM {SILVER_TABLE}

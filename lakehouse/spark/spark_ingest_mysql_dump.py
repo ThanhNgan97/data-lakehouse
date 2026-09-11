@@ -11,6 +11,8 @@ SQL text is parsed only. It is never executed.
 from __future__ import annotations
 
 import argparse
+import io
+from datetime import datetime
 from pathlib import Path
 
 import boto3
@@ -34,6 +36,8 @@ from sql_dump_parser import (
 
 SOURCE_NAME = "MYSQL_DUMP"
 SOURCE_PREFIX = "staging/"
+BRONZE_PREFIX = "bronze/"
+MYSQL_DUMP_BRONZE_PREFIX = f"{BRONZE_PREFIX}data_mysql_dump_extracted_"
 MAX_DUMP_BYTES = 50 * 1024 * 1024
 
 
@@ -246,6 +250,59 @@ def build_dump_bronze_from_object(
     )
 
 
+def write_single_parquet_to_minio(
+    df,
+    *,
+    upload_id,
+):
+    """Write one canonical MySQL-dump Bronze Parquet object to MinIO."""
+
+    if upload_id is None or int(upload_id) <= 0:
+        raise ValueError(
+            "A positive upload_id is required for MySQL dump Bronze output."
+        )
+
+    row_count = df.count()
+
+    if row_count == 0:
+        print("MySQL dump contains no canonical KPI rows to ingest.")
+        return None, 0
+
+    # Microseconds + upload id avoid collisions between concurrent uploads.
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    output_key = (
+        f"{MYSQL_DUMP_BRONZE_PREFIX}"
+        f"upload_{int(upload_id)}_{timestamp}.parquet"
+    )
+
+    pandas_df = df.toPandas()
+
+    parquet_buffer = io.BytesIO()
+    pandas_df.to_parquet(
+        parquet_buffer,
+        index=False,
+        engine="pyarrow",
+        coerce_timestamps="us",
+        allow_truncated_timestamps=True,
+    )
+
+    payload = parquet_buffer.getvalue()
+
+    get_s3_client().put_object(
+        Bucket=MINIO_BUCKET_NAME,
+        Key=output_key,
+        Body=payload,
+        ContentType="application/octet-stream",
+    )
+
+    print(
+        f"MYSQL_DUMP -> Bronze: {output_key} "
+        f"({row_count} rows, {len(df.columns)} columns)"
+    )
+
+    return output_key, row_count
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Safe MySQL dump -> canonical Bronze preview"
@@ -272,12 +329,30 @@ def main():
         default="",
         help="Airflow DAG Run ID",
     )
+    parser.add_argument(
+        "--write_bronze",
+        action="store_true",
+        help="Write canonical Bronze Parquet to MinIO.",
+    )
 
     args = parser.parse_args()
 
     if bool(args.path) == bool(args.object_key):
         parser.error(
             "Provide exactly one input: local path or --object_key."
+        )
+
+    if args.write_bronze and not args.object_key:
+        parser.error(
+            "--write_bronze requires --object_key."
+        )
+
+    if args.write_bronze and (
+        args.upload_id is None
+        or args.upload_id <= 0
+    ):
+        parser.error(
+            "--write_bronze requires a positive --upload_id."
         )
 
     spark = get_spark_session()
@@ -319,6 +394,19 @@ def main():
             "minh_chung_path",
             "run_id",
         ).show(10, truncate=False)
+
+        if args.write_bronze:
+            output_key, row_count = write_single_parquet_to_minio(
+                df,
+                upload_id=args.upload_id,
+            )
+
+            if output_key:
+                print(
+                    "BRONZE_OUTPUT = "
+                    f"s3://{MINIO_BUCKET_NAME}/{output_key}"
+                )
+                print("BRONZE_ROW_COUNT =", row_count)
 
     finally:
         spark.stop()

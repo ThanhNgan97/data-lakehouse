@@ -1,13 +1,11 @@
-﻿# -*- coding: utf-8 -*-
-"""MySQL dump -> canonical Bronze adapter.
+# -*- coding: utf-8 -*-
+"""Safe MySQL dump -> canonical Bronze adapter.
 
-Phase 1:
-- read a .sql dump from a local path;
-- parse it without executing SQL;
-- convert the three KPI tables to Spark DataFrames;
-- reuse the shared KPI Bronze mapping.
+Supported inputs:
+- local .sql path, for development/regression;
+- exact MinIO staging object key.
 
-This module does not write to MinIO yet.
+SQL text is parsed only. It is never executed.
 """
 
 from __future__ import annotations
@@ -15,15 +13,38 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+import boto3
+from botocore.exceptions import ClientError
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import to_timestamp
 from pyspark.sql.types import StringType, StructField, StructType
 
+from env_config import (
+    MINIO_ACCESS_KEY,
+    MINIO_BUCKET_NAME,
+    MINIO_ENDPOINT,
+    MINIO_SECRET_KEY,
+)
 from kpi_bronze_mapping import build_kpi_bronze_dataframe
-from sql_dump_parser import parse_mysql_dump_file
+from sql_dump_parser import (
+    parse_mysql_dump_file,
+    parse_mysql_dump_text,
+)
 
 
 SOURCE_NAME = "MYSQL_DUMP"
+SOURCE_PREFIX = "staging/"
+MAX_DUMP_BYTES = 50 * 1024 * 1024
+
+
+def get_s3_client():
+    return boto3.client(
+        "s3",
+        endpoint_url=MINIO_ENDPOINT,
+        aws_access_key_id=MINIO_ACCESS_KEY,
+        aws_secret_access_key=MINIO_SECRET_KEY,
+        verify=False,
+    )
 
 
 def get_spark_session():
@@ -38,19 +59,18 @@ def get_spark_session():
 
 
 def parsed_table_to_dataframe(spark, parsed_result, table_name):
-    """Convert one parsed SQL table to a string-based Spark DataFrame."""
     table = parsed_result["tables"][table_name]
     columns = table["columns"]
     rows = table["rows"]
 
     if not columns:
         raise ValueError(
-            f"SQL dump không xác định được schema của bảng '{table_name}'."
+            f"SQL dump does not define schema for table '{table_name}'."
         )
 
     if not rows:
         raise ValueError(
-            f"SQL dump không có dữ liệu cho bảng '{table_name}'."
+            f"SQL dump contains no data for table '{table_name}'."
         )
 
     schema = StructType(
@@ -62,7 +82,8 @@ def parsed_table_to_dataframe(spark, parsed_result, table_name):
 
     normalized_rows = [
         tuple(
-            None if row.get(column_name) is None else str(row.get(column_name))
+            None if row.get(column_name) is None
+            else str(row.get(column_name))
             for column_name in columns
         )
         for row in rows
@@ -71,30 +92,24 @@ def parsed_table_to_dataframe(spark, parsed_result, table_name):
     return spark.createDataFrame(normalized_rows, schema=schema)
 
 
-def build_dump_bronze_dataframe(
+def build_dump_bronze_from_parsed(
     spark,
-    dump_path,
+    parsed,
     *,
     run_id="",
-    source_uri=None,
-    source_identity=None,
+    source_uri,
+    source_identity,
 ):
-    """Parse a MySQL dump and map its KPI tables to canonical Bronze."""
-    dump_path = Path(dump_path)
-    parsed = parse_mysql_dump_file(dump_path)
-
     df_dv = parsed_table_to_dataframe(
         spark,
         parsed,
         "don_vi",
     )
-
     df_mt = parsed_table_to_dataframe(
         spark,
         parsed,
         "muc_tieu_kpi",
     )
-
     df_kq = parsed_table_to_dataframe(
         spark,
         parsed,
@@ -107,20 +122,117 @@ def build_dump_bronze_dataframe(
             to_timestamp("updated_at"),
         )
 
-    resolved_source_uri = source_uri or f"file://{dump_path.resolve()}"
-    resolved_identity = source_identity or dump_path.name
-
     return build_kpi_bronze_dataframe(
         df_kq,
         df_mt,
         df_dv,
         run_id=run_id,
         source_name=SOURCE_NAME,
-        source_uri=resolved_source_uri,
+        source_uri=source_uri,
         evidence_type="mysql_dump",
-        source_identity=resolved_identity,
+        source_identity=source_identity,
         source_connector_id=None,
         source_connector_name=None,
+    )
+
+
+def build_dump_bronze_dataframe(
+    spark,
+    dump_path,
+    *,
+    run_id="",
+    source_uri=None,
+    source_identity=None,
+):
+    dump_path = Path(dump_path)
+    parsed = parse_mysql_dump_file(dump_path)
+
+    return build_dump_bronze_from_parsed(
+        spark,
+        parsed,
+        run_id=run_id,
+        source_uri=(
+            source_uri
+            or f"file://{dump_path.resolve()}"
+        ),
+        source_identity=(
+            source_identity
+            or dump_path.name
+        ),
+    )
+
+
+def read_dump_from_minio(object_key):
+    object_key = object_key.strip()
+
+    if not object_key.startswith(SOURCE_PREFIX):
+        raise ValueError(
+            f"object_key must be inside '{SOURCE_PREFIX}': {object_key}"
+        )
+
+    if Path(object_key).suffix.lower() != ".sql":
+        raise ValueError(
+            f"Only .sql staging objects are supported: {object_key}"
+        )
+
+    s3_client = get_s3_client()
+
+    try:
+        response = s3_client.get_object(
+            Bucket=MINIO_BUCKET_NAME,
+            Key=object_key,
+        )
+    except ClientError as exc:
+        error = exc.response.get("Error", {})
+        code = str(error.get("Code", ""))
+
+        if code in {"404", "NoSuchKey", "NotFound"}:
+            raise FileNotFoundError(
+                f"Staging SQL object not found: {object_key}"
+            ) from exc
+
+        raise
+
+    raw = response["Body"].read()
+
+    if len(raw) > MAX_DUMP_BYTES:
+        raise ValueError(
+            f"SQL dump exceeds {MAX_DUMP_BYTES} bytes: {object_key}"
+        )
+
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise ValueError(
+            "SQL dump must use UTF-8 or UTF-8 BOM encoding."
+        ) from exc
+
+    return parse_mysql_dump_text(text)
+
+
+def build_dump_bronze_from_object(
+    spark,
+    object_key,
+    *,
+    run_id="",
+    upload_id=None,
+):
+    parsed = read_dump_from_minio(object_key)
+
+    source_identity = (
+        f"upload:{upload_id}"
+        if upload_id is not None
+        else object_key
+    )
+
+    return build_dump_bronze_from_parsed(
+        spark,
+        parsed,
+        run_id=run_id,
+        source_uri=(
+            f"s3://{MINIO_BUCKET_NAME}/{object_key}"
+        ),
+        source_identity=source_identity,
     )
 
 
@@ -128,25 +240,52 @@ def main():
     parser = argparse.ArgumentParser(
         description="Safe MySQL dump -> canonical Bronze preview"
     )
+
     parser.add_argument(
         "path",
-        help="Đường dẫn local tới file .sql",
+        nargs="?",
+        help="Optional local .sql path",
+    )
+    parser.add_argument(
+        "--object_key",
+        default="",
+        help="Exact MinIO staging .sql object key",
+    )
+    parser.add_argument(
+        "--upload_id",
+        type=int,
+        default=None,
+        help="UploadHistory ID used for source identity",
     )
     parser.add_argument(
         "--run_id",
         default="",
-        help="Run ID dùng cho lineage",
+        help="Airflow DAG Run ID",
     )
+
     args = parser.parse_args()
+
+    if bool(args.path) == bool(args.object_key):
+        parser.error(
+            "Provide exactly one input: local path or --object_key."
+        )
 
     spark = get_spark_session()
 
     try:
-        df = build_dump_bronze_dataframe(
-            spark,
-            args.path,
-            run_id=args.run_id,
-        )
+        if args.object_key:
+            df = build_dump_bronze_from_object(
+                spark,
+                args.object_key,
+                run_id=args.run_id,
+                upload_id=args.upload_id,
+            )
+        else:
+            df = build_dump_bronze_dataframe(
+                spark,
+                args.path,
+                run_id=args.run_id,
+            )
 
         print("=== MYSQL DUMP CANONICAL BRONZE PREVIEW ===")
         print("ROW_COUNT:", df.count())
@@ -163,6 +302,8 @@ def main():
             "nguon_du_lieu",
             "source_connector_id",
             "source_connector_name",
+            "minh_chung_type",
+            "minh_chung_path",
             "run_id",
         ).show(10, truncate=False)
 

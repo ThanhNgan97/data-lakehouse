@@ -663,24 +663,64 @@ def process_single_file(s3_client, file_key):
 def main():
     parser = argparse.ArgumentParser(description="Bronze Ingestion")
     parser.add_argument("--run_id", type=str, help="Airflow DAG Run ID", default="")
+    parser.add_argument(
+        "--object_key",
+        type=str,
+        default="",
+        help="Exact MinIO staging object key. Empty keeps legacy scan-all behavior.",
+    )
     args = parser.parse_args()
     
     sys.stdout.reconfigure(encoding="utf-8")
     s3_client = get_s3_client()
     extracted_data = []
-    response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=SOURCE_PREFIX)
-    if "Contents" not in response:
-        print("Không có file nào trong staging.")
-        sys.exit(0)
+    if args.object_key:
+        object_key = args.object_key.strip()
 
-    file_keys = [
-        obj["Key"] for obj in response["Contents"] 
-        if not obj["Key"].endswith("/")
-    ]
+        if not object_key.startswith(SOURCE_PREFIX):
+            raise ValueError(
+                f"object_key must be inside '{SOURCE_PREFIX}': {object_key}"
+            )
 
-    if not file_keys:
-        print("Không có file hợp lệ trong staging.")
-        sys.exit(0)
+        try:
+            s3_client.head_object(
+                Bucket=BUCKET_NAME,
+                Key=object_key,
+            )
+        except Exception as exc:
+            response = getattr(exc, "response", None)
+            error = response.get("Error", {}) if isinstance(response, dict) else {}
+            error_code = str(error.get("Code", ""))
+
+            if error_code in {"404", "NoSuchKey", "NotFound"}:
+                raise FileNotFoundError(
+                    f"Staging object not found: {object_key}"
+                ) from exc
+
+            raise
+
+        file_keys = [object_key]
+        print(f"Exact-object mode: processing only {object_key}")
+
+    else:
+        response = s3_client.list_objects_v2(
+            Bucket=BUCKET_NAME,
+            Prefix=SOURCE_PREFIX,
+        )
+
+        if "Contents" not in response:
+            print("No files found in staging.")
+            sys.exit(0)
+
+        file_keys = [
+            obj["Key"]
+            for obj in response["Contents"]
+            if not obj["Key"].endswith("/")
+        ]
+
+        if not file_keys:
+            print("No valid files found in staging.")
+            sys.exit(0)
 
     successful_keys = []
     failed_keys = []

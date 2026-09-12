@@ -117,6 +117,7 @@ def init_silver_table_if_needed(spark, branch_name="main"):
             muc_dat STRING,
             muc_dat_numeric DOUBLE,
             ket_qua_he_thong STRING,
+            nguyen_nhan STRING,
             hanh_dong_khac_phuc STRING,
             minh_chung_type STRING,
             minh_chung_path STRING,
@@ -144,30 +145,67 @@ def init_silver_table_if_needed(spark, branch_name="main"):
         else:
             raise
 
-    # Schema evolution
-    try:
-        existing_columns = {f.name for f in spark.table(SILVER_TABLE).schema.fields}
-        new_columns = {
-            "noi_dung_muc_tieu": "STRING",
-            "nguyen_nhan": "STRING",
-            "hanh_dong_khac_phuc": "STRING",
-            "muc_dang_ky_numeric": "DOUBLE",
-            "muc_dat_numeric": "DOUBLE",
-            "minh_chung_type": "STRING",
-            "minh_chung_path": "STRING",
-            "nguon_du_lieu": "STRING",
-            "source_connector_id": "BIGINT",
-            "source_connector_name": "STRING",
-            "source_file_name": "STRING",
-            "source_upload_id": "BIGINT",
-            "source_table": "STRING",
-        }
-        for col_name, col_type in new_columns.items():
-            if col_name not in existing_columns:
-                print(f"🔧 Đang bổ sung cột '{col_name}' vào bảng {SILVER_TABLE}...")
-                spark.sql(f"ALTER TABLE {SILVER_TABLE} ADD COLUMN {col_name} {col_type}")
-    except Exception:
-        pass
+    # Schema evolution.
+    #
+    # Do not swallow ALTER TABLE errors. Missing lineage columns
+    # would otherwise surface later as a less clear MERGE failure.
+    existing_columns = {
+        field.name
+        for field in spark.table(SILVER_TABLE).schema.fields
+    }
+
+    new_columns = {
+        "noi_dung_muc_tieu": "STRING",
+        "nguyen_nhan": "STRING",
+        "hanh_dong_khac_phuc": "STRING",
+        "muc_dang_ky_numeric": "DOUBLE",
+        "muc_dat_numeric": "DOUBLE",
+        "minh_chung_type": "STRING",
+        "minh_chung_path": "STRING",
+        "nguon_du_lieu": "STRING",
+        "source_connector_id": "BIGINT",
+        "source_connector_name": "STRING",
+        "source_file_name": "STRING",
+        "source_upload_id": "BIGINT",
+        "source_table": "STRING",
+    }
+
+    for col_name, col_type in new_columns.items():
+        if col_name in existing_columns:
+            continue
+
+        print(
+            f"Adding Silver column "
+            f"'{col_name}' ({col_type})..."
+        )
+
+        try:
+            spark.sql(
+                f"ALTER TABLE {SILVER_TABLE} "
+                f"ADD COLUMN {col_name} {col_type}"
+            )
+        except Exception as exc:
+            raise RuntimeError(
+                f"Failed to add Silver column "
+                f"'{col_name}' ({col_type})"
+            ) from exc
+
+    final_columns = {
+        field.name
+        for field in spark.table(SILVER_TABLE).schema.fields
+    }
+
+    missing_columns = sorted(
+        set(new_columns) - final_columns
+    )
+
+    if missing_columns:
+        raise RuntimeError(
+            "Silver schema evolution incomplete; "
+            f"missing columns: {missing_columns}"
+        )
+
+    print("Silver schema evolution verified.")
 
 
 def dedup_by_business_key(df_bronze):

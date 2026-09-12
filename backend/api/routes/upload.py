@@ -16,6 +16,18 @@ router = APIRouter()
 DOCUMENT_SOURCE_TYPE = "DOCUMENT_FILE"
 MYSQL_DUMP_SOURCE_TYPE = "MYSQL_DUMP"
 
+SUPPORTED_DOCUMENT_EXTENSIONS = {
+    ".pdf",
+    ".docx",
+    ".ppt",
+    ".pptx",
+}
+
+SUPPORTED_UPLOAD_EXTENSIONS = (
+    SUPPORTED_DOCUMENT_EXTENSIONS
+    | {".sql"}
+)
+
 
 def _normalize_upload_filename(filename: str) -> str:
     """Return basename only so user input cannot control MinIO path."""
@@ -29,13 +41,26 @@ def _normalize_upload_filename(filename: str) -> str:
 
 
 def _classify_upload_source(filename: str) -> str:
-    """Classify .sql as MySQL dump; preserve existing behavior otherwise."""
+    """Classify supported uploads and reject all other extensions."""
     extension = Path(filename).suffix.lower()
 
     if extension == ".sql":
         return MYSQL_DUMP_SOURCE_TYPE
 
-    return DOCUMENT_SOURCE_TYPE
+    if extension in SUPPORTED_DOCUMENT_EXTENSIONS:
+        return DOCUMENT_SOURCE_TYPE
+
+    allowed = ", ".join(
+        sorted(SUPPORTED_UPLOAD_EXTENSIONS)
+    )
+
+    raise HTTPException(
+        status_code=400,
+        detail=(
+            "Unsupported file type. "
+            f"Allowed extensions: {allowed}"
+        ),
+    )
 
 
 def _build_staging_object_name(

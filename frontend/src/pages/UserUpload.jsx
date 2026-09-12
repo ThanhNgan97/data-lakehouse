@@ -11,6 +11,27 @@ const authHeader = () => ({
   Authorization: `Bearer ${localStorage.getItem("token")}`,
 });
 
+const SUPPORTED_UPLOAD_EXTENSIONS = [
+  ".pdf",
+  ".docx",
+  ".ppt",
+  ".pptx",
+  ".sql",
+];
+
+const FILE_INPUT_ACCEPT = SUPPORTED_UPLOAD_EXTENSIONS.join(",");
+const SUPPORTED_UPLOAD_LABEL = "PDF, DOCX, PPT, PPTX, SQL";
+
+const isSupportedUploadFile = (file) => {
+  if (!file?.name) return false;
+
+  const lowerName = file.name.toLowerCase();
+
+  return SUPPORTED_UPLOAD_EXTENSIONS.some((extension) =>
+    lowerName.endsWith(extension),
+  );
+};
+
 /* Nhãn + màu (tone Badge) cho từng trạng thái pipeline/upload */
 const STATUS_CONFIG = {
   pending: { label: "Đang chờ", tone: "ink" },
@@ -143,8 +164,18 @@ const UserUpload = () => {
 
   const processFile = async (file) => {
     if (!file) return;
+
     setUploadError("");
     setUploadStatus("");
+
+    if (!isSupportedUploadFile(file)) {
+      setUploadError(
+        "Định dạng file không được hỗ trợ. Chỉ chấp nhận "
+          + `${SUPPORTED_UPLOAD_LABEL}.`,
+      );
+      return;
+    }
+
     setUploading(true);
     setUploadProgress(10);
 
@@ -260,7 +291,7 @@ const UserUpload = () => {
               type="file"
               ref={fileInputRef}
               onChange={(e) => processFile(e.target.files[0])}
-              accept=".pdf,.docx,.ppt,.pptx"
+              accept={FILE_INPUT_ACCEPT}
               className="hidden"
             />
 
@@ -293,7 +324,7 @@ const UserUpload = () => {
                   : "Kéo thả file hoặc bấm để chọn"}
               </p>
               <p className="text-[11px] text-ink-400 mt-1.5 font-data">
-                Hỗ trợ định dạng: PDF, DOCX, PPT, PPTX
+                Hỗ trợ định dạng: {SUPPORTED_UPLOAD_LABEL}
               </p>
 
               {uploading && uploadProgress > 0 && (

@@ -50,6 +50,14 @@ GOLD_DETAIL_TABLE     = "lakehouse.gold.kpi_chi_tiet_dashboard"
 GOLD_COMPARISON_TABLE = "lakehouse.gold.kpi_so_sanh_ky"
 GOLD_DICT_TABLE       = "lakehouse.gold.dm_chi_tieu"
 
+GOLD_COMPARISON_PARTITION_COLUMNS = [
+    "file_nguon",
+    "ma_chi_tieu",
+    "nhom_don_vi",
+]
+
+GOLD_DICT_JOIN_KEY = "ma_chi_tieu,nhom_don_vi"
+
 GOLD_SUMMARY_COLUMNS = [
     # Giữ nguồn dữ liệu trong mart tổng hợp để các chart Superset dùng
     # kpi_tong_hop_don_vi cũng nhận được native filter `file_nguon`.
@@ -249,7 +257,9 @@ def run_silver_to_gold(spark):
         # DATA MART 3: SO SÁNH GIỮA CÁC KỲ
         print("⚙️ Nghiệp vụ 3: Tính tăng/giảm % của từng mã chỉ tiêu...")
         window_spec = (
-            Window.partitionBy("file_nguon", "ma_chi_tieu")
+            Window.partitionBy(
+                *GOLD_COMPARISON_PARTITION_COLUMNS
+            )
             .orderBy("quy_danh_gia_sort_key")
         )
 
@@ -303,7 +313,7 @@ def run_silver_to_gold(spark):
             .withColumn("nguon_bang_chi_tiet", lit(GOLD_DETAIL_TABLE))
             .withColumn("nguon_bang_tong_hop", lit(GOLD_SUMMARY_TABLE))
             .withColumn("nguon_bang_so_sanh_ky", lit(GOLD_COMPARISON_TABLE))
-            .withColumn("cot_khoa_join", lit("ma_chi_tieu"))
+            .withColumn("cot_khoa_join", lit(GOLD_DICT_JOIN_KEY))
             .withColumn("thoi_gian_dong_goi_gold", current_timestamp())
             .select(*GOLD_DICT_COLUMNS)
         )

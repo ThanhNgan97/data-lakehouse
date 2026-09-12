@@ -231,6 +231,29 @@ const UserUpload = () => {
       tone: "ink",
     };
 
+  const getSourceType = (item) => {
+    const sourceType = item.metadata_info?.source_type;
+
+    if (sourceType === "MYSQL_DUMP") {
+      return {
+        label: "MySQL Dump",
+        tone: "lake",
+      };
+    }
+
+    if (sourceType === "DOCUMENT_FILE") {
+      return {
+        label: "Document",
+        tone: "ink",
+      };
+    }
+
+    return {
+      label: "File",
+      tone: "ink",
+    };
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
       <header className="bg-white border-b border-slate-200 px-6 md:px-8 py-3.5 flex justify-between items-center sticky top-0 z-50 shadow-sm">
@@ -498,6 +521,8 @@ const UserUpload = () => {
                 <div className="space-y-3">
                   {history.map((item, i) => {
                     const st = getStatus(item);
+                    const source = getSourceType(item);
+
                     return (
                       <div
                         key={item.id || i}
@@ -509,12 +534,17 @@ const UserUpload = () => {
                               <Icon name="file" className="w-4.5 h-4.5" />
                             </div>
                             <div className="min-w-0">
-                              <h4
-                                className="font-semibold text-ink-800 text-sm truncate"
-                                title={item.filename}
-                              >
-                                {item.filename}
-                              </h4>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <h4
+                                  className="font-semibold text-ink-800 text-sm truncate"
+                                  title={item.filename}
+                                >
+                                  {item.filename}
+                                </h4>
+                                <Badge tone={source.tone}>
+                                  {source.label}
+                                </Badge>
+                              </div>
                               <div className="text-[11px] text-ink-400 mt-1 flex items-center gap-2 truncate font-data">
                                 <span className="font-medium text-ink-500">
                                   {item.username}

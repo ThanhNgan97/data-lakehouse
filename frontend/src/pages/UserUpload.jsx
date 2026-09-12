@@ -92,6 +92,80 @@ const UserUpload = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [activePipeline, setActivePipeline] = useState(null);
   const pollingRef = useRef(null);
+  const [dashboardUrl, setDashboardUrl] = useState(supersetUrl);
+  const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
+  const dashboardHandledRunsRef = useRef(new Set());
+
+  const buildDashboardUrl = (nativeFiltersKey) => {
+    try {
+      const url = new URL(supersetUrl);
+
+      if (nativeFiltersKey) {
+        url.searchParams.set(
+          "native_filters_key",
+          nativeFiltersKey,
+        );
+      } else {
+        url.searchParams.delete("native_filters_key");
+      }
+
+      return url.toString();
+    } catch {
+      return supersetUrl;
+    }
+  };
+
+  const applyDashboardFilterForUpload = async (
+    dagRunId,
+    uploadId,
+  ) => {
+    if (!dagRunId) return;
+
+    if (dashboardHandledRunsRef.current.has(dagRunId)) {
+      return;
+    }
+
+    dashboardHandledRunsRef.current.add(dagRunId);
+
+    if (!uploadId) {
+      setDashboardUrl(supersetUrl);
+      setDashboardRefreshKey((current) => current + 1);
+      return;
+    }
+
+    try {
+      const res = await axios.post(
+        `${API_URL}/upload/${uploadId}/dashboard-filter`,
+        {},
+        { headers: authHeader() },
+      );
+
+      const nativeFiltersKey =
+        res.data?.native_filters_key;
+
+      if (!nativeFiltersKey) {
+        throw new Error(
+          "missing_native_filters_key",
+        );
+      }
+
+      setDashboardUrl(
+        buildDashboardUrl(nativeFiltersKey),
+      );
+
+      setDashboardRefreshKey(
+        (current) => current + 1,
+      );
+    } catch {
+      // Pipeline success remains valid even if
+      // Superset auto-filter cannot be created.
+      setDashboardUrl(supersetUrl);
+
+      setDashboardRefreshKey(
+        (current) => current + 1,
+      );
+    }
+  };
 
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -107,7 +181,10 @@ const UserUpload = () => {
         ["running", "queued", "pending"].includes(hist[0].pipeline_status)
       ) {
         if (!pollingRef.current && hist[0].dag_run_id) {
-          pollPipelineStatus(hist[0].dag_run_id);
+          pollPipelineStatus(
+            hist[0].dag_run_id,
+            hist[0].id,
+          );
         }
       }
     } catch {
@@ -124,7 +201,10 @@ const UserUpload = () => {
     };
   }, [fetchHistory]);
 
-  const pollPipelineStatus = (dagRunId) => {
+  const pollPipelineStatus = (
+    dagRunId,
+    uploadId = null,
+  ) => {
     if (!dagRunId) return;
     if (pollingRef.current) clearInterval(pollingRef.current);
 
@@ -135,6 +215,13 @@ const UserUpload = () => {
           { headers: authHeader() },
         );
         setActivePipeline(res.data);
+
+        if (res.data.state === "success") {
+          applyDashboardFilterForUpload(
+            dagRunId,
+            uploadId,
+          );
+        }
       } catch {}
     })();
 
@@ -148,10 +235,20 @@ const UserUpload = () => {
         setActivePipeline(res.data);
         if (["success", "failed", "unreachable"].includes(state)) {
           clearInterval(pollingRef.current);
+          pollingRef.current = null;
+
+          if (state === "success") {
+            applyDashboardFilterForUpload(
+              dagRunId,
+              uploadId,
+            );
+          }
+
           fetchHistory();
         }
       } catch {
         clearInterval(pollingRef.current);
+        pollingRef.current = null;
       }
     }, 5000);
   };
@@ -197,7 +294,10 @@ const UserUpload = () => {
       setUploadProgress(100);
       setUploadStatus(res.data.message);
       if (res.data.dag_run_id) {
-        pollPipelineStatus(res.data.dag_run_id);
+        pollPipelineStatus(
+          res.data.dag_run_id,
+          res.data.upload_id,
+        );
       }
       fetchHistory();
     } catch (err) {
@@ -580,7 +680,7 @@ const UserUpload = () => {
                 </p>
               </div>
               <a
-                href={supersetUrl}
+                href={dashboardUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="text-xs text-lake-700 hover:text-lake-800 bg-lake-50 hover:bg-lake-100 px-3 py-1.5 rounded-lg transition font-semibold flex items-center gap-1.5"
@@ -591,7 +691,8 @@ const UserUpload = () => {
             </div>
             <div className="flex-1 bg-[#FAFBFD] relative p-3">
               <iframe
-                src={supersetUrl}
+                key={dashboardRefreshKey}
+                src={dashboardUrl}
                 title="Superset Chart"
                 className="w-full h-full border border-ink-100 bg-white rounded-xl shadow-inner"
               ></iframe>

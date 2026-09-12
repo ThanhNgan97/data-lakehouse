@@ -1,3 +1,4 @@
+import json
 import logging
 from pathlib import Path
 from uuid import uuid4
@@ -11,6 +12,12 @@ from db.models import UploadHistory, User
 from db.minio_client import minio_client
 from core.config import MINIO_BUCKET_NAME
 from core.config import AIRFLOW_WEBSERVER_URL
+from api.routes.my_connectors import (
+    _find_superset_source_filter,
+    _superset_access_headers,
+    _superset_runtime_config,
+)
+
 router = APIRouter()
 
 DOCUMENT_SOURCE_TYPE = "DOCUMENT_FILE"
@@ -80,6 +87,136 @@ def _build_staging_object_name(
         f"staging/uploads/"
         f"{upload_token}/{filename}"
     )
+
+UPLOAD_DASHBOARD_FILTER_NAME = (
+    "T\u1ec7p d\u1eef li\u1ec7u t\u1ea3i l\u00ean"
+)
+UPLOAD_DASHBOARD_FILTER_COLUMN = "source_upload_label"
+
+
+def _current_user_id(current_user) -> int:
+    if isinstance(current_user, dict):
+        value = (
+            current_user.get("id")
+            or current_user.get("user_id")
+        )
+    else:
+        value = getattr(current_user, "id", None)
+
+    if value is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Unable to resolve current user.",
+        )
+
+    return int(value)
+
+
+def _create_upload_superset_filter_state(
+    record: UploadHistory,
+) -> dict:
+    config = _superset_runtime_config()
+
+    config = {
+        **config,
+        "filter_name": UPLOAD_DASHBOARD_FILTER_NAME,
+        "filter_column": UPLOAD_DASHBOARD_FILTER_COLUMN,
+    }
+
+    headers = _superset_access_headers(config)
+
+    filter_id = _find_superset_source_filter(
+        config,
+        headers,
+    )
+
+    upload_label = (
+        f"{record.filename} - Upload #{record.id}"
+    )
+
+    data_mask = {
+        filter_id: {
+            "id": filter_id,
+            "ownState": {},
+            "extraFormData": {
+                "filters": [
+                    {
+                        "col": UPLOAD_DASHBOARD_FILTER_COLUMN,
+                        "op": "IN",
+                        "val": [upload_label],
+                    }
+                ]
+            },
+            "filterState": {
+                "label": upload_label,
+                "value": [upload_label],
+            },
+        }
+    }
+
+    state_url = (
+        f'{config["api_url"]}/api/v1/dashboard/'
+        f'{config["dashboard_id"]}/filter_state'
+    )
+
+    try:
+        response = requests.post(
+            state_url,
+            headers=headers,
+            json={
+                "value": json.dumps(
+                    data_mask,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+            },
+            timeout=10,
+        )
+    except requests.RequestException as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Unable to create Superset "
+                "upload filter state."
+            ),
+        ) from exc
+
+    if response.status_code not in (200, 201):
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Superset rejected the "
+                "upload filter state."
+            ),
+        )
+
+    try:
+        key = response.json().get("key")
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Superset returned an invalid "
+                "filter-state response."
+            ),
+        ) from exc
+
+    if not key:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Superset did not return "
+                "native_filters_key."
+            ),
+        )
+
+    return {
+        "dashboard_id": config["dashboard_id"],
+        "native_filters_key": key,
+        "upload_label": upload_label,
+    }
+
+
 @router.get("/")
 def read_root():
     return {"message": "Welcome to the Lakehouse API!"}
@@ -215,6 +352,70 @@ async def upload_file(
             status_code=500,
             detail=f"Upload failed: {str(exc)}",
         )
+
+
+
+@router.post("/upload/{upload_id}/dashboard-filter")
+def create_upload_dashboard_filter(
+    upload_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    user_id = _current_user_id(current_user)
+
+    record = (
+        db.query(UploadHistory)
+        .filter(
+            UploadHistory.id == upload_id,
+            UploadHistory.user_id == user_id,
+        )
+        .first()
+    )
+
+    if not record:
+        raise HTTPException(
+            status_code=404,
+            detail="Upload record not found.",
+        )
+
+    metadata = record.metadata_info or {}
+
+    if (
+        metadata.get("source_type")
+        != MYSQL_DUMP_SOURCE_TYPE
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Dashboard auto-filter currently "
+                "supports SQL dump uploads."
+            ),
+        )
+
+    if (
+        str(record.pipeline_status or "").lower()
+        != "success"
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Upload pipeline has not "
+                "completed successfully."
+            ),
+        )
+
+    filter_state = (
+        _create_upload_superset_filter_state(
+            record
+        )
+    )
+
+    return {
+        "success": True,
+        "upload_id": record.id,
+        "filename": record.filename,
+        **filter_state,
+    }
 
 
 @router.get("/upload/history", summary="Lấy lịch sử tải lên dữ liệu")

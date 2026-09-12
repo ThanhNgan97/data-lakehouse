@@ -28,7 +28,7 @@ os.environ["PYSPARK_SUBMIT_ARGS"] = (
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     col, when, count, round, current_timestamp, lag, create_map, lit,
-    first, min as spark_min, max as spark_max, struct, regexp_extract,
+    first, min as spark_min, max as spark_max, struct, regexp_extract, concat,
 )
 from pyspark.sql.window import Window
 from itertools import chain
@@ -70,7 +70,15 @@ GOLD_DETAIL_COLUMNS = [
     "noi_dung_muc_tieu", "dinh_ky_thu_thap",
     "muc_dang_ky", "muc_dat", "muc_dat_numeric", "ket_qua_he_thong",
     "nguyen_nhan", "hanh_dong_khac_phuc",
-    "file_nguon", "minh_chung_type", "minh_chung_path", "thoi_gian_dong_goi_gold",
+    "file_nguon",
+    "nguon_du_lieu",
+    "source_connector_id",
+    "source_connector_name",
+    "source_file_name",
+    "source_upload_id",
+    "source_upload_label",
+    "source_table",
+    "minh_chung_type", "minh_chung_path", "thoi_gian_dong_goi_gold",
 ]
 GOLD_COMPARISON_COLUMNS = [
     # Tương tự mart tổng hợp, tránh việc một chart dùng mart so sánh
@@ -248,8 +256,30 @@ def run_silver_to_gold(spark):
             "noi_dung_muc_tieu", "dinh_ky_thu_thap",
             "muc_dang_ky", "muc_dat", "muc_dat_numeric", "ket_qua_he_thong",
             "nguyen_nhan", "hanh_dong_khac_phuc", "file_nguon",
+            "nguon_du_lieu",
+            "source_connector_id",
+            "source_connector_name",
+            "source_file_name",
+            "source_upload_id",
+            "source_table",
             "minh_chung_type", "minh_chung_path"
-        ).withColumn("thoi_gian_dong_goi_gold", current_timestamp())
+        ).withColumn(
+            "source_upload_label",
+            when(
+                col("source_upload_id").isNotNull()
+                & col("source_file_name").isNotNull(),
+                concat(
+                    col("source_file_name"),
+                    lit(" - Upload #"),
+                    col("source_upload_id").cast("string"),
+                ),
+            ).otherwise(
+                lit(None).cast("string")
+            ),
+        ).withColumn(
+            "thoi_gian_dong_goi_gold",
+            current_timestamp(),
+        )
 
         df_detail = with_ten_phong_ban(df_detail)
         df_detail = df_detail.select(*GOLD_DETAIL_COLUMNS)

@@ -231,27 +231,23 @@ const UserUpload = () => {
       tone: "ink",
     };
 
-  const getSourceType = (item) => {
-    const sourceType = item.metadata_info?.source_type;
+  const formatUploadedAt = (value) => {
+    if (!value) return "—";
 
-    if (sourceType === "MYSQL_DUMP") {
-      return {
-        label: "MySQL Dump",
-        tone: "lake",
-      };
+    const hasTimezone =
+      /(?:Z|[+-]\d{2}:\d{2})$/.test(value);
+
+    const normalized = hasTimezone
+      ? value
+      : `${value}Z`;
+
+    const date = new Date(normalized);
+
+    if (Number.isNaN(date.getTime())) {
+      return "—";
     }
 
-    if (sourceType === "DOCUMENT_FILE") {
-      return {
-        label: "Document",
-        tone: "ink",
-      };
-    }
-
-    return {
-      label: "File",
-      tone: "ink",
-    };
+    return date.toLocaleString("vi-VN");
   };
 
   return (
@@ -521,7 +517,6 @@ const UserUpload = () => {
                 <div className="space-y-3">
                   {history.map((item, i) => {
                     const st = getStatus(item);
-                    const source = getSourceType(item);
 
                     return (
                       <div
@@ -534,17 +529,12 @@ const UserUpload = () => {
                               <Icon name="file" className="w-4.5 h-4.5" />
                             </div>
                             <div className="min-w-0">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <h4
-                                  className="font-semibold text-ink-800 text-sm truncate"
-                                  title={item.filename}
-                                >
-                                  {item.filename}
-                                </h4>
-                                <Badge tone={source.tone}>
-                                  {source.label}
-                                </Badge>
-                              </div>
+                              <h4
+                                className="font-semibold text-ink-800 text-sm truncate"
+                                title={item.filename}
+                              >
+                                {item.filename}
+                              </h4>
                               <div className="text-[11px] text-ink-400 mt-1 flex items-center gap-2 truncate font-data">
                                 <span className="font-medium text-ink-500">
                                   {item.username}
@@ -560,11 +550,7 @@ const UserUpload = () => {
                           <div className="flex flex-col items-end shrink-0 gap-1.5">
                             <Badge tone={st.tone}>{st.label}</Badge>
                             <span className="text-[10px] text-ink-300 font-data">
-                              {item.uploaded_at
-                                ? new Date(item.uploaded_at + "Z").toLocaleString(
-                                    "vi-VN",
-                                  )
-                                : "—"}
+                              {formatUploadedAt(item.uploaded_at)}
                             </span>
                           </div>
                         </div>

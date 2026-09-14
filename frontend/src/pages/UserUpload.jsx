@@ -23,12 +23,10 @@ const STATUS_CONFIG = {
   success: { label: "Hoàn thành", tone: "success" },
   failed: { label: "Lỗi", tone: "danger" },
   queued: { label: "Đang xếp hàng", tone: "lake" },
-  unreachable: { label: "Airflow offline", tone: "ink" },
+  unreachable: { label: "Hệ thống tạm ngắt", tone: "ink" },
 };
 
-/* Mỗi bước pipeline gắn đúng tông màu của tầng dữ liệu tương ứng —
-   Bronze / Silver / Gold theo đúng kiến trúc Medallion, bước dự đoán
-   dùng màu "lake" (phân tích/insight). */
+/* Mỗi bước pipeline gắn đúng tông màu của tầng dữ liệu tương ứng */
 const PIPELINE_TASKS = [
   {
     id: "ingest_bronze",
@@ -73,6 +71,7 @@ const UserUpload = () => {
   const [activePipeline, setActivePipeline] = useState(null);
   const [filterStatus, setFilterStatus] = useState("all");
   const [iframeKey, setIframeKey] = useState(Date.now());
+  const [iframeLoading, setIframeLoading] = useState(true);
   const [selectedFile, setSelectedFile] = useState("");
   const [selectedHistoryId, setSelectedHistoryId] = useState("");
   const pollingRef = useRef(null);
@@ -85,6 +84,21 @@ const UserUpload = () => {
       });
       const hist = res.data || [];
       setHistory(hist);
+
+      // Tự động mở sẵn Báo cáo Phân tích cho file thành công mới nhất khi vừa đăng nhập
+      setSelectedFile((prevFile) => {
+        if (!prevFile) {
+          const latestSuccess = hist.find((h) => h.pipeline_status === "success");
+          if (latestSuccess) {
+            const rawName = latestSuccess.filename || (latestSuccess.s3_path ? latestSuccess.s3_path.split('/').pop() : "");
+            const cleanName = rawName.replace(/^[a-f0-9]{32}_/, '');
+            setSelectedHistoryId(latestSuccess.id || latestSuccess.dag_run_id);
+            setIframeLoading(true);
+            return cleanName;
+          }
+        }
+        return prevFile;
+      });
 
       if (
         hist.length > 0 &&
@@ -271,6 +285,7 @@ const UserUpload = () => {
       const basename = rawName.replace(/^[a-f0-9]{32}_/, '');
       setSelectedFile(basename);
       setSelectedHistoryId(item.id || item.dag_run_id);
+      setIframeLoading(true);
       setIframeKey(Date.now());
     }
   };
@@ -284,7 +299,9 @@ const UserUpload = () => {
   let finalSupersetUrl = supersetUrl;
   if (selectedFile) {
     const risonStr = `(NATIVE_FILTER-file_nguon:(__cache:(label:'${selectedFile}',value:!('${selectedFile}')),extraFormData:(filters:!((col:file_nguon,op:IN,val:!('${selectedFile}')))),filterState:(label:'${selectedFile}',value:!('${selectedFile}')),id:NATIVE_FILTER-file_nguon,ownState:()))`;
-    finalSupersetUrl += `&native_filters=${encodeURIComponent(risonStr)}`;
+    const extraFiltersJson = JSON.stringify([{ col: "file_nguon", op: "IN", val: [selectedFile] }]);
+    const preselectFiltersJson = JSON.stringify({ "NATIVE_FILTER-file_nguon": { file_nguon: [selectedFile] } });
+    finalSupersetUrl += `&native_filters=${encodeURIComponent(risonStr)}&extra_filters=${encodeURIComponent(extraFiltersJson)}&preselect_filters=${encodeURIComponent(preselectFiltersJson)}`;
   }
   finalSupersetUrl += `&force=true&_t=${iframeKey}`;
 
@@ -409,7 +426,7 @@ const UserUpload = () => {
                     Tiến trình Pipeline
                   </h3>
                   <p className="text-xs text-ink-400 mt-0.5">
-                    Airflow Orchestration
+                    Tiến trình Xử lý Tự động
                   </p>
                 </div>
                 {activePipeline.dag_run_id && (
@@ -692,6 +709,7 @@ const UserUpload = () => {
                     onClick={() => {
                       setSelectedFile("");
                       setSelectedHistoryId("");
+                      setIframeLoading(true);
                       setIframeKey(Date.now());
                     }}
                     className="text-xs text-ink-500 hover:text-rose-600 bg-ink-50 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition font-semibold"
@@ -711,10 +729,20 @@ const UserUpload = () => {
               </div>
             </div>
             <div className="flex-1 bg-[#FAFBFD] relative p-3">
+              {iframeLoading && (
+                <div className="absolute inset-3 bg-white/95 backdrop-blur-sm z-10 rounded-xl border border-ink-100 flex flex-col items-center justify-center gap-3 transition-all duration-300">
+                  <div className="w-9 h-9 border-3 border-lake-500 border-t-transparent rounded-full animate-spin"></div>
+                  <div className="text-center">
+                    <p className="text-sm font-semibold text-ink-800">Đang nạp báo cáo phân tích KPI...</p>
+                    <p className="text-[11px] text-ink-400 font-data mt-0.5">Tự động khởi tạo giao diện trực quan</p>
+                  </div>
+                </div>
+              )}
               <iframe
                 key={iframeKey}
                 src={finalSupersetUrl}
-                title="Superset Chart"
+                title="Báo cáo Phân tích KPI"
+                onLoad={() => setIframeLoading(false)}
                 className="w-full h-full border border-ink-100 bg-white rounded-xl shadow-inner"
               ></iframe>
             </div>

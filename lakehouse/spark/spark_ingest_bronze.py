@@ -689,28 +689,39 @@ def extract_structured_data(file_bytes: bytes, ext: str):
                 if not isinstance(input_str, str):
                     return ""
                 nfkd_form = unicodedata.normalize('NFKD', input_str)
-                return u"".join([c for c in nfkd_form if not unicodedata.combining(c)])
+                no_accent = u"".join([c for c in nfkd_form if not unicodedata.combining(c)])
+                clean = re.sub(r'[^a-zA-Z0-9\s]', ' ', no_accent)
+                return re.sub(r'\s+', ' ', clean).strip().lower()
 
             # Hàm tiện ích tìm cột duy nhất 1 lần an toàn
             def find_col(possible_names):
-                # Ưu tiên khớp chính xác bằng từ nguyên vẹn
+                # 1. Ưu tiên khớp chính xác sau khi làm sạch ký tự đặc biệt/underscore
                 for n in possible_names:
-                    n_norm = remove_accents(n).lower().strip()
+                    n_norm = remove_accents(n)
                     for c in df.columns:
-                        c_norm = remove_accents(str(c)).lower().strip()
+                        c_norm = remove_accents(str(c))
                         if n_norm == c_norm:
                             return c
                 
-                # Nếu không khớp chính xác, thử regex word boundary an toàn
+                # 2. Khớp theo word boundary trên chuỗi đã làm sạch
                 for n in possible_names:
-                    n_norm = remove_accents(n).lower().strip()
+                    n_norm = remove_accents(n)
                     for c in df.columns:
-                        c_norm = remove_accents(str(c)).lower().strip()
+                        c_norm = remove_accents(str(c))
                         if re.search(r'\b' + re.escape(n_norm) + r'\b', c_norm):
                             return c
+
+                # 3. Substring fallback nếu tên cột đủ dài
+                for n in possible_names:
+                    n_norm = remove_accents(n)
+                    if len(n_norm) >= 2:
+                        for c in df.columns:
+                            c_norm = remove_accents(str(c))
+                            if n_norm in c_norm:
+                                return c
                 return None
 
-            col_ma = find_col(["ma", "id", "code", "mã", "mã chỉ tiêu", "ma chi tieu"])
+            col_ma = find_col(["ma", "id", "code", "mã", "mã chỉ tiêu", "ma chi tieu", "ma_chi_tieu"])
             col_nd = find_col(["noi dung", "muc tieu", "chi tieu", "content", "target", "nội dung", "chỉ tiêu"])
             col_dk = find_col(["dinh ky", "thu thap", "period", "chu ky", "định kỳ"])
             col_mdk = find_col(["muc dang ky", "ke hoach", "plan", "dang ky", "kế hoạch"])
@@ -838,6 +849,10 @@ def process_single_file(s3_client, file_key):
             ma_str = "" # Để trống để đẩy sang bảng Quarantine ở Silver
             
         nhom = None
+        if ma_str and "-" in ma_str:
+            prefix = ma_str.split("-")[0].strip().upper()
+            if prefix in ["HT", "PM", "QTCL", "VP", "ĐT", "DT", "RD", "ATTT", "DV", "DL"]:
+                nhom = "ĐT" if prefix == "DT" else prefix
         ma_clean = ma_str
         
         if str(row_quy).strip().upper() not in ["N/A", "NAN", "NONE", ""]:

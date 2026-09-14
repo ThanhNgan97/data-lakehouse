@@ -82,11 +82,15 @@ GOLD_DICT_COLUMNS = [
 
 PHONG_BAN_MAP = {
     "ĐT":   "Phòng Đào tạo",
+    "DT":   "Phòng Đào tạo",
     "PM":   "Trung tâm Phần mềm (mảng dự án/phát triển phần mềm)",
     "QTCL": "Bộ phận Quản trị Chất lượng",
     "VP":   "Văn phòng",
     "RD":   "Phòng Nghiên cứu & Phát triển (R&D)",
     "HT":   "Phòng Hạ tầng - An ninh mạng (QTANM)",
+    "ATTT": "Bộ phận An toàn thông tin",
+    "DV":   "Phòng Dịch vụ khách hàng",
+    "DL":   "Bộ phận Dữ liệu",
 }
 
 
@@ -132,8 +136,10 @@ def get_spark_session():
 
 
 def with_ten_phong_ban(df):
+    from pyspark.sql.functions import coalesce, concat
     mapping_expr = create_map([lit(x) for x in chain(*PHONG_BAN_MAP.items())])
-    return df.withColumn("ten_phong_ban", mapping_expr[col("nhom_don_vi")])
+    mapped_val = mapping_expr[col("nhom_don_vi")]
+    return df.withColumn("ten_phong_ban", coalesce(mapped_val, concat(lit("Bộ phận "), col("nhom_don_vi"))))
 
 
 def preflight_clean_orphaned_gold_tables(spark):
@@ -210,11 +216,19 @@ def run_silver_to_gold(spark):
 
         print(f" Đang đọc dữ liệu sạch ({silver_count} dòng) từ lakehouse.silver.kpi_cusc_master...")
         df_silver = spark.read.table("lakehouse.silver.kpi_cusc_master")
+        from pyspark.sql.functions import split, upper
+        df_silver = df_silver.withColumn(
+            "nhom_don_vi",
+            when(
+                (col("nhom_don_vi").isNull() | (col("nhom_don_vi") == "")) & col("ma_chi_tieu").contains("-"),
+                upper(split(col("ma_chi_tieu"), "-")[0])
+            ).otherwise(col("nhom_don_vi"))
+        )
         df_silver = add_quy_danh_gia_sort_key(df_silver)
 
         # DATA MART 1: TỔNG HỢP KPI THEO PHÒNG BAN
         print(" Nghiệp vụ 1: Tính toán tỷ lệ hoàn thành KPI nghiệp vụ...")
-        df_filtered = df_silver.filter(col("ket_qua_he_thong").isin(["DAT", "KHONG_DAT"]))
+        df_filtered = df_silver.filter(col("ket_qua_he_thong").isin(["DAT", "KHONG_DAT", "ĐẠT", "KHÔNG ĐẠT"]))
 
         # file_nguon phải là một phần của group key. Nếu không, số liệu của
         # nhiều file sẽ bị cộng chung và Superset không thể lọc đúng theo file.
@@ -222,8 +236,8 @@ def run_silver_to_gold(spark):
             "file_nguon", "quy_danh_gia", "nhom_don_vi"
         ).agg(
             count("*").alias("tong_chi_tieu_danh_gia"),
-            count(when(col("ket_qua_he_thong") == "DAT", True)).alias("so_chi_tieu_dat"),
-            count(when(col("ket_qua_he_thong") == "KHONG_DAT", True)).alias("so_chi_tieu_khong_dat")
+            count(when(col("ket_qua_he_thong").isin(["DAT", "ĐẠT"]), True)).alias("so_chi_tieu_dat"),
+            count(when(col("ket_qua_he_thong").isin(["KHONG_DAT", "KHÔNG ĐẠT"]), True)).alias("so_chi_tieu_khong_dat")
         )
 
         df_summary = df_summary.withColumn(

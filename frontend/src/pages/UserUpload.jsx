@@ -175,13 +175,17 @@ const UserUpload = () => {
         }
 
         setActivePipeline(res.data);
-        if (["success", "failed", "unreachable"].includes(state)) {
-          clearInterval(pollingRef.current);
+        if (["success", "failed"].includes(state)) {
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
           fetchHistory().then((hist) => {
              if (state === "success" && hist) {
                 const finishedItem = hist.find((h) => h.dag_run_id === dagRunId);
                 if (finishedItem) {
-                  const basename = finishedItem.s3_path ? finishedItem.s3_path.split('/').pop() : finishedItem.filename;
+                  const rawName = finishedItem.filename || (finishedItem.s3_path ? finishedItem.s3_path.split('/').pop() : "");
+                  const basename = rawName.replace(/^[a-f0-9]{32}_/, '');
                   setSelectedFile(basename);
                   setSelectedHistoryId(finishedItem.id || finishedItem.dag_run_id);
                 }
@@ -191,9 +195,12 @@ const UserUpload = () => {
         }
       } catch {
         errorCount++;
-        // Chỉ dừng lại nếu lỗi liên tục 10 lần (20 giây)
-        if (errorCount > 10) {
-          clearInterval(pollingRef.current);
+        // Thử lại tối đa 3 lần liên tiếp nếu bị lỗi mạng/server trước khi dừng polling
+        if (errorCount >= 3) {
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
         }
       }
     }, 2000);
@@ -260,7 +267,8 @@ const UserUpload = () => {
 
   const handleHistoryClick = (item) => {
     if (item.pipeline_status === "success") {
-      const basename = item.s3_path ? item.s3_path.split('/').pop() : item.filename;
+      const rawName = item.filename || (item.s3_path ? item.s3_path.split('/').pop() : "");
+      const basename = rawName.replace(/^[a-f0-9]{32}_/, '');
       setSelectedFile(basename);
       setSelectedHistoryId(item.id || item.dag_run_id);
       setIframeKey(Date.now());

@@ -4,15 +4,11 @@ FEATURE_FLAGS = {
 }
 
 
-PERMANENT_SESSION_LIFETIME = 28800  # 8 hours in seconds nó ở đây là thời gian sống của session, sau thời gian này người dùng sẽ phải đăng nhập lại 
-# Tắt chặn iFrame (X-Frame-Options)
-TALISMAN_ENABLED = False
-
-# Cho phép Superset được nhúng trong iframe từ các origin khác
-X_FRAME_OPTIONS = "ALLOWALL"
-
-# Thiết lập cookie để không bị chặn khi nhúng (dev local)
-SESSION_COOKIE_SAMESITE = None
+SESSION_COOKIE_NAME = "superset_session"
+PERMANENT_SESSION_LIFETIME = 31536000  # 1 year in seconds
+PUBLIC_ROLE_LIKE = "Gamma"
+AUTH_ROLE_PUBLIC = "Public"
+SESSION_REFRESH_EACH_REQUEST = True
 
 # Mở CORS để React ở cổng 3000 có thể gọi API vào Superset ở cổng 8088
 ENABLE_CORS = True

@@ -246,6 +246,7 @@ def dedup_silver_master_if_needed(spark, table_name=SILVER_TABLE):
 def dedup_by_business_key(df_bronze):
     """Dedup theo khóa nghiệp vụ (ma_chi_tieu, quy_danh_gia, nhom_don_vi)."""
     from pyspark.sql.functions import lit
+    from datetime import datetime
     
     now_ts = datetime.now()
     df_with_ts = df_bronze.withColumn("thoi_gian_ingest_silver", lit(now_ts))

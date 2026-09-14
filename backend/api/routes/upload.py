@@ -130,15 +130,15 @@ def get_pipeline_status(
     """
     airflow_base = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/lakehouse_pipeline/dagRuns/{dag_run_id}"
     try:
-        # Lấy trạng thái tổng quan DAG run
-        resp_dag = requests.get(airflow_base, auth=("airflow", "airflow"), timeout=5)
+        # Lấy trạng thái tổng quan DAG run (tăng timeout lên 15s để chống lag khi PySpark đang chạy)
+        resp_dag = requests.get(airflow_base, auth=("airflow", "airflow"), timeout=15)
         state = "unknown"
         if resp_dag.status_code == 200:
             state = resp_dag.json().get("state", "unknown")
             
         # Lấy trạng thái các task (taskInstances)
         tasks = []
-        resp_tasks = requests.get(f"{airflow_base}/taskInstances", auth=("airflow", "airflow"), timeout=5)
+        resp_tasks = requests.get(f"{airflow_base}/taskInstances", auth=("airflow", "airflow"), timeout=15)
         if resp_tasks.status_code == 200:
             task_instances = resp_tasks.json().get("task_instances", [])
             for t in task_instances:
@@ -201,7 +201,17 @@ def get_pipeline_status(
             "parsed_data": parsed_data
         }
     except Exception as e:
-        return {"state": "unreachable", "error": str(e), "tasks": []}
+        # Nếu Airflow bận/lag tạm thời, fallback lấy thông tin từ DB để tránh dứt polling ở Frontend
+        rec = db.query(UploadHistory).filter(UploadHistory.dag_run_id == dag_run_id).first()
+        if rec and rec.pipeline_status:
+            return {
+                "dag_run_id": dag_run_id,
+                "state": rec.pipeline_status,
+                "tasks": [],
+                "error_message": None,
+                "parsed_data": rec.metadata_info.get("parsed_data") if rec.metadata_info else None
+            }
+        return {"state": "running", "error": str(e), "tasks": []}
 
 @router.delete("/upload/history/{record_id}", summary="Soft delete lịch sử tải lên")
 def delete_history_record(

@@ -863,8 +863,9 @@ def process_single_file(s3_client, file_key):
         def clean_val(v):
             return str(v).strip() if v is not None and str(v).strip().upper() not in ["N/A", "NAN", "NONE", ""] else None
 
+        clean_filename = re.sub(r'^[a-f0-9]{32}_', '', os.path.basename(file_key))
         file_extracted.append({
-            "file_nguon": os.path.basename(file_key),
+            "file_nguon": clean_filename,
             "ma_chi_tieu": ma_str,
             "nhom_don_vi": nhom,
             "quy_danh_gia": quy_row_val,

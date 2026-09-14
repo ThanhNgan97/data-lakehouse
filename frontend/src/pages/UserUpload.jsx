@@ -21,6 +21,7 @@ const STATUS_CONFIG = {
   upload_failed: { label: "Upload thất bại", tone: "danger" },
   running: { label: "Đang xử lý", tone: "warn" },
   success: { label: "Hoàn thành", tone: "success" },
+  already_processed: { label: "Đã nạp thành công trước đó", tone: "success" },
   failed: { label: "Lỗi", tone: "danger" },
   queued: { label: "Đang xếp hàng", tone: "lake" },
   unreachable: { label: "Hệ thống tạm ngắt", tone: "ink" },

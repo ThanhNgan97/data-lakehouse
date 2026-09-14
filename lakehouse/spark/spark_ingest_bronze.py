@@ -896,8 +896,14 @@ def process_single_file(s3_client, file_key):
             "checksum_sha256": checksum,
         })
 
-    is_success = len(file_extracted) > 0
-    return file_key, file_extracted, is_success
+    # File được coi là thành công chỉ khi bóc tách được ít nhất 1 dòng có Mã KPI hợp lệ
+    valid_kpi_rows = [r for r in file_extracted if r.get("ma_chi_tieu") != ""]
+    is_success = len(valid_kpi_rows) > 0
+    if not is_success:
+        print(f"❌ File '{file_key}' không chứa bất kỳ Mã chỉ tiêu KPI hợp lệ nào (không đúng mẫu KPI).")
+        return file_key, [], False
+
+    return file_key, valid_kpi_rows, True
 
 
 def main():

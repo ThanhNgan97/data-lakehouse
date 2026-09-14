@@ -2,6 +2,8 @@ import logging
 import requests
 import uuid
 import os
+import hashlib
+from datetime import datetime
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
 from api.dependencies import get_current_user
 from db.database import get_db
@@ -28,8 +30,8 @@ def upload_file(
         if not ext:
             raise HTTPException(status_code=400, detail="File must have an extension")
             
-        file.file.seek(0, 2)
-        file_size = file.file.tell()
+        content_bytes = file.file.read()
+        file_size = len(content_bytes)
         file.file.seek(0)
         
         # 50MB max file size
@@ -37,11 +39,61 @@ def upload_file(
         if file_size > MAX_FILE_SIZE:
             raise HTTPException(status_code=413, detail="File size exceeds the maximum limit of 50MB.")
        
-        # Mọi file người dùng nạp vào đều phải qua tầng Staging.
+        user_id = current_user.id if hasattr(current_user, "id") else current_user.get("id")
+        file_hash = hashlib.sha256(content_bytes).hexdigest()
+
+        # Kiểm tra xem file Y HỆT 100% (cùng hash/tên/dung lượng) đã nạp thành công trước đó chưa
+        existing_record = db.query(UploadHistory).filter(
+            UploadHistory.user_id == user_id,
+            UploadHistory.filename == file.filename,
+            UploadHistory.file_size_bytes == file_size,
+            UploadHistory.pipeline_status.in_(["success", "already_processed"])
+        ).order_by(UploadHistory.uploaded_at.desc()).first()
+
+        # Kiểm tra thêm metadata hash nếu có
+        if not existing_record:
+            all_records = db.query(UploadHistory).filter(
+                UploadHistory.user_id == user_id,
+                UploadHistory.pipeline_status.in_(["success", "already_processed"])
+            ).all()
+            for rec in all_records:
+                if rec.metadata_info and rec.metadata_info.get("file_hash") == file_hash:
+                    existing_record = rec
+                    break
+
+        if existing_record:
+            prev_time_str = existing_record.uploaded_at.strftime("%H:%M:%S %d/%m/%Y") if existing_record.uploaded_at else "trước đó"
+            history_record = UploadHistory(
+                user_id=user_id,
+                filename=file.filename,
+                file_size_bytes=file_size,
+                file_type=file.content_type,
+                s3_path=existing_record.s3_path,
+                metadata_info={
+                    "source": "api", 
+                    "bucket": MINIO_BUCKET_NAME,
+                    "file_hash": file_hash,
+                    "already_processed": True,
+                    "prev_uploaded_at": prev_time_str,
+                    "prev_dag_run_id": existing_record.dag_run_id
+                },
+                status="AlreadyProcessed",
+                pipeline_status="already_processed",
+                dag_run_id=existing_record.dag_run_id
+            )
+            db.add(history_record)
+            db.commit()
+
+            return {
+                "message": f"File {file.filename} đã được nạp và phân tích thành công trước đó vào lúc {prev_time_str}. Dữ liệu đã sẵn sàng trên báo cáo!",
+                "dag_run_id": existing_record.dag_run_id,
+                "already_processed": True
+            }
+
+        # Mọi file mới hoặc có sửa đổi số liệu đều qua tầng Staging để xử lý
         unique_id = uuid.uuid4().hex
         object_name = f"staging/{unique_id}_{file.filename}"
 
-   
         minio_client.put_object(
             bucket_name=MINIO_BUCKET_NAME,
             object_name=object_name,
@@ -50,27 +102,22 @@ def upload_file(
         )
 
         # Lưu lịch sử upload vào DB
-        user_id = current_user.id if hasattr(current_user, "id") else current_user.get("id")
-        
         history_record = UploadHistory(
             user_id=user_id,
             filename=file.filename,
             file_size_bytes=file_size,
             file_type=file.content_type,
             s3_path=object_name,
-            metadata_info={"source": "api", "bucket": MINIO_BUCKET_NAME},
+            metadata_info={"source": "api", "bucket": MINIO_BUCKET_NAME, "file_hash": file_hash},
             status="Uploaded"
         )
         db.add(history_record)
         db.commit()
 
         # Trigger Airflow Pipeline
-       
-
         airflow_url = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/lakehouse_pipeline/dagRuns"
         dag_run_id = None
         try:
-            # Assuming airflow-init sets up admin user with 'airflow:airflow'
             resp = requests.post(
                 airflow_url, 
                 json={"conf": {"file_key": object_name}}, 

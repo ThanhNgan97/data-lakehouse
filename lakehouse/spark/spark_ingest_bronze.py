@@ -664,6 +664,12 @@ def main():
     parser = argparse.ArgumentParser(description="Bronze Ingestion")
     parser.add_argument("--run_id", type=str, help="Airflow DAG Run ID", default="")
     parser.add_argument(
+        "--upload_id",
+        type=int,
+        default=0,
+        help="UploadHistory ID for exact uploaded document provenance.",
+    )
+    parser.add_argument(
         "--object_key",
         type=str,
         default="",
@@ -752,6 +758,14 @@ def main():
     print(f"⏱️ Thời gian trích xuất Bronze: {elapsed}s")
 
     if extracted_data:
+        # Preserve upload-level lineage for exact document uploads.
+        if args.object_key and args.upload_id > 0:
+            source_file_name = args.object_key.rsplit("/", 1)[-1]
+
+            for row in extracted_data:
+                row["source_upload_id"] = args.upload_id
+                row["source_file_name"] = source_file_name
+
         # Lưu dữ liệu thô vừa parse được vào DB để Frontend hiển thị
         save_parsed_data(args.run_id, extracted_data)
         

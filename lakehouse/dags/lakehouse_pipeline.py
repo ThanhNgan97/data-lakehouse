@@ -53,10 +53,16 @@ case "$SOURCE_TYPE" in
             exit 2
         fi
 
+        if [ -z "$UPLOAD_ID" ]; then
+            echo "ERROR: DOCUMENT_FILE requires upload_id." >&2
+            exit 2
+        fi
+
         echo "Upload source type: DOCUMENT_FILE"
         echo "Object key: $OBJECT_KEY"
+        echo "Upload ID: $UPLOAD_ID"
 
-        python spark_ingest_bronze.py             --object_key "$OBJECT_KEY"             --run_id "$AIRFLOW_RUN_ID"
+        python spark_ingest_bronze.py             --object_key "$OBJECT_KEY"             --upload_id "$UPLOAD_ID"             --run_id "$AIRFLOW_RUN_ID"
         ;;
 
     MYSQL_DUMP)

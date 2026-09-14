@@ -380,15 +380,20 @@ def create_upload_dashboard_filter(
 
     metadata = record.metadata_info or {}
 
+    supported_dashboard_sources = {
+        MYSQL_DUMP_SOURCE_TYPE,
+        DOCUMENT_SOURCE_TYPE,
+    }
+
     if (
         metadata.get("source_type")
-        != MYSQL_DUMP_SOURCE_TYPE
+        not in supported_dashboard_sources
     ):
         raise HTTPException(
             status_code=400,
             detail=(
-                "Dashboard auto-filter currently "
-                "supports SQL dump uploads."
+                "Dashboard auto-filter supports "
+                "document and SQL dump uploads."
             ),
         )
 

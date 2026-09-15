@@ -42,51 +42,51 @@ def upload_file(
         user_id = current_user.id if hasattr(current_user, "id") else current_user.get("id")
         file_hash = hashlib.sha256(content_bytes).hexdigest()
 
-        # Kiểm tra xem file Y HỆT 100% (cùng hash/tên/dung lượng) đã nạp thành công trước đó chưa
-        existing_record = db.query(UploadHistory).filter(
+        # Tìm bản ghi GỐC ĐẦU TIÊN đã nạp thành công (bằng hash hoặc bằng kích thước file)
+        original_record = None
+        all_success_records = db.query(UploadHistory).filter(
             UploadHistory.user_id == user_id,
-            UploadHistory.filename == file.filename,
-            UploadHistory.file_size_bytes == file_size,
             UploadHistory.pipeline_status.in_(["success", "already_processed"])
-        ).order_by(UploadHistory.uploaded_at.desc()).first()
+        ).order_by(UploadHistory.uploaded_at.asc()).all()
 
-        # Kiểm tra thêm metadata hash nếu có
-        if not existing_record:
-            all_records = db.query(UploadHistory).filter(
-                UploadHistory.user_id == user_id,
-                UploadHistory.pipeline_status.in_(["success", "already_processed"])
-            ).all()
-            for rec in all_records:
-                if rec.metadata_info and rec.metadata_info.get("file_hash") == file_hash:
-                    existing_record = rec
-                    break
+        for rec in all_success_records:
+            rec_hash = rec.metadata_info.get("file_hash") if rec.metadata_info else None
+            if (rec_hash and rec_hash == file_hash) or (rec.file_size_bytes == file_size):
+                original_record = rec
+                break
 
-        if existing_record:
-            prev_time_str = existing_record.uploaded_at.strftime("%H:%M:%S %d/%m/%Y") if existing_record.uploaded_at else "trước đó"
+        if original_record:
+            prev_time_str = original_record.uploaded_at.strftime("%H:%M:%S %d/%m/%Y") if original_record.uploaded_at else "trước đó"
             history_record = UploadHistory(
                 user_id=user_id,
                 filename=file.filename,
                 file_size_bytes=file_size,
                 file_type=file.content_type,
-                s3_path=existing_record.s3_path,
+                s3_path=original_record.s3_path,
                 metadata_info={
                     "source": "api", 
                     "bucket": MINIO_BUCKET_NAME,
                     "file_hash": file_hash,
                     "already_processed": True,
                     "prev_uploaded_at": prev_time_str,
-                    "prev_dag_run_id": existing_record.dag_run_id
+                    "original_filename": original_record.filename,
+                    "prev_dag_run_id": original_record.dag_run_id
                 },
                 status="AlreadyProcessed",
                 pipeline_status="already_processed",
-                dag_run_id=existing_record.dag_run_id
+                dag_run_id=original_record.dag_run_id
             )
             db.add(history_record)
             db.commit()
 
+            if original_record.filename != file.filename:
+                msg = f"File '{file.filename}' (nội dung trùng khớp với file gốc '{original_record.filename}') đã được nạp thành công trước đó vào lúc {prev_time_str}. Dữ liệu đang sẵn sàng trên báo cáo Superset!"
+            else:
+                msg = f"File '{file.filename}' đã được nạp và phân tích thành công trước đó vào lúc {prev_time_str}. Dữ liệu đã sẵn sàng trên báo cáo Superset!"
+
             return {
-                "message": f"File {file.filename} đã được nạp và phân tích thành công trước đó vào lúc {prev_time_str}. Dữ liệu đã sẵn sàng trên báo cáo!",
-                "dag_run_id": existing_record.dag_run_id,
+                "message": msg,
+                "dag_run_id": original_record.dag_run_id,
                 "already_processed": True
             }
 

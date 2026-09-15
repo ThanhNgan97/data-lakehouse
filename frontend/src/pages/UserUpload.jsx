@@ -354,7 +354,7 @@ const UserUpload = () => {
               type="file"
               ref={fileInputRef}
               onChange={(e) => processFile(e.target.files[0])}
-              accept=".pdf,.docx,.ppt,.pptx,.json,.csv,.xlsx,.xls"
+              accept=".pdf,.docx,.json,.csv,.xlsx,.xls"
               className="hidden"
             />
 
@@ -387,7 +387,7 @@ const UserUpload = () => {
                   : "Kéo thả file hoặc bấm để chọn"}
               </p>
               <p className="text-[11px] text-ink-400 mt-1.5 font-data">
-                Hỗ trợ định dạng: PDF, DOCX, PPT, PPTX, JSON, CSV, EXCEL
+                Hỗ trợ định dạng: PDF, DOCX, JSON, CSV, EXCEL
               </p>
 
               {uploading && uploadProgress > 0 && (

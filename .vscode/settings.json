@@ -1,10 +1,1 @@
-{
-  "python.defaultInterpreterPath": "D:\\Code\\Python\\python.exe",
-  "python.analysis.extraPaths": [
-    "D:\\Code\\Python\\Lib\\site-packages"
-  ],
-  "[python]": {
-    "editor.defaultFormatter": "ms-python.python"
-  }
-}
-
+{"python.defaultInterpreterPath": "D:\\Code\\lakehouse\\backend\\.venv\\Scripts\\python.exe", "python.interpreter.infoVisibility": "always"}

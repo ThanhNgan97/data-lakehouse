@@ -159,6 +159,7 @@ services:
       _AIRFLOW_WWW_USER_CREATE: 'true'
       _AIRFLOW_WWW_USER_USERNAME: airflow
       _AIRFLOW_WWW_USER_PASSWORD: airflow
+    command: version
     depends_on:
       - postgres
     networks:
@@ -189,8 +190,10 @@ services:
       - ./.env:/opt/airflow/.env
     command: webserver
     depends_on:
-      - postgres
-      - airflow-init
+      postgres:
+        condition: service_started
+      airflow-init:
+        condition: service_completed_successfully
     networks:
       - lakehouse-network
 
@@ -213,8 +216,10 @@ services:
       - ./.env:/opt/airflow/.env
     command: scheduler
     depends_on:
-      - postgres
-      - airflow-init
+      postgres:
+        condition: service_started
+      airflow-init:
+        condition: service_completed_successfully
     networks:
       - lakehouse-network
 

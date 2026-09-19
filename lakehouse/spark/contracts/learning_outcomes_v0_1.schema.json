@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CTU IOC Learning Outcomes API - Demo Contract",
+  "type": "object",
+  "required": [
+    "source_system",
+    "dataset",
+    "schema_version",
+    "generated_at",
+    "data"
+  ],
+  "properties": {
+    "source_system": {
+      "type": "string"
+    },
+    "dataset": {
+      "const": "education.learning_outcomes"
+    },
+    "schema_version": {
+      "type": "string"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "data_as_of": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "record_id",
+          "program_code",
+          "program_name",
+          "academic_year",
+          "semester",
+          "student_count",
+          "passed_course_count",
+          "attempted_course_count",
+          "gpa_point_sum",
+          "gpa_student_count",
+          "warning_student_count",
+          "dropout_risk_student_count",
+          "on_track_student_count",
+          "progress_evaluated_student_count",
+          "updated_at",
+          "is_deleted"
+        ],
+        "properties": {
+          "record_id": {
+            "type": "string"
+          },
+          "program_code": {
+            "type": "string"
+          },
+          "program_name": {
+            "type": "string"
+          },
+          "academic_year": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{4}$"
+          },
+          "semester": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "student_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "passed_course_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "attempted_course_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "gpa_point_sum": {
+            "type": "number",
+            "minimum": 0
+          },
+          "gpa_student_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "warning_student_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "dropout_risk_student_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "on_track_student_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "progress_evaluated_student_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "is_deleted": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": true
+}

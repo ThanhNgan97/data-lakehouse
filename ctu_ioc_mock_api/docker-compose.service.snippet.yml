@@ -1,0 +1,18 @@
+# Add this service under the existing top-level `services:` section
+# of your current Lakehouse docker-compose file.
+ctu-ioc-mock-api:
+  build:
+    context: ./ctu_ioc_mock_api
+    dockerfile: Dockerfile
+  container_name: ctu-ioc-mock-api
+  ports:
+    - "8090:8000"
+  environment:
+    MOCK_API_KEY: ""
+  restart: unless-stopped
+
+# Other containers in the SAME Docker Compose network can call:
+# http://ctu-ioc-mock-api:8000/api/v1/education/learning-outcomes
+#
+# Your Windows host can call:
+# http://localhost:8090/api/v1/education/learning-outcomes

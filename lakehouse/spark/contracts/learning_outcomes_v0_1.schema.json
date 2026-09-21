@@ -35,82 +35,82 @@
       "items": {
         "type": "object",
         "required": [
-          "record_id",
-          "program_code",
-          "program_name",
-          "academic_year",
-          "semester",
-          "student_count",
-          "passed_course_count",
-          "attempted_course_count",
-          "gpa_point_sum",
-          "gpa_student_count",
-          "warning_student_count",
-          "dropout_risk_student_count",
-          "on_track_student_count",
-          "progress_evaluated_student_count",
-          "updated_at",
-          "is_deleted"
+          "ma_ban_ghi",
+          "ma_chuong_trinh",
+          "ten_chuong_trinh",
+          "nam_hoc",
+          "hoc_ky",
+          "so_sinh_vien",
+          "so_luot_hoc_phan_dat",
+          "tong_luot_hoc_phan",
+          "tong_diem_gpa",
+          "so_sinh_vien_tinh_gpa",
+          "so_sinh_vien_canh_bao",
+          "so_sinh_vien_nguy_co_nghi_hoc",
+          "so_sinh_vien_dung_tien_do",
+          "so_sinh_vien_danh_gia_tien_do",
+          "thoi_gian_cap_nhat_nguon",
+          "da_xoa"
         ],
         "properties": {
-          "record_id": {
+          "ma_ban_ghi": {
             "type": "string"
           },
-          "program_code": {
+          "ma_chuong_trinh": {
             "type": "string"
           },
-          "program_name": {
+          "ten_chuong_trinh": {
             "type": "string"
           },
-          "academic_year": {
+          "nam_hoc": {
             "type": "string",
             "pattern": "^[0-9]{4}-[0-9]{4}$"
           },
-          "semester": {
+          "hoc_ky": {
             "type": "integer",
             "minimum": 1
           },
-          "student_count": {
+          "so_sinh_vien": {
             "type": "integer",
             "minimum": 0
           },
-          "passed_course_count": {
+          "so_luot_hoc_phan_dat": {
             "type": "integer",
             "minimum": 0
           },
-          "attempted_course_count": {
+          "tong_luot_hoc_phan": {
             "type": "integer",
             "minimum": 0
           },
-          "gpa_point_sum": {
+          "tong_diem_gpa": {
             "type": "number",
             "minimum": 0
           },
-          "gpa_student_count": {
+          "so_sinh_vien_tinh_gpa": {
             "type": "integer",
             "minimum": 0
           },
-          "warning_student_count": {
+          "so_sinh_vien_canh_bao": {
             "type": "integer",
             "minimum": 0
           },
-          "dropout_risk_student_count": {
+          "so_sinh_vien_nguy_co_nghi_hoc": {
             "type": "integer",
             "minimum": 0
           },
-          "on_track_student_count": {
+          "so_sinh_vien_dung_tien_do": {
             "type": "integer",
             "minimum": 0
           },
-          "progress_evaluated_student_count": {
+          "so_sinh_vien_danh_gia_tien_do": {
             "type": "integer",
             "minimum": 0
           },
-          "updated_at": {
+          "thoi_gian_cap_nhat_nguon": {
             "type": "string",
             "format": "date-time"
           },
-          "is_deleted": {
+          "da_xoa": {
             "type": "boolean"
           }
         },

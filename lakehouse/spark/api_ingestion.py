@@ -37,15 +37,61 @@ METADATA_COLUMNS = (
 )
 
 
-def canonical_source_checksum(record: dict[str, Any]) -> str:
-    """SHA-256 of source/business content only, independent of ingestion metadata."""
+def canonical_source_checksum(
+    source_record: dict[str, Any],
+) -> str:
+    """Return a stable source checksum across the naming-only migration.
+
+    The learning-outcomes contract renamed business keys from English
+    to Vietnamese. _record_checksum is technical lineage, so records
+    with otherwise identical source values retain their prior identity.
+    Other generic API schemas keep normal raw-record serialization.
+    """
+    legacy_names = {
+        "ma_ban_ghi": "record_id",
+        "ma_chuong_trinh": "program_code",
+        "ten_chuong_trinh": "program_name",
+        "nam_hoc": "academic_year",
+        "hoc_ky": "semester",
+        "so_sinh_vien": "student_count",
+        "so_luot_hoc_phan_dat": "passed_course_count",
+        "tong_luot_hoc_phan": "attempted_course_count",
+        "tong_diem_gpa": "gpa_point_sum",
+        "so_sinh_vien_tinh_gpa": "gpa_student_count",
+        "so_sinh_vien_canh_bao": "warning_student_count",
+        "so_sinh_vien_nguy_co_nghi_hoc": (
+            "dropout_risk_student_count"
+        ),
+        "so_sinh_vien_dung_tien_do": (
+            "on_track_student_count"
+        ),
+        "so_sinh_vien_danh_gia_tien_do": (
+            "progress_evaluated_student_count"
+        ),
+        "thoi_gian_cap_nhat_nguon": "updated_at",
+        "da_xoa": "is_deleted",
+    }
+
+    checksum_record = source_record
+
+    if set(source_record) == set(legacy_names):
+        checksum_record = {
+            legacy_name: source_record[current_name]
+            for current_name, legacy_name
+            in legacy_names.items()
+        }
+
     canonical = json.dumps(
-        record,
+        checksum_record,
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
     )
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+    return hashlib.sha256(
+        canonical.encode("utf-8")
+    ).hexdigest()
+
 
 
 def _parse_iso_datetime(value: str, *, field_name: str) -> datetime:
@@ -104,9 +150,12 @@ def validate_contract(payload: dict[str, Any], config: ApiDatasetConfig) -> None
         )
 
     for index, record in enumerate(payload["data"]):
+        source_updated_at_field = config.source_updated_at_field
         _parse_iso_datetime(
-            record["updated_at"],
-            field_name=f"data[{index}].updated_at",
+            record[source_updated_at_field],
+            field_name=(
+                f"data[{index}].{source_updated_at_field}"
+            ),
         )
 
 
@@ -144,10 +193,19 @@ def _prepare_rows(
     for index, source_record in enumerate(source_rows):
         # JSON Schema already rejects missing/additional fields and bad primitive types.
         checksum = canonical_source_checksum(source_record)
-        updated_at = _parse_iso_datetime(source_record["updated_at"], field_name=f"data[{index}].updated_at")
+        source_updated_at_field = (
+            config.source_updated_at_field
+        )
+
+        source_updated_at = _parse_iso_datetime(
+            source_record[source_updated_at_field],
+            field_name=(
+                f"data[{index}].{source_updated_at_field}"
+            ),
+        )
 
         row = dict(source_record)
-        row["updated_at"] = updated_at
+        row[source_updated_at_field] = source_updated_at
         row.update({
             "_source_system": payload["source_system"],
             "_source_type": "API",
@@ -155,7 +213,7 @@ def _prepare_rows(
             "_schema_version": payload["schema_version"],
             "_ingestion_mode": ingestion_mode,
             "_batch_id": batch_id,
-            "_source_updated_at": updated_at,
+            "_source_updated_at": source_updated_at,
             "_ingested_at": ingested_at,
             "_record_checksum": checksum,
         })
@@ -256,31 +314,74 @@ def ingest_payload_to_bronze(
         )
 
     sample_source = payload["data"][0]
-    sample_id = sample_source["record_id"]
-    expected_checksum = canonical_source_checksum(sample_source)
-    sample_after = readback.loc[readback["record_id"] == sample_id]
-    if len(sample_after.index) != 1:
-        raise AssertionError(f"Sample record_id={sample_id!r} not found exactly once after read-back")
 
-    actual_checksum = str(sample_after.iloc[0]["_record_checksum"])
-    if actual_checksum != expected_checksum:
+    sample_id_field = config.record_id_field
+    sample_id = sample_source[sample_id_field]
+
+    expected_checksum = canonical_source_checksum(
+        sample_source
+    )
+
+    sample_after = readback.loc[
+        readback[sample_id_field] == sample_id
+    ]
+
+    if len(sample_after.index) != 1:
         raise AssertionError(
-            f"Checksum mismatch for {sample_id}: expected={expected_checksum}, actual={actual_checksum}"
+            f"Sample {sample_id_field}={sample_id!r} "
+            "not found exactly once after read-back"
         )
 
-    # Values that must remain source-like and typed, not dashboard-formatted strings.
+    actual_checksum = str(
+        sample_after.iloc[0]["_record_checksum"]
+    )
+
+    if actual_checksum != expected_checksum:
+        raise AssertionError(
+            f"Checksum mismatch for {sample_id}: "
+            f"expected={expected_checksum}, "
+            f"actual={actual_checksum}"
+        )
+
     sample = sample_after.iloc[0]
-    comparisons = {
-        "program_code": sample["program_code"] == sample_source["program_code"],
-        "academic_year": sample["academic_year"] == sample_source["academic_year"],
-        "semester": int(sample["semester"]) == sample_source["semester"],
-        "student_count": int(sample["student_count"]) == sample_source["student_count"],
-        "gpa_point_sum": abs(float(sample["gpa_point_sum"]) - float(sample_source["gpa_point_sum"])) < 1e-9,
-        "is_deleted": bool(sample["is_deleted"]) is sample_source["is_deleted"],
-    }
-    failed_comparisons = [name for name, ok in comparisons.items() if not ok]
+    failed_comparisons = []
+
+    for field_name in config.sample_validation_fields:
+
+        expected = sample_source[field_name]
+        actual = sample[field_name]
+
+        if isinstance(expected, bool):
+            ok = bool(actual) is expected
+
+        elif (
+            isinstance(expected, int)
+            and not isinstance(expected, bool)
+        ):
+            ok = int(actual) == expected
+
+        elif isinstance(expected, float):
+            ok = (
+                abs(
+                    float(actual)
+                    - float(expected)
+                )
+                < 1e-9
+            )
+
+        else:
+            ok = str(actual) == str(expected)
+
+        if not ok:
+            failed_comparisons.append(
+                field_name
+            )
+
     if failed_comparisons:
-        raise AssertionError(f"Sample value mismatch after read-back: {failed_comparisons}")
+        raise AssertionError(
+            "Sample value mismatch after read-back: "
+            f"{failed_comparisons}"
+        )
 
     print("\n=== API BRONZE VALIDATION ===")
     print(f"A. Input JSON load: PASS ({input_label})")
@@ -325,4 +426,254 @@ def ingest_json_file_to_bronze(
         batch_id=batch_id,
         expected_count=expected_count,
         input_label=str(input_path),
+    )
+
+
+
+def fetch_http_api_payload(
+    api_url: str,
+    *,
+    dataset: str,
+    updated_after: str | None = None,
+    api_key: str | None = None,
+    page_limit: int = 500,
+    timeout_seconds: int = 30,
+) -> dict[str, Any]:
+    """
+    Fetch one logical API dataset over one or more cursor-paginated
+    HTTP GET responses and return one contract-compatible payload.
+
+    Transport/pagination belongs here.
+    Bronze transformation and persistence remain in
+    ingest_payload_to_bronze().
+    """
+    from urllib.error import HTTPError, URLError
+    from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+    from urllib.request import Request, urlopen
+
+    if not api_url:
+        raise ValueError("api_url must not be empty")
+
+    if page_limit < 1 or page_limit > 500:
+        raise ValueError("page_limit must be between 1 and 500")
+
+    if timeout_seconds < 1:
+        raise ValueError("timeout_seconds must be >= 1")
+
+    config = get_dataset_config(dataset)
+
+    parts = urlsplit(api_url)
+    base_query = dict(
+        parse_qsl(
+            parts.query,
+            keep_blank_values=True,
+        )
+    )
+
+    headers = {
+        "Accept": "application/json",
+    }
+
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    all_records: list[dict[str, Any]] = []
+    seen_record_ids: set[str] = set()
+    seen_cursors: set[str] = set()
+
+    first_page: dict[str, Any] | None = None
+    cursor: str | None = None
+    page_number = 0
+
+    while True:
+        page_number += 1
+
+        if page_number > 10000:
+            raise RuntimeError("Pagination exceeded safety limit")
+
+        query = dict(base_query)
+        query["limit"] = str(page_limit)
+
+        if updated_after:
+            query["updated_after"] = updated_after
+
+        if cursor:
+            query["cursor"] = cursor
+        else:
+            query.pop("cursor", None)
+
+        request_url = urlunsplit(
+            (
+                parts.scheme,
+                parts.netloc,
+                parts.path,
+                urlencode(query),
+                parts.fragment,
+            )
+        )
+
+        request = Request(
+            request_url,
+            headers=headers,
+            method="GET",
+        )
+
+        try:
+            with urlopen(
+                request,
+                timeout=timeout_seconds,
+            ) as response:
+                payload = json.load(response)
+
+        except HTTPError as exc:
+            try:
+                body = exc.read().decode(
+                    "utf-8",
+                    errors="replace",
+                )
+            except Exception:
+                body = ""
+
+            raise RuntimeError(
+                f"HTTP API returned status={exc.code}: {body}"
+            ) from exc
+
+        except URLError as exc:
+            raise RuntimeError(
+                f"HTTP API connection failed: {exc}"
+            ) from exc
+
+        if not isinstance(payload, dict):
+            raise ValueError(
+                "Top-level API response must be a JSON object"
+            )
+
+        # Validate every real API page before accepting its data.
+        validate_contract(payload, config)
+
+        if first_page is None:
+            first_page = payload
+        else:
+            for field in (
+                "source_system",
+                "dataset",
+                "schema_version",
+            ):
+                if payload.get(field) != first_page.get(field):
+                    raise ValueError(
+                        f"Inconsistent {field} across API pages"
+                    )
+
+        page_records = payload["data"]
+
+        for record in page_records:
+            source_record_id = record[
+                config.record_id_field
+            ]
+
+            if source_record_id in seen_record_ids:
+                raise ValueError(
+                    "Duplicate source identifier across "
+                    "API pages: "
+                    f"{config.record_id_field}="
+                    f"{source_record_id}"
+                )
+
+            seen_record_ids.add(
+                source_record_id
+            )
+            all_records.append(record)
+
+        pagination = payload["pagination"]
+
+        print(
+            "HTTP_PAGE="
+            f"{page_number}"
+            f"|records={len(page_records)}"
+            f"|has_more={pagination['has_more']}"
+        )
+
+        if not pagination["has_more"]:
+            break
+
+        next_cursor = pagination.get("next_cursor")
+
+        if not next_cursor:
+            raise ValueError(
+                "API says has_more=true but next_cursor is missing"
+            )
+
+        if next_cursor in seen_cursors:
+            raise ValueError(
+                "Repeated pagination cursor detected"
+            )
+
+        seen_cursors.add(next_cursor)
+        cursor = next_cursor
+
+    if first_page is None:
+        raise RuntimeError("API returned no response pages")
+
+    merged_payload = dict(first_page)
+
+    merged_payload["data"] = all_records
+
+    # This is now the locally assembled logical response.
+    merged_payload["pagination"] = {
+        "returned_records": len(all_records),
+        "has_more": False,
+        "next_cursor": None,
+    }
+
+    # Validate the complete logical payload as well.
+    validate_contract(
+        merged_payload,
+        config,
+    )
+
+    print(
+        "HTTP_FETCH_TOTAL="
+        f"{len(all_records)}"
+        f"|pages={page_number}"
+    )
+
+    return merged_payload
+
+
+def ingest_http_api_to_bronze(
+    spark: SparkSession,
+    api_url: str,
+    *,
+    dataset: str,
+    ingestion_mode: str = "FULL_DEMO",
+    batch_id: str | None = None,
+    expected_count: int | None = None,
+    updated_after: str | None = None,
+    api_key: str | None = None,
+    page_limit: int = 500,
+    timeout_seconds: int = 30,
+) -> IngestionResult:
+    """
+    HTTP source adapter.
+
+    Fetch HTTP payload, then delegate to the existing verified
+    contract/schema/metadata/checksum/MinIO Bronze engine.
+    """
+    payload = fetch_http_api_payload(
+        api_url,
+        dataset=dataset,
+        updated_after=updated_after,
+        api_key=api_key,
+        page_limit=page_limit,
+        timeout_seconds=timeout_seconds,
+    )
+
+    return ingest_payload_to_bronze(
+        spark,
+        payload,
+        dataset=dataset,
+        ingestion_mode=ingestion_mode,
+        batch_id=batch_id,
+        expected_count=expected_count,
+        input_label=f"HTTP GET {api_url}",
     )

@@ -1,0 +1,13 @@
+services:
+  ctu-ioc-mock-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ctu-ioc-mock-api
+    ports:
+      - "8090:8000"
+    environment:
+      # Leave empty for local testing without authentication.
+      # Set a value to require: Authorization: Bearer <value>
+      MOCK_API_KEY: ""
+    restart: unless-stopped

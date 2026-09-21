@@ -1,15 +1,4 @@
 {
-  "source_system": "ctu_ioc_demo",
-  "dataset": "education.learning_outcomes",
-  "schema_version": "1.0",
-  "generated_at": "2026-09-18T17:00:00+07:00",
-  "data_as_of": "2026-07-15T23:59:59+07:00",
-  "demo_assumptions": [
-    "DEMO-Pxxx program codes are synthetic placeholders, not official CTU codes.",
-    "Historical periods and historical values are synthetic and only for pipeline testing.",
-    "tong_luot_hoc_phan is simulated as so_sinh_vien * 6 only to make pass-rate calculation testable.",
-    "The business definition of the dashboard field Xu huong is not yet known and is intentionally not encoded as a source field."
-  ],
   "data": [
     {
       "ma_ban_ghi": "DEMO-P001|2024-2025|S2",
@@ -551,10 +540,5 @@
       "thoi_gian_cap_nhat_nguon": "2026-07-15T09:09:00+07:00",
       "da_xoa": false
     }
-  ],
-  "pagination": {
-    "next_cursor": null,
-    "has_more": false,
-    "returned_records": 30
-  }
+  ]
 }

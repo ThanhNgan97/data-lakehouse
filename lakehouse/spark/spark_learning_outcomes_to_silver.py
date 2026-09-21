@@ -41,9 +41,9 @@ SILVER_TABLE = "lakehouse.silver.learning_outcomes"
 QUARANTINE_TABLE = "lakehouse.silver.learning_outcomes_quarantine"
 
 BUSINESS_KEY = (
-    "program_code",
-    "academic_year",
-    "semester",
+    "ma_chuong_trinh",
+    "nam_hoc",
+    "hoc_ky",
 )
 
 BRONZE_METADATA_FIELDS = (
@@ -92,43 +92,43 @@ def build_silver_input_schema() -> StructType:
 # Minimum demo DQ rules required before a row can compete for Silver.
 # These are demo-v0.1 assumptions, not confirmed final CTU IOC rules.
 DQ_RULES = (
-    ("PROGRAM_CODE_NULL", "program_code IS NULL"),
-    ("ACADEMIC_YEAR_NULL", "academic_year IS NULL"),
-    ("SEMESTER_NULL", "semester IS NULL"),
-    ("SEMESTER_NON_POSITIVE", "semester <= 0"),
-    ("STUDENT_COUNT_NEGATIVE", "student_count IS NULL OR student_count < 0"),
-    ("PASSED_COURSE_COUNT_NEGATIVE", "passed_course_count IS NULL OR passed_course_count < 0"),
-    ("ATTEMPTED_COURSE_COUNT_NEGATIVE", "attempted_course_count IS NULL OR attempted_course_count < 0"),
+    ("PROGRAM_CODE_NULL", "ma_chuong_trinh IS NULL"),
+    ("ACADEMIC_YEAR_NULL", "nam_hoc IS NULL"),
+    ("SEMESTER_NULL", "hoc_ky IS NULL"),
+    ("SEMESTER_NON_POSITIVE", "hoc_ky <= 0"),
+    ("STUDENT_COUNT_NEGATIVE", "so_sinh_vien IS NULL OR so_sinh_vien < 0"),
+    ("PASSED_COURSE_COUNT_NEGATIVE", "so_luot_hoc_phan_dat IS NULL OR so_luot_hoc_phan_dat < 0"),
+    ("ATTEMPTED_COURSE_COUNT_NEGATIVE", "tong_luot_hoc_phan IS NULL OR tong_luot_hoc_phan < 0"),
     (
         "PASSED_EXCEEDS_ATTEMPTED",
-        "passed_course_count > attempted_course_count",
+        "so_luot_hoc_phan_dat > tong_luot_hoc_phan",
     ),
-    ("GPA_STUDENT_COUNT_NEGATIVE", "gpa_student_count IS NULL OR gpa_student_count < 0"),
+    ("GPA_STUDENT_COUNT_NEGATIVE", "so_sinh_vien_tinh_gpa IS NULL OR so_sinh_vien_tinh_gpa < 0"),
     (
         "GPA_STUDENT_COUNT_EXCEEDS_STUDENT_COUNT",
-        "gpa_student_count > student_count",
+        "so_sinh_vien_tinh_gpa > so_sinh_vien",
     ),
-    ("WARNING_STUDENT_COUNT_NEGATIVE", "warning_student_count IS NULL OR warning_student_count < 0"),
+    ("WARNING_STUDENT_COUNT_NEGATIVE", "so_sinh_vien_canh_bao IS NULL OR so_sinh_vien_canh_bao < 0"),
     (
         "WARNING_STUDENT_COUNT_EXCEEDS_STUDENT_COUNT",
-        "warning_student_count > student_count",
+        "so_sinh_vien_canh_bao > so_sinh_vien",
     ),
     (
         "DROPOUT_RISK_STUDENT_COUNT_NEGATIVE",
-        "dropout_risk_student_count IS NULL OR dropout_risk_student_count < 0",
+        "so_sinh_vien_nguy_co_nghi_hoc IS NULL OR so_sinh_vien_nguy_co_nghi_hoc < 0",
     ),
     (
         "DROPOUT_RISK_EXCEEDS_STUDENT_COUNT",
-        "dropout_risk_student_count > student_count",
+        "so_sinh_vien_nguy_co_nghi_hoc > so_sinh_vien",
     ),
-    ("ON_TRACK_STUDENT_COUNT_NEGATIVE", "on_track_student_count IS NULL OR on_track_student_count < 0"),
+    ("ON_TRACK_STUDENT_COUNT_NEGATIVE", "so_sinh_vien_dung_tien_do IS NULL OR so_sinh_vien_dung_tien_do < 0"),
     (
         "PROGRESS_EVALUATED_STUDENT_COUNT_NEGATIVE",
-        "progress_evaluated_student_count IS NULL OR progress_evaluated_student_count < 0",
+        "so_sinh_vien_danh_gia_tien_do IS NULL OR so_sinh_vien_danh_gia_tien_do < 0",
     ),
     (
         "ON_TRACK_EXCEEDS_PROGRESS_EVALUATED",
-        "on_track_student_count > progress_evaluated_student_count",
+        "so_sinh_vien_dung_tien_do > so_sinh_vien_danh_gia_tien_do",
     ),
 )
 
@@ -144,22 +144,22 @@ def init_silver_tables_if_needed(spark: SparkSession) -> None:
 
     spark.sql(f"""
         CREATE TABLE IF NOT EXISTS {SILVER_TABLE} (
-            record_id STRING,
-            program_code STRING,
-            program_name STRING,
-            academic_year STRING,
-            semester INT,
-            student_count BIGINT,
-            passed_course_count BIGINT,
-            attempted_course_count BIGINT,
-            gpa_point_sum DOUBLE,
-            gpa_student_count BIGINT,
-            warning_student_count BIGINT,
-            dropout_risk_student_count BIGINT,
-            on_track_student_count BIGINT,
-            progress_evaluated_student_count BIGINT,
-            updated_at TIMESTAMP,
-            is_deleted BOOLEAN,
+            ma_ban_ghi STRING,
+            ma_chuong_trinh STRING,
+            ten_chuong_trinh STRING,
+            nam_hoc STRING,
+            hoc_ky INT,
+            so_sinh_vien BIGINT,
+            so_luot_hoc_phan_dat BIGINT,
+            tong_luot_hoc_phan BIGINT,
+            tong_diem_gpa DOUBLE,
+            so_sinh_vien_tinh_gpa BIGINT,
+            so_sinh_vien_canh_bao BIGINT,
+            so_sinh_vien_nguy_co_nghi_hoc BIGINT,
+            so_sinh_vien_dung_tien_do BIGINT,
+            so_sinh_vien_danh_gia_tien_do BIGINT,
+            thoi_gian_cap_nhat_nguon TIMESTAMP,
+            da_xoa BOOLEAN,
 
             _source_system STRING,
             _source_type STRING,
@@ -178,22 +178,22 @@ def init_silver_tables_if_needed(spark: SparkSession) -> None:
 
     spark.sql(f"""
         CREATE TABLE IF NOT EXISTS {QUARANTINE_TABLE} (
-            record_id STRING,
-            program_code STRING,
-            program_name STRING,
-            academic_year STRING,
-            semester INT,
-            student_count BIGINT,
-            passed_course_count BIGINT,
-            attempted_course_count BIGINT,
-            gpa_point_sum DOUBLE,
-            gpa_student_count BIGINT,
-            warning_student_count BIGINT,
-            dropout_risk_student_count BIGINT,
-            on_track_student_count BIGINT,
-            progress_evaluated_student_count BIGINT,
-            updated_at TIMESTAMP,
-            is_deleted BOOLEAN,
+            ma_ban_ghi STRING,
+            ma_chuong_trinh STRING,
+            ten_chuong_trinh STRING,
+            nam_hoc STRING,
+            hoc_ky INT,
+            so_sinh_vien BIGINT,
+            so_luot_hoc_phan_dat BIGINT,
+            tong_luot_hoc_phan BIGINT,
+            tong_diem_gpa DOUBLE,
+            so_sinh_vien_tinh_gpa BIGINT,
+            so_sinh_vien_canh_bao BIGINT,
+            so_sinh_vien_nguy_co_nghi_hoc BIGINT,
+            so_sinh_vien_dung_tien_do BIGINT,
+            so_sinh_vien_danh_gia_tien_do BIGINT,
+            thoi_gian_cap_nhat_nguon TIMESTAMP,
+            da_xoa BOOLEAN,
 
             _source_system STRING,
             _source_type STRING,
@@ -276,7 +276,7 @@ def split_equal_timestamp_conflicts(
 ) -> tuple[DataFrame, DataFrame]:
     """Block keys that contain equal-timestamp competing source content.
 
-    If the same logical key and updated_at carry different checksums,
+    If the same logical key and thoi_gian_cap_nhat_nguon carry different checksums,
     Silver must not silently choose a winner. The entire key is blocked
     from this merge attempt and retained for conflict quarantine.
     """
@@ -286,12 +286,12 @@ def split_equal_timestamp_conflicts(
     )
 
     conflict_groups = (
-        df.groupBy(*BUSINESS_KEY, "updated_at")
+        df.groupBy(*BUSINESS_KEY, "thoi_gian_cap_nhat_nguon")
         .agg(
             F.countDistinct(checksum_value).alias("_checksum_variants")
         )
         .filter(F.col("_checksum_variants") > 1)
-        .select(*BUSINESS_KEY, "updated_at")
+        .select(*BUSINESS_KEY, "thoi_gian_cap_nhat_nguon")
     )
 
     conflict_keys = conflict_groups.select(*BUSINESS_KEY).distinct()
@@ -321,16 +321,16 @@ def deterministic_deduplicate(df: DataFrame) -> DataFrame:
     """Return one deterministic source row per logical business key.
 
     Priority:
-      1. newest updated_at
+      1. newest thoi_gian_cap_nhat_nguon
       2. newest _ingested_at
       3. deterministic batch/checksum/record tie-breakers
     """
     ordering = Window.partitionBy(*BUSINESS_KEY).orderBy(
-        F.col("updated_at").desc_nulls_last(),
+        F.col("thoi_gian_cap_nhat_nguon").desc_nulls_last(),
         F.col("_ingested_at").desc_nulls_last(),
         F.col("_batch_id").desc_nulls_last(),
         F.col("_record_checksum").asc_nulls_last(),
-        F.col("record_id").asc_nulls_last(),
+        F.col("ma_ban_ghi").asc_nulls_last(),
     )
 
     return (
@@ -344,10 +344,10 @@ def add_quarantine_metadata(df: DataFrame) -> DataFrame:
     """Attach deterministic business-key text and quarantine timestamp."""
     business_key = F.concat_ws(
         "|",
-        F.coalesce(F.col("program_code"), F.lit("<NULL>")),
-        F.coalesce(F.col("academic_year"), F.lit("<NULL>")),
+        F.coalesce(F.col("ma_chuong_trinh"), F.lit("<NULL>")),
+        F.coalesce(F.col("nam_hoc"), F.lit("<NULL>")),
         F.coalesce(
-            F.col("semester").cast("string"),
+            F.col("hoc_ky").cast("string"),
             F.lit("<NULL>"),
         ),
     )
@@ -393,10 +393,10 @@ def classify_against_target(
         duplicate
     """
     target = spark.table(SILVER_TABLE).select(
-        F.col("program_code").alias("_target_program_code"),
-        F.col("academic_year").alias("_target_academic_year"),
-        F.col("semester").alias("_target_semester"),
-        F.col("updated_at").alias("_target_updated_at"),
+        F.col("ma_chuong_trinh").alias("_target_program_code"),
+        F.col("nam_hoc").alias("_target_academic_year"),
+        F.col("hoc_ky").alias("_target_semester"),
+        F.col("thoi_gian_cap_nhat_nguon").alias("_target_updated_at"),
         F.col("_record_checksum").alias("_target_record_checksum"),
     )
 
@@ -404,9 +404,9 @@ def classify_against_target(
     target = target.alias("t")
 
     join_condition = (
-        (F.col("s.program_code") == F.col("t._target_program_code"))
-        & (F.col("s.academic_year") == F.col("t._target_academic_year"))
-        & (F.col("s.semester") == F.col("t._target_semester"))
+        (F.col("s.ma_chuong_trinh") == F.col("t._target_program_code"))
+        & (F.col("s.nam_hoc") == F.col("t._target_academic_year"))
+        & (F.col("s.hoc_ky") == F.col("t._target_semester"))
     )
 
     joined = source.join(
@@ -427,7 +427,7 @@ def classify_against_target(
 
     target_exists = F.col("_target_program_code").isNotNull()
 
-    source_updated_at = F.col("updated_at")
+    source_updated_at = F.col("thoi_gian_cap_nhat_nguon")
     target_updated_at = F.col("_target_updated_at")
 
     source_checksum = F.coalesce(
@@ -443,7 +443,7 @@ def classify_against_target(
     different_checksum = source_checksum != target_checksum
 
     source_is_deleted = F.coalesce(
-        F.col("is_deleted"),
+        F.col("da_xoa"),
         F.lit(False),
     )
 
@@ -574,12 +574,12 @@ def merge_into_silver(
         ON {business_key_sql("s", "t")}
 
         WHEN MATCHED
-          AND s.updated_at > t.updated_at
+          AND s.thoi_gian_cap_nhat_nguon > t.thoi_gian_cap_nhat_nguon
         THEN UPDATE SET
           {update_assignments}
 
         WHEN NOT MATCHED
-          AND s.is_deleted = false
+          AND s.da_xoa = false
         THEN INSERT (
           {insert_column_sql}
         )

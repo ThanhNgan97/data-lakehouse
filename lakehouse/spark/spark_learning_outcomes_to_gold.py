@@ -33,45 +33,45 @@ SILVER_TABLE = "lakehouse.silver.learning_outcomes"
 GOLD_TABLE = "lakehouse.gold.learning_outcomes_metrics"
 
 BUSINESS_KEY = (
-    "program_code",
-    "academic_year",
-    "semester",
+    "ma_chuong_trinh",
+    "nam_hoc",
+    "hoc_ky",
 )
 
 GOLD_COLUMNS = [
-    "program_code",
-    "program_name",
-    "academic_year",
-    "academic_start_year",
-    "semester",
+    "ma_chuong_trinh",
+    "ten_chuong_trinh",
+    "nam_hoc",
+    "nam_bat_dau",
+    "hoc_ky",
 
-    "student_count",
+    "so_sinh_vien",
 
-    "passed_course_count",
-    "attempted_course_count",
-    "course_pass_rate",
+    "so_luot_hoc_phan_dat",
+    "tong_luot_hoc_phan",
+    "ty_le_qua_hoc_phan",
 
-    "gpa_point_sum",
-    "gpa_student_count",
-    "average_gpa",
+    "tong_diem_gpa",
+    "so_sinh_vien_tinh_gpa",
+    "gpa_trung_binh",
 
-    "warning_student_count",
-    "dropout_risk_student_count",
+    "so_sinh_vien_canh_bao",
+    "so_sinh_vien_nguy_co_nghi_hoc",
 
-    "on_track_student_count",
-    "progress_evaluated_student_count",
-    "on_track_rate",
+    "so_sinh_vien_dung_tien_do",
+    "so_sinh_vien_danh_gia_tien_do",
+    "ty_le_dung_tien_do",
 
-    "previous_academic_year",
-    "previous_semester",
+    "nam_hoc_truoc",
+    "hoc_ky_truoc",
 
-    "previous_course_pass_rate",
-    "previous_average_gpa",
-    "previous_on_track_rate",
+    "ty_le_qua_hoc_phan_truoc",
+    "gpa_trung_binh_truoc",
+    "ty_le_dung_tien_do_truoc",
 
-    "course_pass_rate_change_pp",
-    "average_gpa_change",
-    "on_track_rate_change_pp",
+    "chenh_lech_ty_le_qua_hoc_phan_pp",
+    "chenh_lech_gpa_trung_binh",
+    "chenh_lech_ty_le_dung_tien_do_pp",
 
     "source_record_id",
     "source_updated_at",
@@ -88,7 +88,7 @@ def read_active_silver_main(
     """Read only active CTU IOC Silver records from the current main ref."""
     return (
         spark.table(SILVER_TABLE)
-        .filter(F.col("is_deleted") == F.lit(False))
+        .filter(F.col("da_xoa") == F.lit(False))
         .localCheckpoint(eager=True)
     )
 
@@ -96,52 +96,52 @@ def read_active_silver_main(
 def transform_learning_outcomes_gold(
     silver_active: DataFrame,
 ) -> DataFrame:
-    """Derive Gold metrics at program/year/semester grain."""
+    """Derive Gold metrics at program/year/hoc_ky grain."""
 
     base = (
         silver_active
         .withColumn(
-            "academic_start_year",
+            "nam_bat_dau",
             F.regexp_extract(
-                F.col("academic_year"),
+                F.col("nam_hoc"),
                 r"^(\d{4})-",
                 1,
             ).cast("int"),
         )
         .withColumn(
-            "course_pass_rate",
+            "ty_le_qua_hoc_phan",
             F.when(
-                F.col("attempted_course_count") > 0,
+                F.col("tong_luot_hoc_phan") > 0,
                 (
-                    F.col("passed_course_count").cast("double")
+                    F.col("so_luot_hoc_phan_dat").cast("double")
                     * F.lit(100.0)
-                    / F.col("attempted_course_count").cast("double")
+                    / F.col("tong_luot_hoc_phan").cast("double")
                 ),
             ).otherwise(
                 F.lit(None).cast("double")
             ),
         )
         .withColumn(
-            "average_gpa",
+            "gpa_trung_binh",
             F.when(
-                F.col("gpa_student_count") > 0,
+                F.col("so_sinh_vien_tinh_gpa") > 0,
                 (
-                    F.col("gpa_point_sum").cast("double")
-                    / F.col("gpa_student_count").cast("double")
+                    F.col("tong_diem_gpa").cast("double")
+                    / F.col("so_sinh_vien_tinh_gpa").cast("double")
                 ),
             ).otherwise(
                 F.lit(None).cast("double")
             ),
         )
         .withColumn(
-            "on_track_rate",
+            "ty_le_dung_tien_do",
             F.when(
-                F.col("progress_evaluated_student_count") > 0,
+                F.col("so_sinh_vien_danh_gia_tien_do") > 0,
                 (
-                    F.col("on_track_student_count").cast("double")
+                    F.col("so_sinh_vien_dung_tien_do").cast("double")
                     * F.lit(100.0)
                     / F.col(
-                        "progress_evaluated_student_count"
+                        "so_sinh_vien_danh_gia_tien_do"
                     ).cast("double")
                 ),
             ).otherwise(
@@ -152,73 +152,73 @@ def transform_learning_outcomes_gold(
 
     trend_window = (
         Window
-        .partitionBy("program_code")
+        .partitionBy("ma_chuong_trinh")
         .orderBy(
-            F.col("academic_start_year").asc(),
-            F.col("semester").asc(),
+            F.col("nam_bat_dau").asc(),
+            F.col("hoc_ky").asc(),
         )
     )
 
     with_previous = (
         base
         .withColumn(
-            "previous_academic_year",
-            F.lag("academic_year").over(trend_window),
+            "nam_hoc_truoc",
+            F.lag("nam_hoc").over(trend_window),
         )
         .withColumn(
-            "previous_semester",
-            F.lag("semester").over(trend_window),
+            "hoc_ky_truoc",
+            F.lag("hoc_ky").over(trend_window),
         )
         .withColumn(
-            "previous_course_pass_rate",
-            F.lag("course_pass_rate").over(trend_window),
+            "ty_le_qua_hoc_phan_truoc",
+            F.lag("ty_le_qua_hoc_phan").over(trend_window),
         )
         .withColumn(
-            "previous_average_gpa",
-            F.lag("average_gpa").over(trend_window),
+            "gpa_trung_binh_truoc",
+            F.lag("gpa_trung_binh").over(trend_window),
         )
         .withColumn(
-            "previous_on_track_rate",
-            F.lag("on_track_rate").over(trend_window),
+            "ty_le_dung_tien_do_truoc",
+            F.lag("ty_le_dung_tien_do").over(trend_window),
         )
     )
 
     result = (
         with_previous
         .withColumn(
-            "course_pass_rate_change_pp",
+            "chenh_lech_ty_le_qua_hoc_phan_pp",
             F.when(
-                F.col("course_pass_rate").isNotNull()
-                & F.col("previous_course_pass_rate").isNotNull(),
+                F.col("ty_le_qua_hoc_phan").isNotNull()
+                & F.col("ty_le_qua_hoc_phan_truoc").isNotNull(),
                 (
-                    F.col("course_pass_rate")
-                    - F.col("previous_course_pass_rate")
+                    F.col("ty_le_qua_hoc_phan")
+                    - F.col("ty_le_qua_hoc_phan_truoc")
                 ),
             ).otherwise(
                 F.lit(None).cast("double")
             ),
         )
         .withColumn(
-            "average_gpa_change",
+            "chenh_lech_gpa_trung_binh",
             F.when(
-                F.col("average_gpa").isNotNull()
-                & F.col("previous_average_gpa").isNotNull(),
+                F.col("gpa_trung_binh").isNotNull()
+                & F.col("gpa_trung_binh_truoc").isNotNull(),
                 (
-                    F.col("average_gpa")
-                    - F.col("previous_average_gpa")
+                    F.col("gpa_trung_binh")
+                    - F.col("gpa_trung_binh_truoc")
                 ),
             ).otherwise(
                 F.lit(None).cast("double")
             ),
         )
         .withColumn(
-            "on_track_rate_change_pp",
+            "chenh_lech_ty_le_dung_tien_do_pp",
             F.when(
-                F.col("on_track_rate").isNotNull()
-                & F.col("previous_on_track_rate").isNotNull(),
+                F.col("ty_le_dung_tien_do").isNotNull()
+                & F.col("ty_le_dung_tien_do_truoc").isNotNull(),
                 (
-                    F.col("on_track_rate")
-                    - F.col("previous_on_track_rate")
+                    F.col("ty_le_dung_tien_do")
+                    - F.col("ty_le_dung_tien_do_truoc")
                 ),
             ).otherwise(
                 F.lit(None).cast("double")
@@ -226,11 +226,11 @@ def transform_learning_outcomes_gold(
         )
         .withColumn(
             "source_record_id",
-            F.col("record_id"),
+            F.col("ma_ban_ghi"),
         )
         .withColumn(
             "source_updated_at",
-            F.col("updated_at"),
+            F.col("thoi_gian_cap_nhat_nguon"),
         )
         .withColumn(
             "source_batch_id",
@@ -259,15 +259,15 @@ def validate_zero_denominator_behavior(
         silver_active
         .limit(1)
         .withColumn(
-            "attempted_course_count",
+            "tong_luot_hoc_phan",
             F.lit(0).cast("long"),
         )
         .withColumn(
-            "gpa_student_count",
+            "so_sinh_vien_tinh_gpa",
             F.lit(0).cast("long"),
         )
         .withColumn(
-            "progress_evaluated_student_count",
+            "so_sinh_vien_danh_gia_tien_do",
             F.lit(0).cast("long"),
         )
         .localCheckpoint(eager=True)
@@ -278,9 +278,9 @@ def validate_zero_denominator_behavior(
             probe_source
         )
         .select(
-            "course_pass_rate",
-            "average_gpa",
-            "on_track_rate",
+            "ty_le_qua_hoc_phan",
+            "gpa_trung_binh",
+            "ty_le_dung_tien_do",
         )
         .collect()
     )
@@ -292,22 +292,22 @@ def validate_zero_denominator_behavior(
 
     row = probe[0]
 
-    if row["course_pass_rate"] is not None:
+    if row["ty_le_qua_hoc_phan"] is not None:
         raise RuntimeError(
             "ZERO DENOMINATOR TEST FAILED: "
-            "course_pass_rate must be NULL"
+            "ty_le_qua_hoc_phan must be NULL"
         )
 
-    if row["average_gpa"] is not None:
+    if row["gpa_trung_binh"] is not None:
         raise RuntimeError(
             "ZERO DENOMINATOR TEST FAILED: "
-            "average_gpa must be NULL"
+            "gpa_trung_binh must be NULL"
         )
 
-    if row["on_track_rate"] is not None:
+    if row["ty_le_dung_tien_do"] is not None:
         raise RuntimeError(
             "ZERO DENOMINATOR TEST FAILED: "
-            "on_track_rate must be NULL"
+            "ty_le_dung_tien_do must be NULL"
         )
 
     print("ZERO_DENOMINATOR_PASS")
@@ -349,9 +349,9 @@ def check_gold_quality(
     null_key_count = (
         gold
         .filter(
-            F.col("program_code").isNull()
-            | F.col("academic_year").isNull()
-            | F.col("semester").isNull()
+            F.col("ma_chuong_trinh").isNull()
+            | F.col("nam_hoc").isNull()
+            | F.col("hoc_ky").isNull()
         )
         .count()
     )
@@ -359,7 +359,7 @@ def check_gold_quality(
     invalid_start_year_count = (
         gold
         .filter(
-            F.col("academic_start_year").isNull()
+            F.col("nam_bat_dau").isNull()
         )
         .count()
     )
@@ -367,11 +367,11 @@ def check_gold_quality(
     invalid_course_pass_rate_count = (
         gold
         .filter(
-            F.col("course_pass_rate").isNotNull()
+            F.col("ty_le_qua_hoc_phan").isNotNull()
             & (
-                (F.col("course_pass_rate") < 0)
-                | (F.col("course_pass_rate") > 100)
-                | F.isnan("course_pass_rate")
+                (F.col("ty_le_qua_hoc_phan") < 0)
+                | (F.col("ty_le_qua_hoc_phan") > 100)
+                | F.isnan("ty_le_qua_hoc_phan")
             )
         )
         .count()
@@ -380,11 +380,11 @@ def check_gold_quality(
     invalid_on_track_rate_count = (
         gold
         .filter(
-            F.col("on_track_rate").isNotNull()
+            F.col("ty_le_dung_tien_do").isNotNull()
             & (
-                (F.col("on_track_rate") < 0)
-                | (F.col("on_track_rate") > 100)
-                | F.isnan("on_track_rate")
+                (F.col("ty_le_dung_tien_do") < 0)
+                | (F.col("ty_le_dung_tien_do") > 100)
+                | F.isnan("ty_le_dung_tien_do")
             )
         )
         .count()
@@ -393,10 +393,10 @@ def check_gold_quality(
     invalid_average_gpa_count = (
         gold
         .filter(
-            F.col("average_gpa").isNotNull()
+            F.col("gpa_trung_binh").isNotNull()
             & (
-                (F.col("average_gpa") < 0)
-                | F.isnan("average_gpa")
+                (F.col("gpa_trung_binh") < 0)
+                | F.isnan("gpa_trung_binh")
             )
         )
         .count()
@@ -404,10 +404,10 @@ def check_gold_quality(
 
     ordering_window = (
         Window
-        .partitionBy("program_code")
+        .partitionBy("ma_chuong_trinh")
         .orderBy(
-            F.col("academic_start_year").asc(),
-            F.col("semester").asc(),
+            F.col("nam_bat_dau").asc(),
+            F.col("hoc_ky").asc(),
         )
     )
 
@@ -425,8 +425,8 @@ def check_gold_quality(
         .filter(
             (F.col("_period_row_number") == 1)
             & (
-                F.col("previous_academic_year").isNotNull()
-                | F.col("previous_semester").isNotNull()
+                F.col("nam_hoc_truoc").isNotNull()
+                | F.col("hoc_ky_truoc").isNotNull()
             )
         )
         .count()
@@ -437,8 +437,8 @@ def check_gold_quality(
         .filter(
             (F.col("_period_row_number") > 1)
             & (
-                F.col("previous_academic_year").isNull()
-                | F.col("previous_semester").isNull()
+                F.col("nam_hoc_truoc").isNull()
+                | F.col("hoc_ky_truoc").isNull()
             )
         )
         .count()
@@ -499,22 +499,22 @@ def check_gold_quality(
     if invalid_start_year_count != 0:
         raise RuntimeError(
             "GOLD QUALITY FAILED: "
-            "academic_year cannot be parsed"
+            "nam_hoc cannot be parsed"
         )
 
     if invalid_course_pass_rate_count != 0:
         raise RuntimeError(
-            "GOLD QUALITY FAILED: invalid course_pass_rate"
+            "GOLD QUALITY FAILED: invalid ty_le_qua_hoc_phan"
         )
 
     if invalid_on_track_rate_count != 0:
         raise RuntimeError(
-            "GOLD QUALITY FAILED: invalid on_track_rate"
+            "GOLD QUALITY FAILED: invalid ty_le_dung_tien_do"
         )
 
     if invalid_average_gpa_count != 0:
         raise RuntimeError(
-            "GOLD QUALITY FAILED: invalid average_gpa"
+            "GOLD QUALITY FAILED: invalid gpa_trung_binh"
         )
 
     if first_period_invalid != 0:
@@ -565,7 +565,7 @@ def run_learning_outcomes_gold(
 
         silver_active = (
             silver_all
-            .filter(F.col("is_deleted") == F.lit(False))
+            .filter(F.col("da_xoa") == F.lit(False))
             .localCheckpoint(eager=True)
         )
 
@@ -573,7 +573,7 @@ def run_learning_outcomes_gold(
 
         deleted_rows = (
             silver_all
-            .filter(F.col("is_deleted") == F.lit(True))
+            .filter(F.col("da_xoa") == F.lit(True))
             .count()
         )
 
@@ -665,22 +665,22 @@ def run_learning_outcomes_gold(
         (
             spark.table(GOLD_TABLE)
             .select(
-                "program_code",
-                "program_name",
-                "academic_year",
-                "semester",
-                "student_count",
-                "course_pass_rate",
-                "average_gpa",
-                "on_track_rate",
-                "course_pass_rate_change_pp",
-                "average_gpa_change",
-                "on_track_rate_change_pp",
+                "ma_chuong_trinh",
+                "ten_chuong_trinh",
+                "nam_hoc",
+                "hoc_ky",
+                "so_sinh_vien",
+                "ty_le_qua_hoc_phan",
+                "gpa_trung_binh",
+                "ty_le_dung_tien_do",
+                "chenh_lech_ty_le_qua_hoc_phan_pp",
+                "chenh_lech_gpa_trung_binh",
+                "chenh_lech_ty_le_dung_tien_do_pp",
             )
             .orderBy(
-                "program_code",
-                "academic_start_year",
-                "semester",
+                "ma_chuong_trinh",
+                "nam_bat_dau",
+                "hoc_ky",
             )
             .show(
                 5,
@@ -693,28 +693,28 @@ def run_learning_outcomes_gold(
         (
             spark.table(GOLD_TABLE)
             .filter(
-                F.col("program_code")
+                F.col("ma_chuong_trinh")
                 == F.lit("DEMO-P001")
             )
             .select(
-                "program_code",
-                "academic_year",
-                "semester",
-                "previous_academic_year",
-                "previous_semester",
-                "course_pass_rate",
-                "previous_course_pass_rate",
-                "course_pass_rate_change_pp",
-                "average_gpa",
-                "previous_average_gpa",
-                "average_gpa_change",
-                "on_track_rate",
-                "previous_on_track_rate",
-                "on_track_rate_change_pp",
+                "ma_chuong_trinh",
+                "nam_hoc",
+                "hoc_ky",
+                "nam_hoc_truoc",
+                "hoc_ky_truoc",
+                "ty_le_qua_hoc_phan",
+                "ty_le_qua_hoc_phan_truoc",
+                "chenh_lech_ty_le_qua_hoc_phan_pp",
+                "gpa_trung_binh",
+                "gpa_trung_binh_truoc",
+                "chenh_lech_gpa_trung_binh",
+                "ty_le_dung_tien_do",
+                "ty_le_dung_tien_do_truoc",
+                "chenh_lech_ty_le_dung_tien_do_pp",
             )
             .orderBy(
-                "academic_start_year",
-                "semester",
+                "nam_bat_dau",
+                "hoc_ky",
             )
             .show(
                 truncate=False,

@@ -1,0 +1,19 @@
+﻿services:
+
+  ctu-ioc-mock-api:
+    build:
+      context: ./ctu_ioc_mock_api
+      dockerfile: Dockerfile
+
+    container_name: ctu-ioc-mock-api
+
+    ports:
+      - "8090:8000"
+
+    environment:
+      MOCK_API_KEY: ""
+
+    restart: unless-stopped
+
+    networks:
+      - lakehouse-network

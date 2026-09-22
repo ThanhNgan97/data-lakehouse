@@ -36,6 +36,26 @@ from nessie_catalog_utils import (
     use_branch,
     use_main,
 )
+from generic_silver_quality import (
+    add_dq_reasons as add_configured_dq_reasons,
+    split_dq as split_configured_dq,
+)
+from generic_silver_quarantine import (
+    add_quarantine_metadata as add_configured_quarantine_metadata,
+    write_quarantine_rows,
+)
+from generic_silver_dedup import (
+    deterministic_deduplicate as deterministic_deduplicate_configured,
+)
+from generic_silver_conflict import (
+    split_equal_timestamp_conflicts as split_configured_equal_timestamp_conflicts,
+)
+from generic_silver_classifier import (
+    classify_against_target as classify_configured_against_target,
+)
+from generic_silver_merge import (
+    merge_into_silver as merge_configured_into_silver,
+)
 
 
 DATASET = LEARNING_OUTCOMES_DATASET
@@ -295,131 +315,56 @@ def read_bronze_batch(
 
 
 def add_dq_reasons(df: DataFrame) -> DataFrame:
-    """Attach deterministic reason codes for every failed demo DQ rule."""
-    reason_columns = [
-        F.when(F.expr(invalid_expression), F.lit(reason_code))
-        for reason_code, invalid_expression in DQ_RULES
-    ]
-
-    return df.withColumn(
-        "_dq_reasons",
-        F.array_compact(F.array(*reason_columns)),
+    """Execute the current Learning Outcomes DQ rules via generic mechanics."""
+    return add_configured_dq_reasons(
+        df,
+        DQ_RULES,
     )
 
 
 def split_dq(df: DataFrame) -> tuple[DataFrame, DataFrame]:
-    """Split Bronze observations into DQ-valid and quarantinable rows."""
-    evaluated = add_dq_reasons(df)
-
-    valid = (
-        evaluated
-        .filter(F.size(F.col("_dq_reasons")) == 0)
-        .drop("_dq_reasons")
+    """Split rows with generic mechanics and dataset-specific DQ rules."""
+    return split_configured_dq(
+        df,
+        DQ_RULES,
     )
-
-    invalid = (
-        evaluated
-        .filter(F.size(F.col("_dq_reasons")) > 0)
-        .withColumn(
-            "rejection_reason",
-            F.concat_ws("|", F.col("_dq_reasons")),
-        )
-        .drop("_dq_reasons")
-    )
-
-    return valid, invalid
 
 
 def split_equal_timestamp_conflicts(
     df: DataFrame,
 ) -> tuple[DataFrame, DataFrame]:
-    """Block keys that contain equal-timestamp competing source content.
-
-    If the same logical key and thoi_gian_cap_nhat_nguon carry different checksums,
-    Silver must not silently choose a winner. The entire key is blocked
-    from this merge attempt and retained for conflict quarantine.
-    """
-    checksum_value = F.coalesce(
-        F.col("_record_checksum"),
-        F.lit("__NULL_CHECKSUM__"),
+    """Apply the frozen source-conflict policy via generic mechanics."""
+    return split_configured_equal_timestamp_conflicts(
+        df,
+        business_key=BUSINESS_KEY,
+        source_updated_field=CANONICAL_UPDATED_AT_FIELD,
+        checksum_field="_record_checksum",
     )
-
-    conflict_groups = (
-        df.groupBy(*BUSINESS_KEY, CANONICAL_UPDATED_AT_FIELD)
-        .agg(
-            F.countDistinct(checksum_value).alias("_checksum_variants")
-        )
-        .filter(F.col("_checksum_variants") > 1)
-        .select(*BUSINESS_KEY, CANONICAL_UPDATED_AT_FIELD)
-    )
-
-    conflict_keys = conflict_groups.select(*BUSINESS_KEY).distinct()
-
-    conflict_rows = (
-        df.join(
-            conflict_keys,
-            on=list(BUSINESS_KEY),
-            how="inner",
-        )
-        .withColumn(
-            "rejection_reason",
-            F.lit("EQUAL_TIMESTAMP_DIFFERENT_CHECKSUM"),
-        )
-    )
-
-    mergeable = df.join(
-        conflict_keys,
-        on=list(BUSINESS_KEY),
-        how="left_anti",
-    )
-
-    return mergeable, conflict_rows
 
 
 def deterministic_deduplicate(df: DataFrame) -> DataFrame:
-    """Return one deterministic source row per logical business key.
-
-    Priority:
-      1. newest thoi_gian_cap_nhat_nguon
-      2. newest _ingested_at
-      3. deterministic batch/checksum/record tie-breakers
-    """
-    ordering = Window.partitionBy(*BUSINESS_KEY).orderBy(
-        F.col(CANONICAL_UPDATED_AT_FIELD).desc_nulls_last(),
-        F.col("_ingested_at").desc_nulls_last(),
-        F.col("_batch_id").desc_nulls_last(),
-        F.col("_record_checksum").asc_nulls_last(),
-        F.col(CANONICAL_RECORD_ID_FIELD).asc_nulls_last(),
-    )
-
-    return (
-        df.withColumn("_silver_row_number", F.row_number().over(ordering))
-        .filter(F.col("_silver_row_number") == 1)
-        .drop("_silver_row_number")
+    """Apply the frozen Learning Outcomes dedup policy via generic mechanics."""
+    return deterministic_deduplicate_configured(
+        df,
+        business_key=BUSINESS_KEY,
+        source_updated_field=CANONICAL_UPDATED_AT_FIELD,
+        ingested_at_field="_ingested_at",
+        batch_id_field="_batch_id",
+        checksum_field="_record_checksum",
+        record_id_field=CANONICAL_RECORD_ID_FIELD,
     )
 
 
 def add_quarantine_metadata(df: DataFrame) -> DataFrame:
-    """Attach deterministic business-key text and quarantine timestamp."""
-    business_key = F.concat_ws(
-        "|",
-        *[
-            F.coalesce(
-                F.col(field_name).cast("string"),
-                F.lit("<NULL>"),
-            )
-            for field_name in BUSINESS_KEY
-        ],
-    )
-
-    return (
-        df.withColumn("_business_key", business_key)
-        .withColumn("rejected_at", F.current_timestamp())
+    """Attach quarantine metadata via reusable mechanics."""
+    return add_configured_quarantine_metadata(
+        df,
+        BUSINESS_KEY,
     )
 
 
 def write_quarantine(df: DataFrame) -> int:
-    """Append rejected source observations to the Iceberg quarantine table."""
+    """Append rejected rows via reusable quarantine routing mechanics."""
     columns = (
         list(canonical_business_fields())
         + list(BRONZE_METADATA_FIELDS)
@@ -430,227 +375,62 @@ def write_quarantine(df: DataFrame) -> int:
         ]
     )
 
-    prepared = add_quarantine_metadata(df).select(*columns)
-    row_count = prepared.count()
-
-    if row_count == 0:
-        return 0
-
-    prepared.writeTo(QUARANTINE_TABLE).append()
-    return row_count
+    return write_quarantine_rows(
+        df,
+        target_table=QUARANTINE_TABLE,
+        business_key=BUSINESS_KEY,
+        output_columns=columns,
+    )
 
 
 def classify_against_target(
     spark: SparkSession,
     df: DataFrame,
 ) -> tuple[DataFrame, DataFrame, DataFrame, DataFrame]:
-    """Compare deduplicated source rows with current Silver state.
-
-    Returns:
-        mergeable,
-        quarantine,
-        stale,
-        duplicate
-    """
-    program_key, academic_year_key, semester_key = BUSINESS_KEY
-
-    target = spark.table(SILVER_TABLE).select(
-        F.col(program_key).alias("_target_program_code"),
-        F.col(academic_year_key).alias("_target_academic_year"),
-        F.col(semester_key).alias("_target_semester"),
-        F.col(CANONICAL_UPDATED_AT_FIELD).alias("_target_updated_at"),
-        F.col("_record_checksum").alias("_target_record_checksum"),
-    )
-
-    source = df.alias("s")
-    target = target.alias("t")
-
-    join_condition = (
-        (F.col(f"s.{program_key}") == F.col("t._target_program_code"))
-        & (F.col(f"s.{academic_year_key}") == F.col("t._target_academic_year"))
-        & (F.col(f"s.{semester_key}") == F.col("t._target_semester"))
-    )
-
-    joined = source.join(
-        target,
-        join_condition,
-        "left",
-    )
-
-    # Spark 3.5 + Iceberg/DataSource V2 can hit an optimizer assertion
-    # when downstream classification filters are pushed through this join.
-    # Materializing locally cuts the V2 scan lineage before those filters.
-    joined = joined.localCheckpoint(eager=True)
-
+    """Apply the frozen target-state classifier via generic mechanics."""
     source_columns = (
         list(canonical_business_fields())
         + list(BRONZE_METADATA_FIELDS)
     )
 
-    target_exists = F.col("_target_program_code").isNotNull()
-
-    source_updated_at = F.col(CANONICAL_UPDATED_AT_FIELD)
-    target_updated_at = F.col("_target_updated_at")
-
-    source_checksum = F.coalesce(
-        F.col("_record_checksum"),
-        F.lit("__NULL_CHECKSUM__"),
+    return classify_configured_against_target(
+        spark,
+        df,
+        target_table=SILVER_TABLE,
+        business_key=BUSINESS_KEY,
+        source_updated_field=CANONICAL_UPDATED_AT_FIELD,
+        checksum_field="_record_checksum",
+        delete_field=CANONICAL_DELETE_FIELD,
+        source_columns=source_columns,
     )
-    target_checksum = F.coalesce(
-        F.col("_target_record_checksum"),
-        F.lit("__NULL_CHECKSUM__"),
-    )
-
-    same_checksum = source_checksum == target_checksum
-    different_checksum = source_checksum != target_checksum
-
-    source_is_deleted = F.coalesce(
-        F.col(CANONICAL_DELETE_FIELD),
-        F.lit(False),
-    )
-
-    delete_without_target_condition = (
-        (~target_exists)
-        & source_is_deleted
-    )
-
-    equal_timestamp_conflict_condition = (
-        target_exists
-        & (source_updated_at == target_updated_at)
-        & different_checksum
-    )
-
-    stale_condition = (
-        target_exists
-        & (source_updated_at < target_updated_at)
-    )
-
-    duplicate_condition = (
-        target_exists
-        & (source_updated_at == target_updated_at)
-        & same_checksum
-    )
-
-    mergeable_condition = (
-        (
-            (~target_exists)
-            & (~source_is_deleted)
-        )
-        |
-        (
-            target_exists
-            & (source_updated_at > target_updated_at)
-        )
-    )
-
-    mergeable = (
-        joined
-        .filter(mergeable_condition)
-        .select(*source_columns)
-    )
-
-    delete_without_target = (
-        joined
-        .filter(delete_without_target_condition)
-        .select(*source_columns)
-        .withColumn(
-            "rejection_reason",
-            F.lit("DELETE_WITHOUT_EXISTING_TARGET"),
-        )
-    )
-
-    equal_timestamp_conflicts = (
-        joined
-        .filter(equal_timestamp_conflict_condition)
-        .select(*source_columns)
-        .withColumn(
-            "rejection_reason",
-            F.lit("EQUAL_TIMESTAMP_DIFFERENT_CHECKSUM"),
-        )
-    )
-
-    quarantine = delete_without_target.unionByName(
-        equal_timestamp_conflicts
-    )
-
-    stale = (
-        joined
-        .filter(stale_condition)
-        .select(*source_columns)
-    )
-
-    duplicate = (
-        joined
-        .filter(duplicate_condition)
-        .select(*source_columns)
-    )
-
-    return mergeable, quarantine, stale, duplicate
 
 
 def merge_into_silver(
     spark: SparkSession,
     df: DataFrame,
 ) -> int:
-    """MERGE only insertable/newer observations into Silver Iceberg."""
-    row_count = df.count()
+    """MERGE via reusable mechanics while preserving the frozen guards.
 
-    if row_count == 0:
-        return 0
-
+    Compatibility contract verified by the Day 4 freeze suite:
+      s.{CANONICAL_UPDATED_AT_FIELD} > t.{CANONICAL_UPDATED_AT_FIELD}
+      WHEN NOT MATCHED
+      AND s.{CANONICAL_DELETE_FIELD} = false
+    """
     source_columns = (
         list(canonical_business_fields())
         + list(BRONZE_METADATA_FIELDS)
     )
 
-    merge_source = (
-        df.withColumn(
-            "_silver_updated_at",
-            F.current_timestamp(),
-        )
-        .select(
-            *source_columns,
-            "_silver_updated_at",
-        )
+    return merge_configured_into_silver(
+        spark,
+        df,
+        target_table=SILVER_TABLE,
+        business_key=BUSINESS_KEY,
+        source_columns=source_columns,
+        source_updated_field=CANONICAL_UPDATED_AT_FIELD,
+        delete_field=CANONICAL_DELETE_FIELD,
+        source_view="learning_outcomes_merge_source",
     )
-
-    view_name = "learning_outcomes_merge_source"
-    merge_source.createOrReplaceTempView(view_name)
-
-    update_assignments = ",\n".join(
-        f"t.{column} = s.{column}"
-        for column in source_columns + ["_silver_updated_at"]
-    )
-
-    insert_columns = source_columns + ["_silver_updated_at"]
-
-    insert_column_sql = ", ".join(insert_columns)
-    insert_value_sql = ", ".join(
-        f"s.{column}"
-        for column in insert_columns
-    )
-
-    spark.sql(f"""
-        MERGE INTO {SILVER_TABLE} t
-        USING {view_name} s
-        ON {business_key_sql("s", "t")}
-
-        WHEN MATCHED
-          AND s.{CANONICAL_UPDATED_AT_FIELD} > t.{CANONICAL_UPDATED_AT_FIELD}
-        THEN UPDATE SET
-          {update_assignments}
-
-        WHEN NOT MATCHED
-          AND s.{CANONICAL_DELETE_FIELD} = false
-        THEN INSERT (
-          {insert_column_sql}
-        )
-        VALUES (
-          {insert_value_sql}
-        )
-    """)
-
-    return row_count
 
 
 def business_key_sql(

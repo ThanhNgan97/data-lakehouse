@@ -18,7 +18,7 @@ DATA_FILE = APP_DIR / "data" / "learning_outcomes.json"
 
 SOURCE_SYSTEM = "ctu_ioc"
 DATASET = "education.learning_outcomes"
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "2.0"
 MAX_LIMIT = 500
 
 app = FastAPI(
@@ -41,30 +41,30 @@ app.add_middleware(
 
 
 class LearningOutcomeRecord(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
 
-    ma_ban_ghi: str
-    ma_chuong_trinh: str
-    ten_chuong_trinh: str
-    nam_hoc: str = Field(pattern=r"^\d{4}-\d{4}$")
-    hoc_ky: int = Field(ge=1)
+    record_id: str
+    program_code: str
+    program_name: str
+    academic_year: str = Field(pattern=r"^\d{4}-\d{4}$")
+    semester: int = Field(ge=1)
 
-    so_sinh_vien: int = Field(ge=0)
+    student_count: int = Field(ge=0)
 
-    so_luot_hoc_phan_dat: int = Field(ge=0)
-    tong_luot_hoc_phan: int = Field(ge=0)
+    passed_course_count: int = Field(ge=0)
+    attempted_course_count: int = Field(ge=0)
 
-    tong_diem_gpa: float = Field(ge=0)
-    so_sinh_vien_tinh_gpa: int = Field(ge=0)
+    gpa_point_sum: float = Field(ge=0)
+    gpa_student_count: int = Field(ge=0)
 
-    so_sinh_vien_canh_bao: int = Field(ge=0)
-    so_sinh_vien_nguy_co_nghi_hoc: int = Field(ge=0)
+    warning_student_count: int = Field(ge=0)
+    dropout_risk_student_count: int = Field(ge=0)
 
-    so_sinh_vien_dung_tien_do: int = Field(ge=0)
-    so_sinh_vien_danh_gia_tien_do: int = Field(ge=0)
+    on_track_student_count: int = Field(ge=0)
+    progress_evaluated_student_count: int = Field(ge=0)
 
-    thoi_gian_cap_nhat_nguon: datetime
-    da_xoa: bool
+    updated_at: datetime
+    is_deleted: bool
 
 
 class Pagination(BaseModel):
@@ -190,14 +190,14 @@ def _to_aware_datetime(value: str | datetime) -> datetime:
         normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
         dt = datetime.fromisoformat(normalized)
     if dt.tzinfo is None:
-        raise ValueError("thoi_gian_cap_nhat_nguon must be timezone-aware")
+        raise ValueError("updated_at must be timezone-aware")
     return dt
 
 
 def _sorted_records(records: list[dict]) -> list[dict]:
     return sorted(
         records,
-        key=lambda r: (_to_aware_datetime(r["thoi_gian_cap_nhat_nguon"]), r["ma_ban_ghi"]),
+        key=lambda r: (_to_aware_datetime(r["updated_at"]), r["record_id"]),
     )
 
 
@@ -205,7 +205,7 @@ def _data_as_of(records: list[dict]) -> datetime:
     if not records:
         return datetime.now(timezone.utc)
 
-    return max(_to_aware_datetime(r["thoi_gian_cap_nhat_nguon"]) for r in records)
+    return max(_to_aware_datetime(r["updated_at"]) for r in records)
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -230,7 +230,7 @@ def get_learning_outcomes(
     response: Response,
     updated_after: Optional[str] = Query(
         default=None,
-        description="Return records whose thoi_gian_cap_nhat_nguon is strictly newer than this ISO-8601 timestamp.",
+        description="Return records whose updated_at is strictly newer than this ISO-8601 timestamp.",
     ),
     cursor: Optional[str] = Query(
         default=None,
@@ -250,7 +250,7 @@ def get_learning_outcomes(
     if watermark is not None:
         records = [
             r for r in records
-            if _to_aware_datetime(r["thoi_gian_cap_nhat_nguon"]) > watermark
+            if _to_aware_datetime(r["updated_at"]) > watermark
         ]
 
     page = records[offset : offset + limit]
@@ -307,36 +307,36 @@ def activate_scenario(scenario: str) -> ScenarioResponse:
 
     elif scenario == "newer_update":
         target_id = "DEMO-P001|2025-2026|S2"
-        target = next(r for r in records if r["ma_ban_ghi"] == target_id)
-        target["so_sinh_vien"] = int(target["so_sinh_vien"]) + 1
-        target["thoi_gian_cap_nhat_nguon"] = "2026-09-21T08:00:00+07:00"
-        note = f"{target_id}: so_sinh_vien +1 with newer thoi_gian_cap_nhat_nguon."
+        target = next(r for r in records if r["record_id"] == target_id)
+        target["student_count"] = int(target["student_count"]) + 1
+        target["updated_at"] = "2026-09-21T08:00:00+07:00"
+        note = f"{target_id}: student_count +1 with newer updated_at."
 
     elif scenario == "soft_delete":
         target_id = "DEMO-P001|2025-2026|S2"
-        target = next(r for r in records if r["ma_ban_ghi"] == target_id)
-        target["da_xoa"] = True
-        target["thoi_gian_cap_nhat_nguon"] = "2026-09-21T08:05:00+07:00"
-        note = f"{target_id}: da_xoa=true with newer thoi_gian_cap_nhat_nguon."
+        target = next(r for r in records if r["record_id"] == target_id)
+        target["is_deleted"] = True
+        target["updated_at"] = "2026-09-21T08:05:00+07:00"
+        note = f"{target_id}: is_deleted=true with newer updated_at."
 
     elif scenario == "new_record":
         new_record = {
-            "ma_ban_ghi": "DEMO-P011|2025-2026|S2",
-            "ma_chuong_trinh": "DEMO-P011",
-            "ten_chuong_trinh": "Chương trình giả lập mới",
-            "nam_hoc": "2025-2026",
-            "hoc_ky": 2,
-            "so_sinh_vien": 500,
-            "so_luot_hoc_phan_dat": 2100,
-            "tong_luot_hoc_phan": 2500,
-            "tong_diem_gpa": 1450.0,
-            "so_sinh_vien_tinh_gpa": 500,
-            "so_sinh_vien_canh_bao": 18,
-            "so_sinh_vien_nguy_co_nghi_hoc": 9,
-            "so_sinh_vien_dung_tien_do": 390,
-            "so_sinh_vien_danh_gia_tien_do": 500,
-            "thoi_gian_cap_nhat_nguon": "2026-09-21T08:10:00+07:00",
-            "da_xoa": False,
+            "record_id": "DEMO-P011|2025-2026|S2",
+            "program_code": "DEMO-P011",
+            "program_name": "Chương trình giả lập mới",
+            "academic_year": "2025-2026",
+            "semester": 2,
+            "student_count": 500,
+            "passed_course_count": 2100,
+            "attempted_course_count": 2500,
+            "gpa_point_sum": 1450.0,
+            "gpa_student_count": 500,
+            "warning_student_count": 18,
+            "dropout_risk_student_count": 9,
+            "on_track_student_count": 390,
+            "progress_evaluated_student_count": 500,
+            "updated_at": "2026-09-21T08:10:00+07:00",
+            "is_deleted": False,
         }
         LearningOutcomeRecord.model_validate(new_record)
         records.append(new_record)

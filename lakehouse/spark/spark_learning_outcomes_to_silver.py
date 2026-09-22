@@ -60,12 +60,12 @@ BRONZE_METADATA_FIELDS = (
 
 
 def build_silver_input_schema() -> StructType:
-    """Return explicit nullable input schema for Silver validation.
+    """Return the explicit nullable schema for known source-native Bronze fields.
 
-    Bronze's normal API contract already requires the business fields.
+    Bronze's normal API contract already requires the source fields.
     Silver intentionally reads them as nullable so corrupted/historical
-    Bronze observations can be caught by the DQ gate and quarantined
-    instead of failing before DQ evaluation.
+    Bronze observations can still reach the dataset mapping/DQ boundary
+    instead of failing during Parquet decoding.
     """
     bronze_config = get_dataset_config(DATASET)
 
@@ -87,6 +87,79 @@ def build_silver_input_schema() -> StructType:
     ]
 
     return StructType(source_fields + metadata_fields)
+
+
+def canonical_business_fields() -> tuple[str, ...]:
+    """Return canonical Silver business fields in source-field order."""
+    config = get_dataset_config(DATASET)
+
+    missing_mappings = [
+        source_name
+        for source_name in config.source_fields
+        if source_name not in config.source_to_canonical
+    ]
+    if missing_mappings:
+        raise ValueError(
+            "Missing source-to-canonical mapping for field(s): "
+            f"{missing_mappings}"
+        )
+
+    canonical_fields = tuple(
+        config.source_to_canonical[source_name]
+        for source_name in config.source_fields
+    )
+
+    if len(set(canonical_fields)) != len(canonical_fields):
+        raise ValueError(
+            "source_to_canonical contains duplicate canonical field names"
+        )
+
+    return canonical_fields
+
+
+def map_source_to_canonical(df: DataFrame) -> DataFrame:
+    """Map known source-native Bronze fields to the canonical Silver contract.
+
+    Only configured source fields and the nine Bronze metadata fields cross
+    this boundary. Harmless extra source fields remain preserved in Bronze but
+    are not promoted automatically into Silver.
+    """
+    config = get_dataset_config(DATASET)
+
+    missing_source_fields = [
+        source_name
+        for source_name in config.source_fields
+        if source_name not in df.columns
+    ]
+    if missing_source_fields:
+        raise ValueError(
+            "Bronze batch is missing required source field(s): "
+            f"{missing_source_fields}"
+        )
+
+    missing_metadata = [
+        field_name
+        for field_name in BRONZE_METADATA_FIELDS
+        if field_name not in df.columns
+    ]
+    if missing_metadata:
+        raise ValueError(
+            "Bronze batch is missing required metadata field(s): "
+            f"{missing_metadata}"
+        )
+
+    canonical_fields = canonical_business_fields()
+
+    mapped_business_columns = [
+        F.col(source_name).alias(canonical_name)
+        for source_name, canonical_name
+        in zip(config.source_fields, canonical_fields)
+    ]
+
+    return df.select(
+        *mapped_business_columns,
+        *[F.col(field_name) for field_name in BRONZE_METADATA_FIELDS],
+    )
 
 
 # Minimum demo DQ rules required before a row can compete for Silver.
@@ -361,7 +434,7 @@ def add_quarantine_metadata(df: DataFrame) -> DataFrame:
 def write_quarantine(df: DataFrame) -> int:
     """Append rejected source observations to the Iceberg quarantine table."""
     columns = (
-        list(get_dataset_config(DATASET).source_fields)
+        list(canonical_business_fields())
         + list(BRONZE_METADATA_FIELDS)
         + [
             "_business_key",
@@ -421,7 +494,7 @@ def classify_against_target(
     joined = joined.localCheckpoint(eager=True)
 
     source_columns = (
-        list(get_dataset_config(DATASET).source_fields)
+        list(canonical_business_fields())
         + list(BRONZE_METADATA_FIELDS)
     )
 
@@ -537,7 +610,7 @@ def merge_into_silver(
         return 0
 
     source_columns = (
-        list(get_dataset_config(DATASET).source_fields)
+        list(canonical_business_fields())
         + list(BRONZE_METADATA_FIELDS)
     )
 
@@ -667,9 +740,13 @@ def process_learning_outcomes_batch(
             QUARANTINE_TABLE
         ).count()
 
-        bronze = read_bronze_batch(
+        bronze_source_native = read_bronze_batch(
             spark,
             batch_id,
+        )
+
+        bronze = map_source_to_canonical(
+            bronze_source_native
         ).localCheckpoint(
             eager=True
         )

@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """Generic API/JSON -> Bronze ingestion engine.
 
-The adapter validates the external contract, preserves source/business fields,
-adds Lakehouse metadata, creates a Spark DataFrame with an explicit schema,
-and delegates physical Parquet writing to the shared Bronze writer.
+The adapter validates the external contract, preserves source-native fields,
+adds Lakehouse metadata, creates a Spark DataFrame from the configured source
+schema plus any source-evolution fields, and delegates physical Parquet writing
+to the shared Bronze writer.
 """
 
 from __future__ import annotations
@@ -40,46 +41,25 @@ METADATA_COLUMNS = (
 
 def canonical_source_checksum(
     source_record: dict[str, Any],
+    *,
+    field_aliases: dict[str, str] | None = None,
 ) -> str:
-    """Return a stable source checksum across the naming-only migration.
+    """Return a deterministic checksum for one logical source record.
 
-    The learning-outcomes contract renamed business keys from English
-    to Vietnamese. _record_checksum is technical lineage, so records
-    with otherwise identical source values retain their prior identity.
-    Other generic API schemas keep normal raw-record serialization.
+    ``field_aliases`` is optional and generic. When the record contains
+    exactly the alias keys, those keys are normalized to the configured
+    identity names before serialization. This keeps naming-only migrations
+    from changing lineage without embedding dataset-specific field names in
+    the ingestion engine.
     """
-    legacy_names = {
-        "ma_ban_ghi": "record_id",
-        "ma_chuong_trinh": "program_code",
-        "ten_chuong_trinh": "program_name",
-        "nam_hoc": "academic_year",
-        "hoc_ky": "semester",
-        "so_sinh_vien": "student_count",
-        "so_luot_hoc_phan_dat": "passed_course_count",
-        "tong_luot_hoc_phan": "attempted_course_count",
-        "tong_diem_gpa": "gpa_point_sum",
-        "so_sinh_vien_tinh_gpa": "gpa_student_count",
-        "so_sinh_vien_canh_bao": "warning_student_count",
-        "so_sinh_vien_nguy_co_nghi_hoc": (
-            "dropout_risk_student_count"
-        ),
-        "so_sinh_vien_dung_tien_do": (
-            "on_track_student_count"
-        ),
-        "so_sinh_vien_danh_gia_tien_do": (
-            "progress_evaluated_student_count"
-        ),
-        "thoi_gian_cap_nhat_nguon": "updated_at",
-        "da_xoa": "is_deleted",
-    }
-
     checksum_record = source_record
+    aliases = field_aliases or {}
 
-    if set(source_record) == set(legacy_names):
+    if aliases and set(source_record) == set(aliases):
         checksum_record = {
-            legacy_name: source_record[current_name]
-            for current_name, legacy_name
-            in legacy_names.items()
+            identity_name: source_record[current_name]
+            for current_name, identity_name
+            in aliases.items()
         }
 
     canonical = json.dumps(
@@ -92,6 +72,27 @@ def canonical_source_checksum(
     return hashlib.sha256(
         canonical.encode("utf-8")
     ).hexdigest()
+
+
+def _checksum_field_aliases(
+    config: ApiDatasetConfig,
+) -> dict[str, str]:
+    """Return canonical-name -> source-identity-name aliases from config."""
+    return {
+        canonical_name: source_name
+        for source_name, canonical_name
+        in config.source_to_canonical.items()
+    }
+
+
+def _source_checksum(
+    source_record: dict[str, Any],
+    config: ApiDatasetConfig,
+) -> str:
+    return canonical_source_checksum(
+        source_record,
+        field_aliases=_checksum_field_aliases(config),
+    )
 
 
 
@@ -174,8 +175,66 @@ def _metadata_schema() -> StructType:
     ])
 
 
-def _full_schema(config: ApiDatasetConfig) -> StructType:
-    return StructType(list(config.spark_source_schema.fields) + list(_metadata_schema().fields))
+def _infer_extra_source_fields(
+    spark: SparkSession,
+    payload: dict[str, Any],
+    config: ApiDatasetConfig,
+) -> list[StructField]:
+    """Infer schema only for source fields not yet declared in dataset config.
+
+    Required/known business fields continue to use the explicit configured
+    Spark schema. Extra fields are preserved in Bronze rather than silently
+    dropped, which lets the source contract evolve without automatically
+    promoting those fields into Silver.
+    """
+    known_fields = set(config.source_fields)
+    metadata_fields = set(METADATA_COLUMNS)
+
+    extra_names: set[str] = set()
+
+    for index, record in enumerate(payload["data"]):
+        collisions = metadata_fields.intersection(record)
+        if collisions:
+            raise ValueError(
+                "Source record contains reserved Bronze metadata field(s) "
+                f"at data[{index}]: {sorted(collisions)}"
+            )
+        extra_names.update(set(record) - known_fields)
+
+    if not extra_names:
+        return []
+
+    inferred_schema = spark.createDataFrame(payload["data"]).schema
+    inferred_by_name = {
+        field.name: field
+        for field in inferred_schema.fields
+    }
+
+    missing = sorted(
+        name for name in extra_names
+        if name not in inferred_by_name
+    )
+    if missing:
+        raise ValueError(
+            "Unable to infer Spark schema for extra source field(s): "
+            f"{missing}"
+        )
+
+    return [
+        inferred_by_name[name]
+        for name in sorted(extra_names)
+    ]
+
+
+def _full_schema(
+    config: ApiDatasetConfig,
+    extra_source_fields: list[StructField] | None = None,
+) -> StructType:
+    return StructType(
+        list(config.spark_source_schema.fields)
+        + list(extra_source_fields or [])
+        + list(_metadata_schema().fields)
+    )
 
 
 def _prepare_rows(
@@ -192,8 +251,9 @@ def _prepare_rows(
 
     prepared = []
     for index, source_record in enumerate(source_rows):
-        # JSON Schema already rejects missing/additional fields and bad primitive types.
-        checksum = canonical_source_checksum(source_record)
+        # JSON Schema validates required/known fields. Extra source fields are
+        # intentionally allowed so Bronze can preserve source evolution.
+        checksum = _source_checksum(source_record, config)
         source_updated_at_field = (
             config.source_updated_at_field
         )
@@ -238,7 +298,18 @@ def build_spark_dataframe(
         batch_id=batch_id,
         ingested_at=ingested_at,
     )
-    return spark.createDataFrame(prepared, schema=_full_schema(config))
+    extra_source_fields = _infer_extra_source_fields(
+        spark,
+        payload,
+        config,
+    )
+    return spark.createDataFrame(
+        prepared,
+        schema=_full_schema(
+            config,
+            extra_source_fields,
+        ),
+    )
 
 
 def make_batch_id(source_system: str) -> str:
@@ -319,8 +390,9 @@ def ingest_payload_to_bronze(
     sample_id_field = config.record_id_field
     sample_id = sample_source[sample_id_field]
 
-    expected_checksum = canonical_source_checksum(
-        sample_source
+    expected_checksum = _source_checksum(
+        sample_source,
+        config,
     )
 
     sample_after = readback.loc[

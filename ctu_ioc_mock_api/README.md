@@ -6,6 +6,10 @@ that the existing Lakehouse can ingest `education.learning_outcomes` through HTT
 The service uses the same 30 mock business records already used for the verified
 Bronze → Silver → Gold → Superset flow.
 
+The active source contract is `schema_version = 2.0`: the API and Bronze use
+source-native English field names, while Silver keeps the established canonical
+Vietnamese business schema through an explicit mapping boundary after Bronze.
+
 ## 1. Start with Docker
 
 ```powershell
@@ -73,7 +77,7 @@ GET /api/v1/education/learning-outcomes?updated_after=2026-09-21T00:00:00%2B07:0
 The filter is strict:
 
 ```text
-record.thoi_gian_cap_nhat_nguon > updated_after
+record.updated_at > updated_after
 ```
 
 ## 5. Optional mock authentication
@@ -153,10 +157,12 @@ with:
 ```text
 HTTP GET
 → parse JSON response
-→ existing contract validation
-→ existing explicit Spark schema
-→ existing Bronze metadata/checksum
-→ existing MinIO Bronze writer
+→ active v2 contract validation
+→ configured source-native Spark schema
+→ 9 Bronze metadata fields + deterministic checksum
+→ source-native MinIO Bronze Parquet
+→ explicit source-to-canonical mapping
+→ canonical Silver processing
 ```
 
 A minimal fetch example is in:
@@ -168,15 +174,17 @@ integration_fetch_example.py
 The important integration test is:
 
 ```text
-Mock API HTTP
+Mock API HTTP (source-native v2)
     ↓
-existing Bronze ingestion
+generic HTTP/Bronze ingestion
     ↓
-Bronze Parquet
+Bronze Parquet (source-native)
     ↓
-existing Silver
+explicit source-to-canonical mapping
     ↓
-existing Gold
+Silver (canonical Vietnamese fields)
+    ↓
+Gold
 ```
 
 For the first HTTP test, use the `baseline` scenario and expect 30 records.
@@ -199,14 +207,81 @@ POST /mock/scenario/{scenario}
 Do not include `/mock/*` in the final specification sent to CTU IOC.
 
 
-## Naming contract v1.0
+## 10. Source contract v2.0 and Silver compatibility boundary
 
-The Vietnamese snake_case business schema is the final demo
-contract version 1.0.
+The active Mock API contract is version `2.0`.
 
-The earlier English business-field schema was an internal
-pre-release representation and was not treated as a published
-external contract.
+The API now emits the 16 source-native business fields:
 
-Technical identifiers such as the dataset name, API route,
-pagination parameters, and Lakehouse metadata remain unchanged.
+```text
+record_id
+program_code
+program_name
+academic_year
+semester
+student_count
+passed_course_count
+attempted_course_count
+gpa_point_sum
+gpa_student_count
+warning_student_count
+dropout_risk_student_count
+on_track_student_count
+progress_evaluated_student_count
+updated_at
+is_deleted
+```
+
+Bronze preserves these source field names exactly and adds the same 9
+Lakehouse-managed metadata fields:
+
+```text
+_source_system
+_source_type
+_dataset
+_schema_version
+_ingestion_mode
+_batch_id
+_source_updated_at
+_ingested_at
+_record_checksum
+```
+
+The active JSON Schema is:
+
+```text
+lakehouse/spark/contracts/learning_outcomes.schema.json
+```
+
+The historical v1 schema is retained separately as:
+
+```text
+lakehouse/spark/contracts/learning_outcomes_v0_1.schema.json
+```
+
+The rename from the earlier v1 business field contract to v2 is a breaking
+source-contract change, so the external `schema_version` is `2.0`.
+
+The compatibility boundary is intentionally after Bronze:
+
+```text
+source-native API
+    ↓
+source-native Bronze
+    ↓
+source_to_canonical mapping
+    ↓
+canonical Silver
+```
+
+Silver therefore continues to use the existing Vietnamese canonical business
+fields such as `ma_ban_ghi`, `ma_chuong_trinh`, `nam_hoc`, and `hoc_ky`.
+Gold and Superset continue to consume the established canonical downstream
+schema.
+
+The v2 record schema allows harmless additional source fields so source
+evolution can be preserved in Bronze. Unknown source fields are not promoted
+automatically into Silver; only configured fields cross the mapping boundary.
+
+Technical identifiers such as the dataset name, API route, pagination
+parameters, and Lakehouse metadata names remain unchanged.

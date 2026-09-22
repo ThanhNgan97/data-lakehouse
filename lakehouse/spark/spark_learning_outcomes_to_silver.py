@@ -23,7 +23,10 @@ from pyspark.sql.types import (
     TimestampType,
 )
 
-from api_dataset_registry import get_dataset_config
+from api_dataset_registry import (
+    LEARNING_OUTCOMES_DATASET,
+    get_dataset_config,
+)
 from env_config import MINIO_BUCKET_NAME
 from spark_bronze_to_silver import get_spark_session
 from nessie_catalog_utils import (
@@ -35,15 +38,21 @@ from nessie_catalog_utils import (
 )
 
 
-DATASET = "education.learning_outcomes"
+DATASET = LEARNING_OUTCOMES_DATASET
+DATASET_CONFIG = get_dataset_config(DATASET)
 
-SILVER_TABLE = "lakehouse.silver.learning_outcomes"
-QUARANTINE_TABLE = "lakehouse.silver.learning_outcomes_quarantine"
+SILVER_TABLE = DATASET_CONFIG.silver_table
+QUARANTINE_TABLE = DATASET_CONFIG.quarantine_table
+BUSINESS_KEY = DATASET_CONFIG.business_key
 
-BUSINESS_KEY = (
-    "ma_chuong_trinh",
-    "nam_hoc",
-    "hoc_ky",
+CANONICAL_RECORD_ID_FIELD = DATASET_CONFIG.canonical_field(
+    DATASET_CONFIG.record_id_field
+)
+CANONICAL_UPDATED_AT_FIELD = DATASET_CONFIG.canonical_field(
+    DATASET_CONFIG.source_updated_at_field
+)
+CANONICAL_DELETE_FIELD = DATASET_CONFIG.canonical_field(
+    DATASET_CONFIG.source_delete_field
 )
 
 BRONZE_METADATA_FIELDS = (
@@ -90,31 +99,8 @@ def build_silver_input_schema() -> StructType:
 
 
 def canonical_business_fields() -> tuple[str, ...]:
-    """Return canonical Silver business fields in source-field order."""
-    config = get_dataset_config(DATASET)
-
-    missing_mappings = [
-        source_name
-        for source_name in config.source_fields
-        if source_name not in config.source_to_canonical
-    ]
-    if missing_mappings:
-        raise ValueError(
-            "Missing source-to-canonical mapping for field(s): "
-            f"{missing_mappings}"
-        )
-
-    canonical_fields = tuple(
-        config.source_to_canonical[source_name]
-        for source_name in config.source_fields
-    )
-
-    if len(set(canonical_fields)) != len(canonical_fields):
-        raise ValueError(
-            "source_to_canonical contains duplicate canonical field names"
-        )
-
-    return canonical_fields
+    """Return validated canonical Silver fields in source-field order."""
+    return DATASET_CONFIG.canonical_fields
 
 
 def map_source_to_canonical(df: DataFrame) -> DataFrame:
@@ -124,7 +110,7 @@ def map_source_to_canonical(df: DataFrame) -> DataFrame:
     this boundary. Harmless extra source fields remain preserved in Bronze but
     are not promoted automatically into Silver.
     """
-    config = get_dataset_config(DATASET)
+    config = DATASET_CONFIG
 
     missing_source_fields = [
         source_name
@@ -359,12 +345,12 @@ def split_equal_timestamp_conflicts(
     )
 
     conflict_groups = (
-        df.groupBy(*BUSINESS_KEY, "thoi_gian_cap_nhat_nguon")
+        df.groupBy(*BUSINESS_KEY, CANONICAL_UPDATED_AT_FIELD)
         .agg(
             F.countDistinct(checksum_value).alias("_checksum_variants")
         )
         .filter(F.col("_checksum_variants") > 1)
-        .select(*BUSINESS_KEY, "thoi_gian_cap_nhat_nguon")
+        .select(*BUSINESS_KEY, CANONICAL_UPDATED_AT_FIELD)
     )
 
     conflict_keys = conflict_groups.select(*BUSINESS_KEY).distinct()
@@ -399,11 +385,11 @@ def deterministic_deduplicate(df: DataFrame) -> DataFrame:
       3. deterministic batch/checksum/record tie-breakers
     """
     ordering = Window.partitionBy(*BUSINESS_KEY).orderBy(
-        F.col("thoi_gian_cap_nhat_nguon").desc_nulls_last(),
+        F.col(CANONICAL_UPDATED_AT_FIELD).desc_nulls_last(),
         F.col("_ingested_at").desc_nulls_last(),
         F.col("_batch_id").desc_nulls_last(),
         F.col("_record_checksum").asc_nulls_last(),
-        F.col("ma_ban_ghi").asc_nulls_last(),
+        F.col(CANONICAL_RECORD_ID_FIELD).asc_nulls_last(),
     )
 
     return (
@@ -417,12 +403,13 @@ def add_quarantine_metadata(df: DataFrame) -> DataFrame:
     """Attach deterministic business-key text and quarantine timestamp."""
     business_key = F.concat_ws(
         "|",
-        F.coalesce(F.col("ma_chuong_trinh"), F.lit("<NULL>")),
-        F.coalesce(F.col("nam_hoc"), F.lit("<NULL>")),
-        F.coalesce(
-            F.col("hoc_ky").cast("string"),
-            F.lit("<NULL>"),
-        ),
+        *[
+            F.coalesce(
+                F.col(field_name).cast("string"),
+                F.lit("<NULL>"),
+            )
+            for field_name in BUSINESS_KEY
+        ],
     )
 
     return (
@@ -465,11 +452,13 @@ def classify_against_target(
         stale,
         duplicate
     """
+    program_key, academic_year_key, semester_key = BUSINESS_KEY
+
     target = spark.table(SILVER_TABLE).select(
-        F.col("ma_chuong_trinh").alias("_target_program_code"),
-        F.col("nam_hoc").alias("_target_academic_year"),
-        F.col("hoc_ky").alias("_target_semester"),
-        F.col("thoi_gian_cap_nhat_nguon").alias("_target_updated_at"),
+        F.col(program_key).alias("_target_program_code"),
+        F.col(academic_year_key).alias("_target_academic_year"),
+        F.col(semester_key).alias("_target_semester"),
+        F.col(CANONICAL_UPDATED_AT_FIELD).alias("_target_updated_at"),
         F.col("_record_checksum").alias("_target_record_checksum"),
     )
 
@@ -477,9 +466,9 @@ def classify_against_target(
     target = target.alias("t")
 
     join_condition = (
-        (F.col("s.ma_chuong_trinh") == F.col("t._target_program_code"))
-        & (F.col("s.nam_hoc") == F.col("t._target_academic_year"))
-        & (F.col("s.hoc_ky") == F.col("t._target_semester"))
+        (F.col(f"s.{program_key}") == F.col("t._target_program_code"))
+        & (F.col(f"s.{academic_year_key}") == F.col("t._target_academic_year"))
+        & (F.col(f"s.{semester_key}") == F.col("t._target_semester"))
     )
 
     joined = source.join(
@@ -500,7 +489,7 @@ def classify_against_target(
 
     target_exists = F.col("_target_program_code").isNotNull()
 
-    source_updated_at = F.col("thoi_gian_cap_nhat_nguon")
+    source_updated_at = F.col(CANONICAL_UPDATED_AT_FIELD)
     target_updated_at = F.col("_target_updated_at")
 
     source_checksum = F.coalesce(
@@ -516,7 +505,7 @@ def classify_against_target(
     different_checksum = source_checksum != target_checksum
 
     source_is_deleted = F.coalesce(
-        F.col("da_xoa"),
+        F.col(CANONICAL_DELETE_FIELD),
         F.lit(False),
     )
 
@@ -647,12 +636,12 @@ def merge_into_silver(
         ON {business_key_sql("s", "t")}
 
         WHEN MATCHED
-          AND s.thoi_gian_cap_nhat_nguon > t.thoi_gian_cap_nhat_nguon
+          AND s.{CANONICAL_UPDATED_AT_FIELD} > t.{CANONICAL_UPDATED_AT_FIELD}
         THEN UPDATE SET
           {update_assignments}
 
         WHEN NOT MATCHED
-          AND s.da_xoa = false
+          AND s.{CANONICAL_DELETE_FIELD} = false
         THEN INSERT (
           {insert_column_sql}
         )
@@ -671,11 +660,6 @@ def business_key_sql(
     """Return the exact logical business-key condition."""
     return " AND ".join(
         f"{target_alias}.{column} = {source_alias}.{column}"
-        for column in BUSINESS_KEY
-    )
-    """Return the exact logical-key SQL condition for MERGE."""
-    return " AND ".join(
-        f"{alias}.{column} = target.{column}"
         for column in BUSINESS_KEY
     )
 

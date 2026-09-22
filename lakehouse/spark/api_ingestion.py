@@ -22,6 +22,7 @@ from pyspark.sql.types import StringType, StructField, StructType, TimestampType
 
 from api_dataset_registry import ApiDatasetConfig, get_dataset_config
 from bronze_writer import read_parquet_object, write_parquet_object
+from http_adapter import HttpAdapter
 
 
 METADATA_COLUMNS = (
@@ -439,205 +440,30 @@ def fetch_http_api_payload(
     page_limit: int = 500,
     timeout_seconds: int = 30,
 ) -> dict[str, Any]:
-    """
-    Fetch one logical API dataset over one or more cursor-paginated
-    HTTP GET responses and return one contract-compatible payload.
-
-    Transport/pagination belongs here.
-    Bronze transformation and persistence remain in
-    ingest_payload_to_bronze().
-    """
-    from urllib.error import HTTPError, URLError
-    from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
-    from urllib.request import Request, urlopen
-
-    if not api_url:
-        raise ValueError("api_url must not be empty")
-
-    if page_limit < 1 or page_limit > 500:
-        raise ValueError("page_limit must be between 1 and 500")
-
-    if timeout_seconds < 1:
-        raise ValueError("timeout_seconds must be >= 1")
-
+    """Fetch an API payload through the reusable HTTP transport adapter."""
     config = get_dataset_config(dataset)
 
-    parts = urlsplit(api_url)
-    base_query = dict(
-        parse_qsl(
-            parts.query,
-            keep_blank_values=True,
-        )
+    adapter = HttpAdapter(
+        api_url,
+        api_key=api_key,
+        page_limit=page_limit,
+        timeout_seconds=timeout_seconds,
+        updated_after=updated_after,
     )
 
-    headers = {
-        "Accept": "application/json",
-    }
-
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
-
-    all_records: list[dict[str, Any]] = []
-    seen_record_ids: set[str] = set()
-    seen_cursors: set[str] = set()
-
-    first_page: dict[str, Any] | None = None
-    cursor: str | None = None
-    page_number = 0
-
-    while True:
-        page_number += 1
-
-        if page_number > 10000:
-            raise RuntimeError("Pagination exceeded safety limit")
-
-        query = dict(base_query)
-        query["limit"] = str(page_limit)
-
-        if updated_after:
-            query["updated_after"] = updated_after
-
-        if cursor:
-            query["cursor"] = cursor
-        else:
-            query.pop("cursor", None)
-
-        request_url = urlunsplit(
-            (
-                parts.scheme,
-                parts.netloc,
-                parts.path,
-                urlencode(query),
-                parts.fragment,
-            )
-        )
-
-        request = Request(
-            request_url,
-            headers=headers,
-            method="GET",
-        )
-
-        try:
-            with urlopen(
-                request,
-                timeout=timeout_seconds,
-            ) as response:
-                payload = json.load(response)
-
-        except HTTPError as exc:
-            try:
-                body = exc.read().decode(
-                    "utf-8",
-                    errors="replace",
-                )
-            except Exception:
-                body = ""
-
-            raise RuntimeError(
-                f"HTTP API returned status={exc.code}: {body}"
-            ) from exc
-
-        except URLError as exc:
-            raise RuntimeError(
-                f"HTTP API connection failed: {exc}"
-            ) from exc
-
-        if not isinstance(payload, dict):
-            raise ValueError(
-                "Top-level API response must be a JSON object"
-            )
-
-        # Validate every real API page before accepting its data.
-        validate_contract(payload, config)
-
-        if first_page is None:
-            first_page = payload
-        else:
-            for field in (
-                "source_system",
-                "dataset",
-                "schema_version",
-            ):
-                if payload.get(field) != first_page.get(field):
-                    raise ValueError(
-                        f"Inconsistent {field} across API pages"
-                    )
-
-        page_records = payload["data"]
-
-        for record in page_records:
-            source_record_id = record[
-                config.record_id_field
-            ]
-
-            if source_record_id in seen_record_ids:
-                raise ValueError(
-                    "Duplicate source identifier across "
-                    "API pages: "
-                    f"{config.record_id_field}="
-                    f"{source_record_id}"
-                )
-
-            seen_record_ids.add(
-                source_record_id
-            )
-            all_records.append(record)
-
-        pagination = payload["pagination"]
-
-        print(
-            "HTTP_PAGE="
-            f"{page_number}"
-            f"|records={len(page_records)}"
-            f"|has_more={pagination['has_more']}"
-        )
-
-        if not pagination["has_more"]:
-            break
-
-        next_cursor = pagination.get("next_cursor")
-
-        if not next_cursor:
-            raise ValueError(
-                "API says has_more=true but next_cursor is missing"
-            )
-
-        if next_cursor in seen_cursors:
-            raise ValueError(
-                "Repeated pagination cursor detected"
-            )
-
-        seen_cursors.add(next_cursor)
-        cursor = next_cursor
-
-    if first_page is None:
-        raise RuntimeError("API returned no response pages")
-
-    merged_payload = dict(first_page)
-
-    merged_payload["data"] = all_records
-
-    # This is now the locally assembled logical response.
-    merged_payload["pagination"] = {
-        "returned_records": len(all_records),
-        "has_more": False,
-        "next_cursor": None,
-    }
-
-    # Validate the complete logical payload as well.
-    validate_contract(
-        merged_payload,
-        config,
+    return adapter.fetch(
+        validate_payload=lambda payload: validate_contract(
+            payload,
+            config,
+        ),
+        record_id_field=config.record_id_field,
+        consistency_fields=(
+            "source_system",
+            "dataset",
+            "schema_version",
+        ),
     )
 
-    print(
-        "HTTP_FETCH_TOTAL="
-        f"{len(all_records)}"
-        f"|pages={page_number}"
-    )
-
-    return merged_payload
 
 
 def ingest_http_api_to_bronze(

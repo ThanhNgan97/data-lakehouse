@@ -1,0 +1,103 @@
+[2026-09-22T02:35:39.974+0000] {local_task_job_runner.py:120} INFO - ::group::Pre task execution logs
+[2026-09-22T02:35:40.051+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: lakehouse_pipeline.predictive_analysis manual__2026-09-22T02:31:44.805240+00:00 [queued]>
+[2026-09-22T02:35:40.071+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: lakehouse_pipeline.predictive_analysis manual__2026-09-22T02:31:44.805240+00:00 [queued]>
+[2026-09-22T02:35:40.074+0000] {taskinstance.py:2306} INFO - Starting attempt 1 of 1
+[2026-09-22T02:35:40.098+0000] {taskinstance.py:2330} INFO - Executing <Task(BashOperator): predictive_analysis> on 2026-09-22 02:31:44.805240+00:00
+[2026-09-22T02:35:40.106+0000] {standard_task_runner.py:63} INFO - Started process 1381 to run task
+[2026-09-22T02:35:40.115+0000] {standard_task_runner.py:90} INFO - Running: ['airflow', 'tasks', 'run', 'lakehouse_pipeline', 'predictive_analysis', 'manual__2026-09-22T02:31:44.805240+00:00', '--job-id', '696', '--raw', '--subdir', 'DAGS_FOLDER/lakehouse_pipeline.py', '--cfg-path', '/tmp/tmpdz0y9lpm']
+[2026-09-22T02:35:40.121+0000] {standard_task_runner.py:91} INFO - Job 696: Subtask predictive_analysis
+[2026-09-22T02:35:40.280+0000] {task_command.py:426} INFO - Running <TaskInstance: lakehouse_pipeline.predictive_analysis manual__2026-09-22T02:31:44.805240+00:00 [running]> on host demo-airflow-scheduler
+[2026-09-22T02:35:40.495+0000] {taskinstance.py:2648} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='lakehouse' AIRFLOW_CTX_DAG_ID='lakehouse_pipeline' AIRFLOW_CTX_TASK_ID='predictive_analysis' AIRFLOW_CTX_EXECUTION_DATE='2026-09-22T02:31:44.805240+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-09-22T02:31:44.805240+00:00'
+[2026-09-22T02:35:40.497+0000] {taskinstance.py:430} INFO - ::endgroup::
+[2026-09-22T02:35:40.551+0000] {subprocess.py:63} INFO - Tmp dir root location: /tmp
+[2026-09-22T02:35:40.556+0000] {subprocess.py:75} INFO - Running command: ['/usr/bin/bash', '-c', 'cd /opt/airflow/spark && python spark_predictive_analysis.py']
+[2026-09-22T02:35:40.574+0000] {subprocess.py:86} INFO - Output:
+[2026-09-22T02:35:41.976+0000] {subprocess.py:93} INFO - /home/airflow/.local/lib/python3.10/site-packages/pyspark/bin/load-spark-env.sh: line 68: ps: command not found
+[2026-09-22T02:35:46.811+0000] {subprocess.py:93} INFO - :: loading settings :: url = jar:file:/home/airflow/.local/lib/python3.10/site-packages/pyspark/jars/ivy-2.5.1.jar!/org/apache/ivy/core/settings/ivysettings.xml
+[2026-09-22T02:35:46.961+0000] {subprocess.py:93} INFO - Ivy Default Cache set to: /home/airflow/.ivy2/cache
+[2026-09-22T02:35:46.963+0000] {subprocess.py:93} INFO - The jars for the packages stored in: /home/airflow/.ivy2/jars
+[2026-09-22T02:35:46.972+0000] {subprocess.py:93} INFO - org.apache.iceberg#iceberg-spark-runtime-3.5_2.12 added as a dependency
+[2026-09-22T02:35:46.973+0000] {subprocess.py:93} INFO - org.projectnessie.nessie-integrations#nessie-spark-extensions-3.5_2.12 added as a dependency
+[2026-09-22T02:35:46.974+0000] {subprocess.py:93} INFO - org.apache.hadoop#hadoop-aws added as a dependency
+[2026-09-22T02:35:46.976+0000] {subprocess.py:93} INFO - :: resolving dependencies :: org.apache.spark#spark-submit-parent-387822ea-61e2-43cb-a36d-e9212c472c12;1.0
+[2026-09-22T02:35:46.977+0000] {subprocess.py:93} INFO - 	confs: [default]
+[2026-09-22T02:35:47.233+0000] {subprocess.py:93} INFO - 	found org.apache.iceberg#iceberg-spark-runtime-3.5_2.12;1.4.3 in central
+[2026-09-22T02:35:47.283+0000] {subprocess.py:93} INFO - 	found org.projectnessie.nessie-integrations#nessie-spark-extensions-3.5_2.12;0.77.1 in central
+[2026-09-22T02:35:47.509+0000] {subprocess.py:93} INFO - 	found org.apache.hadoop#hadoop-aws;3.3.4 in central
+[2026-09-22T02:35:47.598+0000] {subprocess.py:93} INFO - 	found com.amazonaws#aws-java-sdk-bundle;1.12.262 in central
+[2026-09-22T02:35:47.682+0000] {subprocess.py:93} INFO - 	found org.wildfly.openssl#wildfly-openssl;1.0.7.Final in central
+[2026-09-22T02:35:47.738+0000] {subprocess.py:93} INFO - :: resolution report :: resolve 732ms :: artifacts dl 30ms
+[2026-09-22T02:35:47.740+0000] {subprocess.py:93} INFO - 	:: modules in use:
+[2026-09-22T02:35:47.743+0000] {subprocess.py:93} INFO - 	com.amazonaws#aws-java-sdk-bundle;1.12.262 from central in [default]
+[2026-09-22T02:35:47.745+0000] {subprocess.py:93} INFO - 	org.apache.hadoop#hadoop-aws;3.3.4 from central in [default]
+[2026-09-22T02:35:47.746+0000] {subprocess.py:93} INFO - 	org.apache.iceberg#iceberg-spark-runtime-3.5_2.12;1.4.3 from central in [default]
+[2026-09-22T02:35:47.747+0000] {subprocess.py:93} INFO - 	org.projectnessie.nessie-integrations#nessie-spark-extensions-3.5_2.12;0.77.1 from central in [default]
+[2026-09-22T02:35:47.748+0000] {subprocess.py:93} INFO - 	org.wildfly.openssl#wildfly-openssl;1.0.7.Final from central in [default]
+[2026-09-22T02:35:47.756+0000] {subprocess.py:93} INFO - 	---------------------------------------------------------------------
+[2026-09-22T02:35:47.757+0000] {subprocess.py:93} INFO - 	|                  |            modules            ||   artifacts   |
+[2026-09-22T02:35:47.758+0000] {subprocess.py:93} INFO - 	|       conf       | number| search|dwnlded|evicted|| number|dwnlded|
+[2026-09-22T02:35:47.759+0000] {subprocess.py:93} INFO - 	---------------------------------------------------------------------
+[2026-09-22T02:35:47.760+0000] {subprocess.py:93} INFO - 	|      default     |   5   |   0   |   0   |   0   ||   5   |   0   |
+[2026-09-22T02:35:47.764+0000] {subprocess.py:93} INFO - 	---------------------------------------------------------------------
+[2026-09-22T02:35:47.764+0000] {subprocess.py:93} INFO - :: retrieving :: org.apache.spark#spark-submit-parent-387822ea-61e2-43cb-a36d-e9212c472c12
+[2026-09-22T02:35:47.773+0000] {subprocess.py:93} INFO - 	confs: [default]
+[2026-09-22T02:35:47.774+0000] {subprocess.py:93} INFO - 	0 artifacts copied, 5 already retrieved (0kB/20ms)
+[2026-09-22T02:35:48.338+0000] {subprocess.py:93} INFO - 26/09/22 02:35:48 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+[2026-09-22T02:35:49.060+0000] {subprocess.py:93} INFO - Setting default log level to "WARN".
+[2026-09-22T02:35:49.068+0000] {subprocess.py:93} INFO - To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+[2026-09-22T02:36:13.702+0000] {subprocess.py:93} INFO - 26/09/22 02:36:13 ERROR Inbox: Ignoring error
+[2026-09-22T02:36:13.703+0000] {subprocess.py:93} INFO - java.lang.NullPointerException: Cannot invoke "org.apache.spark.storage.BlockManagerId.executorId()" because "idWithoutTopologyInfo" is null
+[2026-09-22T02:36:13.704+0000] {subprocess.py:93} INFO - 	at org.apache.spark.storage.BlockManagerMasterEndpoint.org$apache$spark$storage$BlockManagerMasterEndpoint$$register(BlockManagerMasterEndpoint.scala:677)
+[2026-09-22T02:36:13.704+0000] {subprocess.py:93} INFO - 	at org.apache.spark.storage.BlockManagerMasterEndpoint$$anonfun$receiveAndReply$1.applyOrElse(BlockManagerMasterEndpoint.scala:133)
+[2026-09-22T02:36:13.705+0000] {subprocess.py:93} INFO - 	at org.apache.spark.rpc.netty.Inbox.$anonfun$process$1(Inbox.scala:103)
+[2026-09-22T02:36:13.705+0000] {subprocess.py:93} INFO - 	at org.apache.spark.rpc.netty.Inbox.safelyCall(Inbox.scala:213)
+[2026-09-22T02:36:13.706+0000] {subprocess.py:93} INFO - 	at org.apache.spark.rpc.netty.Inbox.process(Inbox.scala:100)
+[2026-09-22T02:36:13.706+0000] {subprocess.py:93} INFO - 	at org.apache.spark.rpc.netty.MessageLoop.org$apache$spark$rpc$netty$MessageLoop$$receiveLoop(MessageLoop.scala:75)
+[2026-09-22T02:36:13.707+0000] {subprocess.py:93} INFO - 	at org.apache.spark.rpc.netty.MessageLoop$$anon$1.run(MessageLoop.scala:41)
+[2026-09-22T02:36:13.707+0000] {subprocess.py:93} INFO - 	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+[2026-09-22T02:36:13.707+0000] {subprocess.py:93} INFO - 	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+[2026-09-22T02:36:13.708+0000] {subprocess.py:93} INFO - 	at java.base/java.lang.Thread.run(Thread.java:840)
+[2026-09-22T02:36:13.708+0000] {subprocess.py:93} INFO - 26/09/22 02:36:13 WARN Executor: Issue communicating with driver in heartbeater
+[2026-09-22T02:36:13.709+0000] {subprocess.py:93} INFO - org.apache.spark.SparkException: Exception thrown in awaitResult:
+[2026-09-22T02:36:13.709+0000] {subprocess.py:93} INFO - 	at org.apache.spark.util.SparkThreadUtils$.awaitResult(SparkThreadUtils.scala:56)
+[2026-09-22T02:36:13.709+0000] {subprocess.py:93} INFO - 	at org.apache.spark.util.ThreadUtils$.awaitResult(ThreadUtils.scala:310)
+[2026-09-22T02:36:13.710+0000] {subprocess.py:93} INFO - 	at org.apache.spark.rpc.RpcTimeout.awaitResult(RpcTimeout.scala:75)
+[2026-09-22T02:36:13.711+0000] {subprocess.py:93} INFO - 	at org.apache.spark.rpc.RpcEndpointRef.askSync(RpcEndpointRef.scala:101)
+[2026-09-22T02:36:13.711+0000] {subprocess.py:93} INFO - 	at org.apache.spark.rpc.RpcEndpointRef.askSync(RpcEndpointRef.scala:85)
+[2026-09-22T02:36:13.712+0000] {subprocess.py:93} INFO - 	at org.apache.spark.storage.BlockManagerMaster.registerBlockManager(BlockManagerMaster.scala:80)
+[2026-09-22T02:36:13.712+0000] {subprocess.py:93} INFO - 	at org.apache.spark.storage.BlockManager.reregister(BlockManager.scala:642)
+[2026-09-22T02:36:13.713+0000] {subprocess.py:93} INFO - 	at org.apache.spark.executor.Executor.reportHeartBeat(Executor.scala:1223)
+[2026-09-22T02:36:13.713+0000] {subprocess.py:93} INFO - 	at org.apache.spark.executor.Executor.$anonfun$heartbeater$1(Executor.scala:295)
+[2026-09-22T02:36:13.714+0000] {subprocess.py:93} INFO - 	at scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.java:23)
+[2026-09-22T02:36:13.714+0000] {subprocess.py:93} INFO - 	at org.apache.spark.util.Utils$.logUncaughtExceptions(Utils.scala:1928)
+[2026-09-22T02:36:13.715+0000] {subprocess.py:93} INFO - 	at org.apache.spark.Heartbeater$$anon$1.run(Heartbeater.scala:46)
+[2026-09-22T02:36:13.715+0000] {subprocess.py:93} INFO - 	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:539)
+[2026-09-22T02:36:13.715+0000] {subprocess.py:93} INFO - 	at java.base/java.util.concurrent.FutureTask.runAndReset(FutureTask.java:305)
+[2026-09-22T02:36:13.716+0000] {subprocess.py:93} INFO - 	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:305)
+[2026-09-22T02:36:13.716+0000] {subprocess.py:93} INFO - 	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+[2026-09-22T02:36:13.717+0000] {subprocess.py:93} INFO - 	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+[2026-09-22T02:36:13.717+0000] {subprocess.py:93} INFO - 	at java.base/java.lang.Thread.run(Thread.java:840)
+[2026-09-22T02:36:13.718+0000] {subprocess.py:93} INFO - Caused by: java.lang.NullPointerException: Cannot invoke "org.apache.spark.storage.BlockManagerId.executorId()" because "idWithoutTopologyInfo" is null
+[2026-09-22T02:36:13.718+0000] {subprocess.py:93} INFO - 	at org.apache.spark.storage.BlockManagerMasterEndpoint.org$apache$spark$storage$BlockManagerMasterEndpoint$$register(BlockManagerMasterEndpoint.scala:677)
+[2026-09-22T02:36:13.718+0000] {subprocess.py:93} INFO - 	at org.apache.spark.storage.BlockManagerMasterEndpoint$$anonfun$receiveAndReply$1.applyOrElse(BlockManagerMasterEndpoint.scala:133)
+[2026-09-22T02:36:13.719+0000] {subprocess.py:93} INFO - 	at org.apache.spark.rpc.netty.Inbox.$anonfun$process$1(Inbox.scala:103)
+[2026-09-22T02:36:13.719+0000] {subprocess.py:93} INFO - 	at org.apache.spark.rpc.netty.Inbox.safelyCall(Inbox.scala:213)
+[2026-09-22T02:36:13.719+0000] {subprocess.py:93} INFO - 	at org.apache.spark.rpc.netty.Inbox.process(Inbox.scala:100)
+[2026-09-22T02:36:13.719+0000] {subprocess.py:93} INFO - 	at org.apache.spark.rpc.netty.MessageLoop.org$apache$spark$rpc$netty$MessageLoop$$receiveLoop(MessageLoop.scala:75)
+[2026-09-22T02:36:13.720+0000] {subprocess.py:93} INFO - 	at org.apache.spark.rpc.netty.MessageLoop$$anon$1.run(MessageLoop.scala:41)
+[2026-09-22T02:36:13.720+0000] {subprocess.py:93} INFO - 	... 3 more
+[2026-09-22T02:36:41.391+0000] {subprocess.py:93} INFO - [Stage 0:>                                                          (0 + 1) / 1]                                                                                [Stage 3:>                                                          (0 + 1) / 1]                                                                                [Stage 9:>                                                          (0 + 1) / 1]                                                                                Khởi tạo Spark Engine tính toán dự đoán tương lai...
+[2026-09-22T02:36:41.392+0000] {subprocess.py:93} INFO - 🌿 Đang tạo branch Nessie: 'predictive_analysis_20260922_023628' (từ 'main')...
+[2026-09-22T02:36:41.393+0000] {subprocess.py:93} INFO - ✅ Đã tạo branch 'predictive_analysis_20260922_023628'.
+[2026-09-22T02:36:41.394+0000] {subprocess.py:93} INFO - ➡️  Đang làm việc trên branch: 'predictive_analysis_20260922_023628'
+[2026-09-22T02:36:41.394+0000] {subprocess.py:93} INFO - 🧊 Đang ghi Data Mart Dự đoán lên branch 'predictive_analysis_20260922_023628'...
+[2026-09-22T02:36:41.394+0000] {subprocess.py:93} INFO - 🔀 Đang merge branch 'predictive_analysis_20260922_023628' vào 'main'...
+[2026-09-22T02:36:41.395+0000] {subprocess.py:93} INFO - ✅ Đã merge 'predictive_analysis_20260922_023628' -> 'main' thành công.
+[2026-09-22T02:36:41.395+0000] {subprocess.py:93} INFO - 
+[2026-09-22T02:36:41.396+0000] {subprocess.py:93} INFO - 🌟 HOÀN THÀNH TÍNH TOÁN DỰ ĐOÁN!
+[2026-09-22T02:36:41.859+0000] {subprocess.py:97} INFO - Command exited with return code 0
+[2026-09-22T02:36:41.873+0000] {taskinstance.py:441} INFO - ::group::Post task execution logs
+[2026-09-22T02:36:42.021+0000] {taskinstance.py:1206} INFO - Marking task as SUCCESS. dag_id=lakehouse_pipeline, task_id=predictive_analysis, run_id=manual__2026-09-22T02:31:44.805240+00:00, execution_date=20260922T023144, start_date=20260922T023540, end_date=20260922T023642
+[2026-09-22T02:36:42.092+0000] {local_task_job_runner.py:240} INFO - Task exited with return code 0
+[2026-09-22T02:36:42.114+0000] {taskinstance.py:3503} INFO - 0 downstream tasks scheduled from follow-on schedule check
+[2026-09-22T02:36:42.265+0000] {local_task_job_runner.py:222} INFO - ::endgroup::

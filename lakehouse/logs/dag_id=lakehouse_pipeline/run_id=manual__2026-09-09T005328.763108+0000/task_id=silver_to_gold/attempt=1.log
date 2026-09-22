@@ -1,0 +1,7 @@
+[Airflow Log Restored]
+DAG ID: lakehouse_pipeline
+Run ID: manual__2026-09-09T00:53:28.763108+00:00
+Task ID: silver_to_gold
+Task State: upstream_failed
+--------------------------------------------------
+File log được khởi tạo lại cho lượt chạy lịch sử trước khi restart container Airflow.

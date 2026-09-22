@@ -152,9 +152,9 @@ def init_silver_table_if_needed(spark, branch_name="main"):
 
 
 def dedup_by_business_key(df_bronze):
-    """Dedup theo khóa nghiệp vụ (ma_chi_tieu, quy_danh_gia)."""
+    """Dedup theo khóa nghiệp vụ (nhom_don_vi, ma_chi_tieu, quy_danh_gia)."""
     df_with_ts = df_bronze.withColumn("thoi_gian_ingest_silver", current_timestamp())
-    w = Window.partitionBy("ma_chi_tieu", "quy_danh_gia").orderBy(desc("thoi_gian_ingest_silver"))
+    w = Window.partitionBy("nhom_don_vi", "ma_chi_tieu", "quy_danh_gia").orderBy(desc("thoi_gian_ingest_silver"))
     df_ranked = df_with_ts.withColumn("_rn", row_number().over(w))
 
     df_staging  = df_ranked.filter("_rn = 1").drop("_rn")
@@ -178,6 +178,44 @@ def save_discarded_duplicates(df_discarded, s3_client):
     )
     df_discarded.write.mode("overwrite").parquet(discard_path)
     print(f"📝 Đã ghi {dup_count} bản ghi bị loại vào '{discard_path}'.")
+
+
+def auto_dedup_silver_table_if_needed(spark, table_name):
+    """
+    Tự động dọn dẹp các dòng trùng lặp trong bảng Iceberg Silver trên branch hiện tại
+    nếu dữ liệu lịch sử lỡ có bản ghi bị trùng (nhom_don_vi, ma_chi_tieu, quy_danh_gia).
+    Chỉ giữ lại bản ghi mới nhất.
+    """
+    try:
+        df = spark.table(table_name)
+        dup_count = (
+            df.groupBy("nhom_don_vi", "ma_chi_tieu", "quy_danh_gia")
+            .count()
+            .filter("count > 1")
+            .count()
+        )
+        if dup_count > 0:
+            print(f"🧹 Tự động dọn dẹp {dup_count} tổ hợp trùng lặp trong bảng Silver...")
+            spark.sql(f"""
+                CREATE OR REPLACE TEMP VIEW silver_dedup_view AS
+                SELECT file_nguon, ma_chi_tieu, nhom_don_vi, quy_danh_gia, noi_dung_muc_tieu,
+                       dinh_ky_thu_thap, muc_dang_ky, muc_dang_ky_numeric, muc_dat, muc_dat_numeric,
+                       ket_qua_he_thong, nguyen_nhan, hanh_dong_khac_phuc, minh_chung_type, minh_chung_path,
+                       checksum_sha256, thoi_gian_ingest_silver
+                FROM (
+                    SELECT *, ROW_NUMBER() OVER (
+                        PARTITION BY nhom_don_vi, ma_chi_tieu, quy_danh_gia 
+                        ORDER BY thoi_gian_ingest_silver DESC
+                    ) as _rn
+                    FROM {table_name}
+                ) WHERE _rn = 1
+            """)
+            
+            df_cleaned = spark.table("silver_dedup_view")
+            df_cleaned.write.format("iceberg").mode("overwrite").saveAsTable(table_name)
+            print(f"✅ Đã tự động dọn dẹp và ghi lại {df_cleaned.count()} bản ghi sạch vào {table_name}.")
+    except Exception as e:
+        print(f"⚠️ Cảnh báo tự động dọn dẹp Silver: {e}")
 
 
 def archive_processed_bronze_files(s3_client):
@@ -254,11 +292,10 @@ def run_bronze_to_silver(spark, run_id=""):
         spark.sql(f"""
             MERGE INTO {SILVER_TABLE} t
             USING bronze_staging_view s
-            ON t.ma_chi_tieu = s.ma_chi_tieu AND t.quy_danh_gia = s.quy_danh_gia
+            ON t.nhom_don_vi = s.nhom_don_vi AND t.ma_chi_tieu = s.ma_chi_tieu AND t.quy_danh_gia = s.quy_danh_gia
             WHEN MATCHED THEN
               UPDATE SET
                 t.file_nguon = s.file_nguon,
-                t.nhom_don_vi = s.nhom_don_vi,
                 t.noi_dung_muc_tieu = s.noi_dung_muc_tieu,
                 t.dinh_ky_thu_thap = s.dinh_ky_thu_thap,
                 t.muc_dang_ky = s.muc_dang_ky,
@@ -287,6 +324,9 @@ def run_bronze_to_silver(spark, run_id=""):
               )
         """)
         print(f"✅ Đã ghi/cập nhật dữ liệu vào bảng Iceberg trên branch '{branch_name}'.")
+
+        # Tự động dọn dẹp các dòng trùng lặp trong bảng Silver nếu dữ liệu lịch sử có sẵn trùng lặp
+        auto_dedup_silver_table_if_needed(spark, SILVER_TABLE)
 
         check_quality_silver(spark, SILVER_TABLE)
         merge_branch_to_main(spark, branch_name)

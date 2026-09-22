@@ -147,16 +147,16 @@ def check_quality_silver(spark, table_name: str):
             f"Phát hiện {dup_count} bản ghi có checksum_sha256 bị trùng lặp."
         )
 
-    # [MỚI - Yêu cầu 4] Khóa nghiệp vụ thật sự là (ma_chi_tieu, quy_danh_gia)
+    # [CẬP NHẬT] Khóa nghiệp vụ đầy đủ là (nhom_don_vi, ma_chi_tieu, quy_danh_gia)
     dup_key_rows = (
-        df.groupBy("ma_chi_tieu", "quy_danh_gia")
+        df.groupBy("nhom_don_vi", "ma_chi_tieu", "quy_danh_gia")
         .count()
         .filter("count > 1")
         .count()
     )
     if dup_key_rows > 0:
         raise DataQualityError(
-            f"Phát hiện {dup_key_rows} tổ hợp (ma_chi_tieu, quy_danh_gia) bị trùng — "
+            f"Phát hiện {dup_key_rows} tổ hợp (nhom_don_vi, ma_chi_tieu, quy_danh_gia) bị trùng — "
             f"có thể do dữ liệu bị nạp lại/ghi đè cho cùng 1 kỳ đánh giá. "
             f"Kiểm tra lại nguồn dữ liệu trước khi merge."
         )
@@ -171,7 +171,7 @@ def check_quality_silver(spark, table_name: str):
         )
 
     print(f"✅ Dữ liệu đạt chất lượng: {total_rows} dòng, không NULL khoá chính, "
-          f"không trùng checksum, không trùng (ma_chi_tieu, quy_danh_gia), "
+          f"không trùng checksum, không trùng (nhom_don_vi, ma_chi_tieu, quy_danh_gia), "
           f"không còn kỳ đánh giá UNKNOWN_KY.")
     return True
 

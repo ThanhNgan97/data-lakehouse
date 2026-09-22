@@ -531,19 +531,29 @@ def parse_with_gemini(file_bytes: bytes, ext: str, file_key: str):
 
     rows = []
     quy_list = []
+    seen_ma_counts = {}
+
     for idx, item in enumerate(data, start=1):
         ma = item.get("ma_chi_tieu", "N/A")
         quy = item.get("quy_danh_gia", "N/A")
 
         # Nếu model để N/A hoặc rỗng, tự động sinh mã định danh để không làm mất dữ liệu
-        if not ma or str(ma).strip() in ["", "N/A", "None", "NULL"]:
+        if not ma or str(ma).strip().upper() in ["", "N/A", "NONE", "NULL"]:
             noi_dung = item.get("noi_dung_muc_tieu", "")
             prefix = re.sub(r'[^A-Z0-9]', '', str(noi_dung).upper()[:8]) or "KPI"
             ma = f"{prefix}-{idx:02d}"
 
-        if str(ma).strip() != "":
+        ma_str = str(ma).strip().upper()
+        if ma_str in seen_ma_counts:
+            seen_ma_counts[ma_str] += 1
+            final_ma = f"{ma_str}-{seen_ma_counts[ma_str]:02d}"
+        else:
+            seen_ma_counts[ma_str] = 1
+            final_ma = ma_str
+
+        if final_ma != "":
             rows.append((
-                ma,
+                final_ma,
                 item.get("noi_dung_muc_tieu", "N/A"),
                 item.get("dinh_ky_thu_thap", "N/A"),
                 item.get("muc_dang_ky", "N/A"),

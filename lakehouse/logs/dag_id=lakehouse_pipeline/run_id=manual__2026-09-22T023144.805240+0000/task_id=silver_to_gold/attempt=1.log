@@ -1,0 +1,73 @@
+[2026-09-22T02:34:41.578+0000] {local_task_job_runner.py:120} INFO - ::group::Pre task execution logs
+[2026-09-22T02:34:41.825+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: lakehouse_pipeline.silver_to_gold manual__2026-09-22T02:31:44.805240+00:00 [queued]>
+[2026-09-22T02:34:41.854+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: lakehouse_pipeline.silver_to_gold manual__2026-09-22T02:31:44.805240+00:00 [queued]>
+[2026-09-22T02:34:41.855+0000] {taskinstance.py:2306} INFO - Starting attempt 1 of 1
+[2026-09-22T02:34:41.900+0000] {taskinstance.py:2330} INFO - Executing <Task(BashOperator): silver_to_gold> on 2026-09-22 02:31:44.805240+00:00
+[2026-09-22T02:34:41.909+0000] {standard_task_runner.py:63} INFO - Started process 872 to run task
+[2026-09-22T02:34:41.916+0000] {standard_task_runner.py:90} INFO - Running: ['airflow', 'tasks', 'run', 'lakehouse_pipeline', 'silver_to_gold', 'manual__2026-09-22T02:31:44.805240+00:00', '--job-id', '695', '--raw', '--subdir', 'DAGS_FOLDER/lakehouse_pipeline.py', '--cfg-path', '/tmp/tmpff_p2foi']
+[2026-09-22T02:34:41.920+0000] {standard_task_runner.py:91} INFO - Job 695: Subtask silver_to_gold
+[2026-09-22T02:34:42.034+0000] {task_command.py:426} INFO - Running <TaskInstance: lakehouse_pipeline.silver_to_gold manual__2026-09-22T02:31:44.805240+00:00 [running]> on host demo-airflow-scheduler
+[2026-09-22T02:34:42.245+0000] {taskinstance.py:2648} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='lakehouse' AIRFLOW_CTX_DAG_ID='lakehouse_pipeline' AIRFLOW_CTX_TASK_ID='silver_to_gold' AIRFLOW_CTX_EXECUTION_DATE='2026-09-22T02:31:44.805240+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-09-22T02:31:44.805240+00:00'
+[2026-09-22T02:34:42.247+0000] {taskinstance.py:430} INFO - ::endgroup::
+[2026-09-22T02:34:42.276+0000] {subprocess.py:63} INFO - Tmp dir root location: /tmp
+[2026-09-22T02:34:42.279+0000] {subprocess.py:75} INFO - Running command: ['/usr/bin/bash', '-c', 'cd /opt/airflow/spark && python spark_silver_to_gold.py']
+[2026-09-22T02:34:42.298+0000] {subprocess.py:86} INFO - Output:
+[2026-09-22T02:34:45.144+0000] {subprocess.py:93} INFO - /home/airflow/.local/lib/python3.10/site-packages/pyspark/bin/load-spark-env.sh: line 68: ps: command not found
+[2026-09-22T02:34:50.157+0000] {subprocess.py:93} INFO - :: loading settings :: url = jar:file:/home/airflow/.local/lib/python3.10/site-packages/pyspark/jars/ivy-2.5.1.jar!/org/apache/ivy/core/settings/ivysettings.xml
+[2026-09-22T02:34:50.380+0000] {subprocess.py:93} INFO - Ivy Default Cache set to: /home/airflow/.ivy2/cache
+[2026-09-22T02:34:50.381+0000] {subprocess.py:93} INFO - The jars for the packages stored in: /home/airflow/.ivy2/jars
+[2026-09-22T02:34:50.398+0000] {subprocess.py:93} INFO - org.apache.iceberg#iceberg-spark-runtime-3.5_2.12 added as a dependency
+[2026-09-22T02:34:50.400+0000] {subprocess.py:93} INFO - org.projectnessie.nessie-integrations#nessie-spark-extensions-3.5_2.12 added as a dependency
+[2026-09-22T02:34:50.401+0000] {subprocess.py:93} INFO - org.apache.hadoop#hadoop-aws added as a dependency
+[2026-09-22T02:34:50.402+0000] {subprocess.py:93} INFO - :: resolving dependencies :: org.apache.spark#spark-submit-parent-713db98e-6de1-4d90-9d4d-980e861fc341;1.0
+[2026-09-22T02:34:50.403+0000] {subprocess.py:93} INFO - 	confs: [default]
+[2026-09-22T02:34:50.845+0000] {subprocess.py:93} INFO - 	found org.apache.iceberg#iceberg-spark-runtime-3.5_2.12;1.4.3 in central
+[2026-09-22T02:34:50.954+0000] {subprocess.py:93} INFO - 	found org.projectnessie.nessie-integrations#nessie-spark-extensions-3.5_2.12;0.77.1 in central
+[2026-09-22T02:34:51.263+0000] {subprocess.py:93} INFO - 	found org.apache.hadoop#hadoop-aws;3.3.4 in central
+[2026-09-22T02:34:51.350+0000] {subprocess.py:93} INFO - 	found com.amazonaws#aws-java-sdk-bundle;1.12.262 in central
+[2026-09-22T02:34:51.438+0000] {subprocess.py:93} INFO - 	found org.wildfly.openssl#wildfly-openssl;1.0.7.Final in central
+[2026-09-22T02:34:51.543+0000] {subprocess.py:93} INFO - :: resolution report :: resolve 1095ms :: artifacts dl 37ms
+[2026-09-22T02:34:51.545+0000] {subprocess.py:93} INFO - 	:: modules in use:
+[2026-09-22T02:34:51.546+0000] {subprocess.py:93} INFO - 	com.amazonaws#aws-java-sdk-bundle;1.12.262 from central in [default]
+[2026-09-22T02:34:51.547+0000] {subprocess.py:93} INFO - 	org.apache.hadoop#hadoop-aws;3.3.4 from central in [default]
+[2026-09-22T02:34:51.548+0000] {subprocess.py:93} INFO - 	org.apache.iceberg#iceberg-spark-runtime-3.5_2.12;1.4.3 from central in [default]
+[2026-09-22T02:34:51.549+0000] {subprocess.py:93} INFO - 	org.projectnessie.nessie-integrations#nessie-spark-extensions-3.5_2.12;0.77.1 from central in [default]
+[2026-09-22T02:34:51.549+0000] {subprocess.py:93} INFO - 	org.wildfly.openssl#wildfly-openssl;1.0.7.Final from central in [default]
+[2026-09-22T02:34:51.550+0000] {subprocess.py:93} INFO - 	---------------------------------------------------------------------
+[2026-09-22T02:34:51.551+0000] {subprocess.py:93} INFO - 	|                  |            modules            ||   artifacts   |
+[2026-09-22T02:34:51.552+0000] {subprocess.py:93} INFO - 	|       conf       | number| search|dwnlded|evicted|| number|dwnlded|
+[2026-09-22T02:34:51.552+0000] {subprocess.py:93} INFO - 	---------------------------------------------------------------------
+[2026-09-22T02:34:51.553+0000] {subprocess.py:93} INFO - 	|      default     |   5   |   0   |   0   |   0   ||   5   |   0   |
+[2026-09-22T02:34:51.554+0000] {subprocess.py:93} INFO - 	---------------------------------------------------------------------
+[2026-09-22T02:34:51.557+0000] {subprocess.py:93} INFO - :: retrieving :: org.apache.spark#spark-submit-parent-713db98e-6de1-4d90-9d4d-980e861fc341
+[2026-09-22T02:34:51.560+0000] {subprocess.py:93} INFO - 	confs: [default]
+[2026-09-22T02:34:51.577+0000] {subprocess.py:93} INFO - 	0 artifacts copied, 5 already retrieved (0kB/23ms)
+[2026-09-22T02:34:52.261+0000] {subprocess.py:93} INFO - 26/09/22 02:34:52 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+[2026-09-22T02:34:53.267+0000] {subprocess.py:93} INFO - Setting default log level to "WARN".
+[2026-09-22T02:34:53.269+0000] {subprocess.py:93} INFO - To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+[2026-09-22T02:35:38.698+0000] {subprocess.py:93} INFO - [Stage 0:>                                                          (0 + 1) / 1]                                                                                [Stage 3:>                                                          (0 + 1) / 1]                                                                                Khởi tạo Spark Engine tính toán số liệu tầng Gold...
+[2026-09-22T02:35:38.699+0000] {subprocess.py:93} INFO - 🌿 Đang tạo branch Nessie: 'silver_gold_20260922_023523' (từ 'main')...
+[2026-09-22T02:35:38.700+0000] {subprocess.py:93} INFO - ✅ Đã tạo branch 'silver_gold_20260922_023523'.
+[2026-09-22T02:35:38.701+0000] {subprocess.py:93} INFO - ➡️  Đang làm việc trên branch: 'silver_gold_20260922_023523'
+[2026-09-22T02:35:38.702+0000] {subprocess.py:93} INFO - 📊 Đang đọc dữ liệu sạch (4208 dòng) từ lakehouse.silver.kpi_cusc_master...
+[2026-09-22T02:35:38.703+0000] {subprocess.py:93} INFO - ⚙️ Nghiệp vụ 1: Tính toán tỷ lệ hoàn thành KPI nghiệp vụ...
+[2026-09-22T02:35:38.704+0000] {subprocess.py:93} INFO - ⚙️ Nghiệp vụ 2: Đồng bộ danh sách Rich Schema phục vụ tra cứu...
+[2026-09-22T02:35:38.704+0000] {subprocess.py:93} INFO - ⚙️ Nghiệp vụ 3: Tính tăng/giảm % của từng mã chỉ tiêu...
+[2026-09-22T02:35:38.705+0000] {subprocess.py:93} INFO - ⚙️ Nghiệp vụ 4: Xây bảng chú thích (data dictionary)...
+[2026-09-22T02:35:38.705+0000] {subprocess.py:93} INFO - 🧊 Đang ghi Data Mart Tổng hợp lên branch 'silver_gold_20260922_023523'...
+[2026-09-22T02:35:38.706+0000] {subprocess.py:93} INFO - 🧊 Đang ghi Data Mart Chi tiết lên branch 'silver_gold_20260922_023523'...
+[2026-09-22T02:35:38.707+0000] {subprocess.py:93} INFO - 🧊 Đang ghi Data Mart So sánh kỳ lên branch 'silver_gold_20260922_023523'...
+[2026-09-22T02:35:38.707+0000] {subprocess.py:93} INFO - 🧊 Đang ghi Data Dictionary lên branch 'silver_gold_20260922_023523'...
+[2026-09-22T02:35:38.708+0000] {subprocess.py:93} INFO - 🔍 Đang kiểm tra chất lượng Data Mart Gold trên branch hiện tại...
+[2026-09-22T02:35:38.708+0000] {subprocess.py:93} INFO - ✅ Data Mart Gold đạt chất lượng: 762 dòng tổng hợp, 4208 dòng chi tiết.
+[2026-09-22T02:35:38.709+0000] {subprocess.py:93} INFO - 🔀 Đang merge branch 'silver_gold_20260922_023523' vào 'main'...
+[2026-09-22T02:35:38.710+0000] {subprocess.py:93} INFO - ✅ Đã merge 'silver_gold_20260922_023523' -> 'main' thành công.
+[2026-09-22T02:35:38.710+0000] {subprocess.py:93} INFO - 
+[2026-09-22T02:35:38.711+0000] {subprocess.py:93} INFO - 🌟 HOÀN THÀNH TẦNG GOLD!
+[2026-09-22T02:35:38.711+0000] {subprocess.py:93} INFO - ⚠️ Lineage update warning (bỏ qua): OpenMetadata client chưa sẵn sàng: No module named 'metadata'. Cài đặt package openmetadata-ingestion để bật lineage, hoặc bỏ qua bước này.
+[2026-09-22T02:35:39.210+0000] {subprocess.py:97} INFO - Command exited with return code 0
+[2026-09-22T02:35:39.212+0000] {taskinstance.py:441} INFO - ::group::Post task execution logs
+[2026-09-22T02:35:39.278+0000] {taskinstance.py:1206} INFO - Marking task as SUCCESS. dag_id=lakehouse_pipeline, task_id=silver_to_gold, run_id=manual__2026-09-22T02:31:44.805240+00:00, execution_date=20260922T023144, start_date=20260922T023441, end_date=20260922T023539
+[2026-09-22T02:35:39.311+0000] {local_task_job_runner.py:240} INFO - Task exited with return code 0
+[2026-09-22T02:35:39.352+0000] {taskinstance.py:3503} INFO - 1 downstream tasks scheduled from follow-on schedule check
+[2026-09-22T02:35:39.356+0000] {local_task_job_runner.py:222} INFO - ::endgroup::

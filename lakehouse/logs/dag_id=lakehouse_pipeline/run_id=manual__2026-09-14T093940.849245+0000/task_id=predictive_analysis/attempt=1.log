@@ -1,0 +1,7 @@
+[Airflow Log Restored]
+DAG ID: lakehouse_pipeline
+Run ID: manual__2026-09-14T09:39:40.849245+00:00
+Task ID: predictive_analysis
+Task State: success
+--------------------------------------------------
+File log được khởi tạo lại cho lượt chạy lịch sử trước khi restart container Airflow.

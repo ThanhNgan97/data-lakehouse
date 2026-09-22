@@ -71,6 +71,7 @@ const UserUpload = () => {
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [activePipeline, setActivePipeline] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
   const pollingRef = useRef(null);
 
   const fetchHistory = useCallback(async () => {
@@ -81,6 +82,14 @@ const UserUpload = () => {
       });
       const hist = res.data || [];
       setHistory(hist);
+
+      // Tự động chọn file hoàn thành mới nhất nếu chưa có file nào được chọn
+      const completedItem = hist.find(
+        (h) => h.pipeline_status === "success" || h.pipeline_status === "completed"
+      );
+      if (completedItem && !selectedFile) {
+        setSelectedFile(completedItem.filename);
+      }
 
       if (
         hist.length > 0 &&
@@ -95,7 +104,7 @@ const UserUpload = () => {
     } finally {
       setHistoryLoading(false);
     }
-  }, []);
+  }, [selectedFile]);
 
   useEffect(() => {
     fetchHistory();
@@ -129,11 +138,21 @@ const UserUpload = () => {
         if (["success", "failed", "unreachable"].includes(state)) {
           clearInterval(pollingRef.current);
           fetchHistory();
+          if (state === "success" && history.length > 0) {
+            setSelectedFile(history[0].filename);
+          }
         }
       } catch {
         clearInterval(pollingRef.current);
       }
     }, 5000);
+  };
+
+  const getSupersetIframeUrl = (filename) => {
+    if (!filename) return supersetUrl;
+    const filterRiso = `(NATIVE_FILTER-file_nguon:(__filters:(val:!('${filename}')),id:NATIVE_FILTER-file_nguon,filterState:(label:'${filename}',validateStatus:!f,value:!('${filename}'))))`;
+    const sep = supersetUrl.includes("?") ? "&" : "?";
+    return `${supersetUrl}${sep}native_filters=${encodeURIComponent(filterRiso)}`;
   };
 
   const handleLogout = () => {
@@ -456,10 +475,20 @@ const UserUpload = () => {
                 <div className="space-y-3">
                   {history.map((item, i) => {
                     const st = getStatus(item);
+                    const isSuccess = item.pipeline_status === "success" || item.pipeline_status === "completed";
+                    const isRunning = ["running", "queued", "pending", "triggered"].includes(item.pipeline_status);
+
                     return (
                       <div
                         key={item.id || i}
-                        className="bg-white border border-ink-100 rounded-xl p-3.5 hover:border-lake-200 hover:shadow-sm transition-all flex flex-col gap-3"
+                        onClick={() => isSuccess && setSelectedFile(item.filename)}
+                        className={`bg-white border rounded-xl p-3.5 transition-all flex flex-col gap-3 ${
+                          isSuccess ? "cursor-pointer hover:border-slate-300 hover:shadow-sm" : ""
+                        } ${
+                          isRunning
+                            ? "border-lake-500 bg-lake-50/30 ring-2 ring-lake-400/20 shadow-sm animate-pulse"
+                            : "border-ink-100"
+                        }`}
                       >
                         <div className="flex items-center justify-between gap-4">
                           <div className="flex items-center gap-3.5 min-w-0">
@@ -467,12 +496,14 @@ const UserUpload = () => {
                               <Icon name="file" className="w-4.5 h-4.5" />
                             </div>
                             <div className="min-w-0">
-                              <h4
-                                className="font-semibold text-ink-800 text-sm truncate"
-                                title={item.filename}
-                              >
-                                {item.filename}
-                              </h4>
+                              <div className="flex items-center gap-2">
+                                <h4
+                                  className="font-semibold text-ink-800 text-sm truncate"
+                                  title={item.filename}
+                                >
+                                  {item.filename}
+                                </h4>
+                              </div>
                               <div className="text-[11px] text-ink-400 mt-1 flex items-center gap-2 truncate font-data">
                                 <span className="font-medium text-ink-500">
                                   {item.username}
@@ -518,22 +549,33 @@ const UserUpload = () => {
                   Báo cáo Phân tích
                 </h3>
                 <p className="text-[11px] text-ink-400 mt-0.5 font-data">
-                  Gold Layer · Apache Superset
+                  {selectedFile || "Gold Layer · Apache Superset"}
                 </p>
               </div>
-              <a
-                href={supersetUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs text-lake-700 hover:text-lake-800 bg-lake-50 hover:bg-lake-100 px-3 py-1.5 rounded-lg transition font-semibold flex items-center gap-1.5"
-              >
-                Mở tab mới
-                <Icon name="externalLink" className="w-3.5 h-3.5" />
-              </a>
+              <div className="flex items-center gap-2">
+                {selectedFile && (
+                  <button
+                    onClick={() => setSelectedFile(null)}
+                    className="text-xs text-ink-500 hover:text-ink-800 bg-ink-50 hover:bg-ink-100 border border-ink-200 px-3 py-1.5 rounded-lg transition font-medium"
+                  >
+                    Xem tất cả file
+                  </button>
+                )}
+                <a
+                  href={getSupersetIframeUrl(selectedFile)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-lake-700 hover:text-lake-800 bg-lake-50 hover:bg-lake-100 px-3 py-1.5 rounded-lg transition font-semibold flex items-center gap-1.5"
+                >
+                  Mở tab mới
+                  <Icon name="externalLink" className="w-3.5 h-3.5" />
+                </a>
+              </div>
             </div>
             <div className="flex-1 bg-[#FAFBFD] relative p-3">
               <iframe
-                src={supersetUrl}
+                key={selectedFile || "all"}
+                src={getSupersetIframeUrl(selectedFile)}
                 title="Superset Chart"
                 className="w-full h-full border border-ink-100 bg-white rounded-xl shadow-inner"
               ></iframe>

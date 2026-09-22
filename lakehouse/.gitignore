@@ -1,0 +1,6 @@
+.venv_lakehouse
+__pycache__/
+*.pyc
+*.pyo
+./backend/.venv
+./backend/__pycache__/

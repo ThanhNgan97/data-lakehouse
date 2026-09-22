@@ -1,0 +1,15 @@
+# Environments
+backend/venv/
+venv/
+.env
+.venv/
+env/
+__pycache__/
+*.pyc
+
+# IDEs — giữ lại settings.json để cố định Python interpreter cho cả team
+.vscode/*
+!.vscode/settings.json
+.idea/
+team-vault.key
+metastore_db/

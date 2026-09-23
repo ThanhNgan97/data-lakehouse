@@ -42,6 +42,22 @@ from api.routes import users
 app.include_router(users.router, prefix="/api", tags=["Users"])
 
 
+# Source Adapters (File + SHA256 checksum, External HTTP REST, JDBC DB)
+from api.routes import adapters
+app.include_router(adapters.router, prefix="/api", tags=["Source Adapters"])
+
+# Dataset Registry (Schema, Mapping, Keys, Data Quality rules, Versioning)
+from api.routes import registry
+app.include_router(registry.router, prefix="/api", tags=["Dataset Registry"])
+
+# Superset Guest Token
+from api.routes import superset
+app.include_router(superset.router, prefix="/api/superset", tags=["Superset"])
+
+# Mock CTU Smart IOC API (Giả lập Cổng IOC phục vụ Test kết nối từ xa)
+from api.routes import mock_ioc
+app.include_router(mock_ioc.router, prefix="/api", tags=["Mock CTU IOC API"])
+
 @app.get("/")
 async def root():
     return {"message": "Welcome to Lakehouse API!"}

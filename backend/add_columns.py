@@ -15,7 +15,7 @@ def add_columns():
     try:
         with engine.connect() as conn:
             conn.execute(text("ALTER TABLE upload_history ADD COLUMN dag_run_id VARCHAR(255);"))
-status VARCHAR(50) DEFAULT 'pending';"))            conn.execute(text("ALTER TABLE upload_history ADD COLUMN pipeline_
+            conn.execute(text("ALTER TABLE upload_history ADD COLUMN pipeline_status VARCHAR(50) DEFAULT 'pending';"))
             conn.commit()
             print("🎉 [THÀNH CÔNG] Đã thêm các cột vào bảng upload_history!")
     except Exception as e:

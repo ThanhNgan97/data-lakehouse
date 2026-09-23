@@ -20,3 +20,7 @@ PERMANENT_SESSION_LIFETIME = 604800* 2  # 7 days in seconds
 SESSION_COOKIE_SAMESITE = None
 SESSION_COOKIE_SECURE = False
 SESSION_REFRESH_EACH_REQUEST = True
+
+# Quyền truy cập công khai cho iframe nhúng
+PUBLIC_ROLE_LIKE = "Gamma"
+

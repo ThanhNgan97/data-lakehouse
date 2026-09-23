@@ -71,6 +71,7 @@ const UserUpload = () => {
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [activePipeline, setActivePipeline] = useState(null);
+  const [iframeKey, setIframeKey] = useState(0);
   const pollingRef = useRef(null);
 
   const fetchHistory = useCallback(async () => {
@@ -129,12 +130,16 @@ const UserUpload = () => {
         if (["success", "failed", "unreachable"].includes(state)) {
           clearInterval(pollingRef.current);
           fetchHistory();
+          if (state === "success") {
+            setIframeKey((prev) => prev + 1);
+          }
         }
       } catch {
         clearInterval(pollingRef.current);
       }
     }, 5000);
   };
+
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -533,6 +538,7 @@ const UserUpload = () => {
             </div>
             <div className="flex-1 bg-[#FAFBFD] relative p-3">
               <iframe
+                key={iframeKey}
                 src={supersetUrl}
                 title="Superset Chart"
                 className="w-full h-full border border-ink-100 bg-white rounded-xl shadow-inner"

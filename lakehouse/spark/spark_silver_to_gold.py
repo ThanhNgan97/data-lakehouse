@@ -21,7 +21,7 @@ os.environ["PYSPARK_SUBMIT_ARGS"] = (
     "--driver-java-options \"-Djava.net.preferIPv4Stack=true\" "
     "--packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.4.3,"
     "org.projectnessie.nessie-integrations:nessie-spark-extensions-3.5_2.12:0.77.1,"
-    "org.apache.hadoop:hadoop-aws:3.3.4 "
+    "org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.261 "
     "pyspark-shell"
 )
 

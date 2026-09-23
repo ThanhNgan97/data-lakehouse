@@ -152,6 +152,7 @@ snowflake-connector-python==3.18.0
 snowplow-tracker==1.1.0
 sortedcontainers==2.4.0
 SQLAlchemy==1.4.54
+psycopg2-binary
 sqlglot==29.0.1
 sqlparse==0.5.4
 starlette==1.3.1

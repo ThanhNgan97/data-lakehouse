@@ -10,6 +10,7 @@ import { ConnChip, LakehouseMark } from '../components/ui';
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [iframeKey, setIframeKey] = useState(0);
 
   const supersetUrl =
     import.meta.env.VITE_SUPERSET_DASHBOARD_URL ||
@@ -19,6 +20,10 @@ const AdminDashboard = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('role');
     navigate('/login');
+  };
+
+  const handleRefreshSuperset = () => {
+    setIframeKey((prev) => prev + 1);
   };
 
   const NAV = [
@@ -124,15 +129,24 @@ const AdminDashboard = () => {
             <ConnChip label="MinIO" />
             <ConnChip label="Superset" />
             {activeTab === 'dashboard' && (
-              <a
-                href={supersetUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="ml-2 inline-flex items-center gap-1.5 text-xs font-semibold text-lake-700 bg-lake-50 hover:bg-lake-100 border border-lake-200 px-3 py-1.5 rounded-lg transition"
-              >
-                Mở toàn màn hình
-                <Icon name="externalLink" className="w-3.5 h-3.5" />
-              </a>
+              <>
+                <button
+                  onClick={handleRefreshSuperset}
+                  className="ml-2 inline-flex items-center gap-1.5 text-xs font-semibold text-lake-700 bg-lake-50 hover:bg-lake-100 border border-lake-200 px-3 py-1.5 rounded-lg transition"
+                >
+                  <Icon name="refresh" className="w-3.5 h-3.5" />
+                  Đồng bộ dữ liệu
+                </button>
+                <a
+                  href={supersetUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 px-3 py-1.5 rounded-lg transition"
+                >
+                  Mở toàn màn hình
+                  <Icon name="externalLink" className="w-3.5 h-3.5" />
+                </a>
+              </>
             )}
           </div>
         </header>
@@ -142,6 +156,7 @@ const AdminDashboard = () => {
             <div className={`flex-1 overflow-auto ${activeTab === 'dashboard' ? 'overflow-hidden' : ''}`}>
               {activeTab === 'dashboard' && (
                 <iframe
+                  key={iframeKey}
                   src={supersetUrl}
                   title="Superset Dashboard"
                   className="w-full h-full border-0"

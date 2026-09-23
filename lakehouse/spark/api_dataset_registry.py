@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Dataset configs for generic API -> Bronze ingestion.
+"""Dataset configs for generic API -> Bronze/Silver/Gold orchestration.
 
-Business schemas live in configs; the ingestion engine does not branch with
-`if dataset == ...` logic.
+Business schemas and dataset routing live in configs. Reusable ingestion,
+Silver mechanics, Gold implementations, and Airflow orchestration must not
+branch on dataset-specific business fields.
 """
 
 from __future__ import annotations
@@ -38,6 +39,13 @@ class ApiDatasetConfig:
     business_key: tuple[str, ...]
     silver_table: str
     quarantine_table: str
+
+    # Day 7.5 orchestration metadata. Defaults preserve compatibility with
+    # focused registry fixtures that are not orchestration-enabled.
+    source_api_path: str | None = None
+    silver_processor: str | None = None
+    gold_processor: str | None = None
+    gold_table: str | None = None
 
     def __post_init__(self) -> None:
         """Fail fast when declarative dataset configuration is inconsistent."""
@@ -129,6 +137,47 @@ class ApiDatasetConfig:
         if not self.quarantine_table:
             raise ValueError("quarantine_table must not be empty")
 
+        orchestration_values = (
+            self.source_api_path,
+            self.silver_processor,
+            self.gold_processor,
+            self.gold_table,
+        )
+        configured_orchestration_values = [
+            value
+            for value in orchestration_values
+            if value is not None
+        ]
+        if configured_orchestration_values:
+            if any(
+                not isinstance(value, str)
+                or not value.strip()
+                for value in orchestration_values
+            ):
+                raise ValueError(
+                    "orchestration metadata must be configured together "
+                    "with non-empty string values"
+                )
+
+            if not self.source_api_path.startswith("/"):
+                raise ValueError(
+                    "source_api_path must start with '/'"
+                )
+
+            for field_name, processor in (
+                ("silver_processor", self.silver_processor),
+                ("gold_processor", self.gold_processor),
+            ):
+                if processor.count(":") != 1:
+                    raise ValueError(
+                        f"{field_name} must use 'module:function' format"
+                    )
+
+            if not self.gold_table.startswith("lakehouse.gold."):
+                raise ValueError(
+                    "gold_table must target lakehouse.gold"
+                )
+
     @property
     def canonical_fields(self) -> tuple[str, ...]:
         """Return canonical fields in configured source-field order."""
@@ -136,11 +185,6 @@ class ApiDatasetConfig:
             self.source_to_canonical[source_name]
             for source_name in self.source_fields
         )
-
-    @property
-    def delete_supported(self) -> bool:
-        """Whether the source contract exposes explicit delete semantics."""
-        return self.source_delete_field is not None
 
     def canonical_field(self, source_field: str) -> str:
         """Resolve one configured source field to its canonical name."""
@@ -151,10 +195,30 @@ class ApiDatasetConfig:
                 f"Source field '{source_field}' has no canonical mapping"
             ) from exc
 
+    @property
+    def delete_supported(self) -> bool:
+        """Whether this source contract contains an explicit delete flag."""
+        return self.source_delete_field is not None
+
+    @property
+    def orchestration_ready(self) -> bool:
+        """Whether all Day 7.5 routing metadata is configured."""
+        return all(
+            isinstance(value, str) and bool(value.strip())
+            for value in (
+                self.source_api_path,
+                self.silver_processor,
+                self.gold_processor,
+                self.gold_table,
+            )
+        )
+
 
 _BASE_DIR = Path(__file__).resolve().parent
 
 LEARNING_OUTCOMES_DATASET = "education.learning_outcomes"
+TEACHING_PROGRESS_DATASET = "education.teaching_progress"
+
 
 LEARNING_OUTCOMES_FIELDS = (
     "record_id",
@@ -214,8 +278,6 @@ LEARNING_OUTCOMES_SOURCE_TO_CANONICAL = {
 }
 
 
-TEACHING_PROGRESS_DATASET = "education.teaching_progress"
-
 TEACHING_PROGRESS_FIELDS = (
     "record_id",
     "unit_code",
@@ -254,10 +316,17 @@ DATASETS = {
     LEARNING_OUTCOMES_DATASET: ApiDatasetConfig(
         dataset=LEARNING_OUTCOMES_DATASET,
         schema_version="2.0",
-        json_schema_path=_BASE_DIR / "contracts" / "learning_outcomes.schema.json",
+        json_schema_path=(
+            _BASE_DIR
+            / "contracts"
+            / "learning_outcomes.schema.json"
+        ),
         source_fields=LEARNING_OUTCOMES_FIELDS,
         spark_source_schema=LEARNING_OUTCOMES_SCHEMA,
-        bronze_prefix="bronze/api/ctu_ioc/education/learning_outcomes/",
+        bronze_prefix=(
+            "bronze/api/ctu_ioc/"
+            "education/learning_outcomes/"
+        ),
         record_id_field="record_id",
         source_updated_at_field="updated_at",
         source_delete_field="is_deleted",
@@ -269,22 +338,50 @@ DATASETS = {
             "gpa_point_sum",
             "is_deleted",
         ),
-        source_to_canonical=LEARNING_OUTCOMES_SOURCE_TO_CANONICAL,
+        source_to_canonical=(
+            LEARNING_OUTCOMES_SOURCE_TO_CANONICAL
+        ),
         business_key=(
             "ma_chuong_trinh",
             "nam_hoc",
             "hoc_ky",
         ),
-        silver_table="lakehouse.silver.learning_outcomes",
-        quarantine_table="lakehouse.silver.learning_outcomes_quarantine",
+        silver_table=(
+            "lakehouse.silver.learning_outcomes"
+        ),
+        quarantine_table=(
+            "lakehouse.silver."
+            "learning_outcomes_quarantine"
+        ),
+        source_api_path=(
+            "/api/v1/education/learning-outcomes"
+        ),
+        silver_processor=(
+            "spark_learning_outcomes_to_silver:"
+            "process_learning_outcomes_batch"
+        ),
+        gold_processor=(
+            "spark_learning_outcomes_to_gold:"
+            "run_learning_outcomes_gold"
+        ),
+        gold_table=(
+            "lakehouse.gold.learning_outcomes_metrics"
+        ),
     ),
     TEACHING_PROGRESS_DATASET: ApiDatasetConfig(
         dataset=TEACHING_PROGRESS_DATASET,
         schema_version="1.0-demo",
-        json_schema_path=_BASE_DIR / "contracts" / "teaching_progress.schema.json",
+        json_schema_path=(
+            _BASE_DIR
+            / "contracts"
+            / "teaching_progress.schema.json"
+        ),
         source_fields=TEACHING_PROGRESS_FIELDS,
         spark_source_schema=TEACHING_PROGRESS_SCHEMA,
-        bronze_prefix="bronze/api/ctu_ioc/education/teaching_progress/",
+        bronze_prefix=(
+            "bronze/api/ctu_ioc/"
+            "education/teaching_progress/"
+        ),
         record_id_field="record_id",
         source_updated_at_field="updated_at",
         source_delete_field=None,
@@ -295,14 +392,35 @@ DATASETS = {
             "semester",
             "progress_percent",
         ),
-        source_to_canonical=TEACHING_PROGRESS_SOURCE_TO_CANONICAL,
+        source_to_canonical=(
+            TEACHING_PROGRESS_SOURCE_TO_CANONICAL
+        ),
         business_key=(
             "ma_lop_hoc_phan",
             "nam_hoc",
             "hoc_ky",
         ),
-        silver_table="lakehouse.silver.teaching_progress",
-        quarantine_table="lakehouse.silver.teaching_progress_quarantine",
+        silver_table=(
+            "lakehouse.silver.teaching_progress"
+        ),
+        quarantine_table=(
+            "lakehouse.silver."
+            "teaching_progress_quarantine"
+        ),
+        source_api_path=(
+            "/api/v1/education/teaching-progress"
+        ),
+        silver_processor=(
+            "spark_teaching_progress_to_silver:"
+            "process_teaching_progress_batch"
+        ),
+        gold_processor=(
+            "spark_teaching_progress_to_gold:"
+            "run_teaching_progress_gold"
+        ),
+        gold_table=(
+            "lakehouse.gold.teaching_progress_metrics"
+        ),
     ),
 }
 
@@ -313,5 +431,6 @@ def get_dataset_config(dataset: str) -> ApiDatasetConfig:
     except KeyError as exc:
         supported = ", ".join(sorted(DATASETS))
         raise ValueError(
-            f"Unsupported API dataset '{dataset}'. Supported: {supported}"
+            f"Unsupported API dataset '{dataset}'. "
+            f"Supported: {supported}"
         ) from exc

@@ -11,7 +11,9 @@ class TeachingProgressPayload(BaseModel):
     doi_lich: int = Field(..., ge=0, description="Số lượng đổi lịch")
     diem_phan_hoi_sv: str = Field(..., description="Điểm phản hồi sinh viên dạng x.xx/5")
     danh_gia: str = Field(..., description="Đánh giá phân loại")
-
+    class Config:
+            extra = 'allow'
+            
 class LearningOutcomesPayload(BaseModel):
     ky_danh_gia: str = Field(..., description="Kỳ đánh giá")
     chuong_trinh: str = Field(..., description="Tên chương trình đào tạo")
@@ -22,3 +24,5 @@ class LearningOutcomesPayload(BaseModel):
     nguy_co_nghi_hoc: int = Field(..., ge=0, description="Số lượng sinh viên nguy cơ nghỉ")
     dung_tien_do_pct: float = Field(..., ge=0.0, le=100.0, description="Tỷ lệ đúng tiến độ")
     xu_huong: str = Field(..., description="Xu hướng so với kỳ trước")
+    class Config:
+        extra = 'allow'

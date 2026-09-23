@@ -3,7 +3,8 @@
 spark/spark_api_learning_silver.py
 ------------------------------------------------------------
 PySpark Job: Xử lý dữ liệu Kết quả học tập từ API (Bronze JSON)
-lên tầng Silver (Bảng Apache Iceberg) có tích hợp Nessie Versioning & Lineage.
+lên tầng Silver (Bảng Apache Iceberg) có tích hợp Nessie Versioning, Lineage,
+Schema Evolution động và cơ chế Khử trùng lặp (Deduplication).
 ------------------------------------------------------------
 """
 
@@ -52,7 +53,7 @@ BRONZE_API_LEARNING_PREFIX = "bronze/api_learning/"
 
 def get_spark_session():
     return SparkSession.builder \
-        .appName("API_Learning_Outcomes_To_Silver") \
+        .appName("API_Learning_Outcomes_To_Silver_Dynamic") \
         .config("spark.driver.host", SPARK_LOCAL_IP) \
         .config("spark.driver.bindAddress", SPARK_LOCAL_IP) \
         .config("spark.sql.extensions",
@@ -78,6 +79,7 @@ def get_spark_session():
         .config("spark.hadoop.fs.s3a.connection.maximum", "100") \
         .config("spark.sql.shuffle.partitions", "4") \
         .config("spark.sql.parquet.enableVectorizedReader", "false") \
+        .config("spark.sql.iceberg.schema.auto-conversion", "true") \
         .getOrCreate()
 
 
@@ -91,7 +93,6 @@ def get_s3_client():
 
 def init_table_if_needed(spark, branch_name="main"):
     spark.sql("CREATE NAMESPACE IF NOT EXISTS lakehouse.silver")
-    spark.sql(f"DROP TABLE IF EXISTS {SILVER_TABLE}")
     create_sql = f"""
         CREATE TABLE IF NOT EXISTS {SILVER_TABLE} (
             chuong_trinh STRING,
@@ -117,6 +118,35 @@ def init_table_if_needed(spark, branch_name="main"):
             raise
 
 
+def evolve_table_schema_if_needed(spark, source_df):
+    try:
+        table_cols = [
+            row.col_name.lower() 
+            for row in spark.sql(f"DESCRIBE {SILVER_TABLE}").collect() 
+            if row.col_name and not row.col_name.startswith("#")
+        ]
+        ignored_cols = ['partition', 'index', 'name', '_metadata']
+        schema_changed = False
+        
+        for field in source_df.schema.fields:
+            col_name = field.name.lower()
+            col_type = field.dataType.simpleString()
+            
+            if col_name not in table_cols and col_name not in ignored_cols:
+                print(f"🔄 Phát hiện trường dữ liệu mới từ nguồn học tập: '{col_name}' ({col_type}). Đang cập nhật Schema bảng Silver...")
+                spark.sql(f"ALTER TABLE {SILVER_TABLE} ADD COLUMN {col_name} {col_type}")
+                print(f"✅ Đã thêm cột '{col_name}' vào bảng {SILVER_TABLE} thành công!")
+                schema_changed = True
+        
+        # 🛠️ Refresh metadata bảng ngay lập tức để tránh lỗi xung đột commit khi thực hiện MERGE
+        if schema_changed:
+            spark.sql(f"REFRESH TABLE {SILVER_TABLE}")
+            spark.catalog.clearCache()
+
+    except Exception as e:
+        print(f"⚠️ Cảnh báo trong quá trình tự động cập nhật schema học tập: {str(e)}")
+
+
 def run_pipeline(spark):
     init_table_if_needed(spark, "main")
     s3_client = get_s3_client()
@@ -134,21 +164,37 @@ def run_pipeline(spark):
         init_table_if_needed(spark, branch_name)
 
         bronze_path = f"s3a://{MINIO_BUCKET_NAME}/{BRONZE_API_LEARNING_PREFIX}*.json"
-        raw_df = spark.read.json(bronze_path)
+        raw_df = spark.read.option("inferSchema", "true").json(bronze_path)
+        dedup_df = raw_df.dropDuplicates(["chuong_trinh", "ky_danh_gia"])
 
-        cleaned_df = raw_df.select(
-            col("chuong_trinh"),
-            col("ky_danh_gia"),
-            col("sv_theo_hoc").cast("long"),
-            col("gpa_trung_binh").cast("double"),
-            col("qua_hp_pct").cast("double"),
-            col("can_bao_hoc_vu").cast("long"),
-            col("nguy_co_nghi_hoc").cast("long"),
-            col("checksum_sha256"),
-            current_timestamp().alias("thoi_gian_ingest_silver")
-        )
+        evolve_table_schema_if_needed(spark, dedup_df)
 
+        select_exprs = []
+        for field in dedup_df.schema.fields:
+            c = field.name
+            c_low = c.lower()
+            if c_low in ["sv_theo_hoc", "can_bao_hoc_vu", "nguy_co_nghi_hoc"]:
+                select_exprs.append(col(c).cast("long"))
+            elif c_low in ["gpa_trung_binh", "qua_hp_pct"]:
+                select_exprs.append(col(c).cast("double"))
+            else:
+                select_exprs.append(col(c))
+
+        cleaned_df = dedup_df.select(*select_exprs, current_timestamp().alias("thoi_gian_ingest_silver"))
         cleaned_df.createOrReplaceTempView("source_learning_api")
+
+        table_cols = [
+            row.col_name.lower() 
+            for row in spark.sql(f"DESCRIBE {SILVER_TABLE}").collect() 
+            if row.col_name and not row.col_name.startswith("#")
+        ]
+        
+        update_set_clauses = []
+        for c in table_cols:
+            if c not in ["chuong_trinh", "ky_danh_gia", "thoi_gian_ingest_silver", "partition", "index"]:
+                update_set_clauses.append(f"t.{c} = s.{c}")
+        update_set_clauses.append("t.thoi_gian_ingest_silver = s.thoi_gian_ingest_silver")
+        update_sql_str = ",\n                ".join(update_set_clauses)
 
         spark.sql(f"""
             MERGE INTO {SILVER_TABLE} t
@@ -156,13 +202,7 @@ def run_pipeline(spark):
             ON t.chuong_trinh = s.chuong_trinh AND t.ky_danh_gia = s.ky_danh_gia
             WHEN MATCHED THEN
               UPDATE SET
-                t.sv_theo_hoc = s.sv_theo_hoc,
-                t.gpa_trung_binh = s.gpa_trung_binh,
-                t.qua_hp_pct = s.qua_hp_pct,
-                t.can_bao_hoc_vu = s.can_bao_hoc_vu,
-                t.nguy_co_nghi_hoc = s.nguy_co_nghi_hoc,
-                t.checksum_sha256 = s.checksum_sha256,
-                t.thoi_gian_ingest_silver = s.thoi_gian_ingest_silver
+                {update_sql_str}
             WHEN NOT MATCHED THEN
               INSERT *
         """)
@@ -170,7 +210,7 @@ def run_pipeline(spark):
         check_quality_api_silver(spark, SILVER_TABLE)
         merge_branch_to_main(spark, branch_name)
         use_main(spark)
-        print("✅ Đã đẩy dữ liệu kết quả học tập API lên Silver (main) thành công qua Nessie branch!")
+        print("✅ Đã đẩy dữ liệu kết quả học tập API lên Silver (main) thành công qua Nessie branch với Dynamic Schema Evolution!")
 
     except Exception as e:
         use_main(spark)

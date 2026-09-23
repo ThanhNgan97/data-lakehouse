@@ -15,19 +15,28 @@ from pydantic import BaseModel, ConfigDict, Field
 
 APP_DIR = Path(__file__).resolve().parent
 DATA_FILE = APP_DIR / "data" / "learning_outcomes.json"
+TEACHING_DATA_FILE = APP_DIR / "data" / "teaching_progress.json"
 
 SOURCE_SYSTEM = "ctu_ioc"
+
+# Backward-compatible Learning Outcomes constants used by existing tests/tools.
 DATASET = "education.learning_outcomes"
 SCHEMA_VERSION = "2.0"
+
+TEACHING_DATASET = "education.teaching_progress"
+TEACHING_SCHEMA_VERSION = "1.0-demo"
+
 MAX_LIMIT = 500
 
 app = FastAPI(
     title="CTU IOC Mock API",
-    version="1.0.0",
+    version="1.1.0",
     description=(
-        "Mock REST API for testing CTU IOC Learning Outcomes ingestion into the "
-        "Data Lakehouse. Endpoints under /mock/* are test-only and are NOT part "
-        "of the proposed production CTU IOC contract."
+        "Mock REST API for Data Lakehouse platform testing. "
+        "Learning Outcomes keeps its established mock contract. "
+        "Teaching Progress is an explicit DEMO / ASSUMED contract and is NOT "
+        "a verified CTU IOC production contract. Endpoints under /mock/* are "
+        "test-only."
     ),
 )
 
@@ -67,6 +76,21 @@ class LearningOutcomeRecord(BaseModel):
     is_deleted: bool
 
 
+class TeachingProgressRecord(BaseModel):
+    """DEMO / ASSUMED Teaching Progress source record."""
+
+    model_config = ConfigDict(extra="allow")
+
+    record_id: str
+    unit_code: str
+    unit_name: str
+    course_section_code: str
+    academic_year: str
+    semester: int
+    progress_percent: float
+    updated_at: datetime
+
+
 class Pagination(BaseModel):
     returned_records: int
     has_more: bool
@@ -80,6 +104,16 @@ class LearningOutcomesResponse(BaseModel):
     generated_at: datetime
     data_as_of: datetime
     data: List[LearningOutcomeRecord]
+    pagination: Pagination
+
+
+class TeachingProgressResponse(BaseModel):
+    source_system: str
+    dataset: str
+    schema_version: str
+    generated_at: datetime
+    data_as_of: datetime
+    data: List[TeachingProgressRecord]
     pagination: Pagination
 
 
@@ -98,18 +132,42 @@ class ScenarioResponse(BaseModel):
     note: str
 
 
-def _load_baseline() -> list[dict]:
+def _load_json_records(
+    path: Path,
+    model: type[BaseModel],
+) -> list[dict]:
     import json
 
-    payload = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+    payload = json.loads(path.read_text(encoding="utf-8"))
     records = payload["data"]
 
-    # Validate every static mock record against the contract at startup.
-    validated = [LearningOutcomeRecord.model_validate(item) for item in records]
-    return [item.model_dump(mode="json") for item in validated]
+    validated = [
+        model.model_validate(item)
+        for item in records
+    ]
+    return [
+        item.model_dump(mode="json")
+        for item in validated
+    ]
+
+
+def _load_baseline() -> list[dict]:
+    return _load_json_records(
+        DATA_FILE,
+        LearningOutcomeRecord,
+    )
+
+
+def _load_teaching_baseline() -> list[dict]:
+    return _load_json_records(
+        TEACHING_DATA_FILE,
+        TeachingProgressRecord,
+    )
 
 
 BASELINE_RECORDS = _load_baseline()
+TEACHING_BASELINE_RECORDS = _load_teaching_baseline()
+
 STATE_LOCK = Lock()
 STATE = {
     "scenario": "baseline",
@@ -143,7 +201,11 @@ def _parse_iso8601(value: Optional[str]) -> Optional[datetime]:
         return None
 
     try:
-        normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
+        normalized = (
+            value[:-1] + "+00:00"
+            if value.endswith("Z")
+            else value
+        )
         parsed = datetime.fromisoformat(normalized)
     except ValueError as exc:
         raise HTTPException(
@@ -162,7 +224,11 @@ def _parse_iso8601(value: Optional[str]) -> Optional[datetime]:
 
 def _encode_cursor(offset: int) -> str:
     raw = f"offset:{offset}".encode("utf-8")
-    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+    return (
+        base64.urlsafe_b64encode(raw)
+        .decode("ascii")
+        .rstrip("=")
+    )
 
 
 def _decode_cursor(cursor: Optional[str]) -> int:
@@ -171,7 +237,9 @@ def _decode_cursor(cursor: Optional[str]) -> int:
 
     try:
         padding = "=" * (-len(cursor) % 4)
-        decoded = base64.urlsafe_b64decode((cursor + padding).encode("ascii")).decode("utf-8")
+        decoded = base64.urlsafe_b64decode(
+            (cursor + padding).encode("ascii")
+        ).decode("utf-8")
         prefix, value = decoded.split(":", 1)
         if prefix != "offset":
             raise ValueError
@@ -180,24 +248,36 @@ def _decode_cursor(cursor: Optional[str]) -> int:
             raise ValueError
         return offset
     except (ValueError, UnicodeDecodeError) as exc:
-        raise HTTPException(status_code=400, detail="Invalid cursor") from exc
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid cursor",
+        ) from exc
 
 
 def _to_aware_datetime(value: str | datetime) -> datetime:
     if isinstance(value, datetime):
         dt = value
     else:
-        normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
+        normalized = (
+            value[:-1] + "+00:00"
+            if value.endswith("Z")
+            else value
+        )
         dt = datetime.fromisoformat(normalized)
+
     if dt.tzinfo is None:
         raise ValueError("updated_at must be timezone-aware")
+
     return dt
 
 
 def _sorted_records(records: list[dict]) -> list[dict]:
     return sorted(
         records,
-        key=lambda r: (_to_aware_datetime(r["updated_at"]), r["record_id"]),
+        key=lambda r: (
+            _to_aware_datetime(r["updated_at"]),
+            r["record_id"],
+        ),
     )
 
 
@@ -205,7 +285,45 @@ def _data_as_of(records: list[dict]) -> datetime:
     if not records:
         return datetime.now(timezone.utc)
 
-    return max(_to_aware_datetime(r["updated_at"]) for r in records)
+    return max(
+        _to_aware_datetime(r["updated_at"])
+        for r in records
+    )
+
+
+def _page_records(
+    records: list[dict],
+    *,
+    updated_after: Optional[str],
+    cursor: Optional[str],
+    limit: int,
+) -> tuple[list[dict], bool, Optional[str]]:
+    watermark = _parse_iso8601(updated_after)
+    offset = _decode_cursor(cursor)
+
+    ordered = _sorted_records(
+        copy.deepcopy(records)
+    )
+
+    if watermark is not None:
+        ordered = [
+            record
+            for record in ordered
+            if _to_aware_datetime(record["updated_at"])
+            > watermark
+        ]
+
+    page = ordered[offset: offset + limit]
+    next_offset = offset + len(page)
+    has_more = next_offset < len(ordered)
+
+    return (
+        page,
+        has_more,
+        _encode_cursor(next_offset)
+        if has_more
+        else None,
+    )
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -230,38 +348,43 @@ def get_learning_outcomes(
     response: Response,
     updated_after: Optional[str] = Query(
         default=None,
-        description="Return records whose updated_at is strictly newer than this ISO-8601 timestamp.",
+        description=(
+            "Return records whose updated_at is strictly newer "
+            "than this ISO-8601 timestamp."
+        ),
     ),
     cursor: Optional[str] = Query(
         default=None,
-        description="Opaque cursor returned by the previous response.",
+        description=(
+            "Opaque cursor returned by the previous response."
+        ),
     ),
-    limit: int = Query(default=100, ge=1, le=MAX_LIMIT),
+    limit: int = Query(
+        default=100,
+        ge=1,
+        le=MAX_LIMIT,
+    ),
 ) -> LearningOutcomesResponse:
-    watermark = _parse_iso8601(updated_after)
-    offset = _decode_cursor(cursor)
-
     with STATE_LOCK:
-        all_records = copy.deepcopy(STATE["records"])
+        all_records = copy.deepcopy(
+            STATE["records"]
+        )
         active_scenario = STATE["scenario"]
 
-    records = _sorted_records(all_records)
-
-    if watermark is not None:
-        records = [
-            r for r in records
-            if _to_aware_datetime(r["updated_at"]) > watermark
-        ]
-
-    page = records[offset : offset + limit]
-    next_offset = offset + len(page)
-    has_more = next_offset < len(records)
-    next_cursor = _encode_cursor(next_offset) if has_more else None
+    page, has_more, next_cursor = _page_records(
+        all_records,
+        updated_after=updated_after,
+        cursor=cursor,
+        limit=limit,
+    )
 
     response.headers["X-Mock-API"] = "true"
     response.headers["X-Mock-Scenario"] = active_scenario
 
-    validated_page = [LearningOutcomeRecord.model_validate(item) for item in page]
+    validated_page = [
+        LearningOutcomeRecord.model_validate(item)
+        for item in page
+    ]
 
     return LearningOutcomesResponse(
         source_system=SOURCE_SYSTEM,
@@ -278,10 +401,76 @@ def get_learning_outcomes(
     )
 
 
+@app.get(
+    "/api/v1/education/teaching-progress",
+    response_model=TeachingProgressResponse,
+    dependencies=[Depends(require_api_key)],
+)
+def get_teaching_progress(
+    response: Response,
+    updated_after: Optional[str] = Query(
+        default=None,
+        description=(
+            "DEMO contract: return records whose updated_at is "
+            "strictly newer than this ISO-8601 timestamp."
+        ),
+    ),
+    cursor: Optional[str] = Query(
+        default=None,
+        description=(
+            "Opaque cursor returned by the previous response."
+        ),
+    ),
+    limit: int = Query(
+        default=100,
+        ge=1,
+        le=MAX_LIMIT,
+    ),
+) -> TeachingProgressResponse:
+    all_records = copy.deepcopy(
+        TEACHING_BASELINE_RECORDS
+    )
+
+    page, has_more, next_cursor = _page_records(
+        all_records,
+        updated_after=updated_after,
+        cursor=cursor,
+        limit=limit,
+    )
+
+    response.headers["X-Mock-API"] = "true"
+    response.headers["X-Mock-Scenario"] = (
+        "teaching_baseline"
+    )
+    response.headers["X-Demo-Contract"] = "true"
+
+    validated_page = [
+        TeachingProgressRecord.model_validate(item)
+        for item in page
+    ]
+
+    return TeachingProgressResponse(
+        source_system=SOURCE_SYSTEM,
+        dataset=TEACHING_DATASET,
+        schema_version=TEACHING_SCHEMA_VERSION,
+        generated_at=datetime.now(timezone.utc),
+        data_as_of=_data_as_of(all_records),
+        data=validated_page,
+        pagination=Pagination(
+            returned_records=len(validated_page),
+            has_more=has_more,
+            next_cursor=next_cursor,
+        ),
+    )
+
+
 @app.get("/mock/scenarios")
 def list_scenarios():
     return {
-        "note": "Test-only endpoints. Do not include /mock/* in the production CTU IOC contract.",
+        "note": (
+            "Test-only Learning Outcomes endpoints. "
+            "Do not include /mock/* in the production CTU IOC contract."
+        ),
         "scenarios": [
             "baseline",
             "newer_update",
@@ -291,14 +480,19 @@ def list_scenarios():
     }
 
 
-@app.post("/mock/scenario/{scenario}", response_model=ScenarioResponse)
-def activate_scenario(scenario: str) -> ScenarioResponse:
+@app.post(
+    "/mock/scenario/{scenario}",
+    response_model=ScenarioResponse,
+)
+def activate_scenario(
+    scenario: str,
+) -> ScenarioResponse:
     """
-    Reset to the 30-record baseline and apply one deterministic test mutation.
+    Reset to the 30-record Learning Outcomes baseline and apply one
+    deterministic test mutation.
 
-    This endpoint exists only to test incremental ingestion/update/delete behavior.
-    It is intentionally outside /api/v1/... so it cannot be confused with the
-    proposed CTU IOC production API.
+    This endpoint exists only to test incremental ingestion/update/delete
+    behavior. It does not mutate Teaching Progress demo records.
     """
     records = copy.deepcopy(BASELINE_RECORDS)
 
@@ -307,17 +501,37 @@ def activate_scenario(scenario: str) -> ScenarioResponse:
 
     elif scenario == "newer_update":
         target_id = "DEMO-P001|2025-2026|S2"
-        target = next(r for r in records if r["record_id"] == target_id)
-        target["student_count"] = int(target["student_count"]) + 1
-        target["updated_at"] = "2026-09-21T08:00:00+07:00"
-        note = f"{target_id}: student_count +1 with newer updated_at."
+        target = next(
+            r
+            for r in records
+            if r["record_id"] == target_id
+        )
+        target["student_count"] = (
+            int(target["student_count"]) + 1
+        )
+        target["updated_at"] = (
+            "2026-09-21T08:00:00+07:00"
+        )
+        note = (
+            f"{target_id}: student_count +1 "
+            "with newer updated_at."
+        )
 
     elif scenario == "soft_delete":
         target_id = "DEMO-P001|2025-2026|S2"
-        target = next(r for r in records if r["record_id"] == target_id)
+        target = next(
+            r
+            for r in records
+            if r["record_id"] == target_id
+        )
         target["is_deleted"] = True
-        target["updated_at"] = "2026-09-21T08:05:00+07:00"
-        note = f"{target_id}: is_deleted=true with newer updated_at."
+        target["updated_at"] = (
+            "2026-09-21T08:05:00+07:00"
+        )
+        note = (
+            f"{target_id}: is_deleted=true "
+            "with newer updated_at."
+        )
 
     elif scenario == "new_record":
         new_record = {
@@ -338,17 +552,23 @@ def activate_scenario(scenario: str) -> ScenarioResponse:
             "updated_at": "2026-09-21T08:10:00+07:00",
             "is_deleted": False,
         }
-        LearningOutcomeRecord.model_validate(new_record)
+        LearningOutcomeRecord.model_validate(
+            new_record
+        )
         records.append(new_record)
-        note = "Added deterministic DEMO-P011 record."
+        note = (
+            "Added deterministic DEMO-P011 record."
+        )
 
     else:
         raise HTTPException(
             status_code=404,
-            detail="Unknown scenario. Use baseline, newer_update, soft_delete, or new_record.",
+            detail=(
+                "Unknown scenario. Use baseline, newer_update, "
+                "soft_delete, or new_record."
+            ),
         )
 
-    # Validate the final state before publishing it.
     for item in records:
         LearningOutcomeRecord.model_validate(item)
 

@@ -24,7 +24,7 @@ class GenericSilverMergeTest(unittest.TestCase):
         cls.spark = (
             SparkSession.builder
             .master("local[2]")
-            .appName("day5-generic-silver-merge")
+            .appName("day6-generic-silver-merge")
             .config("spark.sql.shuffle.partitions", "1")
             .getOrCreate()
         )
@@ -34,6 +34,13 @@ class GenericSilverMergeTest(unittest.TestCase):
             StructField("key_b", StringType(), False),
             StructField("source_updated", TimestampType(), True),
             StructField("is_deleted", BooleanType(), True),
+            StructField("payload", StringType(), True),
+        ])
+
+        cls.no_delete_schema = StructType([
+            StructField("key_a", StringType(), False),
+            StructField("key_b", StringType(), False),
+            StructField("source_updated", TimestampType(), True),
             StructField("payload", StringType(), True),
         ])
 
@@ -55,6 +62,21 @@ class GenericSilverMergeTest(unittest.TestCase):
             ),
             source_updated_field="source_updated",
             delete_field="is_deleted",
+        )
+
+    def build_no_delete_sql(self):
+        return merge.build_merge_sql(
+            target_table="catalog.schema.target_table",
+            source_view="configured_merge_source",
+            business_key=("key_a", "key_b"),
+            source_columns=(
+                "key_a",
+                "key_b",
+                "source_updated",
+                "payload",
+            ),
+            source_updated_field="source_updated",
+            delete_field=None,
         )
 
     def test_business_key_sql_preserves_configured_order(self):
@@ -81,6 +103,14 @@ class GenericSilverMergeTest(unittest.TestCase):
 
         self.assertIn("WHEN NOT MATCHED", sql)
         self.assertIn("AND s.is_deleted = false", sql)
+        self.assertNotIn("THEN DELETE", sql)
+
+    def test_no_delete_merge_omits_synthetic_delete_guard(self):
+        sql = self.build_no_delete_sql()
+
+        self.assertIn("WHEN NOT MATCHED", sql)
+        self.assertNotIn("s.is_deleted", sql)
+        self.assertNotIn("s.None", sql)
         self.assertNotIn("THEN DELETE", sql)
 
     def test_merge_sql_updates_and_inserts_configured_columns(self):
@@ -119,7 +149,31 @@ class GenericSilverMergeTest(unittest.TestCase):
 
         self.assertEqual(result, 0)
 
-    def test_generic_module_contains_no_learning_outcomes_literals(self):
+    def test_empty_no_delete_input_returns_zero_without_target_resolution(self):
+        empty = self.spark.createDataFrame(
+            [],
+            self.no_delete_schema,
+        )
+
+        result = merge.merge_into_silver(
+            self.spark,
+            empty,
+            target_table="table_that_must_not_be_resolved",
+            business_key=("key_a", "key_b"),
+            source_columns=(
+                "key_a",
+                "key_b",
+                "source_updated",
+                "payload",
+            ),
+            source_updated_field="source_updated",
+            delete_field=None,
+            source_view="configured_no_delete_merge_source",
+        )
+
+        self.assertEqual(result, 0)
+
+    def test_generic_module_contains_no_dataset_literals(self):
         source = inspect.getsource(merge)
 
         forbidden = (
@@ -130,6 +184,9 @@ class GenericSilverMergeTest(unittest.TestCase):
             "learning_outcomes_quarantine",
             "gpa_trung_binh",
             "ty_le_qua_hoc_phan",
+            "education.teaching_progress",
+            "ma_lop_hoc_phan",
+            "ty_le_tien_do_giang_day",
         )
 
         for literal in forbidden:

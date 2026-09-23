@@ -1,12 +1,17 @@
 # -*- coding: utf-8 -*-
 """Reusable Silver Iceberg MERGE mechanics.
 
-The caller supplies all dataset-specific table/field identities. This module
-preserves the frozen Day 4 MERGE contract:
+The caller supplies all dataset-specific table/field identities.
+
+For datasets with a configured delete flag this preserves the frozen Day 4
+MERGE contract:
 - match on the configured business key;
 - update only when the source timestamp is newer;
 - insert only unmatched, non-deleted rows;
 - never issue a physical DELETE.
+
+For datasets without source delete semantics (``delete_field=None``), unmatched
+rows are insertable without inventing a synthetic delete column.
 """
 
 from __future__ import annotations
@@ -39,10 +44,10 @@ def build_merge_sql(
     business_key: Sequence[str],
     source_columns: Sequence[str],
     source_updated_field: str,
-    delete_field: str,
+    delete_field: str | None,
     silver_updated_at_field: str = "_silver_updated_at",
 ) -> str:
-    """Build the frozen newer-only / no-orphan-delete MERGE statement."""
+    """Build newer-only MERGE SQL with optional source delete semantics."""
     all_columns = list(source_columns) + [silver_updated_at_field]
 
     update_assignments = ",\n".join(
@@ -56,6 +61,12 @@ def build_merge_sql(
         for column in all_columns
     )
 
+    unmatched_clause = "WHEN NOT MATCHED"
+    if delete_field is not None:
+        unmatched_clause += (
+            f"\n          AND s.{delete_field} = false"
+        )
+
     return f"""
         MERGE INTO {target_table} t
         USING {source_view} s
@@ -66,8 +77,7 @@ def build_merge_sql(
         THEN UPDATE SET
           {update_assignments}
 
-        WHEN NOT MATCHED
-          AND s.{delete_field} = false
+        {unmatched_clause}
         THEN INSERT (
           {insert_column_sql}
         )
@@ -85,11 +95,11 @@ def merge_into_silver(
     business_key: Sequence[str],
     source_columns: Sequence[str],
     source_updated_field: str,
-    delete_field: str,
+    delete_field: str | None,
     source_view: str,
     silver_updated_at_field: str = "_silver_updated_at",
 ) -> int:
-    """Execute the frozen Silver MERGE mechanics for configured inputs."""
+    """Execute configured Silver MERGE mechanics."""
     row_count = df.count()
 
     if row_count == 0:

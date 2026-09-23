@@ -3,7 +3,8 @@
 
 This module classifies source rows against the current Silver target using
 caller-supplied field/table configuration. It preserves the frozen Day 4
-new/update/stale/duplicate/conflict/delete semantics.
+new/update/stale/duplicate/conflict/delete semantics for datasets that expose
+a delete flag, while also supporting datasets with no source delete semantics.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ def classify_against_target(
     business_key: Sequence[str],
     source_updated_field: str,
     checksum_field: str,
-    delete_field: str,
+    delete_field: str | None,
     source_columns: Sequence[str],
     delete_without_target_reason: str = "DELETE_WITHOUT_EXISTING_TARGET",
     equal_timestamp_conflict_reason: str = (
@@ -37,13 +38,18 @@ def classify_against_target(
         stale,
         duplicate
 
-    Frozen semantics:
+    Semantics with a configured delete field:
       - new non-deleted row -> mergeable
       - existing target + newer source timestamp -> mergeable
       - existing target + older source timestamp -> stale
       - equal timestamp + same checksum -> duplicate
       - equal timestamp + different checksum -> quarantine
       - deleted row without target -> quarantine
+
+    Semantics when ``delete_field`` is ``None``:
+      - every source row is treated as active for delete handling
+      - delete-without-target routing is disabled
+      - timestamp/checksum classification is unchanged
     """
     if not business_key:
         raise ValueError("business_key must not be empty")
@@ -110,10 +116,13 @@ def classify_against_target(
     same_checksum = source_checksum == target_checksum
     different_checksum = source_checksum != target_checksum
 
-    source_is_deleted = F.coalesce(
-        F.col(delete_field),
-        F.lit(False),
-    )
+    if delete_field is None:
+        source_is_deleted = F.lit(False)
+    else:
+        source_is_deleted = F.coalesce(
+            F.col(delete_field),
+            F.lit(False),
+        )
 
     delete_without_target_condition = (
         (~target_exists)

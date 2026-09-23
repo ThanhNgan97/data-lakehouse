@@ -21,13 +21,14 @@ import generic_silver_classifier as classifier
 
 class GenericSilverClassifierTest(unittest.TestCase):
     TARGET = "generic_silver_classifier_target"
+    NO_DELETE_TARGET = "generic_silver_classifier_no_delete_target"
 
     @classmethod
     def setUpClass(cls):
         cls.spark = (
             SparkSession.builder
             .master("local[2]")
-            .appName("day5-generic-silver-classifier")
+            .appName("day6-generic-silver-classifier")
             .config("spark.sql.shuffle.partitions", "1")
             .getOrCreate()
         )
@@ -41,12 +42,25 @@ class GenericSilverClassifierTest(unittest.TestCase):
             StructField("payload", StringType(), True),
         ])
 
+        cls.no_delete_schema = StructType([
+            StructField("key_a", StringType(), False),
+            StructField("source_updated", TimestampType(), True),
+            StructField("checksum", StringType(), True),
+            StructField("payload", StringType(), True),
+        ])
+
     @classmethod
     def tearDownClass(cls):
         cls.spark.stop()
 
     def frame(self, *rows):
         return self.spark.createDataFrame(list(rows), self.schema)
+
+    def no_delete_frame(self, *rows):
+        return self.spark.createDataFrame(
+            list(rows),
+            self.no_delete_schema,
+        )
 
     def source_row(
         self,
@@ -65,8 +79,30 @@ class GenericSilverClassifierTest(unittest.TestCase):
             "payload": payload,
         }
 
+    def no_delete_row(
+        self,
+        *,
+        key_a="K1",
+        hour=8,
+        checksum="checksum-a",
+        payload="source",
+    ):
+        return {
+            "key_a": key_a,
+            "source_updated": datetime(2026, 1, 1, hour, 0, 0),
+            "checksum": checksum,
+            "payload": payload,
+        }
+
     def install_target(self, *rows):
         self.frame(*rows).createOrReplaceTempView(self.TARGET)
+
+    def install_no_delete_target(self, *rows):
+        self.no_delete_frame(
+            *rows
+        ).createOrReplaceTempView(
+            self.NO_DELETE_TARGET
+        )
 
     def classify(self, source):
         return classifier.classify_against_target(
@@ -82,6 +118,23 @@ class GenericSilverClassifierTest(unittest.TestCase):
                 "source_updated",
                 "checksum",
                 "is_deleted",
+                "payload",
+            ),
+        )
+
+    def classify_no_delete(self, source):
+        return classifier.classify_against_target(
+            self.spark,
+            source,
+            target_table=self.NO_DELETE_TARGET,
+            business_key=("key_a",),
+            source_updated_field="source_updated",
+            checksum_field="checksum",
+            delete_field=None,
+            source_columns=(
+                "key_a",
+                "source_updated",
+                "checksum",
                 "payload",
             ),
         )
@@ -222,7 +275,55 @@ class GenericSilverClassifierTest(unittest.TestCase):
 
         self.assertEqual(self.counts(outputs), (0, 0, 1, 0))
 
-    def test_generic_module_contains_no_learning_outcomes_literals(self):
+    def test_no_delete_field_new_record_is_mergeable(self):
+        self.install_no_delete_target()
+
+        outputs = self.classify_no_delete(
+            self.no_delete_frame(
+                self.no_delete_row()
+            )
+        )
+
+        self.assertEqual(
+            self.counts(outputs),
+            (1, 0, 0, 0),
+        )
+
+    def test_no_delete_field_keeps_timestamp_checksum_semantics(self):
+        self.install_no_delete_target(
+            self.no_delete_row(
+                hour=8,
+                checksum="same",
+            ),
+        )
+
+        duplicate_outputs = self.classify_no_delete(
+            self.no_delete_frame(
+                self.no_delete_row(
+                    hour=8,
+                    checksum="same",
+                ),
+            )
+        )
+        self.assertEqual(
+            self.counts(duplicate_outputs),
+            (0, 0, 0, 1),
+        )
+
+        conflict_outputs = self.classify_no_delete(
+            self.no_delete_frame(
+                self.no_delete_row(
+                    hour=8,
+                    checksum="different",
+                ),
+            )
+        )
+        self.assertEqual(
+            self.counts(conflict_outputs),
+            (0, 1, 0, 0),
+        )
+
+    def test_generic_module_contains_no_dataset_literals(self):
         source = inspect.getsource(classifier)
 
         forbidden = (
@@ -233,6 +334,9 @@ class GenericSilverClassifierTest(unittest.TestCase):
             "learning_outcomes_quarantine",
             "gpa_trung_binh",
             "ty_le_qua_hoc_phan",
+            "education.teaching_progress",
+            "ma_lop_hoc_phan",
+            "ty_le_tien_do_giang_day",
         )
 
         for literal in forbidden:

@@ -32,7 +32,7 @@ class ApiDatasetConfig:
     bronze_prefix: str
     record_id_field: str
     source_updated_at_field: str
-    source_delete_field: str
+    source_delete_field: str | None
     sample_validation_fields: tuple[str, ...]
     source_to_canonical: dict[str, str]
     business_key: tuple[str, ...]
@@ -80,11 +80,15 @@ class ApiDatasetConfig:
                 "source_to_canonical contains duplicate canonical fields"
             )
 
-        required_source_fields = (
+        required_source_fields = [
             self.record_id_field,
             self.source_updated_at_field,
-            self.source_delete_field,
-        )
+        ]
+        if self.source_delete_field is not None:
+            required_source_fields.append(
+                self.source_delete_field
+            )
+
         missing_required_source_fields = [
             field_name
             for field_name in required_source_fields
@@ -132,6 +136,11 @@ class ApiDatasetConfig:
             self.source_to_canonical[source_name]
             for source_name in self.source_fields
         )
+
+    @property
+    def delete_supported(self) -> bool:
+        """Whether the source contract exposes explicit delete semantics."""
+        return self.source_delete_field is not None
 
     def canonical_field(self, source_field: str) -> str:
         """Resolve one configured source field to its canonical name."""
@@ -204,6 +213,43 @@ LEARNING_OUTCOMES_SOURCE_TO_CANONICAL = {
     "is_deleted": "da_xoa",
 }
 
+
+TEACHING_PROGRESS_DATASET = "education.teaching_progress"
+
+TEACHING_PROGRESS_FIELDS = (
+    "record_id",
+    "unit_code",
+    "unit_name",
+    "course_section_code",
+    "academic_year",
+    "semester",
+    "progress_percent",
+    "updated_at",
+)
+
+TEACHING_PROGRESS_SCHEMA = StructType([
+    StructField("record_id", StringType(), False),
+    StructField("unit_code", StringType(), False),
+    StructField("unit_name", StringType(), False),
+    StructField("course_section_code", StringType(), False),
+    StructField("academic_year", StringType(), False),
+    StructField("semester", IntegerType(), False),
+    StructField("progress_percent", DoubleType(), False),
+    StructField("updated_at", TimestampType(), False),
+])
+
+TEACHING_PROGRESS_SOURCE_TO_CANONICAL = {
+    "record_id": "ma_ban_ghi",
+    "unit_code": "ma_don_vi",
+    "unit_name": "ten_don_vi",
+    "course_section_code": "ma_lop_hoc_phan",
+    "academic_year": "nam_hoc",
+    "semester": "hoc_ky",
+    "progress_percent": "ty_le_tien_do_giang_day",
+    "updated_at": "thoi_gian_cap_nhat_nguon",
+}
+
+
 DATASETS = {
     LEARNING_OUTCOMES_DATASET: ApiDatasetConfig(
         dataset=LEARNING_OUTCOMES_DATASET,
@@ -232,6 +278,32 @@ DATASETS = {
         silver_table="lakehouse.silver.learning_outcomes",
         quarantine_table="lakehouse.silver.learning_outcomes_quarantine",
     ),
+    TEACHING_PROGRESS_DATASET: ApiDatasetConfig(
+        dataset=TEACHING_PROGRESS_DATASET,
+        schema_version="1.0-demo",
+        json_schema_path=_BASE_DIR / "contracts" / "teaching_progress.schema.json",
+        source_fields=TEACHING_PROGRESS_FIELDS,
+        spark_source_schema=TEACHING_PROGRESS_SCHEMA,
+        bronze_prefix="bronze/api/ctu_ioc/education/teaching_progress/",
+        record_id_field="record_id",
+        source_updated_at_field="updated_at",
+        source_delete_field=None,
+        sample_validation_fields=(
+            "unit_code",
+            "course_section_code",
+            "academic_year",
+            "semester",
+            "progress_percent",
+        ),
+        source_to_canonical=TEACHING_PROGRESS_SOURCE_TO_CANONICAL,
+        business_key=(
+            "ma_lop_hoc_phan",
+            "nam_hoc",
+            "hoc_ky",
+        ),
+        silver_table="lakehouse.silver.teaching_progress",
+        quarantine_table="lakehouse.silver.teaching_progress_quarantine",
+    ),
 }
 
 
@@ -240,4 +312,6 @@ def get_dataset_config(dataset: str) -> ApiDatasetConfig:
         return DATASETS[dataset]
     except KeyError as exc:
         supported = ", ".join(sorted(DATASETS))
-        raise ValueError(f"Unsupported API dataset '{dataset}'. Supported: {supported}") from exc
+        raise ValueError(
+            f"Unsupported API dataset '{dataset}'. Supported: {supported}"
+        ) from exc

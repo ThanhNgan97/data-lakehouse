@@ -62,7 +62,7 @@ def normalize_teaching_item(item: dict) -> dict:
     dung_tien_do = data.get("dung_tien_do_pct") if "dung_tien_do_pct" in data else data.get("dung_tien_do", 0.0)
     hien_dien = data.get("hien_dien_pct") if "hien_dien_pct" in data else data.get("hien_dien", 0.0)
     nhap_diem = data.get("nhap_diem_pct") if "nhap_diem_pct" in data else data.get("nhap_diem", 0.0)
-    phan_hoi = data.get("diem_phan_hoi_sv") if "diem_phan_hoi_sv" in data else str(data.get("phan_hoi_sv", "4.0/5"))
+    phan_hoi = str(data.get("diem_phan_hoi_sv") if "diem_phan_hoi_sv" in data else str(data.get("phan_hoi_sv", "4.0/5"))).replace(",", ".")
     
     normalized = {
         "ky_danh_gia": str(ky_danh_gia),

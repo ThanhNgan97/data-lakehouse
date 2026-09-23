@@ -94,14 +94,17 @@ def normalize_learning_item(item: dict) -> dict:
     qua_hp = data.get("qua_hp_pct") if "qua_hp_pct" in data else data.get("qua_hp", 0.0)
     gpa = data.get("gpa_trung_binh") if "gpa_trung_binh" in data else data.get("gpa", 3.0)
     
+    can_bao_val = data.get("canh_bao") if "canh_bao" in data else (data.get("can_bao") if "can_bao" in data else data.get("can_bao_hoc_vu", 0))
+    nguy_co_val = data.get("nguy_co_nghi") if "nguy_co_nghi" in data else data.get("nguy_co_nghi_hoc", 0)
+
     normalized = {
         "ky_danh_gia": str(ky_danh_gia),
         "chuong_trinh": str(chuong_trinh),
         "sv_theo_hoc": int(data.get("sv_theo_hoc", 0)),
         "qua_hp_pct": float(qua_hp),
         "gpa_trung_binh": float(gpa),
-        "can_bao_hoc_vu": int(data.get("can_bao_hoc_vu", data.get("can_bao", 0))),
-        "nguy_co_nghi_hoc": int(data.get("nguy_co_nghi_hoc", data.get("nguy_co_nghi", 0))),
+        "can_bao_hoc_vu": int(can_bao_val),
+        "nguy_co_nghi_hoc": int(nguy_co_val),
         "dung_tien_do_pct": float(dung_tien_do),
         "xu_huong": str(data.get("xu_huong", "Ổn định"))
     }

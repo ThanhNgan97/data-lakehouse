@@ -167,7 +167,14 @@ def run_pipeline(spark):
         raw_df = spark.read.option("inferSchema", "true").json(bronze_path)
         dedup_df = raw_df.dropDuplicates(["chuong_trinh", "ky_danh_gia"])
 
-        evolve_table_schema_if_needed(spark, dedup_df)
+        fields_dict = {f.name.lower(): col(f.name) for f in dedup_df.schema.fields}
+        
+        if "canh_bao" in fields_dict:
+            from pyspark.sql.functions import coalesce, when
+            dedup_df = dedup_df.withColumn(
+                "can_bao_hoc_vu",
+                when(col("can_bao_hoc_vu") == 0, col("canh_bao")).otherwise(coalesce(col("can_bao_hoc_vu"), col("canh_bao")))
+            )
 
         select_exprs = []
         for field in dedup_df.schema.fields:

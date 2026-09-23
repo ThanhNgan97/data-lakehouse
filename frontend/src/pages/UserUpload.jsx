@@ -129,6 +129,7 @@ const UserUpload = () => {
         setActivePipeline(res.data);
         if (["success", "failed", "unreachable"].includes(state)) {
           clearInterval(pollingRef.current);
+          pollingRef.current = null;
           fetchHistory();
           if (state === "success") {
             setIframeKey((prev) => prev + 1);
@@ -136,6 +137,7 @@ const UserUpload = () => {
         }
       } catch {
         clearInterval(pollingRef.current);
+        pollingRef.current = null;
       }
     }, 5000);
   };

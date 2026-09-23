@@ -1,0 +1,21 @@
+﻿COMPONENT,EXPECTED CHANGE FOR REAL API?,WHY,RISK,CLASSIFICATION,ACTION
+Endpoint/base URL,YES,Real provider URL/resource will differ from mock,LOW,CONFIG ONLY,Replace runtime base URL/resource path after validation; do not hard-code secrets.
+Authentication,LIKELY YES,Production auth scheme is unknown,MEDIUM,CONFIG OR PLATFORM EXTENSION,Configure supported headers/tokens; extend HttpAdapter only if the confirmed scheme is unsupported.
+Source field names/types,LIKELY YES,Mock schema is not production truth,MEDIUM,DATASET CONTRACT CHANGE,Update contract and source-to-canonical mapping.
+Schema/API version,YES,Production version not yet known,MEDIUM,DATASET CONTRACT CHANGE,Register authoritative version and rerun contract/regression tests.
+Business grain/key,MUST VERIFY,Current demo keys may not match production semantics,HIGH,DATASET BUSINESS LOGIC REVIEW,Obtain business-owner confirmation before Silver/Gold acceptance.
+Timestamp/update semantics,MUST VERIFY,Mutable/snapshot/incremental/late-arrival behavior is unknown,HIGH,DATASET CONTRACT + BUSINESS REVIEW,Confirm update/delete/late-arrival rules; then validate stale protection and MERGE behavior.
+Pagination style,MUST VERIFY,Current platform proves cursor-style mock pagination,MEDIUM,CONFIG OR PLATFORM CODE CHANGE,Reuse existing cursor path if compatible; otherwise add only a controlled transport extension.
+Rate-limit/retry policy,MUST VERIFY,No specialized 429/Retry-After/backoff policy is implemented,MEDIUM,PLATFORM OPERATIONS REVIEW,Implement provider-approved retry/backoff only after SLA evidence.
+Bronze Writer,EXPECTED NO,Storage path is source-native and generic,LOW,PLATFORM REUSE,Keep current Bronze writer if the source can be normalized to supported ingestion envelope.
+Technical metadata/checksum,EXPECTED NO,Generic lineage metadata is independent of business schema,LOW,PLATFORM REUSE,Preserve existing metadata/checksum behavior.
+Dataset Registry,"YES, CONFIG/CONTRACT",Real contract values must replace mock assumptions,LOW-MEDIUM,DATASET CONTRACT CHANGE,Update endpoint/schema/mapping/key/routing metadata without creating a second configuration source.
+Generic Silver mechanics,EXPECTED NO,Mechanics are generic and proven across two datasets,LOW,PLATFORM REUSE,Do not rewrite unless a genuine unsupported requirement is demonstrated.
+Dataset Silver wrapper/config,LIKELY YES,Real mapping/DQ semantics may differ,MEDIUM,DATASET CONTRACT CHANGE,Update mapping and business-rule configuration with signoff.
+Gold business logic,MAY REQUIRE REVIEW,Metric semantics depend on authoritative source meaning,HIGH,DATASET BUSINESS LOGIC REVIEW,Revalidate formulas/grain/lineage; change only when evidence requires it.
+Nessie/Iceberg,EXPECTED NO,Storage/versioning mechanics are source-independent,LOW,PLATFORM REUSE,Retain architecture; review production governance separately.
+Trino,EXPECTED NO,Serving layer reads canonical Gold tables,LOW,PLATFORM REUSE,Retain unless production access/security requirements require configuration changes.
+Superset infrastructure,EXPECTED NO,BI layer reads Gold through Trino,LOW,PLATFORM REUSE,Adjust labels/filters only if canonical/business fields change.
+Airflow DAG structure,EXPECTED NO,Generic 8-stage orchestration routes through Registry,LOW,PLATFORM REUSE,Reuse same DAG; only transport/config changes should vary unless a confirmed requirement proves otherwise.
+Security/secrets,YES,Current local/demo inline sensitive settings are not production-ready,HIGH,PRODUCTION HARDENING,"Externalize secrets, rotate where appropriate, harden auth/CSP/access controls before production."
+Observability,YES for production operations,Current logs/states/lineage exist but centralized SLI/SLO/alerting is incomplete,MEDIUM,PRODUCTION OPERATIONS,"Define alerting, retention, ownership and SLOs without changing business processing semantics."

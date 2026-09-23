@@ -1,0 +1,24 @@
+﻿CAPABILITY,IMPLEMENTED,TESTED,DATASETS PROVEN,NOTES
+HTTP ingestion,YES,YES,Learning Outcomes; Teaching Progress,Shared HTTP ingestion path validated with deterministic mock API contracts. Production transport compatibility still depends on the real external contract.
+Source-native Bronze,YES,YES,Learning Outcomes; Teaching Progress,Source fields are preserved before canonical mapping; 9 technical metadata fields and deterministic checksum/batch lineage are present.
+Dataset Registry,YES,YES,Learning Outcomes; Teaching Progress,"Registry owns dataset identity, schema/config, source path, mapping, business key, Silver/Gold routing."
+Source-to-canonical mapping,YES,YES,Learning Outcomes; Teaching Progress,Mapping occurs after Bronze via dataset-specific configuration/wrappers.
+DQ execution,YES,YES,Learning Outcomes; Teaching Progress,Generic Silver mechanics are reused; business rules remain dataset-specific.
+Quarantine,YES,YES,Learning Outcomes; Teaching Progress,Current final baselines contain 0 quarantined rows for both datasets; quarantine path is implemented/tested.
+Deduplication,YES,YES,Learning Outcomes; Teaching Progress,Generic Silver dedup regression passes; current Silver business keys are unique.
+Conflict detection,YES,YES,Learning Outcomes; Teaching Progress,Generic conflict-detection regression passes.
+Stale protection,YES,YES,Learning Outcomes; Teaching Progress,Generic Silver stale/update behavior is part of the tested Silver mechanics; production source update semantics still require provider confirmation.
+MERGE,YES,YES,Learning Outcomes; Teaching Progress,Generic Silver MERGE mechanics are implemented and regression-tested.
+Dataset with delete field,YES,YES,Learning Outcomes,"Learning final runtime: 30 active, 0 deleted."
+Dataset without delete field,YES,YES,Teaching Progress,Teaching Silver contains no synthetic delete column; current final runtime has 30 unique rows.
+Business-specific Gold,YES,YES,Learning Outcomes; Teaching Progress,Separate Gold implementations are retained. No Generic Gold Engine was introduced.
+Learning KPI/trend validation,YES,YES,Learning Outcomes,"Formula mismatch=0, trend mismatch=0, lineage mismatch=0, business mismatch=0."
+Teaching semantic validation,YES,YES,Teaching Progress,"Semantic mismatch=0, lineage mismatch=0; progress values valid; so_ban_ghi_theo_doi sums to 30."
+Teaching trend,NO,N/A,Teaching Progress,Explicitly NOT IMPLEMENTED. Do not infer trend/on-schedule/weighted-progress semantics.
+Trino serving,YES,YES,Learning Outcomes; Teaching Progress,Both Gold marts are queryable through Trino with final row counts of 30.
+Superset dashboards,YES,YES,Learning Outcomes; Teaching Progress,Learning dashboard resolves by slug and currently has 10 charts; Teaching dashboard has 8 charts and 4 native filters.
+Airflow orchestration,YES,YES,Learning Outcomes; Teaching Progress,Single api_dataset_pipeline DAG with 8 stages serves both datasets.
+Browser trigger,YES,YES,Learning Outcomes; Teaching Progress,Ordinary manual trigger is available through Airflow UI; PowerShell is verification-only.
+Multi-dataset coexistence,YES,YES,Learning Outcomes; Teaching Progress,Both API datasets coexist under one orchestration DAG with separate business models and Gold outputs.
+Legacy compatibility,YES,YES,Legacy PDF/DOCX pipeline,lakehouse_pipeline remains visible/importable; protected legacy source diff=0.
+Real CTU IOC production API compatibility,NO,NO,None,"Not verified. External endpoint, auth, pagination, update/delete semantics, business keys, DQ policy and SLA are still required."

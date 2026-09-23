@@ -1,0 +1,26 @@
+﻿contract,before_day5,after_day5,status,mismatch
+business_key,"(ma_chuong_trinh, nam_hoc, hoc_ky)",same,PASS,0
+new_active,mergeable,mergeable,PASS,0
+duplicate_rerun,duplicate / no merge,duplicate / no merge,PASS,0
+newer_changed,mergeable,mergeable,PASS,0
+older_source,stale,stale,PASS,0
+equal_timestamp_same_checksum,duplicate,duplicate,PASS,0
+equal_timestamp_different_checksum_target,quarantine,quarantine,PASS,0
+same_batch_equal_timestamp_conflict,block entire business key,block entire business key,PASS,0
+DQ_invalid,quarantine with ordered reason codes,same,PASS,0
+soft_delete_existing_newer,mergeable update da_xoa=true,same,PASS,0
+delete_without_target,quarantine DELETE_WITHOUT_EXISTING_TARGET,same,PASS,0
+repeated_delete,duplicate,duplicate,PASS,0
+stale_delete,stale,stale,PASS,0
+dedup_order,updated desc; ingested desc; batch desc; checksum asc; record id asc,same,PASS,0
+MERGE_match,configured business key,same,PASS,0
+MERGE_update,only source timestamp > target,same,PASS,0
+MERGE_insert,only unmatched non-deleted,same,PASS,0
+physical_delete,not used,not used,PASS,0
+Nessie_lifecycle_order,frozen Day 4 order,same,PASS,0
+baseline_runtime,30 active / 0 deleted / 30 keys / quarantine 0,same,PASS,0
+actual_branch_merge,"branch updated, main isolated",branch 1285 / main 1284,PASS,0
+Gold_KPI,formula mismatch=0,formula mismatch=0,PASS,0
+Gold_lineage,mismatch=0,mismatch=0,PASS,0
+Gold_trend,trend mismatch=0,trend mismatch=0,PASS,0
+Superset,1 dataset / 2 charts / 1 dashboard + filters,same,PASS,0

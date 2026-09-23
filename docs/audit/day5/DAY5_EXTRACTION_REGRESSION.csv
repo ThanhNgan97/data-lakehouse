@@ -1,0 +1,16 @@
+﻿checkpoint,component,before_contract,after_result,behavior_mismatch,status,evidence_note
+5A/5B,Pre-refactor registry,9/9,9/9,0,PASS,Day 4 baseline reproduced
+5A/5B,Pre-refactor Silver freeze,18/18,18/18,0,PASS,Day 4 baseline reproduced
+5A/5B,Existing HTTP/source regression,23/23,23/23,0,PASS,Unchanged
+5C,DQ execution,18/18,18/18,0,PASS,Generic DQ 4/4
+5D,Quarantine routing,18/18,18/18,0,PASS,Generic quarantine 4/4
+5E,Deterministic dedup,18/18,18/18,0,PASS,Generic dedup 7/7
+5F,Equal-timestamp conflict,18/18,18/18,0,PASS,Generic conflict 6/6
+5G,Target classification / delete,18/18,18/18,0,PASS,Generic classifier 10/10
+5H,Iceberg MERGE,18/18,18/18,0,PASS,Generic MERGE 7/7
+5I.1,Runtime baseline,30 rows / 30 duplicates,same,0,PASS,branch-only baseline
+5I.2,Runtime actual MERGE,branch update expected,branch 1285 / main 1284,0,PASS,merge_input=1
+Final,Generic literal guard,0 forbidden hits,0 forbidden hits,0,PASS,6 reusable modules
+Final,Silver/Gold business regression,all mismatch=0,all mismatch=0,0,PASS,includes lineage + trend
+Final,Trino,Silver 30/30/0/30; Gold 30/30,same,0,PASS,read-only
+Final,Superset,1 dataset / 2 charts / 1 dashboard,same,0,PASS,filters preserved

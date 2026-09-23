@@ -1,0 +1,17 @@
+﻿item_type,name,formula_or_source,grain,status,notes
+dimension,ma_don_vi,Silver.ma_don_vi,course section x academic year x semester,SUPPORTED,organizational unit code
+dimension,ten_don_vi,Silver.ten_don_vi,course section x academic year x semester,SUPPORTED,organizational unit name
+dimension,ma_lop_hoc_phan,Silver.ma_lop_hoc_phan,course section x academic year x semester,SUPPORTED,Gold business-key field
+dimension,nam_hoc,Silver.nam_hoc,course section x academic year x semester,SUPPORTED,Gold business-key field
+dimension,hoc_ky,Silver.hoc_ky,course section x academic year x semester,SUPPORTED,Gold business-key field
+source_metric,ty_le_tien_do_giang_day,direct carry-forward from canonical Silver,course section x academic year x semester,DEMO / NOT PRODUCTION VERIFIED,valid 0..100; percent
+derived_metric,so_ban_ghi_theo_doi,literal 1 per valid Gold-grain row,course section x academic year x semester,SUPPORTED DERIVED DEMO METRIC,additive monitored-record count only
+lineage,source_record_id,Silver.ma_ban_ghi,course section x academic year x semester,SUPPORTED,direct lineage
+lineage,source_updated_at,Silver.thoi_gian_cap_nhat_nguon,course section x academic year x semester,SUPPORTED,direct lineage
+lineage,source_batch_id,Silver._batch_id,course section x academic year x semester,SUPPORTED,direct lineage
+lineage,source_record_checksum,Silver._record_checksum,course section x academic year x semester,SUPPORTED,direct lineage
+lineage,_gold_updated_at,Gold write timestamp,course section x academic year x semester,SUPPORTED,technical Gold timestamp
+unsupported_metric,on_schedule / behind_schedule,no verified target/threshold policy,,NOT IMPLEMENTED,do not infer
+unsupported_metric,weighted_progress,no verified weighting denominator,,NOT IMPLEMENTED,do not infer
+unsupported_metric,completion_count / remaining_count,no verified numerator/denominator,,NOT IMPLEMENTED,do not infer
+unsupported_metric,Teaching trend KPI,period comparability not verified,,NOT IMPLEMENTED,Learning LAG logic not copied

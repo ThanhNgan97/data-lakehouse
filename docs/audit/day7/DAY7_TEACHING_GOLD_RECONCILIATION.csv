@@ -1,0 +1,6 @@
+﻿checkpoint,active_silver_rows,transformed_rows,gold_rows,distinct_gold_keys,duplicate_gold_keys,monitor_count_sum,dq_violations,semantic_mismatch,lineage_mismatch,status
+7D branch runtime,30,30,30,30,0,30,0,0,0,PASS
+7E main publish,30,30,30,30,0,30,0,0,0,PASS
+7F rerun 1,30,30,30,30,0,30,0,0,0,PASS
+7F rerun 2,30,30,30,30,0,30,0,0,0,PASS
+7H final E2E,30,30,30,30,0,30,0,0,0,PASS

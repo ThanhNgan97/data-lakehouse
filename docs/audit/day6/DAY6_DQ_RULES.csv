@@ -1,0 +1,8 @@
+﻿Order,Reason,Condition,Policy status
+1,MISSING_RECORD_ID,ma_ban_ghi is null or blank,DEMO RULE
+2,MISSING_UNIT_CODE,ma_don_vi is null or blank,DEMO RULE
+3,MISSING_COURSE_SECTION_CODE,ma_lop_hoc_phan is null or blank,DEMO RULE
+4,MISSING_ACADEMIC_YEAR,nam_hoc is null or blank,DEMO RULE
+5,INVALID_SEMESTER,hoc_ky is null or <= 0,DEMO RULE
+6,INVALID_TEACHING_PROGRESS_PERCENT,ty_le_tien_do_giang_day is null or < 0 or > 100,DEMO RULE
+7,MISSING_SOURCE_UPDATED_AT,thoi_gian_cap_nhat_nguon is null,DEMO RULE

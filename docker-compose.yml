@@ -1,6 +1,7 @@
 services:
   # PostgreSQL + TimescaleDB
   postgres:
+    restart: unless-stopped
     image: timescale/timescaledb:latest-pg15
     container_name: demo-postgres
     environment:
@@ -17,6 +18,7 @@ services:
 
   # Kafka
   kafka:
+    restart: unless-stopped
     image: apache/kafka:4.1.1
     container_name: demo-kafka
     hostname: kafka
@@ -44,6 +46,7 @@ services:
 
   # MinIO
   minio:
+    restart: unless-stopped
     image: minio/minio:latest
     container_name: demo-minio
     command: server /data --console-address ":9001"
@@ -83,6 +86,7 @@ services:
 
   # Trino
   trino:
+    restart: unless-stopped
     image: trinodb/trino:435
     container_name: demo-trino
     ports:
@@ -98,6 +102,7 @@ services:
 # Thêm Project Nessie (Iceberg Catalog)
 # Thêm Project Nessie (Iceberg Catalog)
   nessie:
+    restart: unless-stopped
     image: ghcr.io/projectnessie/nessie:0.104.5  # <-- Đã thêm ghcr.io/ vào đây
     container_name: demo-nessie
     ports:
@@ -116,6 +121,7 @@ services:
 
   # Apache Superset
   superset:
+    restart: unless-stopped
     image: apache/superset:3.1.0
     container_name: demo-superset
     ports:
@@ -167,6 +173,7 @@ services:
 
   # Airflow Webserver
   airflow-webserver:
+    restart: unless-stopped
     image: custom-airflow:2.9.2
     container_name: demo-airflow-webserver
     ports:
@@ -199,6 +206,7 @@ services:
 
   # Airflow Scheduler
   airflow-scheduler:
+    restart: unless-stopped
     image: custom-airflow:2.9.2
     container_name: demo-airflow-scheduler
     env_file:

@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Menu, X } from 'lucide-react';
 import CatalogHistoryTimeline from './CatalogHistoryTimeline';
 import PipelineDataExplorer from './Pipelinedataexplorer';
 import UserManagement from './UserManagement';
 import UploadHistory from './UploadHistory';
 import Icon from '../components/icons';
-import { ConnChip, LakehouseMark } from '../components/ui';
+import { ConnChip } from '../components/ui';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const supersetUrl =
     import.meta.env.VITE_SUPERSET_DASHBOARD_URL ||
@@ -20,6 +22,10 @@ const AdminDashboard = () => {
     localStorage.removeItem('role');
     navigate('/login');
   };
+
+  const username = localStorage.getItem('username') || 'admin';
+  const role = localStorage.getItem('role') || 'admin';
+  const userInitial = username.trim().charAt(0).toUpperCase() || 'A';
 
   const NAV = [
     { key: 'dashboard', icon: 'grid', label: 'Báo cáo Tổng hợp', sub: 'Gold Layer' },
@@ -45,106 +51,197 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="flex h-screen bg-[#F5F6FA] font-sans text-ink-900">
-      {/* Sidebar */}
-      <div className="w-64 bg-slate-900 text-white flex flex-col shadow-2xl shrink-0 z-20 border-r border-slate-800">
-        <div className="h-20 flex items-center px-5 border-b border-slate-800 gap-3">
-          <div className="p-1.5 bg-white rounded-lg shrink-0 shadow-sm">
-            <img src="/CUSC Logo Series.png" alt="CUSC Logo" className="h-7 w-auto object-contain" />
-          </div>
-          <div>
-            <h1 className="text-[13px] font-bold text-white tracking-tight leading-tight mt-1">CUSC ANALYSIS PLATFORM</h1>
-            <p className="text-[9px] text-slate-400 font-medium">Trung tâm Công nghệ Thông tin - ĐHCT</p>
-          </div>
-        </div>
+    <div className="flex h-screen overflow-hidden bg-canvas font-sans text-ink-900">
+      {sidebarOpen && (
+        <button
+          type="button"
+          aria-label="Đóng menu quản trị"
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-30 bg-navy-950/45 md:hidden"
+        />
+      )}
 
-        <nav className="flex-1 px-3 py-5 space-y-1 overflow-y-auto">
-          <p className="px-3 text-[10px] font-data uppercase tracking-widest text-ink-400 mb-2">
-            Quản trị hệ thống
-          </p>
-          {NAV.map(({ key, icon, label, sub }) => {
-            const active = activeTab === key;
-            return (
-              <button
-                key={key}
-                onClick={() => setActiveTab(key)}
-                className={`w-full group flex items-center gap-3 py-2.5 px-3 rounded-xl text-sm transition relative ${
-                  active ? 'bg-white/[0.08] text-white' : 'text-ink-300 hover:bg-white/[0.05] hover:text-white'
-                }`}
-              >
-                {active && (
-                  <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-lake-400" />
-                )}
-                <span
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition ${
-                    active ? 'bg-lake-500/20 text-lake-300' : 'bg-white/[0.04] text-ink-400 group-hover:text-ink-200'
-                  }`}
-                >
-                  <Icon name={icon} className="w-4 h-4" />
-                </span>
-                <span className="flex flex-col items-start min-w-0">
-                  <span className="font-semibold truncate w-full text-left">{label}</span>
-                  <span className="text-[10.5px] text-ink-400 font-data truncate w-full text-left">{sub}</span>
-                </span>
-              </button>
-            );
-          })}
-        </nav>
-
-        <div className="p-4 border-t border-white/10">
-          <div className="flex items-center gap-3 mb-3 px-2">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-lake-400 to-lake-700 flex items-center justify-center font-bold text-sm shrink-0">
-              A
+      {/* Shared Admin Sidebar — desktop expanded, tablet icon rail, mobile drawer */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex w-[260px] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-navy-950 text-white shadow-[0_1px_8px_rgba(0,0,0,0.08)] transition-transform duration-300 md:static md:w-[72px] md:translate-x-0 lg:w-[260px] ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="flex h-[72px] shrink-0 items-center border-b border-white/10 px-3 lg:px-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm">
+              <img
+                src="/CUSC Logo Series.png"
+                alt="CUSC Logo"
+                style={{
+                  width: '46px',
+                  height: '28px',
+                  maxWidth: '46px',
+                  maxHeight: '28px',
+                  objectFit: 'contain',
+                }}
+              />
             </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold truncate">Ban Giám Hiệu</p>
-              <p className="text-[11px] text-ink-400 font-data">admin</p>
+
+            <div className="hidden min-w-0 lg:block">
+              <h1 className="truncate font-display text-[12px] font-extrabold leading-tight tracking-[-0.01em] text-white">
+                CUSC ANALYSIS PLATFORM
+              </h1>
+              <p className="mt-1 truncate text-[9px] font-medium text-navy-300">
+                Trung tâm Công nghệ Thông tin - ĐHCT
+              </p>
             </div>
           </div>
+
           <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 py-2.5 bg-white/[0.05] hover:bg-rose-500/90 text-ink-200 hover:text-white rounded-lg transition text-sm font-semibold"
+            type="button"
+            aria-label="Đóng thanh điều hướng"
+            onClick={() => setSidebarOpen(false)}
+            className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-lg text-navy-300 transition hover:bg-white/10 hover:text-white md:hidden"
           >
-            <Icon name="logOut" className="w-4 h-4" />
-            Đăng xuất
+            <X className="h-5 w-5" />
           </button>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 bg-white/80 backdrop-blur border-b border-ink-100 flex items-center justify-between px-8 shrink-0">
-          <div>
-            <h2 className="text-sm font-bold text-ink-900">{TAB_TITLES[activeTab]}</h2>
-            <p className="text-[12px] text-ink-400">{TAB_DESC[activeTab]}</p>
+        <nav className="flex-1 overflow-y-auto px-2 py-5 lg:px-3">
+          <p className="mb-2 hidden px-3 font-data text-[10px] font-semibold uppercase tracking-[0.14em] text-navy-400 lg:block">
+            Quản trị hệ thống
+          </p>
+
+          <div className="space-y-1.5">
+            {NAV.map(({ key, icon, label, sub }) => {
+              const active = activeTab === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setActiveTab(key)}
+                  aria-current={active ? 'page' : undefined}
+                  title={label}
+                  className={`group flex w-full items-center rounded-lg text-left transition-colors ${
+                    active
+                      ? 'bg-cobalt-600 text-white shadow-sm'
+                      : 'text-navy-200 hover:bg-white/[0.07] hover:text-white'
+                  } justify-center px-2 py-2.5 lg:justify-start lg:gap-3 lg:px-3`}
+                >
+                  <span
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                      active
+                        ? 'bg-white/15 text-white'
+                        : 'text-navy-300 group-hover:bg-white/[0.06] group-hover:text-white'
+                    }`}
+                  >
+                    <Icon name={icon} className="h-[18px] w-[18px]" />
+                  </span>
+
+                  <span className="hidden min-w-0 flex-1 lg:block">
+                    <span className="block truncate text-sm font-semibold">
+                      {label}
+                    </span>
+                    <span
+                      className={`mt-0.5 block truncate font-data text-[10px] ${
+                        active ? 'text-cobalt-100' : 'text-navy-400'
+                      }`}
+                    >
+                      {sub}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
-          <div className="flex items-center gap-2">
+        </nav>
+
+        <div className="shrink-0 border-t border-white/10 p-2 lg:p-3">
+          <div className="flex items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.04] p-2.5 lg:justify-start lg:gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cobalt-600 text-sm font-bold text-white">
+              {userInitial}
+            </div>
+
+            <div className="hidden min-w-0 flex-1 lg:block">
+              <p className="truncate text-xs font-semibold text-white">
+                {username}
+              </p>
+              <p className="mt-0.5 truncate font-data text-[9px] uppercase tracking-wide text-navy-400">
+                {role}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            title="Đăng xuất"
+            className="mt-2 flex w-full items-center justify-center rounded-lg border border-transparent px-2 py-2.5 text-navy-300 transition hover:border-rose-400/20 hover:bg-rose-500/90 hover:text-white lg:gap-2 lg:px-3"
+          >
+            <Icon name="logOut" className="h-4 w-4 shrink-0" />
+            <span className="hidden text-sm font-semibold lg:inline">Đăng xuất</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Shared Admin Workspace */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="z-20 shrink-0 border-b border-line bg-white/95 shadow-[0_1px_8px_rgba(15,23,42,0.03)] backdrop-blur">
+          <div className="flex min-h-16 items-center justify-between gap-3 px-4 sm:px-5 lg:px-6">
+            <div className="flex min-w-0 items-center gap-3">
+              <button
+                type="button"
+                aria-label="Mở menu quản trị"
+                onClick={() => setSidebarOpen(true)}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-line bg-white text-ink-600 shadow-sm transition hover:border-cobalt-200 hover:bg-cobalt-50 hover:text-cobalt-700 md:hidden"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+
+              <div className="min-w-0">
+                <h2 className="truncate font-display text-sm font-bold tracking-tight text-navy-950 sm:text-[15px]">
+                  {TAB_TITLES[activeTab]}
+                </h2>
+                <p className="mt-0.5 hidden truncate text-[11px] text-ink-500 sm:block">
+                  {TAB_DESC[activeTab]}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-2">
+              <div className="hidden items-center gap-1.5 xl:flex">
+                <ConnChip label="Nessie" />
+                <ConnChip label="Trino" />
+                <ConnChip label="MinIO" />
+                <ConnChip label="Superset" />
+              </div>
+
+              {activeTab === 'dashboard' && (
+                <a
+                  href={supersetUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-control border border-cobalt-200 bg-white px-3 text-xs font-semibold text-cobalt-700 shadow-sm transition hover:bg-cobalt-50"
+                >
+                  <span className="hidden sm:inline">Mở toàn màn hình</span>
+                  <Icon name="externalLink" className="h-3.5 w-3.5" />
+                </a>
+              )}
+            </div>
+          </div>
+
+          <div className="flex gap-1.5 overflow-x-auto border-t border-line/80 px-4 py-2 xl:hidden">
             <ConnChip label="Nessie" />
             <ConnChip label="Trino" />
             <ConnChip label="MinIO" />
             <ConnChip label="Superset" />
-            {activeTab === 'dashboard' && (
-              <a
-                href={supersetUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="ml-2 inline-flex items-center gap-1.5 text-xs font-semibold text-lake-700 bg-lake-50 hover:bg-lake-100 border border-lake-200 px-3 py-1.5 rounded-lg transition"
-              >
-                Mở toàn màn hình
-                <Icon name="externalLink" className="w-3.5 h-3.5" />
-              </a>
-            )}
           </div>
         </header>
 
-        <main className="flex-1 overflow-hidden p-6 bg-[#F5F6FA]">
-          <div className="bg-white rounded-2xl border border-ink-100 shadow-card h-full overflow-hidden flex flex-col">
-            <div className={`flex-1 overflow-auto ${activeTab === 'dashboard' ? 'overflow-hidden' : ''}`}>
+        <main className="min-h-0 flex-1 overflow-hidden bg-canvas p-3 sm:p-4 lg:p-5">
+          <div className="flex h-full min-w-0 flex-col overflow-hidden rounded-panel border border-line bg-white shadow-card">
+            <div className={`min-h-0 flex-1 overflow-auto ${activeTab === 'dashboard' ? 'overflow-hidden' : ''}`}>
               {activeTab === 'dashboard' && (
                 <iframe
                   src={supersetUrl}
                   title="Superset Dashboard"
-                  className="w-full h-full border-0"
+                  className="h-full w-full border-0"
                 />
               )}
               {activeTab === 'pipeline' && <PipelineDataExplorer />}

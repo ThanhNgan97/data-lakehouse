@@ -217,9 +217,9 @@ const AdminDashboard = () => {
                   href={supersetUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-control border border-cobalt-200 bg-white px-3 text-xs font-semibold text-cobalt-700 shadow-sm transition hover:bg-cobalt-50"
+                  className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-control border border-cobalt-200 bg-cobalt-50 px-3 text-xs font-semibold text-cobalt-700 shadow-sm transition hover:border-cobalt-300 hover:bg-cobalt-100"
                 >
-                  <span className="hidden sm:inline">Mở toàn màn hình</span>
+                  <span className="hidden sm:inline">Mở trong tab mới</span>
                   <Icon name="externalLink" className="h-3.5 w-3.5" />
                 </a>
               )}
@@ -235,14 +235,46 @@ const AdminDashboard = () => {
         </header>
 
         <main className="min-h-0 flex-1 overflow-hidden bg-canvas p-3 sm:p-4 lg:p-5">
-          <div className="flex h-full min-w-0 flex-col overflow-hidden rounded-panel border border-line bg-white shadow-card">
+          <div
+            className={
+              activeTab === 'dashboard'
+                ? 'flex h-full min-w-0 flex-col overflow-hidden'
+                : 'flex h-full min-w-0 flex-col overflow-hidden rounded-panel border border-line bg-white shadow-card'
+            }
+          >
             <div className={`min-h-0 flex-1 overflow-auto ${activeTab === 'dashboard' ? 'overflow-hidden' : ''}`}>
               {activeTab === 'dashboard' && (
-                <iframe
-                  src={supersetUrl}
-                  title="Superset Dashboard"
-                  className="h-full w-full border-0"
-                />
+                <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-panel border border-line bg-white shadow-card">
+                  <div className="flex shrink-0 flex-col gap-3 border-b border-ink-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-cobalt-100 bg-cobalt-50 text-cobalt-700">
+                        <Icon name="grid" className="h-4 w-4" />
+                      </span>
+
+                      <div className="min-w-0">
+                        <p className="font-data text-[10px] font-bold uppercase tracking-[0.12em] text-cobalt-700">
+                          Apache Superset
+                        </p>
+                        <p className="mt-0.5 truncate text-xs text-ink-500 sm:text-sm">
+                          Dashboard báo cáo được hiển thị trực tiếp trong hệ thống.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-2 text-[11px] text-ink-400">
+                      <span className="hidden sm:inline">Khung phân tích nhúng</span>
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    </div>
+                  </div>
+
+                  <div className="min-h-0 flex-1 bg-white">
+                    <iframe
+                      src={supersetUrl}
+                      title="Superset Dashboard"
+                      className="h-full min-h-[480px] w-full border-0 bg-white"
+                    />
+                  </div>
+                </section>
               )}
               {activeTab === 'pipeline' && <PipelineDataExplorer />}
               {activeTab === 'catalog' && <CatalogHistoryTimeline />}

@@ -2,11 +2,11 @@ services:
   # PostgreSQL + TimescaleDB
   postgres:
     restart: unless-stopped
-    image: timescale/timescaledb:latest-pg15
+    image: timescale/timescaledb@sha256:6343bdc87ca132c6b53acb26113a6bad1821d188fa39975a745f32ddd9757634
     container_name: demo-postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 240203
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
       POSTGRES_DB: university_db
     ports:
       - "5433:5432"
@@ -47,12 +47,12 @@ services:
   # MinIO
   minio:
     restart: unless-stopped
-    image: minio/minio:latest
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
     container_name: demo-minio
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -63,7 +63,7 @@ services:
 
   # Khởi tạo bucket
   minio-init:
-    image: minio/mc:latest
+    image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
     container_name: demo-minio-init
     depends_on:
       - minio
@@ -71,7 +71,7 @@ services:
       - lakehouse-network
     entrypoint: >
       /bin/sh -c "
-      until (/usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin); do
+      until (/usr/bin/mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_USER}); do
         echo 'Waiting for MinIO...';
         sleep 2;
       done;
@@ -86,6 +86,9 @@ services:
 
   # Trino
   trino:
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
     restart: unless-stopped
     image: trinodb/trino:435
     container_name: demo-trino
@@ -113,7 +116,7 @@ services:
       - QUARKUS_DATASOURCE_DB_KIND=postgresql
       - QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://postgres:5432/nessie_db
       - QUARKUS_DATASOURCE_USERNAME=postgres
-      - QUARKUS_DATASOURCE_PASSWORD=240203
+      - QUARKUS_DATASOURCE_PASSWORD=${PG_PASSWORD}
     depends_on:
       - postgres
     networks:
@@ -127,7 +130,7 @@ services:
     ports:
       - "8088:8088"
     environment:
-      SUPERSET_SECRET_KEY: university_lakehouse_secret_key
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY}
     user: "root"
     volumes:
       - superset_home:/app/superset_home
@@ -160,11 +163,11 @@ services:
     env_file:
       - .env
     environment:
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:240203@postgres:5432/airflow_db
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:${PG_PASSWORD}@postgres:5432/airflow_db
       _AIRFLOW_DB_UPGRADE: 'true'
       _AIRFLOW_WWW_USER_CREATE: 'true'
       _AIRFLOW_WWW_USER_USERNAME: airflow
-      _AIRFLOW_WWW_USER_PASSWORD: airflow
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
     command: version
     depends_on:
       - postgres
@@ -182,10 +185,10 @@ services:
       - .env
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:240203@postgres:5432/airflow_db
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:${PG_PASSWORD}@postgres:5432/airflow_db
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
-      AIRFLOW__WEBSERVER__SECRET_KEY: 'university_lakehouse_secret_key'
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_WEBSERVER_SECRET_KEY}
       AIRFLOW__WEBSERVER__WEB_SERVER_SESSION_LIFETIME: '604800'
       AIRFLOW__WEBSERVER__SESSION_COOKIE_SAMESITE: 'None'
       AIRFLOW__WEBSERVER__SESSION_COOKIE_SECURE: 'False'
@@ -213,7 +216,7 @@ services:
       - .env
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:240203@postgres:5432/airflow_db
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:${PG_PASSWORD}@postgres:5432/airflow_db
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
       MINIO_ENDPOINT: 'http://minio:9000'

@@ -1,4 +1,4 @@
-# Add this service under the existing top-level `services:` section
+﻿# Add this service under the existing top-level `services:` section
 # of your current Lakehouse docker-compose file.
 ctu-ioc-mock-api:
   build:
@@ -8,7 +8,7 @@ ctu-ioc-mock-api:
   ports:
     - "8090:8000"
   environment:
-    MOCK_API_KEY: ""
+    MOCK_API_KEY: ${MOCK_API_KEY}
   restart: unless-stopped
 
 # Other containers in the SAME Docker Compose network can call:

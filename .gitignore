@@ -12,4 +12,8 @@ __pycache__/
 !.vscode/settings.json
 .idea/
 
-metastore_db/
+metastore_db/
+
+# Local runtime/test artifacts
+*.log
+.pytest_cache/

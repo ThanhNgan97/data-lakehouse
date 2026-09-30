@@ -1,4 +1,4 @@
-services:
+﻿services:
   ctu-ioc-mock-api:
     build:
       context: .
@@ -9,5 +9,5 @@ services:
     environment:
       # Leave empty for local testing without authentication.
       # Set a value to require: Authorization: Bearer <value>
-      MOCK_API_KEY: ""
+      MOCK_API_KEY: ${MOCK_API_KEY}
     restart: unless-stopped

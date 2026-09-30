@@ -1,4 +1,4 @@
-﻿services:
+services:
 
   ctu-ioc-mock-api:
     build:
@@ -11,7 +11,7 @@
       - "8090:8000"
 
     environment:
-      MOCK_API_KEY: ""
+      MOCK_API_KEY: ${MOCK_API_KEY:-}
 
     restart: unless-stopped
 

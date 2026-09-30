@@ -1,4 +1,4 @@
-﻿param(
+param(
     [switch]$PreflightOnly
 )
 
@@ -92,6 +92,51 @@ if (-not $p) {
 Wait-HttpEndpoint `
     -Name "minio" `
     -Url "http://127.0.0.1:$p/minio/health/live"
+
+# Required MinIO bucket initialization gate
+$minioInitReady = $false
+
+for ($i = 1; $i -le 90; $i++) {
+    $idProbe = Invoke-ComposeCapture @(
+        "ps","-q","-a","minio-init"
+    )
+
+    $initId = @(
+        $idProbe.Lines | Where-Object { $_ }
+    ) | Select-Object -First 1
+
+    if ($initId) {
+        $state = @(
+            docker inspect `
+                --format '{{.State.Status}}|{{.State.ExitCode}}' `
+                $initId
+        ) | Select-Object -Last 1
+
+        if ($LASTEXITCODE -ne 0) {
+            throw "Unable to inspect minio-init."
+        }
+
+        $parts = "$state" -split '\|',2
+
+        if ($parts.Count -eq 2 -and $parts[0] -eq "exited") {
+            if ([int]$parts[1] -ne 0) {
+                throw "MinIO bucket initialization failed."
+            }
+
+            $minioInitReady = $true
+            break
+        }
+    }
+
+    Start-Sleep -Seconds 2
+}
+
+if (-not $minioInitReady) {
+    throw "MinIO bucket initialization timeout."
+}
+
+Write-Host "READY=minio-init"
+Write-Host "MINIO_BUCKET_READY=True"
 
 # Nessie
 $p = Get-ComposePort "nessie" 19120

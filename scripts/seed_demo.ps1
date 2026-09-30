@@ -1,4 +1,4 @@
-﻿param(
+param(
     [switch]$PreflightOnly
 )
 
@@ -135,12 +135,21 @@ foreach ($dataset in $datasets) {
         dataset_id = $dataset
     } | ConvertTo-Json -Compress
 
+    # Windows PowerShell 5.1 uses legacy native-command
+    # argument serialization. Preserve embedded JSON quotes
+    # when the value crosses powershell -> docker compose.
+    $confArg = $conf
+
+    if ($PSVersionTable.PSEdition -eq "Desktop") {
+        $confArg = $conf.Replace('"','\"')
+    }
+
     $trigger = Invoke-ComposeCapture @(
         "exec","-T","airflow-webserver",
         "airflow","dags","trigger",
         $dagId,
         "--run-id",$runId,
-        "--conf",$conf
+        "--conf",$confArg
     )
 
     if ($trigger.ExitCode -ne 0) {

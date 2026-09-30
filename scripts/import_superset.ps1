@@ -18,6 +18,13 @@ if (-not (Test-Path $exportZip)) {
     throw "Superset export artifact is missing: $exportZip"
 }
 
+if ($PreflightOnly) {
+    Write-Host "SUPERSET_EXPORT_ARTIFACT_PRESENT=True"
+    Write-Host "SUPERSET_IMPORT_CLI_CHECK=DEFERRED_UNTIL_SERVICE_START"
+    Write-Host "SUPERSET_IMPORT_PREFLIGHT=PASS"
+    exit 0
+}
+
 $supersetCid = Assert-ServiceRunning "superset"
 
 $help = Invoke-ComposeCapture @(
@@ -38,10 +45,6 @@ if ($helpText -notmatch '(?m)(-p|--path)') {
 Write-Host "SUPERSET_IMPORT_CLI_AVAILABLE=True"
 Write-Host "SUPERSET_EXPORT_ARTIFACT_PRESENT=True"
 
-if ($PreflightOnly) {
-    Write-Host "SUPERSET_IMPORT_PREFLIGHT=PASS"
-    exit 0
-}
 
 $containerZip = "/tmp/team_superset_import.zip"
 

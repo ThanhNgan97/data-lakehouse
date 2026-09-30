@@ -402,6 +402,11 @@ def run_teaching_progress_gold(
             branch_name,
         )
 
+        # A fresh Nessie catalog has no Gold namespace yet.
+        # Create it on the isolated dataset branch before the first Gold table write.
+        spark.sql("CREATE NAMESPACE IF NOT EXISTS lakehouse.gold")
+        print("GOLD_NAMESPACE_READY=lakehouse.gold")
+
         print("=== WRITE TEACHING GOLD ON BRANCH ===")
         write_gold_full_recompute(
             gold_df

@@ -1,10 +1,16 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $script:RepoRoot = Split-Path -Parent $PSScriptRoot
 
+$script:ComposeProjectName = $env:LAKEHOUSE_COMPOSE_PROJECT_NAME
+
+if ([string]::IsNullOrWhiteSpace($script:ComposeProjectName)) {
+    $script:ComposeProjectName = "newdirection"
+}
+
 $script:ComposeArgs = @(
-    "-p","newdirection",
+    "-p",$script:ComposeProjectName,
     "-f",(Join-Path $script:RepoRoot "docker-compose.yml"),
     "-f",(Join-Path $script:RepoRoot "docker-compose.mock-api.yml")
 )

@@ -81,6 +81,16 @@ if (
     throw "Airflow DAG trigger CLI does not expose --conf."
 }
 
+$unpauseHelp = Invoke-ComposeCapture @(
+    "exec","-T","airflow-webserver",
+    "airflow","dags","unpause","--help"
+)
+
+if ($unpauseHelp.ExitCode -ne 0) {
+    throw "Airflow DAG unpause CLI is unavailable."
+}
+
+Write-Host "SEED_DAG_UNPAUSE_CLI=PASS"
 Write-Host "SEED_DAG=$dagId"
 
 foreach ($dataset in $datasets) {
@@ -92,6 +102,56 @@ if ($PreflightOnly) {
     Write-Host "SEED_DEMO_PREFLIGHT=PASS"
     exit 0
 }
+
+# A clean Airflow metadata database may create DAGs paused.
+# Seed owns making only its target DAG runnable; do not
+# change the global dags_are_paused_at_creation setting.
+$unpause = Invoke-ComposeCapture @(
+    "exec","-T","airflow-webserver",
+    "airflow","dags","unpause",$dagId
+)
+
+if ($unpause.ExitCode -ne 0) {
+    foreach ($line in $unpause.Lines) {
+        Write-Host $line
+    }
+
+    throw "Unable to unpause seed DAG: $dagId"
+}
+
+$dagStateResult = Invoke-ComposeCapture @(
+    "exec","-T","airflow-webserver",
+    "airflow","dags","list",
+    "--output","json"
+)
+
+if ($dagStateResult.ExitCode -ne 0) {
+    throw "Unable to verify DAG state after unpause."
+}
+
+$dagStateRows = @(Get-JsonPayload $dagStateResult.Lines)
+
+$targetDagState = @(
+    $dagStateRows |
+        Where-Object { $_.dag_id -eq $dagId }
+) | Select-Object -First 1
+
+if (-not $targetDagState) {
+    throw "Seed DAG disappeared after unpause: $dagId"
+}
+
+if (
+    $targetDagState.PSObject.Properties.Name -notcontains "is_paused"
+) {
+    throw "Unable to verify is_paused for seed DAG."
+}
+
+if ("$($targetDagState.is_paused)" -match '^(?i:true)$') {
+    throw "Seed DAG remains paused after unpause: $dagId"
+}
+
+Write-Host "SEED_DAG_UNPAUSED=$dagId"
+Write-Host "SEED_DAG_RUNNABLE=True"
 
 function Get-DagRunState {
     param(

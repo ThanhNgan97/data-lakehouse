@@ -25,7 +25,7 @@ function Assert-Tool {
 
 function Test-DockerEngine {
     cmd /c "docker info >nul 2>nul"
-    return ($LASTEXITCODE -eq 0)
+    return $?
 }
 
 function Import-RootDotEnv {

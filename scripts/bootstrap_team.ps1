@@ -38,6 +38,99 @@ Write-Host "TOOLS=PASS"
 Write-Host "ENV=PASS"
 Write-Host "COMPOSE_PARSE=PASS"
 
+# --------------------------------------------------
+# MinIO host-port ownership preflight
+# --------------------------------------------------
+
+$minioRuntimeConflicts = @()
+
+foreach ($hostPort in @(9000, 9001)) {
+
+    $containerIds = @(
+        & docker ps `
+            --filter "publish=$hostPort" `
+            --format "{{.ID}}"
+    )
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to inspect host port $hostPort."
+    }
+
+    $containerIds = @(
+        $containerIds |
+            Where-Object {
+                -not [string]::IsNullOrWhiteSpace($_)
+            }
+    )
+
+    foreach ($containerId in $containerIds) {
+
+        $inspectJson = @(
+            & docker inspect $containerId
+        )
+
+        if ($LASTEXITCODE -ne 0) {
+            throw "Unable to inspect container $containerId."
+        }
+
+        $container = @(
+            $inspectJson |
+                ConvertFrom-Json
+        )[0]
+
+        $actualProject = $null
+        $actualService = $null
+
+        if ($null -ne $container.Config.Labels) {
+            $actualProject =
+                $container.Config.Labels.'com.docker.compose.project'
+
+            $actualService =
+                $container.Config.Labels.'com.docker.compose.service'
+        }
+
+        $actualName =
+            $container.Name.TrimStart("/")
+
+        if (
+            $actualProject -ne $script:ComposeProjectName -or
+            $actualService -ne "minio"
+        ) {
+            $minioRuntimeConflicts += [PSCustomObject]@{
+                Port    = $hostPort
+                Name    = $actualName
+                Project = $actualProject
+                Service = $actualService
+            }
+        }
+    }
+}
+
+if ($minioRuntimeConflicts.Count -gt 0) {
+
+    Write-Host ""
+    Write-Host "MINIO_RUNTIME_PREFLIGHT=FAIL"
+    Write-Host "EXPECTED_PROJECT=$($script:ComposeProjectName)"
+    Write-Host "EXPECTED_SERVICE=minio"
+
+    foreach ($conflict in $minioRuntimeConflicts) {
+
+        Write-Host (
+            "MINIO_PORT_CONFLICT=" +
+            "PORT=$($conflict.Port)|" +
+            "NAME=$($conflict.Name)|" +
+            "PROJECT=$($conflict.Project)|" +
+            "SERVICE=$($conflict.Service)"
+        )
+    }
+
+    Write-Host "NO_CONTAINER_STOPPED_AUTOMATICALLY=True"
+
+    throw "MinIO host port is owned by another runtime."
+}
+
+Write-Host "MINIO_RUNTIME_PREFLIGHT=PASS"
+
 & "$PSScriptRoot\import_superset.ps1" -PreflightOnly
 
 if ($LASTEXITCODE -ne 0) {

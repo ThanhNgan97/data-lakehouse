@@ -31,6 +31,82 @@ foreach ($service in $requiredServices) {
 }
 
 # --------------------------------------------------
+# MinIO runtime ownership
+# --------------------------------------------------
+
+foreach ($hostPort in @(9000, 9001)) {
+
+    $ownerIds = @(
+        & docker ps `
+            --filter "publish=$hostPort" `
+            --format "{{.ID}}"
+    )
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to inspect MinIO host port $hostPort."
+    }
+
+    $ownerIds = @(
+        $ownerIds |
+            Where-Object {
+                -not [string]::IsNullOrWhiteSpace($_)
+            }
+    )
+
+    if ($ownerIds.Count -ne 1) {
+        throw "Expected exactly one owner for MinIO host port $hostPort."
+    }
+
+    $ownerJson = @(
+        & docker inspect $ownerIds[0]
+    )
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to inspect MinIO port owner."
+    }
+
+    $owner = @(
+        $ownerJson |
+            ConvertFrom-Json
+    )[0]
+
+    $ownerProject = $null
+    $ownerService = $null
+
+    if ($null -ne $owner.Config.Labels) {
+        $ownerProject =
+            $owner.Config.Labels.'com.docker.compose.project'
+
+        $ownerService =
+            $owner.Config.Labels.'com.docker.compose.service'
+    }
+
+    $ownerName =
+        $owner.Name.TrimStart("/")
+
+    if (
+        $ownerProject -ne $script:ComposeProjectName -or
+        $ownerService -ne "minio"
+    ) {
+        throw (
+            "Wrong MinIO runtime owner on port $hostPort. " +
+            "Expected project=$($script:ComposeProjectName),service=minio; " +
+            "actual project=$ownerProject,service=$ownerService,name=$ownerName"
+        )
+    }
+
+    Write-Host (
+        "MINIO_PORT_OWNER_PASS=" +
+        "PORT=$hostPort|" +
+        "PROJECT=$ownerProject|" +
+        "SERVICE=$ownerService|" +
+        "NAME=$ownerName"
+    )
+}
+
+Write-Host "MINIO_RUNTIME_OWNERSHIP=PASS"
+
+# --------------------------------------------------
 # HTTP readiness
 # --------------------------------------------------
 

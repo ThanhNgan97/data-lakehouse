@@ -47,7 +47,7 @@ services:
   # MinIO
   minio:
     restart: unless-stopped
-    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    image: ghcr.io/thanhngan97/lakehouse-minio@sha256:a1a8bd4ac40ad7881a245bab97323e18f971e4d4cba2c2007ec1bedd21cbaba2
     container_name: demo-minio
     command: server /data --console-address ":9001"
     environment:
@@ -63,7 +63,7 @@ services:
 
   # Khởi tạo bucket
   minio-init:
-    image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
+    image: ghcr.io/thanhngan97/lakehouse-mc@sha256:eb4ea9884b77704230e2423e9004d2fa738dc272876b9cc41a297d29443b8780
     container_name: demo-minio-init
     depends_on:
       - minio

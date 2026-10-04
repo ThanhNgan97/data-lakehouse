@@ -1,0 +1,19 @@
+﻿Capability,Status,Shared component,Teaching-specific configuration/policy,Evidence summary
+HTTP transport,REUSED,HttpAdapter,endpoint only,Same adapter; final HTTP/contract regression PASS
+Pagination,REUSED,HttpAdapter,none,30 rows fetched across paginated requests
+API ingestion,REUSED,api_ingestion.py,dataset registry entry,Teaching source -> generic ingestion PASS
+Bronze writer,REUSED,bronze_writer.py,bronze prefix,30-row readback PASS
+Technical metadata,REUSED,generic ingestion,none,9/9 metadata fields
+Checksum,REUSED,generic ingestion,source field contract,0 stability errors; source change changed 30/30 checksums
+Source-native Bronze,REUSED INVARIANT,generic ingestion,8 Teaching source fields,0 canonical fields before mapping
+Mapping boundary,REUSED BOUNDARY,dataset wrapper pattern,Teaching source_to_canonical,mapping occurs after Bronze
+DQ execution,REUSED,generic_silver_quality.py,7 Teaching demo rules,DQ scenario routes 1 invalid row
+Quarantine,REUSED,generic_silver_quarantine.py,Teaching key/output schema,conflict=2; DQ=1 on isolated branches
+Dedup,REUSED,generic_silver_dedup.py,Teaching business key,30 baseline winners; scenario behavior PASS
+Conflict,REUSED,generic_silver_conflict.py,Teaching business key,whole-key equal-timestamp conflict PASS
+Classifier,REUSED / MINIMAL EXTENSION,generic_silver_classifier.py,delete_field=None,Learning frozen; Teaching no-delete PASS
+MERGE,REUSED / MINIMAL EXTENSION,generic_silver_merge.py,delete_field=None,new insert/update/idempotency PASS
+Nessie helpers,REUSED,nessie_catalog_utils.py,Teaching wrapper orchestration,protected helper unchanged
+Lifecycle orchestration,WRAPPER RETAINED,shared Nessie helpers,Teaching wrapper,no generic orchestration framework added
+Gold,NOT IMPLEMENTED,,,out of Day 6 scope
+Dashboard,NOT IMPLEMENTED,,,out of Day 6 scope

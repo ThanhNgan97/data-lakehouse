@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CTU IOC Teaching Progress API - DEMO / ASSUMED Contract",
+  "description": "Second-dataset platform-reuse test contract. NOT VERIFIED CTU IOC PRODUCTION CONTRACT.",
+  "type": "object",
+  "required": [
+    "source_system",
+    "dataset",
+    "schema_version",
+    "generated_at",
+    "data"
+  ],
+  "properties": {
+    "source_system": {
+      "type": "string"
+    },
+    "dataset": {
+      "const": "education.teaching_progress"
+    },
+    "schema_version": {
+      "const": "1.0-demo"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "data_as_of": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "record_id",
+          "unit_code",
+          "unit_name",
+          "course_section_code",
+          "academic_year",
+          "semester",
+          "progress_percent",
+          "updated_at"
+        ],
+        "properties": {
+          "record_id": {
+            "type": "string"
+          },
+          "unit_code": {
+            "type": "string"
+          },
+          "unit_name": {
+            "type": "string"
+          },
+          "course_section_code": {
+            "type": "string"
+          },
+          "academic_year": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{4}$"
+          },
+          "semester": {
+            "type": "integer"
+          },
+          "progress_percent": {
+            "type": "number"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "pagination": {
+      "type": "object",
+      "properties": {
+        "returned_records": {
+          "type": "integer"
+        },
+        "has_more": {
+          "type": "boolean"
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "returned_records",
+        "has_more",
+        "next_cursor"
+      ],
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

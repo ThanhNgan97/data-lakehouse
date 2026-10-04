@@ -1,0 +1,11 @@
+﻿check,superset_value,trino_or_expected_value,mismatch,status
+total Gold rows,30,30,0,PASS
+SUM(so_ban_ghi_theo_doi),30,30,0,PASS
+representative row 1,DEMO-TP-U01-C01|2024-2025|2|71.000000,DEMO-TP-U01-C01|2024-2025|2|71.000000,0,PASS
+representative row 2,DEMO-TP-U01-C01|2025-2026|1|74.000000,DEMO-TP-U01-C01|2025-2026|1|74.000000,0,PASS
+representative row 3,DEMO-TP-U01-C02|2024-2025|2|72.000000,DEMO-TP-U01-C02|2024-2025|2|72.000000,0,PASS
+clear filters,30,30,0,PASS
+single year filter,15,>0,0,PASS
+combined filters,1,1,0,PASS
+no-result filter,0,0,0,PASS
+unsupported business token hits,[],[],0,PASS

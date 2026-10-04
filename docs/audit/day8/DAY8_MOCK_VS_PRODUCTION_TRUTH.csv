@@ -1,0 +1,12 @@
+﻿ITEM,CURRENT STATUS,EVIDENCE,CAN CLAIM?,NEEDS CTU IOC CONFIRMATION?,NOTES
+HttpAdapter / HTTP ingestion mechanics,VERIFIED PLATFORM BEHAVIOR,Automated transport/contract regression and Day 8 static audit,YES,NO,Verified against deterministic mock contracts; production transport behavior still requires external validation.
+Source-native Bronze + technical metadata,VERIFIED PLATFORM BEHAVIOR,"Learning/Teaching final Bronze readback: 30 rows each, dataset/batch/checksum metadata validated",YES,NO,Reusable platform behavior.
+Dataset Registry + mapping seam,VERIFIED PLATFORM BEHAVIOR,Generic-boundary audit and two-dataset runtime,YES,NO,Routing/config seam proven.
+Generic Silver mechanics,VERIFIED PLATFORM BEHAVIOR,Full regression and both E2E runs,YES,NO,Reusable mechanics; dataset rules remain separate.
+Learning API contract,MOCK CONTRACT,Current endpoint/schema is deterministic project mock,DEMO ONLY,YES,Do not claim real CTU IOC field names or production semantics.
+Teaching API contract 1.0-demo,MOCK CONTRACT / NOT VERIFIED PRODUCTION,Mock source explicitly identifies schema 1.0-demo,DEMO ONLY,YES,Explicit demo/assumed contract.
+Teaching DQ/business semantics,ASSUMED DEMO POLICY,Current Teaching Silver/Gold rules and dashboard semantics,DEMO ONLY,YES,Requires CTU IOC business-owner confirmation.
+Real API authentication,NEEDS CTU IOC CONFIRMATION,No authoritative production auth contract available,NO,YES,"Need method, token lifecycle, headers and secret-management expectations."
+Real API pagination,NEEDS CTU IOC CONFIRMATION,Current cursor pagination is platform-tested only against mock behavior,NO,YES,Need real cursor/offset/page semantics.
+Real API rate limits / retry guidance,NEEDS CTU IOC CONFIRMATION,No specialized 429/Retry-After/backoff implementation found,NO,YES,Need official provider policy before adding retries.
+Production API integration complete,NOT VERIFIED PRODUCTION,No controlled run against real CTU IOC endpoint/contract,NO,YES,Forbidden claim until external contract and validation are complete.

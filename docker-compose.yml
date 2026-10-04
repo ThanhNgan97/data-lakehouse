@@ -1,11 +1,12 @@
 services:
   # PostgreSQL + TimescaleDB
   postgres:
-    image: timescale/timescaledb:latest-pg15
+    restart: unless-stopped
+    image: timescale/timescaledb@sha256:6343bdc87ca132c6b53acb26113a6bad1821d188fa39975a745f32ddd9757634
     container_name: demo-postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 240203
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
       POSTGRES_DB: university_db
     ports:
       - "5433:5432"
@@ -47,6 +48,7 @@ services:
 
   # Kafka
   kafka:
+    restart: unless-stopped
     image: apache/kafka:4.1.1
     container_name: demo-kafka
     hostname: kafka
@@ -74,12 +76,13 @@ services:
 
   # MinIO
   minio:
-    image: minio/minio:latest
+    restart: "no"
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
     container_name: demo-minio
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -90,29 +93,46 @@ services:
 
   # Khởi tạo bucket
   minio-init:
-    image: minio/mc:latest
+    image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
     container_name: demo-minio-init
     depends_on:
       - minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-university-lakehouse}
     networks:
       - lakehouse-network
     entrypoint: >
       /bin/sh -c "
-      until (/usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin); do
+      set -e;
+      attempt=0;
+      until (/usr/bin/mc alias set myminio http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_SECRET_KEY}"); do
+        attempt=$$((attempt + 1));
+        if [ "$$attempt" -ge 60 ]; then
+          echo 'MinIO alias initialization failed' >&2;
+          exit 1;
+        fi;
         echo 'Waiting for MinIO...';
         sleep 2;
       done;
-      if ! /usr/bin/mc ls myminio/university-lakehouse > /dev/null 2>&1; then
-        /usr/bin/mc mb myminio/university-lakehouse;
+      if ! /usr/bin/mc stat "myminio/$${MINIO_BUCKET_NAME}" > /dev/null 2>&1; then
+        /usr/bin/mc mb "myminio/$${MINIO_BUCKET_NAME}";
         echo 'Bucket initialized';
       else
         echo 'Bucket already exists';
       fi;
+      /usr/bin/mc stat "myminio/$${MINIO_BUCKET_NAME}" > /dev/null;
+      echo 'Bucket ready';
       exit 0;
       "
 
   # Trino
   trino:
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+    restart: unless-stopped
     image: trinodb/trino:435
     container_name: demo-trino
     ports:
@@ -128,6 +148,7 @@ services:
 # Thêm Project Nessie (Iceberg Catalog)
 # Thêm Project Nessie (Iceberg Catalog)
   nessie:
+    restart: unless-stopped
     image: ghcr.io/projectnessie/nessie:0.104.5  # <-- Đã thêm ghcr.io/ vào đây
     container_name: demo-nessie
     ports:
@@ -138,7 +159,7 @@ services:
       - QUARKUS_DATASOURCE_DB_KIND=postgresql
       - QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://postgres:5432/nessie_db
       - QUARKUS_DATASOURCE_USERNAME=postgres
-      - QUARKUS_DATASOURCE_PASSWORD=240203
+      - QUARKUS_DATASOURCE_PASSWORD=${PG_PASSWORD}
     depends_on:
       postgres:
         condition: service_healthy
@@ -148,12 +169,13 @@ services:
 
   # Apache Superset
   superset:
+    restart: unless-stopped
     image: apache/superset:3.1.0
     container_name: demo-superset
     ports:
       - "8088:8088"
     environment:
-      SUPERSET_SECRET_KEY: university_lakehouse_secret_key
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY}
     user: "root"
     volumes:
       - superset_home:/app/superset_home
@@ -186,11 +208,12 @@ services:
     env_file:
       - .env
     environment:
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:240203@postgres:5432/airflow_db
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:${PG_PASSWORD}@postgres:5432/airflow_db
       _AIRFLOW_DB_UPGRADE: 'true'
       _AIRFLOW_WWW_USER_CREATE: 'true'
       _AIRFLOW_WWW_USER_USERNAME: airflow
-      _AIRFLOW_WWW_USER_PASSWORD: airflow
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
+    command: version
     depends_on:
       - postgres
     networks:
@@ -198,6 +221,7 @@ services:
 
   # Airflow Webserver
   airflow-webserver:
+    restart: unless-stopped
     image: custom-airflow:2.9.2
     container_name: demo-airflow-webserver
     ports:
@@ -206,10 +230,10 @@ services:
       - .env
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:240203@postgres:5432/airflow_db
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:${PG_PASSWORD}@postgres:5432/airflow_db
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
-      AIRFLOW__WEBSERVER__SECRET_KEY: 'university_lakehouse_secret_key'
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_WEBSERVER_SECRET_KEY}
       AIRFLOW__WEBSERVER__WEB_SERVER_SESSION_LIFETIME: '604800'
       AIRFLOW__WEBSERVER__SESSION_COOKIE_SAMESITE: 'None'
       AIRFLOW__WEBSERVER__SESSION_COOKIE_SECURE: 'False'
@@ -221,20 +245,23 @@ services:
       - ./.env:/opt/airflow/.env
     command: webserver
     depends_on:
-      - postgres
-      - airflow-init
+      postgres:
+        condition: service_started
+      airflow-init:
+        condition: service_completed_successfully
     networks:
       - lakehouse-network
 
   # Airflow Scheduler
   airflow-scheduler:
+    restart: unless-stopped
     image: custom-airflow:2.9.2
     container_name: demo-airflow-scheduler
     env_file:
       - .env
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:240203@postgres:5432/airflow_db
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:${PG_PASSWORD}@postgres:5432/airflow_db
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
       AIRFLOW__WEBSERVER__SECRET_KEY: 'university_lakehouse_secret_key'
@@ -246,8 +273,10 @@ services:
       - ./.env:/opt/airflow/.env
     command: scheduler
     depends_on:
-      - postgres
-      - airflow-init
+      postgres:
+        condition: service_started
+      airflow-init:
+        condition: service_completed_successfully
     networks:
       - lakehouse-network
 

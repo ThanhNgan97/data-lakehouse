@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Icon from "../components/icons";
 import { Badge, Card, LakehouseMark } from "../components/ui";
-import { SUPERSET_DASHBOARD_URL } from "../config/appConfig";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
-const supersetUrl = SUPERSET_DASHBOARD_URL;
+const supersetUrl =
+  import.meta.env.VITE_SUPERSET_DASHBOARD_URL ||
+  "http://localhost:8088/superset/dashboard/1/?standalone=3";
 const authHeader = () => ({
   Authorization: `Bearer ${localStorage.getItem("token")}`,
 });
@@ -202,50 +203,38 @@ const UserUpload = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
-      <header className="bg-white border-b border-slate-200 px-6 md:px-8 py-3.5 flex justify-between items-center sticky top-0 z-50 shadow-sm">
-        <div className="flex items-center gap-3">
+      <header className="bg-white border-b border-slate-200 px-4 sm:px-6 md:px-8 py-3.5 flex justify-between items-center sticky top-0 z-50 shadow-sm">
+        <div className="flex items-center gap-3 min-w-0">
           <img
             src="/CUSC Logo Series.png"
             alt="CUSC Logo"
-            className="h-10 w-auto object-contain"
+            className="h-10 w-auto object-contain shrink-0"
           />
-          <div>
-            <h1 className="text-base md:text-lg font-bold text-slate-900 leading-tight tracking-tight">
+          <div className="min-w-0">
+            <h1 className="text-sm sm:text-base md:text-lg font-bold text-slate-900 leading-tight tracking-tight truncate">
               CUSC ANALYSIS PLATFORM
             </h1>
-            <p className="text-[11px] md:text-xs text-slate-500 font-medium">
+            <p className="text-[10px] sm:text-[11px] md:text-xs text-slate-500 font-medium truncate">
               Trung tâm Công nghệ Thông tin - Đại học Cần Thơ
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate("/user/connectors")}
-            className="flex items-center gap-2 px-3.5 py-2 bg-lake-50 hover:bg-lake-100 text-lake-700 border border-lake-200 rounded-lg text-sm font-semibold transition"
-            title="Quản lý các MySQL Connector của tôi"
-          >
-            <Icon name="layers" className="w-4 h-4" />
-            <span className="hidden sm:inline">Nguồn dữ liệu MySQL của tôi</span>
-            <span className="sm:hidden">MySQL</span>
-          </button>
-
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 bg-ink-900 hover:bg-rose-600 text-white rounded-lg text-sm font-semibold transition"
-          >
-            <Icon name="logOut" className="w-4 h-4" />
-            <span className="hidden sm:inline">Đăng xuất</span>
-          </button>
-        </div>
+        <button
+          onClick={handleLogout}
+          className="flex shrink-0 items-center gap-2 px-3 sm:px-4 py-2 bg-ink-900 hover:bg-rose-600 text-white rounded-lg text-xs sm:text-sm font-semibold transition"
+        >
+          <Icon name="logOut" className="w-4 h-4" />
+          Đăng xuất
+        </button>
       </header>
 
-      <main className="flex-1 w-full max-w-[1400px] mx-auto p-4 md:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
-        {/* CỘT TRÁI (Upload & Pipeline) */}
-        <div className="lg:col-span-4 flex flex-col gap-6">
+      <main className="flex-1 w-full max-w-[1480px] mx-auto p-4 md:p-6 lg:p-8 space-y-7 lg:space-y-8">
+        {/* ROW 1 — Upload + History */}
+        <section className="grid grid-cols-1 xl:grid-cols-12 items-stretch gap-5 lg:gap-6 xl:h-[430px] 2xl:h-[450px]">
           {/* 1. Upload Card */}
-          <Card className="p-6">
-            <div className="mb-5">
-              <p className="font-data text-[11px] uppercase tracking-widest text-lake-600 font-semibold mb-1">
+          <Card className="xl:col-span-5 h-full p-5 sm:p-6 flex flex-col">
+            <div className="mb-3 shrink-0">
+              <p className="font-data text-[10px] uppercase tracking-[0.14em] text-lake-600 font-semibold mb-1">
                 Bước 1
               </p>
               <h2 className="text-lg font-bold text-ink-900">
@@ -260,7 +249,7 @@ const UserUpload = () => {
               type="file"
               ref={fileInputRef}
               onChange={(e) => processFile(e.target.files[0])}
-              accept=".pdf,.docx,.ppt,.pptx"
+              accept=".pdf,.docx"
               className="hidden"
             />
 
@@ -269,32 +258,38 @@ const UserUpload = () => {
               onDragOver={onDragOver}
               onDragLeave={onDragLeave}
               onDrop={onDrop}
-              className={`relative overflow-hidden border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-300 flex flex-col items-center justify-center group ${
+              className={`relative min-h-[190px] flex-1 overflow-hidden rounded-[22px] border-2 border-dashed px-5 py-6 text-center transition-all duration-300 flex flex-col items-center justify-center group ${
                 uploading
                   ? "cursor-wait opacity-90 bg-ink-50 border-ink-200"
-                  : "cursor-pointer border-lake-200 hover:border-lake-400 hover:bg-lake-50/50"
-              } ${isDragging ? "border-lake-500 bg-lake-50 scale-[1.02]" : ""}`}
+                  : "cursor-pointer border-cobalt-200 bg-ink-50/40 hover:border-cobalt-300 hover:bg-cobalt-50/40"
+              } ${isDragging ? "border-cobalt-500 bg-cobalt-50 scale-[1.01]" : ""}`}
             >
               <div
-                className={`w-14 h-14 mb-3 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                className={`w-12 h-12 mb-3 rounded-2xl flex items-center justify-center transition-all duration-300 ${
                   isDragging
-                    ? "bg-lake-500 text-white scale-110"
-                    : "bg-lake-50 text-lake-600 group-hover:scale-110 group-hover:bg-lake-500 group-hover:text-white"
+                    ? "bg-cobalt-600 text-white scale-110"
+                    : "bg-cobalt-50 text-cobalt-600 group-hover:scale-105"
                 }`}
               >
                 <Icon
                   name={uploading ? "clock" : "uploadCloud"}
-                  className="w-6 h-6"
+                  className="w-5 h-5"
                 />
               </div>
-              <p className="text-sm font-semibold text-ink-800">
+              <p className="text-sm font-semibold text-ink-900">
                 {uploading
                   ? "Đang tải lên và xử lý..."
                   : "Kéo thả file hoặc bấm để chọn"}
               </p>
-              <p className="text-[11px] text-ink-400 mt-1.5 font-data">
-                Hỗ trợ định dạng: PDF, DOCX, PPT, PPTX
+              <p className="mt-1 text-[11px] text-ink-400 font-data">
+                Hỗ trợ định dạng: PDF, DOCX
               </p>
+              {!uploading && (
+                <span className="mt-4 inline-flex h-9 items-center justify-center rounded-control bg-cobalt-600 px-4 text-xs font-semibold text-white shadow-sm transition group-hover:bg-cobalt-700">
+                  <span className="mr-1.5 text-base leading-none">+</span>
+                  Chọn tệp từ máy tính
+                </span>
+              )}
 
               {uploading && uploadProgress > 0 && (
                 <div
@@ -321,120 +316,10 @@ const UserUpload = () => {
             )}
           </Card>
 
-          {/* 2. Pipeline Status (Vertical Stepper) */}
-          {activePipeline && (
-            <Card className="p-6 flex-1">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <p className="font-data text-[11px] uppercase tracking-widest text-lake-600 font-semibold mb-1">
-                    Bước 2
-                  </p>
-                  <h3 className="text-base font-bold text-ink-900">
-                    Tiến trình Pipeline
-                  </h3>
-                  <p className="text-xs text-ink-400 mt-0.5">
-                    Airflow Orchestration
-                  </p>
-                </div>
-                {activePipeline.dag_run_id && (
-                  <span
-                    className="text-[10px] font-data px-2 py-1 bg-ink-50 text-ink-500 rounded border border-ink-100"
-                    title={activePipeline.dag_run_id}
-                  >
-                    ID: {activePipeline.dag_run_id.slice(0, 8)}...
-                  </span>
-                )}
-              </div>
-
-              <div className="relative pl-5 border-l-2 border-ink-100 space-y-6 ml-2">
-                {PIPELINE_TASKS.map((pt) => {
-                  const t = activePipeline.tasks?.find(
-                    (x) => x.task_id === pt.id,
-                  );
-                  const state = t?.state || "pending";
-
-                  let dotClass = "bg-ink-200 border-ink-100";
-                  let stateText = "Đang đợi";
-                  let icon = "clock";
-                  let textColor = "text-ink-400";
-                  let cardBorder = "border-ink-100";
-                  let cardBg = "";
-
-                  if (state === "success") {
-                    dotClass = `${pt.dot} border-white shadow-[0_0_0_3px_rgba(16,185,129,0.15)]`;
-                    stateText = "Thành công";
-                    icon = "checkCircle";
-                    textColor = "text-emerald-700";
-                    cardBorder = "border-emerald-100";
-                  } else if (state === "running") {
-                    dotClass = `${pt.dot} border-white animate-pulse shadow-[0_0_0_3px_rgba(15,151,168,0.2)]`;
-                    stateText = "Đang xử lý...";
-                    icon = "activity";
-                    textColor = "text-lake-700";
-                    cardBorder = "border-lake-200";
-                    cardBg = "bg-lake-50/50";
-                  } else if (state === "failed") {
-                    dotClass =
-                      "bg-rose-500 border-white shadow-[0_0_0_3px_rgba(244,63,94,0.15)]";
-                    stateText = "Lỗi";
-                    icon = "alertTriangle";
-                    textColor = "text-rose-700";
-                    cardBorder = "border-rose-200";
-                  }
-
-                  return (
-                    <div key={pt.id} className="relative">
-                      <div
-                        className={`absolute -left-[27px] top-2 w-3.5 h-3.5 rounded-full border-2 ${dotClass} z-10 transition-colors duration-300`}
-                      />
-                      <div
-                        className={`rounded-xl p-3 border ${cardBorder} ${cardBg} transition-all duration-300`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p
-                              className={`font-semibold text-sm ${state === "pending" ? "text-ink-400" : "text-ink-800"}`}
-                            >
-                              {pt.label}{" "}
-                              <span className="text-ink-300 font-data text-[11px] font-normal">
-                                · {pt.sub}
-                              </span>
-                            </p>
-                          </div>
-                          <Icon
-                            name={icon}
-                            className={`w-4 h-4 ${textColor}`}
-                          />
-                        </div>
-                        <p
-                          className={`text-[11px] font-data font-medium mt-1 ${textColor}`}
-                        >
-                          {stateText}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {activePipeline.error_message && (
-                <div className="mt-6 p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3 text-rose-800 text-sm">
-                  <Icon name="alertTriangle" className="w-5 h-5 shrink-0 mt-0.5 text-rose-600" />
-                  <div>
-                    <p className="font-bold mb-1">Lỗi Pipeline:</p>
-                    <p className="font-medium whitespace-pre-wrap">{activePipeline.error_message}</p>
-                  </div>
-                </div>
-              )}
-            </Card>
-          )}
-        </div>
-
-        {/* CỘT PHẢI (History & Superset) */}
-        <div className="lg:col-span-8 flex flex-col gap-6 h-full">
-          {/* 3. Upload History */}
-          <Card className="overflow-hidden flex flex-col h-[320px]">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-ink-100 bg-white shrink-0">
-              <div>
+          {/* 2. Upload History */}
+          <Card className="xl:col-span-7 h-full min-h-[360px] xl:min-h-0 overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between gap-4 px-5 sm:px-6 py-3.5 border-b border-ink-100 bg-white shrink-0">
+              <div className="min-w-0">
                 <h3 className="font-bold text-ink-900 text-base">
                   Lịch sử tải lên
                 </h3>
@@ -444,7 +329,7 @@ const UserUpload = () => {
               </div>
               <button
                 onClick={fetchHistory}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-lake-700 bg-lake-50 hover:bg-lake-100 rounded-lg transition"
+                className="flex shrink-0 items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-lake-700 bg-lake-50 hover:bg-lake-100 rounded-lg transition"
                 disabled={historyLoading}
               >
                 <Icon
@@ -455,27 +340,27 @@ const UserUpload = () => {
               </button>
             </div>
 
-            <div className="flex-1 overflow-auto bg-[#FAFBFD] p-4">
+            <div className="min-h-0 flex-1 overflow-y-auto bg-[#FAFBFD] p-3">
               {history.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-ink-300">
                   <Icon name="inbox" className="w-9 h-9 mb-3 opacity-60" />
-                  <p className="text-sm font-medium text-ink-400">
+                  <p className="text-sm font-medium text-ink-400 text-center">
                     Chưa có dữ liệu nào được tải lên hệ thống.
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {history.map((item, i) => {
                     const st = getStatus(item);
                     return (
                       <div
                         key={item.id || i}
-                        className="bg-white border border-ink-100 rounded-xl p-3.5 hover:border-lake-200 hover:shadow-sm transition-all flex flex-col gap-3"
+                        className="bg-white border border-ink-100 rounded-xl p-2.5 hover:border-lake-200 hover:shadow-sm transition-all flex flex-col gap-2"
                       >
                         <div className="flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-3.5 min-w-0">
-                            <div className="w-10 h-10 rounded-lg bg-lake-50 text-lake-600 border border-lake-100 flex items-center justify-center shrink-0">
-                              <Icon name="file" className="w-4.5 h-4.5" />
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-lg bg-lake-50 text-lake-600 border border-lake-100 flex items-center justify-center shrink-0">
+                              <Icon name="file" className="w-4 h-4" />
                             </div>
                             <div className="min-w-0">
                               <h4
@@ -520,37 +405,149 @@ const UserUpload = () => {
               )}
             </div>
           </Card>
+        </section>
 
-          {/* 4. Superset Dashboard */}
-          <Card className="overflow-hidden flex flex-col flex-1 min-h-[450px]">
-            <div className="px-6 py-4 border-b border-ink-100 bg-white flex justify-between items-center shrink-0">
+        {/* ROW 2 — Pipeline Status */}
+        {activePipeline && (
+          <Card className="p-6 sm:p-7">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
               <div>
+                <p className="font-data text-[10px] uppercase tracking-[0.14em] text-lake-600 font-semibold mb-1">
+                  Bước 2
+                </p>
                 <h3 className="text-base font-bold text-ink-900">
-                  Báo cáo Phân tích
+                  Tiến trình Pipeline
                 </h3>
-                <p className="text-[11px] text-ink-400 mt-0.5 font-data">
-                  Gold Layer · Apache Superset
+                <p className="text-xs text-ink-400 mt-0.5">
+                  Airflow Orchestration
                 </p>
               </div>
-              <a
-                href={supersetUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs text-lake-700 hover:text-lake-800 bg-lake-50 hover:bg-lake-100 px-3 py-1.5 rounded-lg transition font-semibold flex items-center gap-1.5"
-              >
-                Mở tab mới
-                <Icon name="externalLink" className="w-3.5 h-3.5" />
-              </a>
+              {activePipeline.dag_run_id && (
+                <span
+                  className="self-start text-[10px] font-data px-2 py-1 bg-ink-50 text-ink-500 rounded border border-ink-100"
+                  title={activePipeline.dag_run_id}
+                >
+                  ID: {activePipeline.dag_run_id.slice(0, 8)}...
+                </span>
+              )}
             </div>
-            <div className="flex-1 bg-[#FAFBFD] relative p-3">
-              <iframe
-                src={supersetUrl}
-                title="Superset Chart"
-                className="w-full h-full border border-ink-100 bg-white rounded-xl shadow-inner"
-              ></iframe>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 xl:gap-5">
+              {PIPELINE_TASKS.map((pt) => {
+                const t = activePipeline.tasks?.find(
+                  (x) => x.task_id === pt.id,
+                );
+                const state = t?.state || "pending";
+
+                let dotClass = "bg-ink-200 border-ink-100";
+                let stateText = "Đang đợi";
+                let icon = "clock";
+                let textColor = "text-ink-400";
+                let cardBorder = "border-ink-100";
+                let cardBg = "";
+
+                if (state === "success") {
+                  dotClass = `${pt.dot} border-white shadow-[0_0_0_3px_rgba(16,185,129,0.15)]`;
+                  stateText = "Thành công";
+                  icon = "checkCircle";
+                  textColor = "text-emerald-700";
+                  cardBorder = "border-emerald-100";
+                } else if (state === "running") {
+                  dotClass = `${pt.dot} border-white animate-pulse shadow-[0_0_0_3px_rgba(15,151,168,0.2)]`;
+                  stateText = "Đang xử lý...";
+                  icon = "activity";
+                  textColor = "text-lake-700";
+                  cardBorder = "border-lake-200";
+                  cardBg = "bg-lake-50/50";
+                } else if (state === "failed") {
+                  dotClass =
+                    "bg-rose-500 border-white shadow-[0_0_0_3px_rgba(244,63,94,0.15)]";
+                  stateText = "Lỗi";
+                  icon = "alertTriangle";
+                  textColor = "text-rose-700";
+                  cardBorder = "border-rose-200";
+                }
+
+                return (
+                  <div
+                    key={pt.id}
+                    className={`relative rounded-xl p-4 xl:p-5 border ${cardBorder} ${cardBg} transition-all duration-300`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <span
+                          className={`mt-1 w-3 h-3 rounded-full border-2 shrink-0 ${dotClass}`}
+                        />
+                        <div className="min-w-0">
+                          <p
+                            className={`font-semibold text-sm ${state === "pending" ? "text-ink-400" : "text-ink-800"}`}
+                          >
+                            {pt.label}{" "}
+                            <span className="text-ink-300 font-data text-[11px] font-normal">
+                              · {pt.sub}
+                            </span>
+                          </p>
+                          <p
+                            className={`text-[11px] font-data font-medium mt-1 ${textColor}`}
+                          >
+                            {stateText}
+                          </p>
+                        </div>
+                      </div>
+                      <Icon
+                        name={icon}
+                        className={`w-4 h-4 shrink-0 ${textColor}`}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
+
+            {activePipeline.error_message && (
+              <div className="mt-5 p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3 text-rose-800 text-sm">
+                <Icon name="alertTriangle" className="w-5 h-5 shrink-0 mt-0.5 text-rose-600" />
+                <div>
+                  <p className="font-bold mb-1">Lỗi Pipeline:</p>
+                  <p className="font-medium whitespace-pre-wrap">{activePipeline.error_message}</p>
+                </div>
+              </div>
+            )}
           </Card>
-        </div>
+        )}
+
+        {/* ROW 3 — Superset Analytics */}
+        <Card className="overflow-hidden flex flex-col">
+          <div className="px-5 sm:px-6 py-4 border-b border-ink-100 bg-white flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center shrink-0">
+            <div>
+              <p className="font-data text-[10px] uppercase tracking-[0.14em] text-gold-500 font-semibold mb-1">
+                Bước 3
+              </p>
+              <h3 className="text-base font-bold text-ink-900">
+                Báo cáo Phân tích
+              </h3>
+              <p className="text-[11px] text-ink-400 mt-0.5 font-data">
+                Gold Layer · Apache Superset
+              </p>
+            </div>
+            <a
+              href={supersetUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="self-start sm:self-auto text-xs text-lake-700 hover:text-lake-800 bg-lake-50 hover:bg-lake-100 px-3 py-1.5 rounded-lg transition font-semibold flex items-center gap-1.5"
+            >
+              Mở tab mới
+              <Icon name="externalLink" className="w-3.5 h-3.5" />
+            </a>
+          </div>
+          <div className="bg-[#FAFBFD] relative p-2 sm:p-3">
+            <iframe
+              src={supersetUrl}
+              title="Superset Chart"
+              className="w-full h-[560px] sm:h-[620px] lg:h-[720px] xl:h-[820px] border border-ink-100 bg-white rounded-xl shadow-inner"
+            ></iframe>
+          </div>
+        </Card>
       </main>
     </div>
   );

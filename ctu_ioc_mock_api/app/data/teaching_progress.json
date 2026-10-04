@@ -1,0 +1,310 @@
+{
+  "source_system": "ctu_ioc",
+  "dataset": "education.teaching_progress",
+  "schema_version": "1.0-demo",
+  "generated_at": "2026-09-23T00:00:00+07:00",
+  "data_as_of": "2026-01-20T09:42:00+07:00",
+  "contract_status": "DEMO / ASSUMED CONTRACT - NOT VERIFIED CTU IOC PRODUCTION CONTRACT",
+  "data": [
+    {
+      "record_id": "DEMO-TP-U01-C01|2024-2025|S2",
+      "unit_code": "DEMO-U01",
+      "unit_name": "Đơn vị giả lập 01",
+      "course_section_code": "DEMO-TP-U01-C01",
+      "academic_year": "2024-2025",
+      "semester": 2,
+      "progress_percent": 69.0,
+      "updated_at": "2025-07-20T09:00:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U01-C01|2025-2026|S1",
+      "unit_code": "DEMO-U01",
+      "unit_name": "Đơn vị giả lập 01",
+      "course_section_code": "DEMO-TP-U01-C01",
+      "academic_year": "2025-2026",
+      "semester": 1,
+      "progress_percent": 74.0,
+      "updated_at": "2026-01-20T09:00:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U01-C02|2024-2025|S2",
+      "unit_code": "DEMO-U01",
+      "unit_name": "Đơn vị giả lập 01",
+      "course_section_code": "DEMO-TP-U01-C02",
+      "academic_year": "2024-2025",
+      "semester": 2,
+      "progress_percent": 72.0,
+      "updated_at": "2025-07-20T09:01:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U01-C02|2025-2026|S1",
+      "unit_code": "DEMO-U01",
+      "unit_name": "Đơn vị giả lập 01",
+      "course_section_code": "DEMO-TP-U01-C02",
+      "academic_year": "2025-2026",
+      "semester": 1,
+      "progress_percent": 77.0,
+      "updated_at": "2026-01-20T09:01:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U01-C03|2024-2025|S2",
+      "unit_code": "DEMO-U01",
+      "unit_name": "Đơn vị giả lập 01",
+      "course_section_code": "DEMO-TP-U01-C03",
+      "academic_year": "2024-2025",
+      "semester": 2,
+      "progress_percent": 75.0,
+      "updated_at": "2025-07-20T09:02:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U01-C03|2025-2026|S1",
+      "unit_code": "DEMO-U01",
+      "unit_name": "Đơn vị giả lập 01",
+      "course_section_code": "DEMO-TP-U01-C03",
+      "academic_year": "2025-2026",
+      "semester": 1,
+      "progress_percent": 80.0,
+      "updated_at": "2026-01-20T09:02:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U02-C01|2024-2025|S2",
+      "unit_code": "DEMO-U02",
+      "unit_name": "Đơn vị giả lập 02",
+      "course_section_code": "DEMO-TP-U02-C01",
+      "academic_year": "2024-2025",
+      "semester": 2,
+      "progress_percent": 73.0,
+      "updated_at": "2025-07-20T09:10:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U02-C01|2025-2026|S1",
+      "unit_code": "DEMO-U02",
+      "unit_name": "Đơn vị giả lập 02",
+      "course_section_code": "DEMO-TP-U02-C01",
+      "academic_year": "2025-2026",
+      "semester": 1,
+      "progress_percent": 78.0,
+      "updated_at": "2026-01-20T09:10:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U02-C02|2024-2025|S2",
+      "unit_code": "DEMO-U02",
+      "unit_name": "Đơn vị giả lập 02",
+      "course_section_code": "DEMO-TP-U02-C02",
+      "academic_year": "2024-2025",
+      "semester": 2,
+      "progress_percent": 76.0,
+      "updated_at": "2025-07-20T09:11:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U02-C02|2025-2026|S1",
+      "unit_code": "DEMO-U02",
+      "unit_name": "Đơn vị giả lập 02",
+      "course_section_code": "DEMO-TP-U02-C02",
+      "academic_year": "2025-2026",
+      "semester": 1,
+      "progress_percent": 81.0,
+      "updated_at": "2026-01-20T09:11:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U02-C03|2024-2025|S2",
+      "unit_code": "DEMO-U02",
+      "unit_name": "Đơn vị giả lập 02",
+      "course_section_code": "DEMO-TP-U02-C03",
+      "academic_year": "2024-2025",
+      "semester": 2,
+      "progress_percent": 79.0,
+      "updated_at": "2025-07-20T09:12:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U02-C03|2025-2026|S1",
+      "unit_code": "DEMO-U02",
+      "unit_name": "Đơn vị giả lập 02",
+      "course_section_code": "DEMO-TP-U02-C03",
+      "academic_year": "2025-2026",
+      "semester": 1,
+      "progress_percent": 84.0,
+      "updated_at": "2026-01-20T09:12:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U03-C01|2024-2025|S2",
+      "unit_code": "DEMO-U03",
+      "unit_name": "Đơn vị giả lập 03",
+      "course_section_code": "DEMO-TP-U03-C01",
+      "academic_year": "2024-2025",
+      "semester": 2,
+      "progress_percent": 77.0,
+      "updated_at": "2025-07-20T09:20:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U03-C01|2025-2026|S1",
+      "unit_code": "DEMO-U03",
+      "unit_name": "Đơn vị giả lập 03",
+      "course_section_code": "DEMO-TP-U03-C01",
+      "academic_year": "2025-2026",
+      "semester": 1,
+      "progress_percent": 82.0,
+      "updated_at": "2026-01-20T09:20:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U03-C02|2024-2025|S2",
+      "unit_code": "DEMO-U03",
+      "unit_name": "Đơn vị giả lập 03",
+      "course_section_code": "DEMO-TP-U03-C02",
+      "academic_year": "2024-2025",
+      "semester": 2,
+      "progress_percent": 80.0,
+      "updated_at": "2025-07-20T09:21:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U03-C02|2025-2026|S1",
+      "unit_code": "DEMO-U03",
+      "unit_name": "Đơn vị giả lập 03",
+      "course_section_code": "DEMO-TP-U03-C02",
+      "academic_year": "2025-2026",
+      "semester": 1,
+      "progress_percent": 85.0,
+      "updated_at": "2026-01-20T09:21:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U03-C03|2024-2025|S2",
+      "unit_code": "DEMO-U03",
+      "unit_name": "Đơn vị giả lập 03",
+      "course_section_code": "DEMO-TP-U03-C03",
+      "academic_year": "2024-2025",
+      "semester": 2,
+      "progress_percent": 83.0,
+      "updated_at": "2025-07-20T09:22:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U03-C03|2025-2026|S1",
+      "unit_code": "DEMO-U03",
+      "unit_name": "Đơn vị giả lập 03",
+      "course_section_code": "DEMO-TP-U03-C03",
+      "academic_year": "2025-2026",
+      "semester": 1,
+      "progress_percent": 88.0,
+      "updated_at": "2026-01-20T09:22:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U04-C01|2024-2025|S2",
+      "unit_code": "DEMO-U04",
+      "unit_name": "Đơn vị giả lập 04",
+      "course_section_code": "DEMO-TP-U04-C01",
+      "academic_year": "2024-2025",
+      "semester": 2,
+      "progress_percent": 81.0,
+      "updated_at": "2025-07-20T09:30:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U04-C01|2025-2026|S1",
+      "unit_code": "DEMO-U04",
+      "unit_name": "Đơn vị giả lập 04",
+      "course_section_code": "DEMO-TP-U04-C01",
+      "academic_year": "2025-2026",
+      "semester": 1,
+      "progress_percent": 86.0,
+      "updated_at": "2026-01-20T09:30:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U04-C02|2024-2025|S2",
+      "unit_code": "DEMO-U04",
+      "unit_name": "Đơn vị giả lập 04",
+      "course_section_code": "DEMO-TP-U04-C02",
+      "academic_year": "2024-2025",
+      "semester": 2,
+      "progress_percent": 84.0,
+      "updated_at": "2025-07-20T09:31:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U04-C02|2025-2026|S1",
+      "unit_code": "DEMO-U04",
+      "unit_name": "Đơn vị giả lập 04",
+      "course_section_code": "DEMO-TP-U04-C02",
+      "academic_year": "2025-2026",
+      "semester": 1,
+      "progress_percent": 89.0,
+      "updated_at": "2026-01-20T09:31:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U04-C03|2024-2025|S2",
+      "unit_code": "DEMO-U04",
+      "unit_name": "Đơn vị giả lập 04",
+      "course_section_code": "DEMO-TP-U04-C03",
+      "academic_year": "2024-2025",
+      "semester": 2,
+      "progress_percent": 87.0,
+      "updated_at": "2025-07-20T09:32:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U04-C03|2025-2026|S1",
+      "unit_code": "DEMO-U04",
+      "unit_name": "Đơn vị giả lập 04",
+      "course_section_code": "DEMO-TP-U04-C03",
+      "academic_year": "2025-2026",
+      "semester": 1,
+      "progress_percent": 92.0,
+      "updated_at": "2026-01-20T09:32:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U05-C01|2024-2025|S2",
+      "unit_code": "DEMO-U05",
+      "unit_name": "Đơn vị giả lập 05",
+      "course_section_code": "DEMO-TP-U05-C01",
+      "academic_year": "2024-2025",
+      "semester": 2,
+      "progress_percent": 85.0,
+      "updated_at": "2025-07-20T09:40:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U05-C01|2025-2026|S1",
+      "unit_code": "DEMO-U05",
+      "unit_name": "Đơn vị giả lập 05",
+      "course_section_code": "DEMO-TP-U05-C01",
+      "academic_year": "2025-2026",
+      "semester": 1,
+      "progress_percent": 90.0,
+      "updated_at": "2026-01-20T09:40:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U05-C02|2024-2025|S2",
+      "unit_code": "DEMO-U05",
+      "unit_name": "Đơn vị giả lập 05",
+      "course_section_code": "DEMO-TP-U05-C02",
+      "academic_year": "2024-2025",
+      "semester": 2,
+      "progress_percent": 88.0,
+      "updated_at": "2025-07-20T09:41:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U05-C02|2025-2026|S1",
+      "unit_code": "DEMO-U05",
+      "unit_name": "Đơn vị giả lập 05",
+      "course_section_code": "DEMO-TP-U05-C02",
+      "academic_year": "2025-2026",
+      "semester": 1,
+      "progress_percent": 93.0,
+      "updated_at": "2026-01-20T09:41:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U05-C03|2024-2025|S2",
+      "unit_code": "DEMO-U05",
+      "unit_name": "Đơn vị giả lập 05",
+      "course_section_code": "DEMO-TP-U05-C03",
+      "academic_year": "2024-2025",
+      "semester": 2,
+      "progress_percent": 91.0,
+      "updated_at": "2025-07-20T09:42:00+07:00"
+    },
+    {
+      "record_id": "DEMO-TP-U05-C03|2025-2026|S1",
+      "unit_code": "DEMO-U05",
+      "unit_name": "Đơn vị giả lập 05",
+      "course_section_code": "DEMO-TP-U05-C03",
+      "academic_year": "2025-2026",
+      "semester": 1,
+      "progress_percent": 96.0,
+      "updated_at": "2026-01-20T09:42:00+07:00"
+    }
+  ]
+}

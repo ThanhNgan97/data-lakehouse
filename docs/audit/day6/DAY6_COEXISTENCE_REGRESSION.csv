@@ -1,0 +1,18 @@
+﻿Check,Learning Outcomes,Teaching Progress,Result
+dataset identity,education.learning_outcomes,education.teaching_progress,PASS
+Silver rows,30,30,PASS
+distinct business keys,30,30,PASS
+duplicate key groups,0,0,PASS
+main quarantine rows,0,0,PASS
+delete support,YES,NO,PASS
+dataset identity mismatches,0,0,PASS
+Learning active rows,30,N/A,PASS
+Learning deleted rows,0,N/A,PASS
+Teaching invalid progress rows,N/A,0,PASS
+Learning Gold rows,30,NOT IMPLEMENTED,PASS / OUT OF SCOPE
+Learning Gold keys,30,NOT IMPLEMENTED,PASS / OUT OF SCOPE
+Gold formula/trend/lineage mismatches,0,NOT IMPLEMENTED,PASS / OUT OF SCOPE
+Superset dataset,unchanged,NOT IMPLEMENTED,PASS
+generic dataset-specific literal hits,0,0,PASS
+duplicated mechanics,0,0,PASS
+protected files changed,0,0,PASS

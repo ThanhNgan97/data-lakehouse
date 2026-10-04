@@ -1,12 +1,17 @@
 import os
 from pathlib import Path
 
-# Load file .env tại thư mục gốc dự án (2 cấp trên backend/)
+# Load backend/.env first, then project-root .env as fallback
 try:
     from dotenv import load_dotenv
-    _env_path = Path(__file__).resolve().parent.parent.parent / ".env"
-    if _env_path.exists():
-        load_dotenv(_env_path, override=False)
+    _backend_env_path = Path(__file__).resolve().parent.parent / ".env"
+    _root_env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+
+    if _backend_env_path.exists():
+        load_dotenv(_backend_env_path, override=False)
+
+    if _root_env_path.exists():
+        load_dotenv(_root_env_path, override=False)
 except ImportError:
     pass  # python-dotenv chưa cài — biến hệ thống vẫn được đọc qua os.getenv
 

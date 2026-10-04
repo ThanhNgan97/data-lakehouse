@@ -1,0 +1,27 @@
+﻿Layer,Field,Type/Meaning,Required,Status/Note
+Source,record_id,string source record identity,YES,DEMO ASSUMPTION
+Source,unit_code,string unit code,YES,DEMO ASSUMPTION
+Source,unit_name,string unit name,YES,DEMO ASSUMPTION
+Source,course_section_code,string course-section code,YES,DEMO ASSUMPTION
+Source,academic_year,string academic year,YES,DEMO ASSUMPTION
+Source,semester,integer semester,YES,DEMO ASSUMPTION
+Source,progress_percent,number aggregate teaching progress percentage,YES,DEMO ASSUMPTION
+Source,updated_at,timezone-aware source update timestamp,YES,DEMO ASSUMPTION
+Canonical,ma_ban_ghi,record_id,YES,mapped after Bronze
+Canonical,ma_don_vi,unit_code,YES,mapped after Bronze
+Canonical,ten_don_vi,unit_name,YES,mapped after Bronze
+Canonical,ma_lop_hoc_phan,course_section_code,YES,business key component
+Canonical,nam_hoc,academic_year,YES,business key component
+Canonical,hoc_ky,semester,YES,business key component
+Canonical,ty_le_tien_do_giang_day,progress_percent,YES,0..100 via Silver DQ
+Canonical,thoi_gian_cap_nhat_nguon,updated_at,YES,source update timestamp
+Metadata,_source_system,technical provenance,YES,shared
+Metadata,_source_type,technical provenance,YES,shared
+Metadata,_dataset,dataset identity,YES,shared
+Metadata,_schema_version,contract version,YES,shared
+Metadata,_ingestion_mode,ingestion mode,YES,shared
+Metadata,_batch_id,batch identity,YES,shared
+Metadata,_source_updated_at,normalized source timestamp,YES,shared
+Metadata,_ingested_at,ingestion timestamp,YES,shared
+Metadata,_record_checksum,source-content checksum,YES,shared
+Delete semantics,source_delete_field,none,NO,DELETE_SUPPORTED=NO; no synthetic delete flag

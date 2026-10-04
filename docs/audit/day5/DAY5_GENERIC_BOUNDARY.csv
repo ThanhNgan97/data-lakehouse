@@ -1,0 +1,15 @@
+﻿responsibility,runtime_owner_after_day5,classification,dataset_specific_inputs,day5_status,reason
+DQ rule execution,generic_silver_quality.py,GENERIC,"rule sequence, expressions, reason codes",EXTRACTED,No LO literals
+Quarantine mechanics,generic_silver_quarantine.py,GENERIC,"business key, output schema, target table",EXTRACTED,Routing only
+Dedup algorithm,generic_silver_dedup.py,GENERIC,business key and configured ordering fields,EXTRACTED,Order frozen
+Source equal-timestamp conflict,generic_silver_conflict.py,GENERIC,"business key, timestamp, checksum",EXTRACTED,Whole-key blocking preserved
+Target-state classifier,generic_silver_classifier.py,GENERIC,"target table, keys, timestamp, checksum, delete field",EXTRACTED,New/update/stale/duplicate/conflict/delete
+Iceberg MERGE,generic_silver_merge.py,GENERIC,"target table, columns, key, timestamp, delete flag",EXTRACTED,Newer-only update; no physical delete
+Learning Outcomes DQ definitions,spark_learning_outcomes_to_silver.py,DATASET-SPECIFIC,17 current demo rules,KEPT,Not global defaults
+Source→canonical mapping,spark_learning_outcomes_to_silver.py + registry,DATASET-SPECIFIC,source_to_canonical config,KEPT,Boundary remains after Bronze
+Canonical Silver DDL,spark_learning_outcomes_to_silver.py,DATASET-SPECIFIC,Learning Outcomes schema,KEPT,Safe boundary
+Quality gate,spark_learning_outcomes_to_silver.py,DATASET-SPECIFIC,LO duplicate/DQ/quarantine checks,KEPT,No policy generalization
+Nessie lifecycle orchestration,process_learning_outcomes_batch,MIXED / WRAPPER,existing protected Nessie helpers + LO callbacks,PARTIALLY EXTRACTED,Retained to avoid redesign
+Nessie helper,nessie_catalog_utils.py,PROTECTED PLATFORM,existing helper API,UNCHANGED,Protected
+Gold,spark_learning_outcomes_to_gold.py,OUT OF SCOPE,KPI + trend semantics,UNCHANGED,Regression only
+HttpAdapter,http_adapter.py,PLATFORM,HTTP transport,UNCHANGED,Business-agnostic invariant

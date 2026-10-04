@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CTU IOC Learning Outcomes API - Demo Contract",
+  "type": "object",
+  "required": [
+    "source_system",
+    "dataset",
+    "schema_version",
+    "generated_at",
+    "data"
+  ],
+  "properties": {
+    "source_system": {
+      "type": "string"
+    },
+    "dataset": {
+      "const": "education.learning_outcomes"
+    },
+    "schema_version": {
+      "type": "string"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "data_as_of": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "ma_ban_ghi",
+          "ma_chuong_trinh",
+          "ten_chuong_trinh",
+          "nam_hoc",
+          "hoc_ky",
+          "so_sinh_vien",
+          "so_luot_hoc_phan_dat",
+          "tong_luot_hoc_phan",
+          "tong_diem_gpa",
+          "so_sinh_vien_tinh_gpa",
+          "so_sinh_vien_canh_bao",
+          "so_sinh_vien_nguy_co_nghi_hoc",
+          "so_sinh_vien_dung_tien_do",
+          "so_sinh_vien_danh_gia_tien_do",
+          "thoi_gian_cap_nhat_nguon",
+          "da_xoa"
+        ],
+        "properties": {
+          "ma_ban_ghi": {
+            "type": "string"
+          },
+          "ma_chuong_trinh": {
+            "type": "string"
+          },
+          "ten_chuong_trinh": {
+            "type": "string"
+          },
+          "nam_hoc": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{4}$"
+          },
+          "hoc_ky": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "so_sinh_vien": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "so_luot_hoc_phan_dat": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tong_luot_hoc_phan": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tong_diem_gpa": {
+            "type": "number",
+            "minimum": 0
+          },
+          "so_sinh_vien_tinh_gpa": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "so_sinh_vien_canh_bao": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "so_sinh_vien_nguy_co_nghi_hoc": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "so_sinh_vien_dung_tien_do": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "so_sinh_vien_danh_gia_tien_do": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "thoi_gian_cap_nhat_nguon": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "da_xoa": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": true
+}

@@ -21,13 +21,7 @@ _pw = quote_plus(PG_PASSWORD)
 DATABASE_URL = f"postgresql://{PG_USER}:{_pw}@{PG_HOST}:{PG_PORT}/{PG_DATABASE}"
 
 # Create engine and session factory
-# Do not let an unavailable PostgreSQL instance leave API requests hanging until
-# the operating-system TCP timeout expires.
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,
-    connect_args={"connect_timeout": 5},
-)
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # NOTE: In-memory fallback removed. Authentication now requires a real DB.
@@ -43,7 +37,7 @@ def get_db():
 def init_db():
     """Tự động tạo các bảng và seed tài khoản mặc định vào database."""
     try:
-        from db.models import User, UploadHistory, DataConnector
+        from db.models import User, UploadHistory
         Base.metadata.create_all(bind=engine)
     
 
@@ -72,61 +66,6 @@ def init_db():
                 db.add(normal_user)
                 db.commit()
                 logging.info("Default users (admin, canbo_truongA) created successfully.")
-
-            # -------------------------------------------------
-            # Seed Default MySQL Connector
-            # -------------------------------------------------
-            from core.connector_crypto import encrypt_secret
-
-            default_connector = (
-                db.query(DataConnector)
-                .filter(DataConnector.is_default.is_(True))
-                .first()
-            )
-
-            if not default_connector:
-                mysql_password = os.getenv("MYSQL_PASSWORD")
-
-                if not mysql_password:
-                    logging.warning(
-                        "MYSQL_PASSWORD is not configured. "
-                        "Default MySQL connector was not seeded."
-                    )
-                else:
-                    default_connector = DataConnector(
-                        name="CUSC KPI Operational",
-                        connector_type="MYSQL",
-                        host=os.getenv("MYSQL_HOST", "127.0.0.1"),
-                        port=int(os.getenv("MYSQL_PORT", "3306")),
-                        database_name=os.getenv(
-                            "MYSQL_DATABASE",
-                            "cusc_kpi_operational",
-                        ),
-                        username=os.getenv(
-                            "MYSQL_USER",
-                            "kpi_user",
-                        ),
-                        password_encrypted=encrypt_secret(mysql_password),
-                        source_config={
-                            "mode": "cusc_kpi_operational",
-                            "tables": [
-                                "don_vi",
-                                "muc_tieu_kpi",
-                                "ket_qua_danh_gia",
-                            ],
-                            "primary_table": "ket_qua_danh_gia",
-                        },
-                        schema_mapping=None,
-                        is_default=True,
-                        is_active=True,
-                        last_test_status="not_tested",
-                    )
-
-                    db.add(default_connector)
-                    db.commit()
-                    logging.info(
-                        "Default MySQL connector created successfully."
-                    )
         finally:
             db.close()
     except Exception as e:
@@ -138,5 +77,9 @@ def get_user(username: str, db):
     `db` must be a SQLAlchemy `Session` provided by `get_db()`.
     Returns a `User` ORM instance or `None`.
     """
-    from db.models import User
-    return db.query(User).filter(User.username == username).first()
+    try:
+        from db.models import User
+        return db.query(User).filter(User.username == username).first()
+    except Exception as e:
+        logging.error(f"Database error when querying user '{username}': {e}")
+        return None

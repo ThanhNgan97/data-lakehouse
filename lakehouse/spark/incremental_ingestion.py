@@ -48,6 +48,15 @@ class CheckpointStrategyMismatchError(RuntimeError):
 
 
 @dataclass(frozen=True)
+class IncrementalFetchResult:
+    dataset_id: str
+    fetched_count: int
+    updated_after: str | None
+    checkpoint_before: CheckpointState | None
+    payload: dict[str, Any]
+
+
+@dataclass(frozen=True)
 class IncrementalIngestionResult:
     status: str
     dataset_id: str
@@ -60,31 +69,22 @@ class IncrementalIngestionResult:
     bronze_result: IngestionResult | None
 
 
-def run_incremental_ingestion(
-    spark: SparkSession,
+def fetch_incremental_payload(
     api_url: str,
     *,
     dataset: str,
-    batch_id: str,
     api_key: str | None = None,
     page_limit: int = 500,
     timeout_seconds: int = 30,
     pagination_strategy: PaginationStrategy | None = None,
     checkpoint_store: Any | None = None,
     fetch_payload: FetchPayload = fetch_http_api_payload,
-    ingest_payload: IngestPayload = ingest_payload_to_bronze,
-) -> IncrementalIngestionResult:
-    """Run one F3 incremental ingestion attempt.
+) -> IncrementalFetchResult:
+    """Read checkpoint state and fetch one incremental API payload.
 
-    A checkpoint is advanced only after ``ingest_payload`` returns
-    successfully. In the current Bronze implementation, that return occurs
-    only after physical write and read-back validation succeed.
+    This operation is read-only with respect to checkpoint persistence.
+    It performs no Bronze write and no checkpoint compare-and-set.
     """
-    if not isinstance(batch_id, str) or not batch_id.strip():
-        raise ValueError(
-            "batch_id must be a non-empty string"
-        )
-
     config = get_dataset_config(dataset)
 
     store = (
@@ -134,8 +134,74 @@ def run_incremental_ingestion(
         pagination_strategy=pagination_strategy,
     )
 
+    return IncrementalFetchResult(
+        dataset_id=config.dataset,
+        fetched_count=len(payload["data"]),
+        updated_after=updated_after,
+        checkpoint_before=checkpoint_before,
+        payload=payload,
+    )
+
+
+def run_incremental_ingestion(
+    spark: SparkSession,
+    api_url: str,
+    *,
+    dataset: str,
+    batch_id: str,
+    api_key: str | None = None,
+    page_limit: int = 500,
+    timeout_seconds: int = 30,
+    pagination_strategy: PaginationStrategy | None = None,
+    checkpoint_store: Any | None = None,
+    fetch_payload: FetchPayload = fetch_http_api_payload,
+    ingest_payload: IngestPayload = ingest_payload_to_bronze,
+) -> IncrementalIngestionResult:
+    """Run one F3 incremental ingestion attempt.
+
+    A checkpoint is advanced only after ``ingest_payload`` returns
+    successfully. In the current Bronze implementation, that return occurs
+    only after physical write and read-back validation succeed.
+    """
+    if not isinstance(batch_id, str) or not batch_id.strip():
+        raise ValueError(
+            "batch_id must be a non-empty string"
+        )
+
+    config = get_dataset_config(dataset)
+
+    store = (
+        checkpoint_store
+        if checkpoint_store is not None
+        else PostgresCheckpointStore()
+    )
+
+    fetched = fetch_incremental_payload(
+        api_url,
+        dataset=config.dataset,
+        api_key=api_key,
+        page_limit=page_limit,
+        timeout_seconds=timeout_seconds,
+        pagination_strategy=pagination_strategy,
+        checkpoint_store=store,
+        fetch_payload=fetch_payload,
+    )
+
+    checkpoint_before = fetched.checkpoint_before
+    updated_after = fetched.updated_after
+    payload = fetched.payload
     records = payload["data"]
-    fetched_count = len(records)
+    fetched_count = fetched.fetched_count
+
+    strategy = resolve_watermark_strategy(
+        config.watermark_strategy
+    )
+
+    previous_payload = (
+        checkpoint_before.checkpoint_payload
+        if checkpoint_before is not None
+        else None
+    )
 
     if fetched_count == 0:
         return IncrementalIngestionResult(

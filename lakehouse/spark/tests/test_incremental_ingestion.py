@@ -11,6 +11,7 @@ from incremental_ingestion import (
     CheckpointStrategyMismatchError,
     STATUS_COMMITTED,
     STATUS_NO_CHANGE,
+    fetch_incremental_payload,
     run_incremental_ingestion,
 )
 
@@ -515,3 +516,52 @@ def test_empty_batch_id_fails_before_checkpoint_load():
         )
 
     store.load.assert_not_called()
+
+
+def test_fetch_incremental_payload_is_read_only():
+    before = CheckpointState(
+        dataset_id=DATASET,
+        strategy_type="timestamp",
+        checkpoint_payload={
+            "value": "2026-10-06T10:00:00Z"
+        },
+        version=7,
+        last_batch_id="batch-7",
+    )
+
+    store = Mock()
+    store.load.return_value = before
+
+    fetch = Mock(
+        return_value={
+            "source_system": "ctu_ioc",
+            "data": [],
+        }
+    )
+
+    result = fetch_incremental_payload(
+        API_URL,
+        dataset=DATASET,
+        checkpoint_store=store,
+        fetch_payload=fetch,
+    )
+
+    assert result.dataset_id == DATASET
+    assert result.fetched_count == 0
+    assert result.updated_after == (
+        "2026-10-06T10:00:00Z"
+    )
+    assert result.checkpoint_before == before
+
+    store.load.assert_called_once_with(DATASET)
+    store.compare_and_set.assert_not_called()
+
+    fetch.assert_called_once_with(
+        API_URL,
+        dataset=DATASET,
+        updated_after="2026-10-06T10:00:00Z",
+        api_key=None,
+        page_limit=500,
+        timeout_seconds=30,
+        pagination_strategy=None,
+    )

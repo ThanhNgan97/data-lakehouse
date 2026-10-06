@@ -89,6 +89,7 @@ with DAG(
         ),
         env=COMMON_ENV,
         append_env=True,
+        skip_on_exit_code=99,
     )
 
     validate_bronze = BashOperator(

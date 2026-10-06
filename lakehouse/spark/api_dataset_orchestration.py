@@ -823,10 +823,18 @@ def main() -> None:
         + config.dataset
     )
 
-    COMMANDS[args.command](
+    result = COMMANDS[args.command](
         config,
         args.run_id,
     )
+
+    if (
+        args.command == "ingest-bronze"
+        and getattr(result, "status", None)
+        == STATUS_NO_CHANGE
+    ):
+        print("ORCHESTRATION_SKIP_EXIT_CODE=99")
+        raise SystemExit(99)
 
 
 if __name__ == "__main__":

@@ -260,3 +260,102 @@ def test_ingest_failure_still_stops_spark():
                 )
 
     spark.stop.assert_called_once()
+
+
+def test_main_maps_no_change_to_exit_99():
+    config = _config()
+
+    result = Mock(
+        status=STATUS_NO_CHANGE
+    )
+
+    args = Mock(
+        command="ingest-bronze",
+        dataset_id=DATASET,
+        run_id=RUN_ID,
+    )
+
+    command = Mock(
+        return_value=result
+    )
+
+    parser = Mock()
+    parser.parse_args.return_value = args
+
+    output = StringIO()
+
+    with patch.object(
+        orchestration,
+        "build_parser",
+        return_value=parser,
+    ):
+        with patch.object(
+            orchestration,
+            "require_orchestration_config",
+            return_value=config,
+        ):
+            with patch.dict(
+                orchestration.COMMANDS,
+                {"ingest-bronze": command},
+            ):
+                with redirect_stdout(output):
+                    try:
+                        orchestration.main()
+                    except SystemExit as exc:
+                        assert exc.code == 99
+                    else:
+                        raise AssertionError(
+                            "NO_CHANGE must exit with code 99"
+                        )
+
+    command.assert_called_once_with(
+        config,
+        RUN_ID,
+    )
+
+    assert (
+        "ORCHESTRATION_SKIP_EXIT_CODE=99"
+        in output.getvalue()
+    )
+
+
+def test_main_committed_ingest_does_not_exit_99():
+    config = _config()
+
+    result = Mock(
+        status=STATUS_COMMITTED
+    )
+
+    args = Mock(
+        command="ingest-bronze",
+        dataset_id=DATASET,
+        run_id=RUN_ID,
+    )
+
+    command = Mock(
+        return_value=result
+    )
+
+    parser = Mock()
+    parser.parse_args.return_value = args
+
+    with patch.object(
+        orchestration,
+        "build_parser",
+        return_value=parser,
+    ):
+        with patch.object(
+            orchestration,
+            "require_orchestration_config",
+            return_value=config,
+        ):
+            with patch.dict(
+                orchestration.COMMANDS,
+                {"ingest-bronze": command},
+            ):
+                orchestration.main()
+
+    command.assert_called_once_with(
+        config,
+        RUN_ID,
+    )

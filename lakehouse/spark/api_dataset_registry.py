@@ -40,6 +40,8 @@ class ApiDatasetConfig:
     silver_table: str
     quarantine_table: str
 
+    watermark_strategy: str = "timestamp"
+
     # Day 7.5 orchestration metadata. Defaults preserve compatibility with
     # focused registry fixtures that are not orchestration-enabled.
     source_api_path: str | None = None
@@ -54,6 +56,9 @@ class ApiDatasetConfig:
 
         if not self.schema_version:
             raise ValueError("schema_version must not be empty")
+
+        if not self.watermark_strategy:
+            raise ValueError("watermark_strategy must not be empty")
 
         if not self.source_fields:
             raise ValueError("source_fields must not be empty")
@@ -329,6 +334,7 @@ DATASETS = {
         ),
         record_id_field="record_id",
         source_updated_at_field="updated_at",
+        watermark_strategy="timestamp",
         source_delete_field="is_deleted",
         sample_validation_fields=(
             "program_code",
@@ -384,6 +390,7 @@ DATASETS = {
         ),
         record_id_field="record_id",
         source_updated_at_field="updated_at",
+        watermark_strategy="timestamp",
         source_delete_field=None,
         sample_validation_fields=(
             "unit_code",

@@ -2,7 +2,7 @@
 """Reusable HTTP transport adapter.
 
 This module owns HTTP GET transport, bearer authentication,
-timeout handling and cursor pagination.
+timeout handling and pagination orchestration.
 
 It intentionally knows nothing about Learning Outcomes business
 fields, Silver keys, Gold metrics, Nessie or Superset.
@@ -22,6 +22,12 @@ from urllib.parse import (
 )
 from urllib.request import Request, urlopen
 
+from pagination import (
+    CursorPagination,
+    PaginationState,
+    PaginationStrategy,
+)
+
 
 PayloadValidator = Callable[
     [dict[str, Any]],
@@ -30,7 +36,7 @@ PayloadValidator = Callable[
 
 
 class HttpAdapter:
-    """Fetch cursor-paginated JSON payloads over HTTP GET."""
+    """Fetch paginated JSON payloads over HTTP GET."""
 
     def __init__(
         self,
@@ -40,6 +46,7 @@ class HttpAdapter:
         page_limit: int = 500,
         timeout_seconds: int = 30,
         updated_after: str | None = None,
+        pagination_strategy: PaginationStrategy | None = None,
         max_attempts: int = 3,
         backoff_seconds: float = 1.0,
     ) -> None:
@@ -77,6 +84,11 @@ class HttpAdapter:
         self.page_limit = page_limit
         self.timeout_seconds = timeout_seconds
         self.updated_after = updated_after
+        self.pagination_strategy = (
+            pagination_strategy
+            if pagination_strategy is not None
+            else CursorPagination()
+        )
         self.max_attempts = max_attempts
         self.backoff_seconds = backoff_seconds
 
@@ -261,13 +273,21 @@ class HttpAdapter:
         ] = []
 
         seen_record_ids: set[str] = set()
-        seen_cursors: set[str] = set()
 
         first_page: (
             dict[str, Any] | None
         ) = None
 
-        cursor: str | None = None
+        pagination_strategy = (
+            self.pagination_strategy
+        )
+        pagination_state = (
+            pagination_strategy.initial_state()
+        )
+        seen_pagination_states: set[
+            PaginationState
+        ] = set()
+
         page_number = 0
 
         while True:
@@ -279,12 +299,20 @@ class HttpAdapter:
                     "Pagination exceeded safety limit"
                 )
 
-            query = dict(
-                base_query
+            if (
+                pagination_state
+                in seen_pagination_states
+            ):
+                raise ValueError(
+                    "Repeated pagination state detected"
+                )
+
+            seen_pagination_states.add(
+                pagination_state
             )
 
-            query["limit"] = str(
-                self.page_limit
+            query = dict(
+                base_query
             )
 
             if self.updated_after:
@@ -292,13 +320,27 @@ class HttpAdapter:
                     self.updated_after
                 )
 
-            if cursor:
-                query["cursor"] = cursor
-            else:
-                query.pop(
-                    "cursor",
-                    None,
+            pagination_params = (
+                pagination_strategy.request_params(
+                    pagination_state,
+                    limit=self.page_limit,
                 )
+            )
+
+            for (
+                parameter_name,
+                parameter_value,
+            ) in pagination_params.items():
+
+                if parameter_value is None:
+                    query.pop(
+                        parameter_name,
+                        None,
+                    )
+                else:
+                    query[parameter_name] = (
+                        parameter_value
+                    )
 
             request_url = urlunsplit(
                 (
@@ -386,47 +428,35 @@ class HttpAdapter:
                     record
                 )
 
-            pagination = payload[
-                "pagination"
-            ]
+            decision = (
+                pagination_strategy.advance(
+                    pagination_state,
+                    payload,
+                    limit=self.page_limit,
+                )
+            )
 
             print(
                 "HTTP_PAGE="
                 f"{page_number}"
                 f"|records={len(page_records)}"
-                f"|has_more="
-                f"{pagination['has_more']}"
+                f"|has_more={not decision.done}"
             )
 
-            if not pagination[
-                "has_more"
-            ]:
+            if decision.done:
                 break
 
-            next_cursor = pagination.get(
-                "next_cursor"
-            )
-
-            if not next_cursor:
-                raise ValueError(
-                    "API says has_more=true "
-                    "but next_cursor is missing"
-                )
-
             if (
-                next_cursor
-                in seen_cursors
+                decision.next_state
+                in seen_pagination_states
             ):
                 raise ValueError(
-                    "Repeated pagination "
-                    "cursor detected"
+                    "Repeated pagination state detected"
                 )
 
-            seen_cursors.add(
-                next_cursor
+            pagination_state = (
+                decision.next_state
             )
-
-            cursor = next_cursor
 
         if first_page is None:
             raise RuntimeError(

@@ -1,11 +1,17 @@
 import psycopg2
 import json
-from env_config import PG_HOST, PG_PORT, PG_USER, PG_PASSWORD
+from env_config import (
+    PG_DATABASE,
+    PG_HOST,
+    PG_PASSWORD,
+    PG_PORT,
+    PG_USER,
+)
 
 def get_db_connection():
     """Tạo kết nối tới database PostgreSQL dựa trên cấu hình linh hoạt (Docker vs Host)."""
     return psycopg2.connect(
-        dbname="university_db",
+        dbname=PG_DATABASE,
         user=PG_USER,
         password=PG_PASSWORD,
         host=PG_HOST,

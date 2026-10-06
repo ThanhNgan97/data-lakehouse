@@ -175,3 +175,4 @@ websockets==16.1
 yarl==1.24.2
 zipp==4.1.0
 zstandard==0.25.0
+psycopg2==2.9.13

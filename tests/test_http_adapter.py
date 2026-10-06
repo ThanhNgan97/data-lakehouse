@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import call, patch
 from urllib.error import HTTPError, URLError
+from urllib.parse import parse_qs, urlsplit
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,6 +18,10 @@ sys.path.insert(
 )
 
 from http_adapter import HttpAdapter
+from pagination import (
+    OffsetLimitPagination,
+    PageLimitPagination,
+)
 
 
 class FakeResponse(io.BytesIO):
@@ -39,6 +44,14 @@ def response(payload):
             "utf-8"
         )
     )
+
+def request_query(request):
+    return parse_qs(
+        urlsplit(
+            request.full_url
+        ).query
+    )
+
 
 def http_error(
     status_code,
@@ -498,6 +511,342 @@ class HttpAdapterTests(
                 {"id": "2"},
             ],
         )
+
+        self.assertEqual(
+            mock_urlopen.call_count,
+            2,
+        )
+
+    def test_page_limit_pagination(self):
+
+        adapter = HttpAdapter(
+            "http://example.test/data",
+            page_limit=2,
+            pagination_strategy=(
+                PageLimitPagination()
+            ),
+        )
+
+        first = page(
+            [
+                {"id": "1"},
+                {"id": "2"},
+            ],
+            has_more=True,
+        )
+
+        second = page(
+            [
+                {"id": "3"},
+            ],
+            has_more=False,
+        )
+
+        with patch(
+            "http_adapter.urlopen",
+            side_effect=[
+                response(first),
+                response(second),
+            ],
+        ) as mock_urlopen:
+
+            payload = adapter.fetch(
+                record_id_field="id",
+            )
+
+        self.assertEqual(
+            payload["data"],
+            [
+                {"id": "1"},
+                {"id": "2"},
+                {"id": "3"},
+            ],
+        )
+
+        self.assertEqual(
+            payload["pagination"][
+                "returned_records"
+            ],
+            3,
+        )
+
+        self.assertEqual(
+            mock_urlopen.call_count,
+            2,
+        )
+
+        first_request = (
+            mock_urlopen.call_args_list[
+                0
+            ].args[0]
+        )
+
+        second_request = (
+            mock_urlopen.call_args_list[
+                1
+            ].args[0]
+        )
+
+        self.assertEqual(
+            request_query(
+                first_request
+            ),
+            {
+                "page": ["1"],
+                "limit": ["2"],
+            },
+        )
+
+        self.assertEqual(
+            request_query(
+                second_request
+            ),
+            {
+                "page": ["2"],
+                "limit": ["2"],
+            },
+        )
+
+    def test_offset_limit_pagination(self):
+
+        adapter = HttpAdapter(
+            "http://example.test/data",
+            page_limit=2,
+            pagination_strategy=(
+                OffsetLimitPagination()
+            ),
+        )
+
+        first = page(
+            [
+                {"id": "1"},
+                {"id": "2"},
+            ],
+            has_more=True,
+        )
+
+        second = page(
+            [
+                {"id": "3"},
+            ],
+            has_more=False,
+        )
+
+        with patch(
+            "http_adapter.urlopen",
+            side_effect=[
+                response(first),
+                response(second),
+            ],
+        ) as mock_urlopen:
+
+            payload = adapter.fetch(
+                record_id_field="id",
+            )
+
+        self.assertEqual(
+            payload["data"],
+            [
+                {"id": "1"},
+                {"id": "2"},
+                {"id": "3"},
+            ],
+        )
+
+        self.assertEqual(
+            payload["pagination"][
+                "returned_records"
+            ],
+            3,
+        )
+
+        self.assertEqual(
+            mock_urlopen.call_count,
+            2,
+        )
+
+        first_request = (
+            mock_urlopen.call_args_list[
+                0
+            ].args[0]
+        )
+
+        second_request = (
+            mock_urlopen.call_args_list[
+                1
+            ].args[0]
+        )
+
+        self.assertEqual(
+            request_query(
+                first_request
+            ),
+            {
+                "offset": ["0"],
+                "limit": ["2"],
+            },
+        )
+
+        self.assertEqual(
+            request_query(
+                second_request
+            ),
+            {
+                "offset": ["2"],
+                "limit": ["2"],
+            },
+        )
+
+    def test_retry_between_pages_retries_same_page(
+        self,
+    ):
+
+        adapter = HttpAdapter(
+            "http://example.test/data",
+            page_limit=1,
+            pagination_strategy=(
+                PageLimitPagination()
+            ),
+            max_attempts=3,
+            backoff_seconds=1.0,
+        )
+
+        first = page(
+            [
+                {"id": "1"},
+            ],
+            has_more=True,
+        )
+
+        second = page(
+            [
+                {"id": "2"},
+            ],
+            has_more=False,
+        )
+
+        with patch(
+            "http_adapter.urlopen",
+            side_effect=[
+                response(first),
+                http_error(503),
+                response(second),
+            ],
+        ) as mock_urlopen:
+
+            with patch(
+                "http_adapter.time.sleep"
+            ) as mock_sleep:
+
+                payload = adapter.fetch(
+                    record_id_field="id",
+                )
+
+        self.assertEqual(
+            payload["data"],
+            [
+                {"id": "1"},
+                {"id": "2"},
+            ],
+        )
+
+        self.assertEqual(
+            mock_urlopen.call_count,
+            3,
+        )
+
+        first_request = (
+            mock_urlopen.call_args_list[
+                0
+            ].args[0]
+        )
+
+        failed_page_two_request = (
+            mock_urlopen.call_args_list[
+                1
+            ].args[0]
+        )
+
+        retried_page_two_request = (
+            mock_urlopen.call_args_list[
+                2
+            ].args[0]
+        )
+
+        self.assertEqual(
+            request_query(
+                first_request
+            ),
+            {
+                "page": ["1"],
+                "limit": ["1"],
+            },
+        )
+
+        self.assertEqual(
+            request_query(
+                failed_page_two_request
+            ),
+            {
+                "page": ["2"],
+                "limit": ["1"],
+            },
+        )
+
+        self.assertEqual(
+            request_query(
+                retried_page_two_request
+            ),
+            {
+                "page": ["2"],
+                "limit": ["1"],
+            },
+        )
+
+        mock_sleep.assert_called_once_with(
+            1.0
+        )
+
+    def test_repeated_cursor_state_fails(
+        self,
+    ):
+
+        adapter = HttpAdapter(
+            "http://example.test/data",
+            page_limit=1,
+        )
+
+        first = page(
+            [
+                {"id": "1"},
+            ],
+            has_more=True,
+            next_cursor="cursor-2",
+        )
+
+        second = page(
+            [
+                {"id": "2"},
+            ],
+            has_more=True,
+            next_cursor="cursor-2",
+        )
+
+        with patch(
+            "http_adapter.urlopen",
+            side_effect=[
+                response(first),
+                response(second),
+            ],
+        ) as mock_urlopen:
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "Repeated pagination state detected",
+            ):
+                adapter.fetch(
+                    record_id_field="id",
+                )
 
         self.assertEqual(
             mock_urlopen.call_count,

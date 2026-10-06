@@ -24,6 +24,7 @@ from pyspark.sql.types import StringType, StructField, StructType, TimestampType
 from api_dataset_registry import ApiDatasetConfig, get_dataset_config
 from bronze_writer import read_parquet_object, write_parquet_object
 from http_adapter import HttpAdapter
+from pagination import PaginationStrategy
 
 
 METADATA_COLUMNS = (
@@ -511,6 +512,7 @@ def fetch_http_api_payload(
     api_key: str | None = None,
     page_limit: int = 500,
     timeout_seconds: int = 30,
+    pagination_strategy: PaginationStrategy | None = None,
 ) -> dict[str, Any]:
     """Fetch an API payload through the reusable HTTP transport adapter."""
     config = get_dataset_config(dataset)
@@ -521,6 +523,7 @@ def fetch_http_api_payload(
         page_limit=page_limit,
         timeout_seconds=timeout_seconds,
         updated_after=updated_after,
+        pagination_strategy=pagination_strategy,
     )
 
     return adapter.fetch(
@@ -550,6 +553,7 @@ def ingest_http_api_to_bronze(
     api_key: str | None = None,
     page_limit: int = 500,
     timeout_seconds: int = 30,
+    pagination_strategy: PaginationStrategy | None = None,
 ) -> IngestionResult:
     """
     HTTP source adapter.
@@ -564,6 +568,7 @@ def ingest_http_api_to_bronze(
         api_key=api_key,
         page_limit=page_limit,
         timeout_seconds=timeout_seconds,
+        pagination_strategy=pagination_strategy,
     )
 
     return ingest_payload_to_bronze(

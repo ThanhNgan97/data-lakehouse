@@ -1,0 +1,2507 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airbyte Data Lakehouse - Provisioning Tool</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #F8F9FA;
+      color: #0F172A;
+    }
+    code, pre, .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Subtle custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #E2E8F0;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #CBD5E1;
+    }
+    .custom-scroll {
+      scrollbar-width: thin;
+      scrollbar-color: #E2E8F0 transparent;
+    }
+
+    /* Keyframe Animations */
+    @keyframes stepFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-step-in {
+      animation: stepFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes dropdownOpen {
+      from {
+        opacity: 0;
+        transform: translateY(-4px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+    .combobox-dropdown.show {
+      display: block !important;
+      animation: dropdownOpen 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes accordionSlideDown {
+      0% {
+        opacity: 0;
+        transform: translateY(-6px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-accordion {
+      animation: accordionSlideDown 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .row-hover-highlight {
+      transition: background-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .row-hover-highlight:hover {
+      box-shadow: inset 3px 0 0 0 #0F172A;
+    }
+    .row-active-accordion {
+      box-shadow: inset 4px 0 0 0 #4F46E5 !important;
+      background-color: #F8FAFC !important;
+    }
+  </style>
+</head>
+<body class="bg-[#F8F9FA] text-[#0F172A] min-h-screen flex flex-col antialiased selection:bg-[#0F172A] selection:text-white">
+
+  <!-- ==================================================================== -->
+  <!-- HEADER: CLEAN MINIMAL SAAS -->
+  <!-- ==================================================================== -->
+  <header class="bg-white border-b border-[#E2E8F0] sticky top-0 z-30 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+    <div id="header-container" class="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between transition-all duration-150">
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 rounded-lg bg-[#0F172A] text-white flex items-center justify-center shadow-xs">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+        <div>
+          <h1 class="text-[15px] font-semibold tracking-[-0.01em] text-[#0F172A]">Airbyte DB Provisioner</h1>
+          <p class="text-[11px] text-[#64748B]">Standalone Secure Database Preparation for Lakehouse</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-3">
+        <div class="flex items-center bg-[#F1F5F9] p-1 rounded-xl border border-[#E2E8F0]">
+          <button id="nav-btn-wizard" onclick="switchMainTab('wizard')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-[#0F172A] shadow-xs transition-all cursor-pointer">
+            🛠️ DB Provisioner
+          </button>
+          <button id="nav-btn-explorer" onclick="switchMainTab('explorer')" class="px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748B] hover:text-[#0F172A] transition-all cursor-pointer">
+            📊 Parquet Version Explorer
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================================================================== -->
+  <!-- MAIN CONTAINER -->
+  <!-- ==================================================================== -->
+  <main id="main-container" class="max-w-5xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full transition-all duration-150">
+    
+    <!-- VIEW 1: PROVISIONER WIZARD -->
+    <div id="view-wizard">
+      <!-- Step Navigation Indicator -->
+      <div class="mb-8 px-2 sm:px-6">
+      <div class="flex items-center justify-between relative">
+        <!-- Connecting Track Line -->
+        <div class="absolute left-4 right-4 top-4 -translate-y-1/2 h-[2px] bg-[#E2E8F0] z-0"></div>
+        <div id="step-bar" class="absolute left-4 top-4 -translate-y-1/2 h-[2px] bg-[#0F172A] transition-all duration-400 ease-out z-0" style="width: 0%;"></div>
+
+        <!-- Step 1 Badge -->
+        <div class="relative z-10 flex flex-col items-center">
+          <div id="badge-1" class="w-8 h-8 rounded-full bg-white text-[#0F172A] border-2 border-[#0F172A] font-semibold text-xs flex items-center justify-center shadow-xs ring-4 ring-slate-100 transition-all duration-200">
+            1
+          </div>
+          <span id="label-1" class="text-[11px] font-semibold mt-2 text-[#0F172A] transition-colors whitespace-nowrap">Kết nối DB</span>
+        </div>
+
+        <!-- Step 2 Badge -->
+        <div class="relative z-10 flex flex-col items-center">
+          <div id="badge-2" class="w-8 h-8 rounded-full bg-[#F1F5F9] text-[#94A3B8] border border-[#E2E8F0] font-medium text-xs flex items-center justify-center shadow-2xs transition-all duration-200">
+            2
+          </div>
+          <span id="label-2" class="text-[11px] font-normal mt-2 text-[#94A3B8] transition-colors whitespace-nowrap">Chọn Bảng</span>
+        </div>
+
+        <!-- Step 3 Badge -->
+        <div class="relative z-10 flex flex-col items-center">
+          <div id="badge-3" class="w-8 h-8 rounded-full bg-[#F1F5F9] text-[#94A3B8] border border-[#E2E8F0] font-medium text-xs flex items-center justify-center shadow-2xs transition-all duration-200">
+            3
+          </div>
+          <span id="label-3" class="text-[11px] font-normal mt-2 text-[#94A3B8] transition-colors whitespace-nowrap">Kịch bản Sync</span>
+        </div>
+
+        <!-- Step 4 Badge -->
+        <div class="relative z-10 flex flex-col items-center">
+          <div id="badge-4" class="w-8 h-8 rounded-full bg-[#F1F5F9] text-[#94A3B8] border border-[#E2E8F0] font-medium text-xs flex items-center justify-center shadow-2xs transition-all duration-200">
+            4
+          </div>
+          <span id="label-4" class="text-[11px] font-normal mt-2 text-[#94A3B8] transition-colors whitespace-nowrap">Xem DDL</span>
+        </div>
+
+        <!-- Step 5 Badge -->
+        <div class="relative z-10 flex flex-col items-center">
+          <div id="badge-5" class="w-8 h-8 rounded-full bg-[#F1F5F9] text-[#94A3B8] border border-[#E2E8F0] font-medium text-xs flex items-center justify-center shadow-2xs transition-all duration-200">
+            5
+          </div>
+          <span id="label-5" class="text-[11px] font-normal mt-2 text-[#94A3B8] transition-colors whitespace-nowrap">Thực thi & Test</span>
+        </div>
+
+        <!-- Step 6 Badge -->
+        <div class="relative z-10 flex flex-col items-center">
+          <div id="badge-6" class="w-8 h-8 rounded-full bg-[#F1F5F9] text-[#94A3B8] border border-[#E2E8F0] font-medium text-xs flex items-center justify-center shadow-2xs transition-all duration-200">
+            6
+          </div>
+          <span id="label-6" class="text-[11px] font-normal mt-2 text-[#94A3B8] transition-colors whitespace-nowrap">Kiểm tra Audit</span>
+        </div>
+
+        <!-- Step 7 Badge -->
+        <div class="relative z-10 flex flex-col items-center">
+          <div id="badge-7" class="w-8 h-8 rounded-full bg-[#F1F5F9] text-[#94A3B8] border border-[#E2E8F0] font-medium text-xs flex items-center justify-center shadow-2xs transition-all duration-200">
+            7
+          </div>
+          <span id="label-7" class="text-[11px] font-normal mt-2 text-[#94A3B8] transition-colors whitespace-nowrap">Xuất Bàn Giao</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert Box -->
+    <div id="alert-box" class="hidden mb-6 p-4 rounded-xl border text-[13px] font-medium flex items-start space-x-3 transition-all duration-200"></div>
+
+    <!-- ==================================================================== -->
+    <!-- STEP 1: DB CONNECTION -->
+    <!-- ==================================================================== -->
+    <div id="step-1" class="animate-step-in bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_12px_32px_-4px_rgba(0,0,0,0.06)] border border-[#E2E8F0] p-6 sm:p-8">
+      <div class="border-b border-[#F1F5F9] pb-4 mb-6">
+        <h2 class="text-[18px] font-semibold tracking-[-0.01em] text-[#0F172A]">Bước 1: Kết nối Cơ sở Dữ liệu Khách hàng</h2>
+        <p class="text-[13px] text-[#64748B] mt-1">Nhập thông tin kết nối có quyền Admin nội bộ để quét danh mục bảng và chuẩn bị phân quyền least-privilege.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <!-- Prominent Tenant ID Card (Khắc phục lỗi đổ chung thư mục MinIO) -->
+        <div class="md:col-span-2 p-4 bg-indigo-50/70 border border-indigo-200/80 rounded-xl">
+          <div class="flex items-start space-x-3">
+            <div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 shadow-xs">
+              ID
+            </div>
+            <div class="flex-1">
+              <label class="block text-[12px] font-bold text-indigo-950 mb-1">
+                Mã Định Danh Khách Hàng (Tenant ID) *
+              </label>
+              <div class="flex flex-col sm:flex-row gap-2">
+                <input id="conn-tenant" type="text" value="postgresqltest" oninput="onTenantIdChange()" placeholder="VD: postgresqltest, tenant_customer_b..." class="flex-1 bg-white border border-indigo-300 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 rounded-lg px-3 py-2 text-[13px] font-mono font-semibold text-[#0F172A] outline-none">
+                <button type="button" onclick="checkTenantDuplicate(true)" class="bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center space-x-1.5 transition shadow-xs cursor-pointer whitespace-nowrap">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  <span>Check Trùng Tên</span>
+                </button>
+                <div class="text-[11px] text-indigo-800 bg-white border border-indigo-200 px-3 py-2 rounded-lg flex items-center whitespace-nowrap font-mono shadow-2xs">
+                  📁 Thư mục MinIO: <code id="lbl-minio-step1" class="ml-1 font-bold text-indigo-900">bronze_archive/postgresqltest/</code>
+                </div>
+              </div>
+              <div id="tenant-check-box" class="mt-2.5"></div>
+              <p class="text-[11px] text-indigo-800 mt-1.5 leading-relaxed">
+                <strong>Lưu ý:</strong> Mỗi hệ thống database Docker của một khách hàng cần có <strong>Mã Khách Hàng (Tenant ID) riêng biệt</strong> để dữ liệu đổ vào thư mục độc lập trên MinIO Lakehouse (không bị đè hoặc lẫn lộn dữ liệu).
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[12px] font-medium text-[#334155] mb-1.5">Loại Database (Engine)</label>
+          <div id="wrapper-conn-engine"></div>
+        </div>
+
+        <div>
+          <label class="block text-[12px] font-medium text-[#334155] mb-1.5">Tên Database</label>
+          <input id="conn-db" type="text" value="university_db" oninput="onDbNameChange()" class="w-full bg-[#F8FAFC] hover:bg-white focus:bg-white border border-[#E2E8F0] focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] rounded-lg px-3 py-2 text-[13px] font-mono text-[#0F172A] transition-colors outline-none placeholder-[#94A3B8]">
+        </div>
+
+        <div>
+          <label class="block text-[12px] font-medium text-[#334155] mb-1.5">Host / IP</label>
+          <input id="conn-host" type="text" value="127.0.0.1" class="w-full bg-[#F8FAFC] hover:bg-white focus:bg-white border border-[#E2E8F0] focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] rounded-lg px-3 py-2 text-[13px] font-mono text-[#0F172A] transition-colors outline-none placeholder-[#94A3B8]">
+        </div>
+
+        <div>
+          <label class="block text-[12px] font-medium text-[#334155] mb-1.5">Port</label>
+          <input id="conn-port" type="number" value="5433" class="w-full bg-[#F8FAFC] hover:bg-white focus:bg-white border border-[#E2E8F0] focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] rounded-lg px-3 py-2 text-[13px] font-mono text-[#0F172A] transition-colors outline-none placeholder-[#94A3B8]">
+        </div>
+
+        <div>
+          <label class="block text-[12px] font-medium text-[#334155] mb-1.5">Admin Username</label>
+          <input id="conn-user" type="text" value="postgres" class="w-full bg-[#F8FAFC] hover:bg-white focus:bg-white border border-[#E2E8F0] focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] rounded-lg px-3 py-2 text-[13px] font-mono text-[#0F172A] transition-colors outline-none placeholder-[#94A3B8]">
+        </div>
+
+        <div>
+          <label class="block text-[12px] font-medium text-[#334155] mb-1.5">Admin Password</label>
+          <input id="conn-pass" type="password" value="240203" class="w-full bg-[#F8FAFC] hover:bg-white focus:bg-white border border-[#E2E8F0] focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] rounded-lg px-3 py-2 text-[13px] font-mono text-[#0F172A] transition-colors outline-none placeholder-[#94A3B8]">
+        </div>
+
+        <div>
+          <label class="block text-[12px] font-medium text-[#334155] mb-1.5">SSL Mode</label>
+          <div id="wrapper-conn-ssl"></div>
+        </div>
+
+        <div>
+          <label class="block text-[12px] font-medium text-[#334155] mb-1.5">Schema nguồn (Mặc định: public)</label>
+          <input id="conn-schema" type="text" value="public" class="w-full bg-[#F8FAFC] hover:bg-white focus:bg-white border border-[#E2E8F0] focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] rounded-lg px-3 py-2 text-[13px] font-mono text-[#0F172A] transition-colors outline-none placeholder-[#94A3B8]">
+        </div>
+      </div>
+
+      <!-- DB Info Result Box -->
+      <div id="conn-info-box" class="hidden mt-6 p-4 rounded-xl bg-[#F0FDF4] border border-[#BBF7D0] text-[13px]">
+        <div class="font-semibold text-emerald-900 flex items-center space-x-2 mb-1">
+          <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span>Kết nối thành công:</span>
+          <span id="conn-info-text" class="font-mono text-emerald-800 text-xs"></span>
+        </div>
+        <div id="conn-info-warnings" class="text-amber-800 font-medium text-xs mt-1"></div>
+      </div>
+
+      <div class="mt-8 flex justify-end">
+        <button id="btn-test-conn" onclick="testConnection()" class="bg-[#0F172A] hover:bg-slate-800 active:scale-[0.98] text-white font-medium px-5 py-2.5 rounded-lg text-[13px] shadow-xs transition-all duration-150 flex items-center space-x-2 cursor-pointer">
+          <span>Kiểm tra & Quét Danh mục Bảng</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================================================================== -->
+    <!-- STEP 2: TABLE & COLUMN SELECTION -->
+    <!-- ==================================================================== -->
+    <div id="step-2" class="hidden animate-step-in bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_12px_32px_-4px_rgba(0,0,0,0.06)] border border-[#E2E8F0] p-6 sm:p-8">
+      <div class="border-b border-[#F1F5F9] pb-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div>
+          <h2 class="text-[18px] font-semibold tracking-[-0.01em] text-[#0F172A]">Bước 2: Chọn Bảng, Cột & Quy tắc Che Giấu (Masking)</h2>
+          <p class="text-[13px] text-[#64748B] mt-1">Hệ thống đã tự động phát hiện các cột nhạy cảm (PII, Mật khẩu, Thẻ) và đề xuất phương án che giấu.</p>
+        </div>
+        <span class="inline-flex items-center text-[11px] bg-[#F1F5F9] text-[#475569] border border-[#E2E8F0] px-3 py-1 rounded-full font-mono font-medium whitespace-nowrap self-start sm:self-auto">
+          1 View = 1 Flat Table (Zero Join)
+        </span>
+      </div>
+
+      <!-- Tables Container -->
+      <div id="tables-container" class="space-y-5"></div>
+
+      <div class="mt-8 flex justify-between items-center">
+        <button onclick="goToStep(1)" class="border border-[#E2E8F0] bg-white text-[#334155] hover:bg-slate-50 active:scale-[0.98] font-medium px-4 py-2.5 rounded-lg text-[13px] transition-all duration-150 cursor-pointer flex items-center space-x-1.5">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+          <span>Quay lại</span>
+        </button>
+        <button onclick="proceedToStep3()" class="bg-[#0F172A] hover:bg-slate-800 active:scale-[0.98] text-white font-medium px-5 py-2.5 rounded-lg text-[13px] shadow-xs transition-all duration-150 cursor-pointer flex items-center space-x-1.5">
+          <span>Tiếp tục: Chọn Kịch bản Đồng bộ</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================================================================== -->
+    <!-- STEP 3: SYNC STRATEGY SELECTION -->
+    <!-- ==================================================================== -->
+    <div id="step-3" class="hidden animate-step-in bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_12px_32px_-4px_rgba(0,0,0,0.06)] border border-[#E2E8F0] p-6 sm:p-8">
+      <div class="border-b border-[#F1F5F9] pb-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div>
+          <h2 class="text-[18px] font-semibold tracking-[-0.01em] text-[#0F172A]">Bước 3: Lựa chọn Kịch bản Đồng bộ (Sync Strategy)</h2>
+          <p class="text-[13px] text-[#64748B] mt-1">Lựa chọn giải pháp trích xuất dữ liệu phù hợp với chính sách bảo mật và khả năng cấu hình của khách hàng.</p>
+        </div>
+        <span class="inline-flex items-center text-[11px] bg-indigo-50 text-indigo-700 border border-indigo-200/80 px-3 py-1 rounded-full font-mono font-medium whitespace-nowrap self-start sm:self-auto">
+          2 Kịch bản Khả dụng
+        </span>
+      </div>
+
+      <!-- Strategy Cards Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+        <!-- Card 1: Standard View-based -->
+        <div id="card-strategy-standard" onclick="selectStrategy('STANDARD')" class="cursor-pointer border-2 rounded-xl p-5 transition-all duration-200 bg-white border-[#E2E8F0] hover:border-slate-400">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center space-x-2.5">
+              <div id="radio-standard" class="w-4 h-4 rounded-full border-2 border-slate-300 flex items-center justify-center">
+                <div class="w-2 h-2 rounded-full bg-transparent"></div>
+              </div>
+              <h3 class="text-sm font-bold text-[#0F172A]">Standard Sync (Flat Views)</h3>
+            </div>
+            <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">Batch Cursor</span>
+          </div>
+          <p class="text-xs text-[#64748B] mb-4 leading-relaxed">
+            Tạo Schema cách ly và các SQL View tĩnh. Che giấu PII (MD5, Mask Email/SĐT) trực tiếp tại mã nguồn và kéo dữ liệu theo mốc thời gian <code>updated_at</code>.
+          </p>
+          <div class="space-y-1.5 text-[11px] text-[#475569] font-medium border-t border-slate-100 pt-3">
+            <div class="flex items-center space-x-2">
+              <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              <span>Không cần thay đổi cấu hình máy chủ DB (Không restart)</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              <span>Che giấu PII triệt để ngay tại câu lệnh SQL View</span>
+            </div>
+            <div class="flex items-center space-x-2 text-slate-500">
+              <svg class="w-3.5 h-3.5 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              <span>Không bắt được dòng bị xóa (Hard Delete), tốn CPU truy vấn</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: Controlled CDC -->
+        <div id="card-strategy-cdc" onclick="selectStrategy('CDC')" class="cursor-pointer border-2 rounded-xl p-5 transition-all duration-200 bg-white border-[#0F172A] shadow-xs ring-2 ring-slate-100">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center space-x-2.5">
+              <div id="radio-cdc" class="w-4 h-4 rounded-full border-2 border-[#0F172A] flex items-center justify-center">
+                <div class="w-2 h-2 rounded-full bg-[#0F172A]"></div>
+              </div>
+              <h3 class="text-sm font-bold text-[#0F172A]">Controlled CDC (Log-based)</h3>
+            </div>
+            <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">Khuyên dùng</span>
+          </div>
+          <p class="text-xs text-[#64748B] mb-4 leading-relaxed">
+            Đọc stream từ transaction log (Postgres WAL / MySQL Binlog). Không quét bảng, bắt trọn 100% DELETE và cập nhật theo thời gian thực (Near Real-time).
+          </p>
+          <div class="space-y-1.5 text-[11px] text-[#475569] font-medium border-t border-slate-100 pt-3">
+            <div class="flex items-center space-x-2">
+              <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              <span>Bắt trọn 100% bản ghi bị XÓA và trạng thái trung gian</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              <span>Zero-Query Load: Hoàn toàn không chạy SELECT quét bảng</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              <span>Stream from now on: Bỏ qua quá khứ, chạy ngay lập tức</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CDC Specific Detailed Alerts Container -->
+      <div id="cdc-alerts-panel" class="space-y-3 mb-6">
+        <div class="p-4 bg-amber-50/80 border border-amber-200/80 rounded-xl flex items-start space-x-3 text-xs">
+          <svg class="w-4 h-4 text-amber-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <div>
+            <span class="font-bold text-amber-900 block mb-0.5">Cảnh báo WAL & Rào chắn Tràn Ổ Cứng (WAL Bloat Protection):</span>
+            <span class="text-amber-800 leading-relaxed block">
+              Hệ thống PostgreSQL yêu cầu cấu hình <code>wal_level = logical</code> (nếu chưa bật cần DBA restart DB 1 lần). Tool tự động bổ sung tham số an toàn <code>max_slot_wal_keep_size = 20GB</code> để ngăn ngừa tuyệt đối nguy cơ ngắt kết nối kéo dài làm đầy ổ đĩa DB của khách hàng.
+            </span>
+          </div>
+        </div>
+
+        <div class="p-4 bg-emerald-50/80 border border-emerald-200/80 rounded-xl flex items-start space-x-3 text-xs">
+          <svg class="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          <div>
+            <span class="font-bold text-emerald-950 block mb-0.5">Đặc quyền Tối thiểu Tuyệt đối (Zero-Write Privilege):</span>
+            <span class="text-emerald-900 leading-relaxed block">
+              Tài khoản <code>airbyte_reader</code> chỉ được cấp quyền <code>REPLICATION</code> + <code>GRANT SELECT</code> độc quyền trên các bảng đã chọn. Cấm tuyệt đối <code>INSERT</code>, <code>UPDATE</code>, <code>DELETE</code>, <code>CREATE</code>. Dữ liệu nghiệp vụ được bảo vệ an toàn 100%.
+            </span>
+          </div>
+        </div>
+
+        <div class="p-4 bg-blue-50/80 border border-blue-200/80 rounded-xl flex items-start space-x-3 text-xs">
+          <svg class="w-4 h-4 text-blue-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <div>
+            <span class="font-bold text-blue-950 block mb-0.5">Cơ chế truy cập Bảng gốc & Che giấu PII:</span>
+            <span class="text-blue-900 leading-relaxed block">
+              Logical Replication chỉ đọc từ Bảng vật lý (Base table) chứ không hỗ trợ View. Việc che giấu hoặc loại trừ các cột nhạy cảm (PII) sẽ được thực hiện qua cấu hình Catalog của Airbyte hoặc tầng chuyển tiếp Lakehouse.
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-8 flex justify-between items-center">
+        <button onclick="goToStep(2)" class="border border-[#E2E8F0] bg-white text-[#334155] hover:bg-slate-50 active:scale-[0.98] font-medium px-4 py-2.5 rounded-lg text-[13px] transition-all duration-150 cursor-pointer flex items-center space-x-1.5">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+          <span>Quay lại</span>
+        </button>
+        <button onclick="preparePlan()" class="bg-[#0F172A] hover:bg-slate-800 active:scale-[0.98] text-white font-medium px-5 py-2.5 rounded-lg text-[13px] shadow-xs transition-all duration-150 cursor-pointer flex items-center space-x-1.5">
+          <span>Tiếp tục: Cấu hình & Xem trước DDL</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================================================================== -->
+    <!-- STEP 4: PREVIEW DDL SCRIPT -->
+    <!-- ==================================================================== -->
+    <div id="step-4" class="hidden animate-step-in bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_12px_32px_-4px_rgba(0,0,0,0.06)] border border-[#E2E8F0] p-6 sm:p-8">
+      <div class="border-b border-[#F1F5F9] pb-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div>
+          <h2 class="text-[18px] font-semibold tracking-[-0.01em] text-[#0F172A]">Bước 4: Cấu hình Phân quyền & Xem trước Mã DDL</h2>
+          <p class="text-[13px] text-[#64748B] mt-1">Mã SQL được tối ưu theo kịch bản đã chọn để sẵn sàng thực thi trên cơ sở dữ liệu khách hàng.</p>
+        </div>
+        <span id="badge-current-mode" class="inline-flex items-center text-[11px] bg-slate-100 text-slate-800 border border-slate-200 px-3 py-1 rounded-full font-mono font-medium whitespace-nowrap self-start sm:self-auto">
+          Mode: CDC
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-4 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
+        <div>
+          <label class="block text-[11px] font-medium text-[#475569] mb-1">Mã Khách hàng (Tenant ID)</label>
+          <input id="plan-tenant" type="text" value="tenant_client_01" oninput="document.getElementById('conn-tenant').value = this.value; onTenantIdChange();" class="w-full bg-white border border-[#E2E8F0] focus:border-[#0F172A] rounded-lg px-2.5 py-1.5 text-xs font-mono font-semibold text-[#0F172A] outline-none transition-colors">
+        </div>
+        <div id="col-integration-schema">
+          <label id="lbl-integration-schema" class="block text-[11px] font-medium text-[#475569] mb-1">Schema Trung gian</label>
+          <input id="plan-schema" type="text" value="airbyte_vault" class="w-full bg-white border border-[#E2E8F0] focus:border-[#0F172A] rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#0F172A] outline-none transition-colors">
+        </div>
+        <div>
+          <label class="block text-[11px] font-medium text-[#475569] mb-1">User Chuyên dụng</label>
+          <input id="plan-user" type="text" value="airbyte_reader" class="w-full bg-white border border-[#E2E8F0] focus:border-[#0F172A] rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#0F172A] outline-none transition-colors">
+        </div>
+        <div>
+          <label class="block text-[11px] font-medium text-[#475569] mb-1">Timeout Truy vấn (Giây)</label>
+          <input id="plan-timeout" type="number" value="30" class="w-full bg-white border border-[#E2E8F0] focus:border-[#0F172A] rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#0F172A] outline-none transition-colors">
+        </div>
+
+        <!-- Custom MinIO Destination Storage Config -->
+        <div class="sm:col-span-2 md:col-span-4 pt-3 border-t border-[#E2E8F0] grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-semibold text-[#334155] mb-1">Tên Bucket MinIO</label>
+            <input id="plan-minio-bucket" type="text" value="university-lakehouse" oninput="updateMinioPathPreview()" class="w-full bg-white border border-[#E2E8F0] focus:border-[#0F172A] rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#0F172A] outline-none transition-colors">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-[#334155] mb-1">Đường dẫn thư mục MinIO (Path Prefix)</label>
+            <input id="plan-minio-path" type="text" value="bronze_archive/postgresqltest" oninput="updateMinioPathPreview()" class="w-full bg-white border border-[#E2E8F0] focus:border-[#0F172A] rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#0F172A] outline-none transition-colors">
+          </div>
+          <div class="sm:col-span-2 text-[11px] font-mono text-slate-500 flex flex-wrap items-center justify-between gap-2 bg-white p-2.5 rounded-lg border border-[#E2E8F0]">
+            <span>📁 Vị trí lưu Parquet thực tế trên MinIO:</span>
+            <span class="bg-indigo-50 text-indigo-900 border border-indigo-200 px-2 py-0.5 rounded font-bold" id="plan-minio-preview">university-lakehouse/bronze_archive/postgresqltest/${STREAM_NAME}/part_*.parquet</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SQL Code Block -->
+      <div class="relative rounded-xl overflow-hidden border border-[#1E293B]">
+        <div class="flex items-center justify-between bg-[#0F172A] text-slate-300 px-4 py-2.5 text-xs border-b border-slate-800">
+          <div class="flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-slate-700"></span>
+            <span id="lbl-ddl-filename" class="font-mono text-slate-300">ddl_provision_script.sql</span>
+          </div>
+          <button onclick="copySQL()" class="bg-slate-800 hover:bg-slate-700 active:scale-[0.98] text-slate-200 px-2.5 py-1 rounded text-xs transition cursor-pointer flex items-center space-x-1.5">
+            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            <span>Sao chép SQL</span>
+          </button>
+        </div>
+        <pre id="sql-preview" class="bg-[#0B0F19] text-emerald-400 p-4 text-xs font-mono overflow-x-auto max-h-96 leading-relaxed custom-scroll"></pre>
+      </div>
+
+      <div class="mt-8 flex justify-between items-center">
+        <button onclick="goToStep(3)" class="border border-[#E2E8F0] bg-white text-[#334155] hover:bg-slate-50 active:scale-[0.98] font-medium px-4 py-2.5 rounded-lg text-[13px] transition-all duration-150 cursor-pointer flex items-center space-x-1.5">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+          <span>Quay lại</span>
+        </button>
+        <button onclick="applyPlan()" class="bg-[#0F172A] hover:bg-slate-800 active:scale-[0.98] text-white font-medium px-5 py-2.5 rounded-lg text-[13px] shadow-xs transition-all duration-150 flex items-center space-x-2 cursor-pointer">
+          <span>Thực thi Khởi tạo (Apply DDL & Create User)</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================================================================== -->
+    <!-- STEP 5: EXECUTE & VERIFY -->
+    <!-- ==================================================================== -->
+    <div id="step-5" class="hidden animate-step-in bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_12px_32px_-4px_rgba(0,0,0,0.06)] border border-[#E2E8F0] p-6 sm:p-8">
+      <div class="border-b border-[#F1F5F9] pb-4 mb-6">
+        <h2 class="text-[18px] font-semibold tracking-[-0.01em] text-[#0F172A]">Bước 5: Thực thi & Kiểm tra Quyền Hạn</h2>
+        <p class="text-[13px] text-[#64748B] mt-1">Đang thực hiện DDL và kiểm tra truy vấn thực tế bằng tài khoản giới hạn.</p>
+      </div>
+
+      <div id="execution-status" class="p-6 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-4 font-mono text-xs">
+        <div class="flex items-center space-x-2.5 text-[#0F172A]">
+          <svg class="animate-spin h-4 w-4 text-[#0F172A]" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+          <span class="font-sans font-medium text-[13px]">Đang thực thi các câu lệnh DDL trên cơ sở dữ liệu...</span>
+        </div>
+      </div>
+
+      <div class="mt-8 flex justify-end">
+        <button id="btn-next-step6" disabled onclick="goToStep(6)" class="bg-slate-300 text-slate-500 font-medium px-5 py-2.5 rounded-lg text-[13px] transition cursor-not-allowed flex items-center space-x-1.5">
+          <span>Tiếp tục: Xem Câu lệnh Audit DB</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================================================================== -->
+    <!-- STEP 6: DBA AUDIT & VERIFICATION QUERIES -->
+    <!-- ==================================================================== -->
+    <div id="step-6" class="hidden animate-step-in bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_12px_32px_-4px_rgba(0,0,0,0.06)] border border-[#E2E8F0] p-6 sm:p-8">
+      <div class="border-b border-[#F1F5F9] pb-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div>
+          <h2 class="text-[18px] font-semibold tracking-[-0.01em] text-[#0F172A]">Bước 6: Truy vấn Kiểm tra & Audit DB (DBA Verification)</h2>
+          <p class="text-[13px] text-[#64748B] mt-1">Cung cấp các câu truy vấn SQL mẫu để DBA khách hàng kiểm tra độc lập các đối tượng và quyền hạn vừa tạo trên DB.</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button onclick="downloadAuditSQL()" class="bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-medium px-3.5 py-1.5 rounded-lg text-xs shadow-xs transition flex items-center space-x-1.5 cursor-pointer">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            <span>Tải file audit_verification.sql</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="mb-5 p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 leading-relaxed flex items-start space-x-3">
+        <svg class="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        <div>
+          <span class="font-bold text-slate-900 block mb-1">Hướng dẫn dành cho Quản trị viên Cơ sở Dữ liệu (DBA):</span>
+          Quý DBA có thể copy toàn bộ câu lệnh bên dưới và dán vào <strong>DBeaver, pgAdmin, hoặc psql</strong> để xác nhận: (1) Quyền Zero-Write không có ghi/sửa, (2) User chỉ được đọc các bảng đã chọn, (3) Publication & Slot không gây nguy cơ tràn đĩa.
+        </div>
+      </div>
+
+      <!-- SQL Audit Block -->
+      <div class="relative rounded-xl overflow-hidden border border-[#1E293B] mb-6">
+        <div class="flex items-center justify-between bg-[#0F172A] text-slate-300 px-4 py-2.5 text-xs border-b border-slate-800">
+          <div class="flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            <span class="font-mono text-slate-300">audit_verification_suite.sql</span>
+          </div>
+          <button onclick="copyAuditSQL()" class="bg-slate-800 hover:bg-slate-700 active:scale-[0.98] text-slate-200 px-2.5 py-1 rounded text-xs transition cursor-pointer flex items-center space-x-1.5">
+            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            <span>Sao chép tất cả SQL</span>
+          </button>
+        </div>
+        <pre id="audit-sql-preview" class="bg-[#0B0F19] text-sky-300 p-4 text-xs font-mono overflow-x-auto max-h-96 leading-relaxed custom-scroll"></pre>
+      </div>
+
+      <div class="mt-8 flex justify-between items-center">
+        <button onclick="goToStep(5)" class="border border-[#E2E8F0] bg-white text-[#334155] hover:bg-slate-50 active:scale-[0.98] font-medium px-4 py-2.5 rounded-lg text-[13px] transition-all duration-150 cursor-pointer flex items-center space-x-1.5">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+          <span>Quay lại</span>
+        </button>
+        <button onclick="handleCompleteStep6()" class="bg-[#0F172A] hover:bg-slate-800 active:scale-[0.98] text-white font-medium px-5 py-2.5 rounded-lg text-[13px] shadow-xs transition-all duration-150 cursor-pointer flex items-center space-x-1.5">
+          <span>Tiếp tục: Bàn giao & Đồng bộ Airbyte</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================================================================== -->
+    <!-- STEP 7: HANDOVER BUNDLE -->
+    <!-- ==================================================================== -->
+    <div id="step-7" class="hidden animate-step-in bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_12px_32px_-4px_rgba(0,0,0,0.06)] border border-[#E2E8F0] p-6 sm:p-8">
+      <div class="border-b border-[#F1F5F9] pb-4 mb-6">
+        <div class="flex items-center space-x-2 text-emerald-700 font-semibold text-lg mb-1">
+          <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span>Khởi tạo Thành công Hoàn toàn!</span>
+        </div>
+        <p class="text-[13px] text-[#64748B]">Hệ thống đã sẵn sàng kết nối vào Airbyte để đồng bộ sang MinIO Parquet.</p>
+      </div>
+
+      <!-- Credential Summary Card -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+        <div class="p-5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl">
+          <h3 class="text-[11px] font-semibold text-[#475569] uppercase tracking-wider mb-3">Thông tin Kết nối cho Airbyte</h3>
+          <div class="space-y-2 text-xs font-mono">
+            <div class="flex justify-between py-1.5 border-b border-[#E2E8F0]">
+              <span class="text-[#64748B]">Host / Port:</span>
+              <span id="res-host" class="font-semibold text-[#0F172A]"></span>
+            </div>
+            <div class="flex justify-between py-1.5 border-b border-[#E2E8F0]">
+              <span class="text-[#64748B]">Database:</span>
+              <span id="res-db" class="font-semibold text-[#0F172A]"></span>
+            </div>
+            <div class="flex justify-between py-1.5 border-b border-[#E2E8F0]">
+              <span class="text-[#64748B]">Integration Schema:</span>
+              <span id="res-schema" class="font-semibold text-blue-600"></span>
+            </div>
+            <div class="flex justify-between py-1.5 border-b border-[#E2E8F0]">
+              <span class="text-[#64748B]">Restricted User:</span>
+              <span id="res-user" class="font-semibold text-emerald-700"></span>
+            </div>
+            <div class="flex justify-between py-1.5 items-center">
+              <span class="text-[#64748B]">Mật khẩu mới sinh:</span>
+              <span id="res-pass" class="font-bold text-amber-900 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded font-mono"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-5 bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl">
+          <h3 class="text-[11px] font-semibold text-emerald-900 uppercase tracking-wider mb-3">Cấu hình Đích đến MinIO Lakehouse</h3>
+          <div class="space-y-2 text-xs font-mono text-emerald-950">
+            <div><strong class="font-medium text-emerald-900">Bucket đích:</strong> <span class="bg-emerald-100/70 text-emerald-900 px-1.5 py-0.5 rounded text-[11px]">university-lakehouse</span></div>
+            <div><strong class="font-medium text-emerald-900">Định dạng file:</strong> <span class="bg-emerald-100/70 text-emerald-900 px-1.5 py-0.5 rounded text-[11px]">Parquet (Snappy Compressed)</span></div>
+            <div><strong class="font-medium text-emerald-900">Phân vùng đường dẫn:</strong> <span id="res-minio-path" class="text-emerald-900 font-bold"></span></div>
+            <div class="pt-2 text-[12px] text-emerald-800 font-sans leading-relaxed">
+              Dữ liệu từ các View này khi Airbyte kéo về sẽ tự động nén thành Parquet và lưu cố định tại thư mục trên.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Direct Airbyte Trigger Card -->
+      <div class="p-6 bg-[#0F172A] text-white rounded-xl shadow-xs mb-6 border border-slate-800">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center space-x-2">
+            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"/></svg>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-200">Kích hoạt Đồng bộ Trực tiếp vào Airbyte Platform</h3>
+          </div>
+          <span class="text-[10px] bg-slate-800 text-slate-300 px-2.5 py-0.5 rounded border border-slate-700 font-medium">Zero-Manual Handoff</span>
+        </div>
+        <p class="text-xs text-slate-400 mb-4">
+          Gửi gói cấu hình an toàn này trực tiếp về máy chủ Airbyte để hệ thống tự động kiểm tra tài nguyên và bắt đầu trích xuất vào MinIO Parquet.
+        </p>
+
+        <div class="flex flex-col sm:flex-row items-center gap-3">
+          <input id="coordinator-url" type="text" value="http://127.0.0.1:9090" placeholder="Airbyte Server URL (VD: http://127.0.0.1:9090)" class="flex-1 w-full bg-[#0B0F19] border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:border-slate-500">
+          <button id="btn-sync-airbyte" onclick="triggerAirbyteSync()" class="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-slate-950 font-semibold px-5 py-2 rounded-lg text-xs shadow-xs transition-all duration-150 flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap">
+            <span>Kết nối Airbyte & Chuyển vào Parquet</span>
+            <svg class="w-3.5 h-3.5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+          </button>
+        </div>
+
+        <!-- Sync Progress / Result Box -->
+        <div id="airbyte-sync-result" class="hidden mt-4 p-4 rounded-lg bg-[#0B0F19] border border-slate-800 font-mono text-xs">
+          <div id="airbyte-sync-status" class="space-y-2"></div>
+        </div>
+      </div>
+
+      <div class="p-4 bg-amber-50/60 border border-amber-200/60 rounded-xl mb-6">
+        <h3 class="text-[11px] font-bold text-amber-900 uppercase tracking-wider mb-1">Lưu ý Tường lửa (Firewall Whitelist)</h3>
+        <p class="text-xs text-amber-800 leading-relaxed">
+          Vui lòng chuyển file cấu hình bàn giao này cho quản trị viên Airbyte hoặc tải file <code>airbyte_bundle.json</code> để nạp vào hệ sinh thái dữ liệu.
+        </p>
+      </div>
+
+      <div class="flex justify-between items-center">
+        <button onclick="location.reload()" class="border border-[#E2E8F0] bg-white text-[#334155] hover:bg-slate-50 active:scale-[0.98] font-medium px-4 py-2.5 rounded-lg text-[13px] transition-all duration-150 cursor-pointer flex items-center space-x-1.5">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          <span>Cấu hình DB khác</span>
+        </button>
+        <button onclick="downloadBundle()" class="bg-[#0F172A] hover:bg-slate-800 active:scale-[0.98] text-white font-medium px-5 py-2.5 rounded-lg text-[13px] shadow-xs transition-all duration-150 flex items-center space-x-2 cursor-pointer">
+          <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          <span>Tải File Bàn Giao (airbyte_bundle.json)</span>
+        </button>
+      </div>
+    </div>
+    </div> <!-- /view-wizard -->
+
+    <!-- VIEW 2: PARQUET VERSION EXPLORER -->
+    <div id="view-explorer" class="hidden animate-step-in space-y-6">
+      <!-- Control Bar -->
+      <div class="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_12px_32px_-4px_rgba(0,0,0,0.06)] border border-[#E2E8F0] p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#F1F5F9]">
+          <div>
+            <h2 class="text-[18px] font-semibold text-[#0F172A] flex items-center space-x-2">
+              <span>Lakehouse Parquet Version Explorer</span>
+              <span class="text-xs font-mono font-medium bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-200">SCD Type 2 Timeline</span>
+            </h2>
+            <p class="text-[13px] text-[#64748B] mt-0.5">
+              Đọc trực tiếp các file Parquet từ MinIO Bronze Archive Layer và khôi phục toàn bộ lịch sử thay đổi từng dòng dữ liệu (INSERT / UPDATE / DELETE).
+            </p>
+          </div>
+          <button onclick="loadExplorerStreams()" class="self-start sm:self-auto bg-white border border-[#E2E8F0] hover:bg-slate-50 text-xs font-medium px-3 py-2 rounded-lg text-[#334155] shadow-xs flex items-center space-x-1.5 transition cursor-pointer">
+            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            <span>Làm mới MinIO</span>
+          </button>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 mt-5 items-end">
+          <div class="sm:col-span-3">
+            <label class="block text-[11px] font-semibold text-[#475569] mb-1.5 uppercase tracking-wider">Tenant ID</label>
+            <select id="explorer-tenant" onchange="onExplorerTenantChange()" class="w-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#0F172A] rounded-lg px-3 py-2 text-xs font-mono text-[#0F172A] outline-none">
+              <option value="">Đang tải...</option>
+            </select>
+          </div>
+
+          <div class="sm:col-span-4">
+            <label class="block text-[11px] font-semibold text-[#475569] mb-1.5 uppercase tracking-wider">Bảng / Stream</label>
+            <select id="explorer-table" class="w-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#0F172A] rounded-lg px-3 py-2 text-xs font-mono text-[#0F172A] outline-none">
+              <option value="">Chọn bảng...</option>
+            </select>
+          </div>
+
+          <div class="sm:col-span-3">
+            <label class="block text-[11px] font-semibold text-[#475569] mb-1.5 uppercase tracking-wider">Lọc Record ID (Tùy chọn)</label>
+            <input id="explorer-filter-id" type="text" placeholder="Để trống để xem tất cả..." class="w-full bg-white border border-[#E2E8F0] focus:border-[#0F172A] rounded-lg px-3 py-2 text-xs font-mono text-[#0F172A] outline-none">
+          </div>
+
+          <div class="sm:col-span-2">
+            <button id="btn-query-parquet" onclick="queryParquetHistory()" class="w-full bg-[#0F172A] hover:bg-slate-800 text-white font-medium px-4 py-2 rounded-lg text-xs shadow-xs transition flex items-center justify-center space-x-1.5 cursor-pointer">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <span>Quét Lịch Sử</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading Placeholder -->
+      <div id="explorer-loading" class="hidden text-center py-16 bg-white rounded-2xl border border-[#E2E8F0]">
+        <svg class="animate-spin h-6 w-6 text-[#0F172A] mx-auto mb-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+        <div class="text-sm font-medium text-[#0F172A]">Đang đọc dữ liệu Parquet từ MinIO Lakehouse...</div>
+        <div class="text-xs text-slate-500 mt-1">Đang phân tích các file batch và gom nhóm theo Primary Key</div>
+      </div>
+
+      <!-- Result Container -->
+      <div id="explorer-results" class="hidden space-y-5">
+        <!-- Stats Summary Banner -->
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
+          <div class="bg-white p-3.5 rounded-xl border border-[#E2E8F0] shadow-xs">
+            <div class="text-[11px] font-medium text-[#64748B]">Files Parquet</div>
+            <div id="stat-files" class="text-xl font-bold font-mono text-[#0F172A] mt-1">-</div>
+            <div id="stat-files-list" class="text-[10px] text-slate-500 font-mono truncate mt-0.5"></div>
+          </div>
+          <div class="bg-white p-3.5 rounded-xl border border-[#E2E8F0] shadow-xs">
+            <div class="text-[11px] font-medium text-[#64748B]">Tổng Số Dòng (Batches)</div>
+            <div id="stat-records" class="text-xl font-bold font-mono text-indigo-600 mt-1">-</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">Các lần sync gom lại</div>
+          </div>
+          <div class="bg-white p-3.5 rounded-xl border border-[#E2E8F0] shadow-xs">
+            <div class="text-[11px] font-medium text-[#64748B]">Thực Thể Duy Nhất (IDs)</div>
+            <div id="stat-entities" class="text-xl font-bold font-mono text-emerald-600 mt-1">-</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">Khóa chính (PK)</div>
+          </div>
+          <div class="bg-white p-3.5 rounded-xl border border-[#E2E8F0] shadow-xs">
+            <div class="text-[11px] font-medium text-[#64748B]">Có Cập Nhật (>1 Ver)</div>
+            <div id="stat-multi-ver" class="text-xl font-bold font-mono text-amber-600 mt-1">-</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">Đã trải qua chỉnh sửa</div>
+          </div>
+          <div class="bg-white p-3.5 rounded-xl border border-rose-200 bg-rose-50/40 shadow-xs">
+            <div class="text-[11px] font-medium text-rose-700">Đã Bị Hard Delete</div>
+            <div id="stat-deleted" class="text-xl font-bold font-mono text-rose-700 mt-1">0</div>
+            <div class="text-[10px] text-rose-600 mt-0.5">Không còn ở Prod DB</div>
+          </div>
+        </div>
+
+        <!-- Table Toolbar & Filters -->
+        <div class="bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="setTableFilter('all')" id="filter-btn-all" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0F172A] text-white shadow-xs transition cursor-pointer">
+              Tất Cả (<span id="count-all">0</span>)
+            </button>
+            <button onclick="setTableFilter('active')" id="filter-btn-active" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#F8FAFC] text-[#334155] border border-[#E2E8F0] hover:bg-slate-100 transition cursor-pointer">
+              🟢 Đang Hoạt Động (<span id="count-active">0</span>)
+            </button>
+            <button onclick="setTableFilter('deleted')" id="filter-btn-deleted" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#F8FAFC] text-[#334155] border border-[#E2E8F0] hover:bg-slate-100 transition cursor-pointer">
+              🔴 Đã Bị Hard Delete (<span id="count-deleted">0</span>)
+            </button>
+            <button onclick="setTableFilter('multi')" id="filter-btn-multi" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#F8FAFC] text-[#334155] border border-[#E2E8F0] hover:bg-slate-100 transition cursor-pointer">
+              🟡 Có Nhiều Phiên Bản (<span id="count-multi">0</span>)
+            </button>
+          </div>
+
+          <div class="flex items-center space-x-2 w-full md:w-auto">
+            <div class="relative flex-1 md:w-72">
+              <input id="table-search-input" oninput="filterTableRows()" type="text" placeholder="Tìm kiếm nhanh mọi cột hoặc ID..." class="w-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#0F172A] rounded-lg pl-8 pr-3 py-1.5 text-xs font-mono text-[#0F172A] outline-none transition-colors">
+              <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </div>
+            <span class="text-xs text-slate-400 whitespace-nowrap font-mono" id="table-showing-text">0 bản ghi</span>
+          </div>
+        </div>
+
+        <!-- FULL WIDTH PARQUET DATA TABLE -->
+        <div class="bg-white rounded-2xl border border-[#E2E8F0] shadow-xs overflow-hidden">
+          <div class="overflow-x-auto w-full custom-scroll max-h-[680px]">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead class="bg-[#0F172A] text-slate-200 sticky top-0 z-10 font-mono text-[11px] uppercase tracking-wider select-none shadow-xs">
+                <tr id="parquet-table-header">
+                  <!-- Generated dynamically -->
+                </tr>
+              </thead>
+              <tbody id="parquet-table-body" class="divide-y divide-[#F1F5F9] font-mono">
+                <!-- Generated dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW VERSION HISTORY MODAL (FULL OVERLAY) -->
+      <div id="history-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-step-in" onclick="handleModalBackdropClick(event)">
+        <div class="bg-white w-full max-w-6xl max-h-[92vh] rounded-2xl shadow-2xl border border-[#E2E8F0] flex flex-col overflow-hidden" onclick="event.stopPropagation()">
+          <!-- Modal Top Header -->
+          <div class="p-5 border-b border-[#E2E8F0] bg-white flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <div class="w-8 h-8 rounded-lg bg-[#0F172A] text-white flex items-center justify-center font-bold text-xs">
+                SCD
+              </div>
+              <div>
+                <div class="flex items-center space-x-2.5">
+                  <h3 id="modal-title" class="text-base font-bold font-mono text-[#0F172A]">Lịch Sử Bản Ghi ID: -</h3>
+                  <span id="modal-status-badge"></span>
+                </div>
+                <div class="text-[11px] text-slate-500 font-mono mt-0.5">
+                  Bảng: <strong id="modal-table-name" class="text-slate-800"></strong> | Tenant: <span id="modal-tenant-name" class="text-slate-700"></span> | Tổng: <span id="modal-versions-count" class="font-bold text-slate-900"></span>
+                </div>
+              </div>
+            </div>
+            <button onclick="closeHistoryModal()" class="w-8 h-8 rounded-lg border border-[#E2E8F0] hover:bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-800 transition cursor-pointer">
+              ✕
+            </button>
+          </div>
+
+          <!-- Modal Scrollable Body -->
+          <div class="p-6 overflow-y-auto custom-scroll space-y-6 flex-1 bg-[#F8FAFC]">
+            <!-- Hard Delete Alert if applicable -->
+            <div id="modal-delete-alert" class="hidden p-4 rounded-xl bg-rose-50 border border-rose-300 text-rose-900">
+              <div class="flex items-center space-x-2 font-bold text-sm">
+                <svg class="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                <span>BẢN GHI NÀY ĐÃ BỊ HARD DELETE KHỎI PRODUCTION DATABASE!</span>
+              </div>
+              <p class="text-xs text-rose-700 mt-1 leading-relaxed">
+                Bản ghi này hiện <strong>không còn tồn tại</strong> trên cơ sở dữ liệu nguồn. Dữ liệu bên dưới phản ánh <strong>phiên bản cuối cùng được lưu trữ trước khi bị xóa sổ</strong>, cho phép bạn đối chiếu chính xác những gì đã từng tồn tại trước khi biến mất.
+              </p>
+            </div>
+
+            <!-- SECTION A: SO SÁNH TRƯỚC KIA VS. HIỆN TẠI (BEFORE VS. AFTER) -->
+            <div class="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-xs">
+              <div class="flex items-center justify-between pb-3 border-b border-[#F1F5F9] mb-4">
+                <div class="flex items-center space-x-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
+                  <h4 class="text-xs font-bold uppercase tracking-wider text-[#0F172A]">Đối Chiếu: Trước Kia (Lúc Tạo) vs. Hiện Tại (Hoặc Trước Khi Xóa)</h4>
+                </div>
+                <span class="text-[11px] text-slate-500 font-mono">Bản ghi qua các chu kỳ thay đổi</span>
+              </div>
+
+              <!-- Comparison Table -->
+              <div class="overflow-x-auto rounded-lg border border-[#E2E8F0]">
+                <table class="w-full text-left text-xs font-mono">
+                  <thead class="bg-slate-50 text-[11px] text-slate-500 uppercase border-b border-slate-200">
+                    <tr>
+                      <th class="py-2 px-3 w-1/4">Tên Trường / Cột</th>
+                      <th class="py-2 px-3 w-3/8 bg-slate-100/60 text-slate-700">TRƯỚC KIA (Version 1 - Lúc Tạo)</th>
+                      <th class="py-2 px-3 w-3/8 bg-indigo-50/40 text-indigo-900">HIỆN TẠI (Phiên Bản Mới Nhất / Trước Khi Xóa)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="modal-compare-tbody" class="divide-y divide-[#F1F5F9]">
+                    <!-- Dynamically generated comparison rows -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- SECTION B: DÒNG THỜI GIAN CHI TIẾT (SCD TYPE 2 TIMELINE) -->
+            <div class="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-xs">
+              <div class="flex items-center space-x-2 pb-3 border-b border-[#F1F5F9] mb-5">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-[#0F172A]">Tiến Trình Phiên Bản Từng Bước (SCD Type 2 Timeline)</h4>
+              </div>
+
+              <div id="modal-timeline-container" class="space-y-4">
+                <!-- Dynamically generated timeline nodes -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="p-4 bg-white border-t border-[#E2E8F0] flex justify-end">
+            <button onclick="closeHistoryModal()" class="px-5 py-2 rounded-lg text-xs font-semibold bg-[#0F172A] hover:bg-slate-800 text-white transition cursor-pointer">
+              Đóng cửa sổ
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ==================================================================== -->
+  <!-- JAVASCRIPT CONTROLLER -->
+  <!-- ==================================================================== -->
+  <script>
+    let currentConfig = {};
+    let discoveredTables = [];
+    let generatedPlan = {};
+    let finalBundle = null;
+
+    // ========================================================================
+    // CUSTOM COMBOBOX COMPONENT ENGINE (Linear / Radix / Shadcn Style)
+    // ========================================================================
+    function closeAllDropdowns() {
+      document.querySelectorAll('.combobox-dropdown').forEach(el => {
+        el.classList.remove('show');
+      });
+      document.querySelectorAll('.combobox-arrow').forEach(el => {
+        el.classList.remove('rotate-180');
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.custom-combobox')) {
+        closeAllDropdowns();
+      }
+    });
+
+    function toggleCombobox(container) {
+      const dropdown = container.querySelector('.combobox-dropdown');
+      const arrow = container.querySelector('.combobox-arrow');
+      const isOpen = dropdown.classList.contains('show');
+
+      closeAllDropdowns();
+
+      if (!isOpen) {
+        dropdown.classList.add('show');
+        if (arrow) arrow.classList.add('rotate-180');
+      }
+    }
+
+    function selectComboboxOption(container, value, label) {
+      const hiddenInput = container.querySelector('input[type="hidden"]');
+      const labelEl = container.querySelector('.combobox-label');
+      const triggerBtn = container.querySelector('.combobox-trigger');
+
+      hiddenInput.value = value;
+      labelEl.innerText = label;
+
+      const isDanger = (value === 'EXCLUDE');
+      if (isDanger) {
+        triggerBtn.classList.add('text-rose-600', 'font-medium', 'border-rose-200', 'bg-rose-50/40');
+        triggerBtn.classList.remove('text-[#0F172A]');
+      } else {
+        triggerBtn.classList.remove('text-rose-600', 'font-medium', 'border-rose-200', 'bg-rose-50/40');
+        triggerBtn.classList.add('text-[#0F172A]');
+      }
+
+      // Update checkmark indicators & classes in options
+      container.querySelectorAll('.combobox-option').forEach(opt => {
+        const isSelected = opt.getAttribute('data-value') === value;
+        const optIsDanger = opt.getAttribute('data-is-danger') === 'true';
+        const checkSvg = opt.querySelector('.option-check');
+        
+        if (isSelected) {
+          if (optIsDanger) {
+            opt.className = 'combobox-option px-3 py-2 text-[12px] flex items-center justify-between cursor-pointer transition-colors bg-rose-50 font-semibold text-rose-700';
+          } else {
+            opt.className = 'combobox-option px-3 py-2 text-[12px] flex items-center justify-between cursor-pointer transition-colors bg-slate-50 font-medium text-[#0F172A]';
+          }
+          if (checkSvg) checkSvg.classList.remove('opacity-0');
+        } else {
+          if (optIsDanger) {
+            opt.className = 'combobox-option px-3 py-2 text-[12px] flex items-center justify-between cursor-pointer transition-colors text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-medium';
+          } else {
+            opt.className = 'combobox-option px-3 py-2 text-[12px] flex items-center justify-between cursor-pointer transition-colors text-[#334155] hover:bg-slate-50';
+          }
+          if (checkSvg) checkSvg.classList.add('opacity-0');
+        }
+      });
+
+      // Dynamically update table row if this combobox is inside a row
+      const parentRow = container.closest('tr');
+      if (parentRow && parentRow.classList.contains('row-data')) {
+        updateTableRowState(parentRow, isDanger);
+      }
+
+      closeAllDropdowns();
+      hiddenInput.dispatchEvent(new Event('change'));
+    }
+
+    function updateTableRowState(row, isExclude) {
+      if (!row) return;
+      if (isExclude) {
+        row.className = 'row-data border-b border-rose-100/90 bg-rose-50/70 hover:bg-rose-100/60 transition-colors text-xs text-rose-950 font-medium';
+      } else {
+        row.className = 'row-data border-b border-[#F1F5F9] hover:bg-[#F8FAFC] transition-colors text-xs text-[#0F172A]';
+      }
+    }
+
+    function renderCustomCombobox({ id, options, selectedValue, widthClass = 'w-full', triggerClass = '' }) {
+      const selectedOption = options.find(o => o.value === selectedValue) || options[0] || { value: '', label: '' };
+      const isSelectedDanger = (selectedOption.value === 'EXCLUDE' || selectedOption.isDanger);
+      
+      const optionsHtml = options.map(opt => {
+        const isSelected = opt.value === selectedOption.value;
+        const isDanger = (opt.value === 'EXCLUDE' || opt.isDanger);
+        
+        let textColor = isDanger 
+          ? (isSelected ? 'bg-rose-50 font-semibold text-rose-700' : 'text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-medium')
+          : (isSelected ? 'bg-slate-50 font-medium text-[#0F172A]' : 'text-[#334155]');
+
+        let checkColor = isDanger ? 'text-rose-600' : 'text-[#0F172A]';
+
+        return `
+          <div class="combobox-option px-3 py-2 text-[12px] flex items-center justify-between cursor-pointer transition-colors ${textColor}" 
+               data-value="${opt.value}"
+               data-is-danger="${isDanger ? 'true' : 'false'}"
+               onclick="selectComboboxOption(this.closest('.custom-combobox'), '${opt.value}', '${opt.label.replace(/'/g, "\\'")}')">
+            <span class="truncate">${opt.label}</span>
+            <svg class="option-check w-3.5 h-3.5 ${checkColor} ml-2 flex-shrink-0 transition-opacity duration-150 ${isSelected ? '' : 'opacity-0'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          </div>
+        `;
+      }).join('');
+
+      const triggerDangerClass = isSelectedDanger ? 'text-rose-600 font-medium border-rose-200 bg-rose-50/40' : 'text-[#0F172A]';
+
+      return `
+        <div class="custom-combobox relative ${widthClass} text-left" onclick="event.stopPropagation()">
+          <button type="button" 
+                  onclick="toggleCombobox(this.closest('.custom-combobox'))"
+                  class="combobox-trigger flex items-center justify-between w-full bg-[#F8FAFC] hover:bg-white focus:bg-white border border-[#E2E8F0] focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] rounded-lg px-3 py-2 text-[12px] font-mono transition-all cursor-pointer shadow-2xs outline-none ${triggerDangerClass} ${triggerClass}">
+            <span class="combobox-label truncate">${selectedOption.label}</span>
+            <svg class="combobox-arrow w-3.5 h-3.5 ml-2 text-[#94A3B8] transition-transform duration-200 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+          </button>
+          <div class="combobox-dropdown hidden absolute left-0 z-50 mt-1 w-full min-w-[200px] max-h-60 overflow-y-auto bg-white border border-[#E2E8F0] rounded-xl shadow-[0_10px_25px_-5px_rgba(0,0,0,0.08),0_8px_10px_-6px_rgba(0,0,0,0.04)] py-1.5 custom-scroll">
+            ${optionsHtml}
+          </div>
+          <input type="hidden" id="${id}" value="${selectedOption.value}">
+        </div>
+      `;
+    }
+
+    // Initialize Step 1 custom comboboxes
+    function initStep1Comboboxes() {
+      // Engine
+      document.getElementById('wrapper-conn-engine').innerHTML = renderCustomCombobox({
+        id: 'conn-engine',
+        options: [
+          { value: 'postgres', label: 'PostgreSQL' },
+          { value: 'mysql', label: 'MySQL / MariaDB' },
+          { value: 'mssql', label: 'Microsoft SQL Server (MSSQL)' }
+        ],
+        selectedValue: 'postgres',
+        widthClass: 'w-full'
+      });
+
+      const engineEl = document.getElementById('conn-engine');
+      if (engineEl) {
+        engineEl.addEventListener('change', (e) => {
+          const eng = e.target.value;
+          const portEl = document.getElementById('conn-port');
+          const schemaEl = document.getElementById('conn-schema');
+          const userEl = document.getElementById('conn-user');
+          if (eng === 'mssql') {
+            if (portEl && (portEl.value === '5432' || portEl.value === '5433' || portEl.value === '3306')) portEl.value = '1433';
+            if (schemaEl && (schemaEl.value === 'public' || schemaEl.value === '')) schemaEl.value = 'dbo';
+            if (userEl && (userEl.value === 'postgres' || userEl.value === 'root')) userEl.value = 'sa';
+          } else if (eng === 'mysql') {
+            if (portEl && (portEl.value === '5432' || portEl.value === '5433' || portEl.value === '1433')) portEl.value = '3306';
+            if (schemaEl && (schemaEl.value === 'public' || schemaEl.value === 'dbo')) schemaEl.value = '';
+            if (userEl && (userEl.value === 'postgres' || userEl.value === 'sa')) userEl.value = 'root';
+          } else if (eng === 'postgres') {
+            if (portEl && (portEl.value === '3306' || portEl.value === '1433')) portEl.value = '5432';
+            if (schemaEl && (schemaEl.value === 'dbo' || schemaEl.value === '')) schemaEl.value = 'public';
+            if (userEl && (userEl.value === 'root' || userEl.value === 'sa')) userEl.value = 'postgres';
+          }
+        });
+      }
+
+      // SSL Mode
+      document.getElementById('wrapper-conn-ssl').innerHTML = renderCustomCombobox({
+        id: 'conn-ssl',
+        options: [
+          { value: 'disable', label: 'disable (Local/Dev)' },
+          { value: 'require', label: 'require (Production SSL)' }
+        ],
+        selectedValue: 'disable',
+        widthClass: 'w-full'
+      });
+    }
+
+    let tenantCheckTimer = null;
+    let isTenantDuplicate = false;
+    let currentSuggestedTenant = '';
+
+    function onTenantIdChange() {
+      const connTenant = document.getElementById('conn-tenant');
+      const planTenant = document.getElementById('plan-tenant');
+      let val = (connTenant?.value || planTenant?.value || '').trim();
+      // Postgres slot & pub names REQUIRE lowercase a-z, 0-9, _
+      const safeVal = val.toLowerCase().replace(/[^a-z0-9_]/g, '_') || 'postgresqltest';
+
+      if (connTenant && connTenant.value !== safeVal) connTenant.value = safeVal;
+      if (planTenant && planTenant.value !== safeVal) planTenant.value = safeVal;
+
+      const minioPathInput = document.getElementById('plan-minio-path');
+      if (minioPathInput && (minioPathInput.value.startsWith('bronze_archive/') || minioPathInput.value.startsWith('bronze/') || minioPathInput.value === '')) {
+        minioPathInput.value = `bronze_archive/${safeVal}`;
+      }
+
+      const lblMinio1 = document.getElementById('lbl-minio-step1');
+      if (lblMinio1) lblMinio1.innerText = `bronze_archive/${safeVal}/`;
+
+      updateMinioPathPreview();
+
+      // Update CDC publication name if needed
+      if (selectedSyncStrategy === 'CDC') {
+        const inputSchema = document.getElementById('plan-schema');
+        if (inputSchema && (inputSchema.value.startsWith('airbyte_pub_') || inputSchema.value === 'airbyte_vault')) {
+          inputSchema.value = `airbyte_pub_${safeVal}`;
+        }
+      }
+
+      // Live debounced duplicate check
+      clearTimeout(tenantCheckTimer);
+      tenantCheckTimer = setTimeout(() => {
+        checkTenantDuplicate(false);
+      }, 400);
+    }
+
+    async function checkTenantDuplicate(showLoading = true) {
+      const tenantVal = (document.getElementById('conn-tenant')?.value || document.getElementById('plan-tenant')?.value || '').trim();
+      if (!tenantVal) return;
+
+      const statusBox = document.getElementById('tenant-check-box');
+      if (!statusBox) return;
+
+      if (showLoading) {
+        statusBox.innerHTML = `
+          <div class="flex items-center space-x-2 text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-2 rounded-lg">
+            <svg class="animate-spin h-3.5 w-3.5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+            <span>Đang kiểm tra trùng tên '${tenantVal}' trên MinIO & Airbyte...</span>
+          </div>`;
+      }
+
+      try {
+        const res = await fetch(`/api/check-tenant?tenant=${encodeURIComponent(tenantVal)}`);
+        const data = await res.json();
+
+        isTenantDuplicate = data.is_duplicate;
+        currentSuggestedTenant = data.suggested_name || '';
+
+        if (data.is_duplicate) {
+          let detailsHtml = '';
+          if (data.minio && data.minio.exists) {
+            detailsHtml += `<div class="mt-1">📁 <strong>MinIO:</strong> Đã có thư mục lưu trữ <code class="bg-amber-100 px-1 py-0.5 rounded text-amber-900 font-mono">${data.minio.path || 'bronze_archive/' + tenantVal + '/'}</code> (Chứa ${data.minio.files_count} file Parquet: ${data.minio.tables.join(', ') || 'dữ liệu'})</div>`;
+          }
+          if (data.airbyte && data.airbyte.exists) {
+            const abItems = [...(data.airbyte.connection_names || []), ...(data.airbyte.sources || [])];
+            detailsHtml += `<div class="mt-1">🔌 <strong>Airbyte:</strong> Đã có cấu hình kết nối (${abItems.join(', ') || 'Connection tồn tại'})</div>`;
+          }
+
+          statusBox.innerHTML = `
+            <div class="bg-amber-50 border border-amber-300 rounded-lg p-3 text-xs text-amber-900 shadow-2xs">
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex items-center space-x-1.5 font-bold text-amber-900">
+                  <svg class="w-4 h-4 text-amber-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                  <span>CẢNH BÁO TRÙNG TÊN: Mã '${tenantVal}' đã tồn tại!</span>
+                </div>
+                ${data.suggested_name && data.suggested_name !== tenantVal ? `
+                  <button type="button" onclick="applySuggestedTenant('${data.suggested_name}')" class="bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold px-2.5 py-1 rounded text-[11px] transition shrink-0 cursor-pointer shadow-xs">
+                    👉 Đổi thành ${data.suggested_name}
+                  </button>
+                ` : ''}
+              </div>
+              <div class="mt-1.5 text-amber-800 leading-relaxed font-sans">
+                ${detailsHtml || 'Tên này đã được sử dụng trước đó.'}
+              </div>
+              <div class="mt-2 text-[11px] text-amber-700 bg-amber-100/60 p-1.5 rounded border border-amber-200">
+                💡 <strong>Lưu ý:</strong> Nếu đây là nguồn dữ liệu của <em>khách hàng mới</em>, hãy đổi mã để tránh trộn lẫn file trên MinIO. Nếu bạn chủ ý đồng bộ tiếp cho cùng khách hàng này, bạn có thể tiếp tục.
+              </div>
+            </div>`;
+        } else {
+          statusBox.innerHTML = `
+            <div class="flex items-center space-x-1.5 text-xs text-emerald-800 bg-emerald-50 border border-emerald-300 px-3 py-2 rounded-lg">
+              <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              <span><strong>Mã khả dụng:</strong> '${tenantVal}' chưa tồn tại trên MinIO & Airbyte (sẵn sàng sử dụng).</span>
+            </div>`;
+        }
+      } catch (e) {
+        console.error('Tenant check error:', e);
+      }
+    }
+
+    function applySuggestedTenant(newName) {
+      const connTenant = document.getElementById('conn-tenant');
+      const planTenant = document.getElementById('plan-tenant');
+      if (connTenant) connTenant.value = newName;
+      if (planTenant) planTenant.value = newName;
+      onTenantIdChange();
+      checkTenantDuplicate(true);
+    }
+
+    function updateMinioPathPreview() {
+      const bucket = document.getElementById('plan-minio-bucket')?.value || 'university-lakehouse';
+      const path = document.getElementById('plan-minio-path')?.value || 'bronze_archive';
+      const cleanPath = path.replace(/^\/+|\/+$/g, '');
+      const previewEl = document.getElementById('plan-minio-preview');
+      if (previewEl) {
+        previewEl.innerText = `${bucket}/${cleanPath}/\${STREAM_NAME}/part_*.parquet`;
+      }
+    }
+
+    function onDbNameChange() {
+      const dbInput = document.getElementById('conn-db');
+      const tenantInput = document.getElementById('conn-tenant');
+      if (tenantInput && (tenantInput.value === 'tenant_client_01' || tenantInput.value.startsWith('tenant_'))) {
+        const dbName = (dbInput?.value || '').trim();
+        const engine = document.getElementById('conn-engine')?.value || 'db';
+        if (dbName && dbName !== 'university_db') {
+          tenantInput.value = `tenant_${engine}_${dbName}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+          onTenantIdChange();
+        }
+      }
+    }
+
+    function showAlert(type, message) {
+      const box = document.getElementById('alert-box');
+      box.className = 'mb-6 p-4 rounded-xl border text-[13px] font-medium flex items-start space-x-3 transition-all duration-200 ';
+      if (type === 'error') {
+        box.className += 'bg-rose-50 border-rose-200 text-rose-800';
+      } else if (type === 'success') {
+        box.className += 'bg-emerald-50 border-emerald-200 text-emerald-800';
+      } else {
+        box.className += 'bg-blue-50 border-blue-200 text-blue-800';
+      }
+      box.innerHTML = `<div>${message}</div>`;
+      box.classList.remove('hidden');
+    }
+
+    function hideAlert() {
+      document.getElementById('alert-box').classList.add('hidden');
+    }
+
+    let selectedSyncStrategy = 'CDC'; // Default to Controlled CDC
+
+    function selectStrategy(strategy) {
+      selectedSyncStrategy = strategy;
+      const cardStd = document.getElementById('card-strategy-standard');
+      const cardCDC = document.getElementById('card-strategy-cdc');
+      const radioStd = document.querySelector('#radio-standard div');
+      const radioCDC = document.querySelector('#radio-cdc div');
+      const alertsPanel = document.getElementById('cdc-alerts-panel');
+      const badgeMode = document.getElementById('badge-current-mode');
+      const lblSchema = document.getElementById('lbl-integration-schema');
+      const inputSchema = document.getElementById('plan-schema');
+
+      if (strategy === 'CDC') {
+        cardCDC.className = 'cursor-pointer border-2 rounded-xl p-5 transition-all duration-200 bg-white border-[#0F172A] shadow-xs ring-2 ring-slate-100';
+        cardStd.className = 'cursor-pointer border-2 rounded-xl p-5 transition-all duration-200 bg-white border-[#E2E8F0] hover:border-slate-400';
+        radioCDC.className = 'w-2 h-2 rounded-full bg-[#0F172A]';
+        radioStd.className = 'w-2 h-2 rounded-full bg-transparent';
+        if (alertsPanel) alertsPanel.classList.remove('hidden');
+        if (badgeMode) {
+          badgeMode.innerText = 'Mode: Controlled CDC (Log-based)';
+          badgeMode.className = 'inline-flex items-center text-[11px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-full font-mono font-medium whitespace-nowrap self-start sm:self-auto';
+        }
+        if (lblSchema) lblSchema.innerText = 'Tên Publication CDC';
+        if (inputSchema && inputSchema.value === 'airbyte_vault') {
+          const tenant = document.getElementById('plan-tenant')?.value || 'tenant_01';
+          inputSchema.value = `airbyte_pub_${tenant}`;
+        }
+      } else {
+        cardStd.className = 'cursor-pointer border-2 rounded-xl p-5 transition-all duration-200 bg-white border-[#0F172A] shadow-xs ring-2 ring-slate-100';
+        cardCDC.className = 'cursor-pointer border-2 rounded-xl p-5 transition-all duration-200 bg-white border-[#E2E8F0] hover:border-slate-400';
+        radioStd.className = 'w-2 h-2 rounded-full bg-[#0F172A]';
+        radioCDC.className = 'w-2 h-2 rounded-full bg-transparent';
+        if (alertsPanel) alertsPanel.classList.add('hidden');
+        if (badgeMode) {
+          badgeMode.innerText = 'Mode: Standard View-based';
+          badgeMode.className = 'inline-flex items-center text-[11px] bg-slate-100 text-slate-800 border border-slate-200 px-3 py-1 rounded-full font-mono font-medium whitespace-nowrap self-start sm:self-auto';
+        }
+        if (lblSchema) lblSchema.innerText = 'Schema Trung gian';
+        if (inputSchema && inputSchema.value.startsWith('airbyte_pub_')) {
+          inputSchema.value = 'airbyte_vault';
+        }
+      }
+    }
+
+    function proceedToStep3() {
+      hideAlert();
+      let hasChecked = false;
+      discoveredTables.forEach((t, tIdx) => {
+        const chk = document.getElementById(`chk-table-${tIdx}`);
+        if (chk && chk.checked) hasChecked = true;
+      });
+      if (!hasChecked) {
+        showAlert('error', 'Vui lòng chọn ít nhất 1 bảng để tiếp tục.');
+        return;
+      }
+      goToStep(3);
+    }
+
+    function goToStep(step) {
+      hideAlert();
+      closeAllDropdowns();
+      for (let i = 1; i <= 7; i++) {
+        const stepEl = document.getElementById(`step-${i}`);
+        if (stepEl) {
+          stepEl.classList.add('hidden');
+          stepEl.classList.remove('animate-step-in');
+        }
+        const badge = document.getElementById(`badge-${i}`);
+        const label = document.getElementById(`label-${i}`);
+        
+        if (badge) {
+          if (i < step) {
+            badge.className = 'w-8 h-8 rounded-full bg-[#0F172A] text-white border border-[#0F172A] font-semibold text-xs flex items-center justify-center shadow-xs transition-all duration-200';
+            badge.innerHTML = '<svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
+            if (label) label.className = 'text-[11px] font-medium mt-2 text-[#475569] transition-colors whitespace-nowrap';
+          } else if (i === step) {
+            badge.className = 'w-8 h-8 rounded-full bg-white text-[#0F172A] border-2 border-[#0F172A] font-semibold text-xs flex items-center justify-center shadow-xs ring-4 ring-slate-100 transition-all duration-200';
+            badge.innerText = i;
+            if (label) label.className = 'text-[11px] font-semibold mt-2 text-[#0F172A] transition-colors whitespace-nowrap';
+          } else {
+            badge.className = 'w-8 h-8 rounded-full bg-[#F1F5F9] text-[#94A3B8] border border-[#E2E8F0] font-medium text-xs flex items-center justify-center shadow-2xs transition-all duration-200';
+            badge.innerText = i;
+            if (label) label.className = 'text-[11px] font-normal mt-2 text-[#94A3B8] transition-colors whitespace-nowrap';
+          }
+        }
+      }
+      const targetStep = document.getElementById(`step-${step}`);
+      if (targetStep) {
+        targetStep.classList.remove('hidden');
+        void targetStep.offsetWidth;
+        targetStep.classList.add('animate-step-in');
+      }
+      const stepBar = document.getElementById('step-bar');
+      if (stepBar) {
+        stepBar.style.width = `${((step - 1) / 6) * 100}%`;
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function testConnection() {
+      hideAlert();
+      const tenantVal = (document.getElementById('conn-tenant')?.value || '').trim();
+      if (isTenantDuplicate) {
+        const ok = confirm(`⚠️ CẢNH BÁO TRÙNG TÊN:\nMã khách hàng '${tenantVal}' đã tồn tại trên MinIO/Airbyte!\n\nNếu đây là khách hàng MỚI, bấm 'Cancel' để đổi tên (Gợi ý: '${currentSuggestedTenant}').\nNếu bạn muốn tiếp tục ghi nối tiếp cho khách hàng này, bấm 'OK'.`);
+        if (!ok) return;
+      }
+
+      const btn = document.getElementById('btn-test-conn');
+      btn.disabled = true;
+      btn.innerHTML = `
+        <svg class="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+        <span>Đang kết nối & quét CSDL...</span>
+      `;
+
+      currentConfig = {
+        engine: document.getElementById('conn-engine').value,
+        host: document.getElementById('conn-host').value,
+        port: parseInt(document.getElementById('conn-port').value),
+        database: document.getElementById('conn-db').value,
+        username: document.getElementById('conn-user').value,
+        password: document.getElementById('conn-pass').value,
+        ssl_mode: document.getElementById('conn-ssl').value,
+        schema: document.getElementById('conn-schema').value || 'public'
+      };
+
+      try {
+        const resp = await fetch('/api/connect', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(currentConfig)
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Lỗi kết nối cơ sở dữ liệu');
+
+        const infoBox = document.getElementById('conn-info-box');
+        infoBox.classList.remove('hidden');
+        document.getElementById('conn-info-text').innerText = `${data.info.engine} - ${data.info.version.substring(0, 80)}...`;
+        
+        let warningsHtml = '';
+        if (data.info.warnings) {
+          data.info.warnings.forEach(w => warningsHtml += `<div>${w}</div>`);
+        }
+        document.getElementById('conn-info-warnings').innerHTML = warningsHtml;
+
+        discoveredTables = data.tables || [];
+        renderTables(discoveredTables);
+
+        setTimeout(() => goToStep(2), 500);
+      } catch (err) {
+        showAlert('error', err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `
+          <span>Kiểm tra & Quét Danh mục Bảng</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+        `;
+      }
+    }
+
+    function renderTables(tables) {
+      const container = document.getElementById('tables-container');
+      container.innerHTML = '';
+
+      if (!tables || tables.length === 0) {
+        container.innerHTML = '<div class="p-4 bg-amber-50 text-amber-800 rounded-xl text-xs">Không tìm thấy bảng nào trong schema này.</div>';
+        return;
+      }
+
+      const maskOptions = [
+        { value: 'NONE', label: 'Giữ nguyên giá trị' },
+        { value: 'MD5_HASH', label: 'Băm MD5 (Ẩn số định danh)' },
+        { value: 'MASK_EMAIL', label: 'Che Email (ex***@gmail.com)' },
+        { value: 'MASK_PHONE', label: 'Che SĐT (***-***-1234)' },
+        { value: 'MASK_CARD', label: 'Che Thẻ (****-****-****-4444)' },
+        { value: 'NULL_OUT', label: 'Trống (NULL)' },
+        { value: 'EXCLUDE', label: 'Loại bỏ cột (Exclude)', isDanger: true }
+      ];
+
+      tables.forEach((t, tIdx) => {
+        let colsHtml = '';
+        t.columns.forEach((c, cIdx) => {
+          const isExclude = (c.suggested_masking === 'EXCLUDE');
+          const isPkBadge = c.is_primary_key ? '<span class="ml-1.5 px-1.5 py-0.5 text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/60 rounded">PK</span>' : '';
+          const isSensBadge = c.is_sensitive ? '<span class="ml-1.5 px-1.5 py-0.5 text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/60 rounded">PII / Nhạy cảm</span>' : '';
+
+          const maskComboboxHtml = renderCustomCombobox({
+            id: `mask-${tIdx}-${cIdx}`,
+            options: maskOptions,
+            selectedValue: c.suggested_masking || 'NONE',
+            widthClass: 'w-full'
+          });
+
+          const rowClass = isExclude 
+            ? 'row-data border-b border-rose-100/90 bg-rose-50/70 hover:bg-rose-100/60 transition-colors text-xs text-rose-950 font-medium' 
+            : 'row-data border-b border-[#F1F5F9] hover:bg-[#F8FAFC] transition-colors text-xs text-[#0F172A]';
+
+          colsHtml += `
+            <tr class="${rowClass}">
+              <td class="py-2.5 px-3 font-mono whitespace-nowrap">
+                <span>${c.name}</span> ${isPkBadge} ${isSensBadge}
+              </td>
+              <td class="py-2.5 px-3 font-mono text-[#64748B] whitespace-nowrap">${c.data_type}</td>
+              <td class="py-2.5 px-3 min-w-[240px]">
+                ${maskComboboxHtml}
+              </td>
+            </tr>
+          `;
+        });
+
+        const cursorOptions = t.columns.map(c => ({
+          value: c.name,
+          label: `${c.name} (${c.data_type})`
+        }));
+        
+        const cursorComboboxHtml = renderCustomCombobox({
+          id: `cursor-col-${tIdx}`,
+          options: cursorOptions,
+          selectedValue: t.suggested_cursor || t.columns[0]?.name,
+          widthClass: 'min-w-[190px]'
+        });
+
+        container.innerHTML += `
+          <div class="border border-[#E2E8F0] rounded-xl p-5 bg-white shadow-2xs hover:border-[#CBD5E1] transition-colors">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-3 border-b border-[#F1F5F9] mb-3 gap-2">
+              <div class="flex items-center space-x-2.5">
+                <input type="checkbox" id="chk-table-${tIdx}" checked class="h-4 w-4 text-[#0F172A] rounded border-[#CBD5E1] focus:ring-[#0F172A] cursor-pointer">
+                <label for="chk-table-${tIdx}" class="text-sm font-semibold text-[#0F172A] font-mono cursor-pointer">${t.schema}.${t.name}</label>
+              </div>
+              <div class="flex items-center space-x-3 text-xs">
+                <span class="text-[#64748B] font-mono">Tên View:</span>
+                <input id="view-name-${tIdx}" type="text" value="v_${t.name}" class="border border-[#E2E8F0] bg-[#F8FAFC] focus:bg-white focus:border-[#0F172A] rounded-lg px-2.5 py-1.5 text-xs font-mono font-medium outline-none transition-colors w-28">
+                <span class="text-[#64748B] font-mono ml-1">Cột Cursor:</span>
+                ${cursorComboboxHtml}
+              </div>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left">
+                <thead>
+                  <tr class="text-[11px] font-semibold text-[#64748B] uppercase tracking-wider border-b border-[#F1F5F9]">
+                    <th class="py-2 px-3">Cột</th>
+                    <th class="py-2 px-3">Kiểu</th>
+                    <th class="py-2 px-3">Quy tắc Bảo mật (Masking)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${colsHtml}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    async function preparePlan() {
+      hideAlert();
+      const views = [];
+
+      discoveredTables.forEach((t, tIdx) => {
+        const isChecked = document.getElementById(`chk-table-${tIdx}`).checked;
+        if (!isChecked) return;
+
+        const targetView = document.getElementById(`view-name-${tIdx}`).value || `v_${t.name}`;
+        const cursorCol = document.getElementById(`cursor-col-${tIdx}`).value;
+
+        const colRules = [];
+        t.columns.forEach((c, cIdx) => {
+          const maskVal = document.getElementById(`mask-${tIdx}-${cIdx}`).value;
+          colRules.push({
+            column_name: c.name,
+            masking: maskVal
+          });
+        });
+
+        views.push({
+          source_schema: t.schema,
+          source_table: t.name,
+          target_view: targetView,
+          columns: colRules,
+          cursor_column: cursorCol
+        });
+      });
+
+      if (views.length === 0) {
+        showAlert('error', 'Vui lòng chọn ít nhất 1 bảng để trích xuất.');
+        return;
+      }
+
+      const tenantId = (document.getElementById('conn-tenant')?.value || document.getElementById('plan-tenant')?.value || 'tenant_01').trim();
+      const schemaOrPub = document.getElementById('plan-schema')?.value || (selectedSyncStrategy === 'CDC' ? `airbyte_pub_${tenantId}` : 'airbyte_vault');
+      const bucket = document.getElementById('plan-minio-bucket')?.value || 'university-lakehouse';
+      const pathPrefix = document.getElementById('plan-minio-path')?.value || `bronze_archive/${tenantId}`;
+
+      generatedPlan = {
+        tenant_id: tenantId,
+        sync_strategy: selectedSyncStrategy,
+        integration_schema: selectedSyncStrategy === 'CDC' ? 'public' : schemaOrPub,
+        publication_name: selectedSyncStrategy === 'CDC' ? schemaOrPub : '',
+        replication_slot: selectedSyncStrategy === 'CDC' ? `airbyte_slot_${tenantId}` : '',
+        max_slot_wal_keep_size_gb: 20,
+        reader_username: document.getElementById('plan-user')?.value || 'airbyte_reader',
+        statement_timeout_sec: parseInt(document.getElementById('plan-timeout')?.value) || 30,
+        minio_bucket: bucket,
+        minio_path: pathPrefix,
+        views: views
+      };
+
+      try {
+        const resp = await fetch('/api/plan', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            config: currentConfig,
+            plan: generatedPlan
+          })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Lỗi sinh mã DDL');
+
+        generatedPlan.raw_sql_script = data.sql;
+        generatedPlan.audit_sql_script = data.audit_sql;
+        generatedPlan.reader_password = data.password;
+
+        document.getElementById('sql-preview').innerText = data.sql;
+        const auditEl = document.getElementById('audit-sql-preview');
+        if (auditEl) auditEl.innerText = data.audit_sql;
+
+        const lblFile = document.getElementById('lbl-ddl-filename');
+        if (lblFile) {
+          lblFile.innerText = selectedSyncStrategy === 'CDC' ? 'cdc_provision_suite.sql' : 'standard_views_provision.sql';
+        }
+
+        goToStep(4);
+      } catch (err) {
+        showAlert('error', err.message);
+      }
+    }
+
+    function copySQL() {
+      const sql = document.getElementById('sql-preview').innerText;
+      navigator.clipboard.writeText(sql);
+      showAlert('success', 'Đã sao chép mã SQL DDL vào clipboard.');
+    }
+
+    function copyAuditSQL() {
+      const sql = document.getElementById('audit-sql-preview').innerText;
+      navigator.clipboard.writeText(sql);
+      showAlert('success', 'Đã sao chép tất cả các câu lệnh SQL Audit vào clipboard.');
+    }
+
+    function downloadAuditSQL() {
+      const sqlContent = document.getElementById('audit-sql-preview').innerText || generatedPlan.audit_sql_script || '-- No audit queries';
+      const blob = new Blob([sqlContent], { type: 'application/sql;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const dlAnchor = document.createElement('a');
+      dlAnchor.setAttribute("href", url);
+      dlAnchor.setAttribute("download", `audit_verification_${generatedPlan.tenant_id || 'db'}.sql`);
+      document.body.appendChild(dlAnchor);
+      dlAnchor.click();
+      dlAnchor.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    async function applyPlan() {
+      hideAlert();
+      goToStep(5);
+
+      const statusBox = document.getElementById('execution-status');
+      statusBox.innerHTML = `
+        <div class="flex items-center space-x-2.5 text-[#0F172A]">
+          <svg class="animate-spin h-4 w-4 text-[#0F172A]" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+          <span class="font-sans font-medium text-[13px]">Đang thực thi các câu lệnh DDL trên cơ sở dữ liệu và xác minh tài khoản...</span>
+        </div>
+      `;
+
+      try {
+        const resp = await fetch('/api/apply', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            config: currentConfig,
+            plan: generatedPlan
+          })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Lỗi thực thi DDL');
+
+        statusBox.innerHTML = `
+          <div class="text-emerald-700 font-semibold mb-2 flex items-center space-x-1.5 font-sans text-sm">
+            <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            <span>Thực thi DDL thành công và quyền hạn đã được xác minh!</span>
+          </div>
+          <div class="text-[#334155] whitespace-pre-line text-xs font-mono bg-white p-4 rounded-xl border border-[#E2E8F0]">${data.test_output}</div>
+        `;
+
+        finalBundle = data.bundle;
+        if (data.audit_sql) {
+          generatedPlan.audit_sql_script = data.audit_sql;
+          const auditEl = document.getElementById('audit-sql-preview');
+          if (auditEl) auditEl.innerText = data.audit_sql;
+        }
+
+        // Populate Step 7 Summary
+        document.getElementById('res-host').innerText = `${currentConfig.host}:${currentConfig.port}`;
+        document.getElementById('res-db').innerText = currentConfig.database;
+        document.getElementById('res-schema').innerText = (selectedSyncStrategy === 'CDC') ? `${currentConfig.schema} (Publication: ${generatedPlan.publication_name})` : generatedPlan.integration_schema;
+        document.getElementById('res-user').innerText = generatedPlan.reader_username;
+        document.getElementById('res-pass').innerText = generatedPlan.reader_password;
+        document.getElementById('res-minio-path').innerText = generatedPlan.minio_path ? (generatedPlan.minio_path.endsWith('/') ? `${generatedPlan.minio_path}table=\${STREAM_NAME}/` : `${generatedPlan.minio_path}/table=\${STREAM_NAME}/`) : `bronze_archive/${generatedPlan.tenant_id}/table=\${STREAM_NAME}/`;
+
+        const btnNext6 = document.getElementById('btn-next-step6');
+        if (btnNext6) {
+          btnNext6.disabled = false;
+          btnNext6.className = 'bg-[#0F172A] hover:bg-slate-800 active:scale-[0.98] text-white font-medium px-5 py-2.5 rounded-lg text-[13px] shadow-xs transition-all duration-150 cursor-pointer flex items-center space-x-1.5';
+        }
+      } catch (err) {
+        statusBox.innerHTML = `
+          <div class="text-rose-600 font-semibold mb-1 font-sans text-sm">Thực thi thất bại!</div>
+          <div class="text-rose-500 font-mono text-xs">${err.message}</div>
+        `;
+      }
+    }
+
+    function handleCompleteStep6() {
+      goToStep(7);
+      setTimeout(() => {
+        triggerAirbyteSync();
+      }, 350);
+    }
+
+    function downloadBundle() {
+      if (!finalBundle) return;
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(finalBundle, null, 2));
+      const dlAnchor = document.createElement('a');
+      dlAnchor.setAttribute("href", dataStr);
+      dlAnchor.setAttribute("download", `airbyte_bundle_${generatedPlan.tenant_id}.json`);
+      document.body.appendChild(dlAnchor);
+      dlAnchor.click();
+      dlAnchor.remove();
+    }
+
+    async function triggerAirbyteSync() {
+      if (!finalBundle) {
+        showAlert('error', 'Chưa có cấu hình bàn giao.');
+        return;
+      }
+      const coordUrl = document.getElementById('coordinator-url').value || 'http://127.0.0.1:9090';
+      const btn = document.getElementById('btn-sync-airbyte');
+      const resBox = document.getElementById('airbyte-sync-result');
+      const statusDiv = document.getElementById('airbyte-sync-status');
+
+      btn.disabled = true;
+      resBox.classList.remove('hidden');
+      statusDiv.innerHTML = `
+        <div class="flex items-center space-x-3 text-slate-300 py-1">
+          <svg class="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+          <div>
+            <div class="font-medium text-white text-xs">Đang tự động kết nối và gửi cấu hình về Airbyte Platform...</div>
+            <div class="text-[11px] text-slate-400">Máy chủ mục tiêu: ${coordUrl}</div>
+          </div>
+        </div>
+      `;
+
+      try {
+        const resp = await fetch('/api/sync-to-airbyte', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            coordinator_url: coordUrl,
+            bundle: finalBundle
+          })
+        });
+        const data = await resp.json();
+        if (!resp.ok || data.status === 'ERROR') {
+          throw new Error(data.error || 'Lỗi khi kích hoạt Airbyte');
+        }
+
+        let resourcesHtml = '';
+        if (data.discovered_resources) {
+          data.discovered_resources.forEach(r => {
+            resourcesHtml += `
+              <div class="py-1.5 flex justify-between items-center border-b border-slate-800 text-[11px]">
+                <span class="text-emerald-400 font-semibold flex items-center space-x-1.5">
+                  <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                  <span>${r.resource_name}</span>
+                  <span class="text-slate-400 font-normal">(${r.target_view})</span>
+                </span>
+                <span class="text-slate-300">Chế độ: <span class="text-slate-200 font-mono">${r.sync_mode}</span> ➔ <span class="bg-emerald-950 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-800/80">${r.status}</span></span>
+              </div>
+            `;
+          });
+        }
+
+        statusDiv.innerHTML = `
+          <div class="p-3 bg-emerald-950/80 border border-emerald-500/40 rounded-lg mb-3">
+            <div class="text-emerald-300 font-semibold text-xs flex items-center space-x-1.5">
+              <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span>Airbyte đã nhận được dữ liệu và bắt đầu đồng bộ vào MinIO</span>
+            </div>
+            <div class="text-slate-300 text-[11px] mt-1">
+              Mã Khách hàng: <strong class="text-white">${data.tenant_id}</strong> | Job ID: <strong class="text-amber-300">#${data.airbyte_job_id}</strong> | Trạng thái: <strong class="text-emerald-400">${data.job_status}</strong>
+            </div>
+          </div>
+          <div class="mt-2 bg-[#0F172A] p-3 rounded-lg border border-slate-800">
+            <div class="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">DANH SÁCH TÀI NGUYÊN ĐƯỢC KÍCH HOẠT ĐỒNG BỘ:</div>
+            ${resourcesHtml}
+          </div>
+        `;
+      } catch (err) {
+        statusDiv.innerHTML = `
+          <div class="text-rose-400 font-semibold mb-1 text-xs">Không thể kết nối tới Airbyte Server!</div>
+          <div class="text-rose-300 text-[11px]">${err.message}</div>
+          <div class="text-slate-400 text-[11px] mt-2">Gợi ý: Hãy chắc chắn lệnh <code>.\\db-provisioner.exe bridge --port 9090</code> đang chạy trên máy chủ tại cổng 9090.</div>
+        `;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // ========================================================================
+    // LAKEHOUSE PARQUET VERSION EXPLORER CONTROLLER
+    // ========================================================================
+    let explorerStreams = [];
+    let currentHistoryResult = null;
+    let currentTableFilterMode = 'all'; // all, active, deleted, multi
+
+    function switchMainTab(tab) {
+      const viewWizard = document.getElementById('view-wizard');
+      const viewExplorer = document.getElementById('view-explorer');
+      const btnWizard = document.getElementById('nav-btn-wizard');
+      const btnExplorer = document.getElementById('nav-btn-explorer');
+      const headerContainer = document.getElementById('header-container');
+      const mainContainer = document.getElementById('main-container');
+
+      if (tab === 'wizard') {
+        viewWizard.classList.remove('hidden');
+        viewExplorer.classList.add('hidden');
+        btnWizard.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-[#0F172A] shadow-xs transition-all cursor-pointer';
+        btnExplorer.className = 'px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748B] hover:text-[#0F172A] transition-all cursor-pointer';
+        
+        // Restore standard narrow width for wizard
+        if (headerContainer) headerContainer.className = 'max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between transition-all duration-150';
+        if (mainContainer) mainContainer.className = 'max-w-5xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full transition-all duration-150';
+      } else {
+        viewWizard.classList.add('hidden');
+        viewExplorer.classList.remove('hidden');
+        btnExplorer.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-[#0F172A] shadow-xs transition-all cursor-pointer';
+        btnWizard.className = 'px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748B] hover:text-[#0F172A] transition-all cursor-pointer';
+
+        // MAXIMIZE HORIZONTAL WIDTH FOR EXPLORER (Yêu cầu 2: Tận dụng tối đa chiều ngang)
+        if (headerContainer) headerContainer.className = 'w-full px-4 sm:px-8 h-16 flex items-center justify-between transition-all duration-150';
+        if (mainContainer) mainContainer.className = 'w-full px-4 sm:px-8 py-6 flex-1 transition-all duration-150';
+
+        if (explorerStreams.length === 0) {
+          loadExplorerStreams();
+        }
+      }
+    }
+
+    async function loadExplorerStreams() {
+      const tenantSelect = document.getElementById('explorer-tenant');
+      const tableSelect = document.getElementById('explorer-table');
+      tenantSelect.innerHTML = '<option value="">Đang kết nối MinIO...</option>';
+      tableSelect.innerHTML = '<option value="">--</option>';
+
+      try {
+        const res = await fetch('/api/lakehouse/streams');
+        if (!res.ok) throw new Error('Không thể lấy danh sách streams từ MinIO');
+        explorerStreams = await res.json();
+
+        if (!explorerStreams || explorerStreams.length === 0) {
+          tenantSelect.innerHTML = '<option value="">Chưa có dữ liệu Parquet</option>';
+          return;
+        }
+
+        const tenants = [...new Set(explorerStreams.map(s => s.tenant_id))];
+        tenantSelect.innerHTML = tenants.map(t => `<option value="${t}">${t}</option>`).join('');
+
+        onExplorerTenantChange();
+      } catch (err) {
+        console.error(err);
+        tenantSelect.innerHTML = `<option value="">Lỗi: ${err.message}</option>`;
+      }
+    }
+
+    function onExplorerTenantChange() {
+      const selectedTenant = document.getElementById('explorer-tenant').value;
+      const tableSelect = document.getElementById('explorer-table');
+
+      const tenantStreams = explorerStreams.filter(s => s.tenant_id === selectedTenant);
+      if (tenantStreams.length === 0) {
+        tableSelect.innerHTML = '<option value="">Không có bảng</option>';
+        return;
+      }
+
+      tableSelect.innerHTML = tenantStreams.map(s => `
+        <option value="${s.table_name}">${s.table_name} (${s.files_count} files - ${(s.total_bytes / 1024 / 1024).toFixed(2)} MB)</option>
+      `).join('');
+    }
+
+    async function queryParquetHistory() {
+      const tenant = document.getElementById('explorer-tenant').value;
+      const table = document.getElementById('explorer-table').value;
+      const filterId = document.getElementById('explorer-filter-id').value.trim();
+      const btn = document.getElementById('btn-query-parquet');
+
+      if (!tenant || !table) {
+        alert('Vui lòng chọn Tenant và Bảng trước khi quét!');
+        return;
+      }
+
+      const loadingDiv = document.getElementById('explorer-loading');
+      const resultsDiv = document.getElementById('explorer-results');
+
+      loadingDiv.classList.remove('hidden');
+      resultsDiv.classList.add('hidden');
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/lakehouse/version-history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenant_id: tenant,
+            table_name: table,
+            record_id: filterId
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Truy vấn Parquet thất bại');
+        }
+
+        currentHistoryResult = await res.json();
+        renderExplorerResults(currentHistoryResult);
+        resultsDiv.classList.remove('hidden');
+      } catch (err) {
+        alert('Lỗi truy vấn: ' + err.message);
+      } finally {
+        loadingDiv.classList.add('hidden');
+        btn.disabled = false;
+      }
+    }
+
+    function renderExplorerResults(data) {
+      document.getElementById('stat-files').textContent = data.files_read || 0;
+      document.getElementById('stat-records').textContent = (data.total_records || 0).toLocaleString();
+      document.getElementById('stat-entities').textContent = (data.unique_entities || 0).toLocaleString();
+
+      const timelines = data.timelines || [];
+      const multiVerCount = timelines.filter(t => t.total_versions > 1).length;
+      const deletedCount = timelines.filter(t => t.current_status === 'DELETED').length;
+      const activeCount = timelines.filter(t => t.current_status !== 'DELETED').length;
+
+      document.getElementById('stat-multi-ver').textContent = multiVerCount.toLocaleString();
+      document.getElementById('stat-deleted').textContent = deletedCount.toLocaleString();
+
+      document.getElementById('count-all').textContent = timelines.length;
+      document.getElementById('count-active').textContent = activeCount;
+      document.getElementById('count-deleted').textContent = deletedCount;
+      document.getElementById('count-multi').textContent = multiVerCount;
+
+      // Render Dynamic Columns Header for Main Table
+      const headerRow = document.getElementById('parquet-table-header');
+      const cols = data.columns || [];
+
+      let headerHtml = `
+        <th class="py-2.5 px-3 w-12 text-center text-slate-400">#</th>
+        <th class="py-2.5 px-3 w-32">Trạng Thái</th>
+        <th class="py-2.5 px-3 w-28">Khóa Chính (PK)</th>
+        <th class="py-2.5 px-3 w-24">Phiên Bản</th>
+        <th class="py-2.5 px-3 w-36">Cập Nhật Cuối</th>
+      `;
+
+      cols.forEach(c => {
+        if (c !== 'id') {
+          headerHtml += `<th class="py-2.5 px-3 font-semibold whitespace-nowrap">${c}</th>`;
+        }
+      });
+      headerHtml += `<th class="py-2.5 px-3 text-right sticky right-0 bg-[#0F172A] z-10 w-28">Hành Động</th>`;
+      headerRow.innerHTML = headerHtml;
+
+      // Apply initial filter & render rows
+      currentTableFilterMode = 'all';
+      filterTableRows();
+    }
+
+    function setTableFilter(mode) {
+      currentTableFilterMode = mode;
+      
+      const buttons = ['all', 'active', 'deleted', 'multi'];
+      buttons.forEach(b => {
+        const el = document.getElementById(`filter-btn-${b}`);
+        if (el) {
+          if (b === mode) {
+            el.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0F172A] text-white shadow-xs transition cursor-pointer';
+          } else {
+            el.className = 'px-3 py-1.5 rounded-lg text-xs font-medium bg-[#F8FAFC] text-[#334155] border border-[#E2E8F0] hover:bg-slate-100 transition cursor-pointer';
+          }
+        }
+      });
+
+      filterTableRows();
+    }
+
+    function filterTableRows() {
+      if (!currentHistoryResult) return;
+      const timelines = currentHistoryResult.timelines || [];
+      const searchKw = (document.getElementById('table-search-input')?.value || '').toLowerCase().trim();
+
+      const filtered = timelines.filter(t => {
+        // Mode filter
+        if (currentTableFilterMode === 'active' && t.current_status === 'DELETED') return false;
+        if (currentTableFilterMode === 'deleted' && t.current_status !== 'DELETED') return false;
+        if (currentTableFilterMode === 'multi' && t.total_versions <= 1) return false;
+
+        // Keyword search across ID and all column values
+        if (searchKw) {
+          if (t.record_id.toLowerCase().includes(searchKw)) return true;
+          const dataObj = t.last_known_data || {};
+          for (let k in dataObj) {
+            if (String(dataObj[k] || '').toLowerCase().includes(searchKw)) return true;
+          }
+          return false;
+        }
+
+        return true;
+      });
+
+      document.getElementById('table-showing-text').textContent = `Hiển thị ${filtered.length} / ${timelines.length} bản ghi`;
+      renderTableRows(filtered);
+    }
+
+    function renderTableRows(timelines) {
+      const tbody = document.getElementById('parquet-table-body');
+      if (timelines.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="20" class="py-12 text-center text-slate-400 text-xs">
+              Không tìm thấy bản ghi nào phù hợp với bộ lọc.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      const cols = (currentHistoryResult?.columns || []).filter(c => c !== 'id');
+      const totalCols = cols.length + 6; // #, Trạng Thái, PK, Phiên Bản, Cập Nhật Cuối, Cols..., Hành Động
+
+      let rowsHtml = '';
+      timelines.forEach((t, idx) => {
+        const isDeleted = t.current_status === 'DELETED';
+        const isMulti = t.total_versions > 1;
+
+        // Yêu cầu 4: Tô màu đỏ thể hiện rằng đã bị deleted, hiển thị phiên bản cuối cùng trước khi bị xóa
+        const rowBgClass = isDeleted
+          ? 'bg-rose-50/80 hover:bg-rose-100/90 border-rose-300 text-rose-950 font-medium'
+          : (isMulti ? 'hover:bg-amber-50/50 bg-white' : 'hover:bg-slate-50 bg-white');
+
+        const statusBadge = isDeleted
+          ? `<span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-300">
+               <span class="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse"></span>
+               <span>🔴 ĐÃ BỊ XÓA</span>
+             </span>`
+          : (isMulti 
+              ? `<span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                   <span>🟡 ACTIVE (v${t.total_versions})</span>
+                 </span>`
+              : `<span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                   <span>🟢 ACTIVE (v1)</span>
+                 </span>`);
+
+        const verBadge = isMulti
+          ? `<span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-100 text-amber-800 border border-amber-300">${t.total_versions} vers</span>`
+          : `<span class="px-2 py-0.5 rounded text-[10px] font-mono text-slate-500 bg-slate-100">1 ver</span>`;
+
+        // Render business columns using last_known_data
+        const dataObj = t.last_known_data || {};
+        let colCellsHtml = '';
+        cols.forEach(c => {
+          let val = dataObj[c];
+          let displayVal = (val !== null && val !== undefined) ? String(val) : '<span class="text-slate-300">NULL</span>';
+          colCellsHtml += `<td class="py-2.5 px-3 truncate max-w-xs ${isDeleted ? 'text-rose-900' : 'text-[#0F172A]'}" title="${val !== null && val !== undefined ? val : ''}">${displayVal}</td>`;
+        });
+
+        // 1. MAIN ROW
+        rowsHtml += `
+          <tr id="main-row-${t.record_id}" onclick="toggleRowAccordion('${t.record_id}')" class="${rowBgClass} row-hover-highlight border-b transition-all duration-150 cursor-pointer group select-none">
+            <td class="py-2.5 px-3 text-center text-slate-400 text-[11px] font-mono">
+              <div class="flex items-center justify-center space-x-1">
+                <svg id="chevron-${t.record_id}" class="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 transition-transform duration-200 transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                <span>${idx + 1}</span>
+              </div>
+            </td>
+            <td class="py-2.5 px-3 whitespace-nowrap">${statusBadge}</td>
+            <td class="py-2.5 px-3 font-bold ${isDeleted ? 'text-rose-900' : 'text-[#0F172A]'} font-mono">${t.record_id}</td>
+            <td class="py-2.5 px-3 whitespace-nowrap">${verBadge}</td>
+            <td class="py-2.5 px-3 text-[11px] ${isDeleted ? 'text-rose-800' : 'text-slate-500'} whitespace-nowrap">${t.latest_update_at || '--'}</td>
+            ${colCellsHtml}
+            <td class="py-2.5 px-3 text-right whitespace-nowrap sticky right-0 bg-inherit z-0 group-hover:bg-slate-100/70">
+              <button onclick="event.stopPropagation(); toggleRowAccordion('${t.record_id}')" class="px-2.5 py-1 rounded text-[11px] font-medium bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 transition shadow-2xs cursor-pointer flex items-center space-x-1 ml-auto">
+                <span id="btn-label-${t.record_id}">▼ Xem Lịch Sử</span>
+              </button>
+            </td>
+          </tr>
+        `;
+
+        // 2. COLLAPSIBLE ACCORDION SUBROW (Yêu cầu 2: Sổ xuống với animation & note phương thức)
+        rowsHtml += `
+          <tr id="accordion-row-${t.record_id}" class="hidden bg-[#F8FAFC]">
+            <td colspan="${totalCols}" class="p-0 border-b-2 border-slate-300">
+              <div class="p-4 sm:p-5 bg-gradient-to-b from-slate-50 to-[#F8FAFC] border-t border-slate-200 animate-accordion space-y-3.5">
+                <!-- Subrow Top Bar -->
+                <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200">
+                  <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 rounded-lg bg-[#0F172A] text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                      SCD
+                    </div>
+                    <div>
+                      <div class="flex items-center space-x-2">
+                        <span class="text-xs font-bold font-mono text-[#0F172A]">Lịch Sử Bản Ghi [Khóa Chính: ${t.record_id}]</span>
+                        ${isDeleted ? '<span class="text-[10px] px-2 py-0.5 rounded bg-rose-100 text-rose-700 font-bold border border-rose-300">🔴 HARD DELETED</span>' : '<span class="text-[10px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold border border-emerald-200">🟢 ACTIVE</span>'}
+                      </div>
+                      <div class="text-[11px] text-slate-500 font-mono mt-0.5">
+                        Tổng cộng <strong>${t.total_versions} phiên bản</strong> qua các chu kỳ đồng bộ • Cập nhật cuối: <span class="text-slate-700 font-semibold">${t.latest_update_at || '--'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center space-x-2">
+                    <button onclick="event.stopPropagation(); openRowHistory('${t.record_id}')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0F172A] hover:bg-slate-800 active:scale-[0.98] text-white shadow-xs transition flex items-center space-x-1.5 cursor-pointer">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                      <span>🔍 So Sánh Chi Tiết Toàn Diện (Modal Trước vs Sau)</span>
+                    </button>
+                    <button onclick="event.stopPropagation(); toggleRowAccordion('${t.record_id}')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 transition cursor-pointer">
+                      ✕ Đóng menu
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Subrow Version List with Method Notes -->
+                <div class="space-y-2.5">
+                  ${renderAccordionVersionsList(t)}
+                </div>
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = rowsHtml;
+    }
+
+    // Toggle Accordion Subrow (Slide Down / Up)
+    function toggleRowAccordion(recordId) {
+      const subrow = document.getElementById(`accordion-row-${recordId}`);
+      const mainRow = document.getElementById(`main-row-${recordId}`);
+      const chevron = document.getElementById(`chevron-${recordId}`);
+      const btnLabel = document.getElementById(`btn-label-${recordId}`);
+
+      if (!subrow) return;
+
+      const isHidden = subrow.classList.contains('hidden');
+      if (isHidden) {
+        subrow.classList.remove('hidden');
+        if (mainRow) mainRow.classList.add('row-active-accordion');
+        if (chevron) chevron.classList.add('rotate-90', 'text-indigo-600');
+        if (btnLabel) btnLabel.textContent = '▲ Thu Gọn';
+      } else {
+        subrow.classList.add('hidden');
+        if (mainRow) mainRow.classList.remove('row-active-accordion');
+        if (chevron) chevron.classList.remove('rotate-90', 'text-indigo-600');
+        if (btnLabel) btnLabel.textContent = '▼ Xem Lịch Sử';
+      }
+    }
+
+    // Toggle Inline Snapshot Data inside Accordion Subrow
+    function toggleInlineVersionSnapshot(recordId, verNum) {
+      const snapBox = document.getElementById(`snap-box-${recordId}-${verNum}`);
+      const icon = document.getElementById(`snap-icon-${recordId}-${verNum}`);
+      if (!snapBox) return;
+
+      const isHidden = snapBox.classList.contains('hidden');
+      if (isHidden) {
+        snapBox.classList.remove('hidden');
+        if (icon) icon.classList.add('rotate-180');
+      } else {
+        snapBox.classList.add('hidden');
+        if (icon) icon.classList.remove('rotate-180');
+      }
+    }
+
+    // Toggle Snapshot Data inside Modal SCD2 Timeline (Yêu cầu 1: Xem lại các version cũ)
+    function toggleModalVerSnapshot(recordId, verNum) {
+      const box = document.getElementById(`modal-snap-box-${verNum}`);
+      const icon = document.getElementById(`modal-snap-icon-${verNum}`);
+      if (!box) return;
+
+      const isHidden = box.classList.contains('hidden');
+      if (isHidden) {
+        box.classList.remove('hidden');
+        if (icon) icon.classList.add('rotate-180');
+      } else {
+        box.classList.add('hidden');
+        if (icon) icon.classList.remove('rotate-180');
+      }
+    }
+
+    // Render Version List inside Accordion with Method Notes (Yêu cầu 2)
+    function renderAccordionVersionsList(timeline) {
+      const versions = timeline.versions || [];
+      if (versions.length === 0) {
+        return `<div class="p-3 text-xs text-slate-400">Không có dữ liệu phiên bản.</div>`;
+      }
+
+      const isDeleted = timeline.current_status === 'DELETED';
+
+      return versions.map((ver) => {
+        let opBadge = '';
+        let opNote = '';
+        let borderClass = 'border-slate-200 bg-white';
+
+        if (ver.operation === 'INSERT') {
+          opBadge = `<span class="px-2 py-0.5 rounded font-mono font-bold text-[11px] bg-emerald-100 text-emerald-800 border border-emerald-300">➕ INSERT (Ver 1)</span>`;
+          opNote = `<span class="text-xs text-emerald-900 font-medium">✨ Khởi tạo dữ liệu bản ghi lần đầu</span>`;
+          borderClass = 'border-emerald-200 bg-white';
+        } else if (ver.operation === 'UPDATE') {
+          opBadge = `<span class="px-2 py-0.5 rounded font-mono font-bold text-[11px] bg-amber-100 text-amber-800 border border-amber-300">✏️ UPDATE (Ver ${ver.version_number})</span>`;
+          if (ver.changes && ver.changes.length > 0) {
+            const fieldNames = ver.changes.map(c => `<span class="font-bold underline decoration-amber-400 text-amber-900">${c.field_name}</span>`).join(', ');
+            opNote = `<span class="text-xs text-amber-950 font-medium">📝 Cập nhật ${ver.changes.length} cột: ${fieldNames}</span>`;
+          } else {
+            opNote = `<span class="text-xs text-amber-950 font-medium">📝 Cập nhật dữ liệu</span>`;
+          }
+          borderClass = 'border-amber-200 bg-white';
+        } else if (ver.operation === 'DELETE') {
+          opBadge = `<span class="px-2 py-0.5 rounded font-mono font-bold text-[11px] bg-rose-100 text-rose-800 border border-rose-300 font-bold">🗑️ HARD DELETE (Ver ${ver.version_number})</span>`;
+          opNote = `<span class="text-xs text-rose-900 font-bold">⚠️ Bản ghi bị xóa hoàn toàn khỏi Database</span>`;
+          borderClass = 'border-rose-300 bg-rose-50/40';
+        } else {
+          opBadge = `<span class="px-2 py-0.5 rounded font-mono font-bold text-[11px] bg-slate-100 text-slate-800 border border-slate-300">${ver.operation} (Ver ${ver.version_number})</span>`;
+          opNote = `<span class="text-xs text-slate-700">Dữ liệu ghi nhận</span>`;
+        }
+
+        const isCurrentBadge = ver.is_current
+          ? `<span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold ${isDeleted ? 'bg-rose-100 text-rose-700 border border-rose-300' : 'bg-emerald-100 text-emerald-800 border border-emerald-300'}">
+               <span class="w-1.5 h-1.5 rounded-full ${isDeleted ? 'bg-rose-600 animate-pulse' : 'bg-emerald-600 animate-pulse'}"></span>
+               <span>${isDeleted ? 'TRẠNG THÁI CUỐI (ĐÃ XÓA)' : 'HIỆN HÀNH'}</span>
+             </span>`
+          : `<span class="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">Lịch sử (Đã đóng)</span>`;
+
+        const sourceFileShort = ver.source_file.split('/').pop();
+
+        return `
+          <div class="border ${borderClass} rounded-xl p-3.5 shadow-2xs hover:shadow-xs transition-shadow">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex flex-wrap items-center space-x-2.5">
+                ${opBadge}
+                <div class="text-slate-300 hidden sm:block">|</div>
+                ${opNote}
+              </div>
+
+              <div class="flex items-center space-x-2">
+                ${isCurrentBadge}
+                <button onclick="event.stopPropagation(); toggleInlineVersionSnapshot('${timeline.record_id}', ${ver.version_number})" class="px-2.5 py-1 rounded text-xs font-semibold bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 shadow-2xs transition flex items-center space-x-1.5 cursor-pointer ml-1">
+                  <span>👁️ Xem Dữ Liệu Ver ${ver.version_number}</span>
+                  <svg id="snap-icon-${timeline.record_id}-${ver.version_number}" class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500 font-mono mt-2 pt-2 border-t border-slate-100">
+              <div>Thời điểm: <strong class="text-slate-700">${ver.valid_from}</strong></div>
+              <div>File nguồn: <strong class="text-slate-700">${sourceFileShort}</strong></div>
+              ${ver.valid_to ? `<div>Hiệu lực đến: <strong class="text-slate-700">${ver.valid_to}</strong></div>` : ''}
+            </div>
+
+            <!-- Collapsible Inline Snapshot View for this version -->
+            <div id="snap-box-${timeline.record_id}-${ver.version_number}" class="hidden mt-3 pt-3 border-t border-slate-200 animate-accordion">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-[11px] font-bold text-slate-700 uppercase tracking-wider font-mono">
+                  Dữ liệu snapshot tại Version ${ver.version_number} (${ver.valid_from}):
+                </span>
+                <span class="text-[10px] text-slate-400 font-mono">Nguồn: ${sourceFileShort}</span>
+              </div>
+              ${renderVersionDataTable(ver.data, currentHistoryResult?.columns, ver)}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Render snapshot key-value table for any version (Yêu cầu 1: Xem thông tin version cũ)
+    function renderVersionDataTable(dataObj, cols, ver) {
+      if (!dataObj || Object.keys(dataObj).length === 0) {
+        return `<div class="p-3 text-xs text-slate-400 italic">Không có dữ liệu thuộc tính ghi nhận cho phiên bản này.</div>`;
+      }
+
+      const displayCols = (cols && cols.length > 0) ? cols.filter(c => c !== 'id') : Object.keys(dataObj);
+
+      let rowsHtml = '';
+      displayCols.forEach(c => {
+        const val = dataObj[c];
+        const valStr = (val !== null && val !== undefined) ? String(val) : '<span class="text-slate-300">NULL</span>';
+
+        const changedField = ver && ver.changes ? ver.changes.find(ch => ch.field_name === c) : null;
+
+        if (changedField) {
+          rowsHtml += `
+            <tr class="bg-amber-50/70 border-b border-amber-200/70">
+              <td class="py-1.5 px-3 font-semibold text-amber-950 flex items-center space-x-1.5 whitespace-nowrap">
+                <span>${c}</span>
+                <span class="text-[9px] uppercase px-1 py-0.2 rounded bg-amber-200 text-amber-900 font-sans font-bold">Mới sửa</span>
+              </td>
+              <td class="py-1.5 px-3 font-mono text-emerald-800 font-bold">${valStr}</td>
+            </tr>
+          `;
+        } else {
+          rowsHtml += `
+            <tr class="border-b border-slate-100 hover:bg-slate-50/60">
+              <td class="py-1.5 px-3 font-medium text-slate-600 whitespace-nowrap">${c}</td>
+              <td class="py-1.5 px-3 font-mono text-slate-800">${valStr}</td>
+            </tr>
+          `;
+        }
+      });
+
+      return `
+        <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <table class="w-full text-left text-xs font-mono">
+            <thead class="bg-slate-100 text-[10px] text-slate-600 uppercase border-b border-slate-200">
+              <tr>
+                <th class="py-1.5 px-3 w-1/3">Tên Cột (Field)</th>
+                <th class="py-1.5 px-3 w-2/3">Giá Trị Tại Version Này</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    // ========================================================================
+    // MODAL DIALOG: BEFORE VS. AFTER COMPARISON & SCD2 TIMELINE
+    // ========================================================================
+    function openRowHistory(recordId) {
+      if (!currentHistoryResult) return;
+      const timeline = currentHistoryResult.timelines.find(t => t.record_id === recordId);
+      if (!timeline) return;
+
+      const isDeleted = timeline.current_status === 'DELETED';
+
+      // Header info
+      document.getElementById('modal-title').textContent = `Lịch Sử Bản Ghi [Khóa Chính: ${recordId}]`;
+      document.getElementById('modal-table-name').textContent = currentHistoryResult.table_name;
+      document.getElementById('modal-tenant-name').textContent = currentHistoryResult.tenant_id;
+      document.getElementById('modal-versions-count').textContent = `${timeline.total_versions} Phiên Bản`;
+
+      // Status Badge
+      const statusBadgeContainer = document.getElementById('modal-status-badge');
+      if (isDeleted) {
+        statusBadgeContainer.innerHTML = `<span class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-700 border border-rose-300 animate-pulse">🔴 HARD DELETED</span>`;
+        document.getElementById('modal-delete-alert').classList.remove('hidden');
+      } else {
+        statusBadgeContainer.innerHTML = `<span class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">🟢 ACTIVE</span>`;
+        document.getElementById('modal-delete-alert').classList.add('hidden');
+      }
+
+      // ======================================================================
+      // YÊU CẦU 3: SO SÁNH TRƯỚC KIA LÀ GÌ VÀ HIỆN TẠI LÀ GÌ
+      // ======================================================================
+      const compareTbody = document.getElementById('modal-compare-tbody');
+      const initialData = timeline.initial_data || {};
+      const lastKnownData = timeline.last_known_data || {};
+      const cols = currentHistoryResult.columns || [];
+
+      let compareHtml = '';
+      cols.forEach(c => {
+        const oldVal = initialData[c];
+        const newVal = lastKnownData[c];
+
+        const oldValStr = (oldVal !== null && oldVal !== undefined) ? String(oldVal) : '<span class="text-slate-300">NULL</span>';
+        const newValStr = (newVal !== null && newVal !== undefined) ? String(newVal) : '<span class="text-slate-300">NULL</span>';
+
+        const isChanged = String(oldVal) !== String(newVal);
+
+        if (isChanged) {
+          // Highlight changed fields
+          compareHtml += `
+            <tr class="bg-amber-50/60 border-b border-amber-200/80">
+              <td class="py-2 px-3 font-bold text-amber-950 flex items-center space-x-1.5">
+                <span>${c}</span>
+                <span class="text-[9px] uppercase px-1 py-0.2 rounded bg-amber-200 text-amber-900 font-sans font-bold">Đã sửa</span>
+              </td>
+              <td class="py-2 px-3 text-rose-700 bg-rose-50/50 line-through">${oldValStr}</td>
+              <td class="py-2 px-3 text-emerald-800 bg-emerald-50/60 font-bold">${newValStr}</td>
+            </tr>
+          `;
+        } else {
+          compareHtml += `
+            <tr class="border-b border-[#F1F5F9] hover:bg-slate-50/50">
+              <td class="py-2 px-3 font-medium text-slate-600">${c}</td>
+              <td class="py-2 px-3 text-slate-700 bg-slate-50/30">${oldValStr}</td>
+              <td class="py-2 px-3 text-slate-900">${newValStr}</td>
+            </tr>
+          `;
+        }
+      });
+      compareTbody.innerHTML = compareHtml;
+
+      // ======================================================================
+      // YÊU CẦU 1, 3 & 4: DÒNG THỜI GIAN CHI TIẾT VỚI NÚT XEM DỮ LIỆU TỪNG VERSION
+      // ======================================================================
+      const timelineContainer = document.getElementById('modal-timeline-container');
+      const versions = timeline.versions || [];
+
+      timelineContainer.innerHTML = versions.map((ver, idx) => {
+        let opBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        let opIcon = '➕';
+        if (ver.operation === 'UPDATE') {
+          opBadgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
+          opIcon = '✏️';
+        }
+        if (ver.operation === 'DELETE') {
+          opBadgeClass = 'bg-rose-100 text-rose-800 border-rose-300 font-bold';
+          opIcon = '🗑️';
+        }
+
+        const isCurrentBadge = ver.is_current
+          ? `<span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold ${isDeleted ? 'bg-rose-100 text-rose-700 border border-rose-300' : 'bg-emerald-100 text-emerald-800 border border-emerald-300'}">
+               <span class="w-1.5 h-1.5 rounded-full ${isDeleted ? 'bg-rose-600 animate-pulse' : 'bg-emerald-600 animate-pulse'}"></span>
+               <span>${isDeleted ? 'TRẠNG THÁI CUỐI: ĐÃ XÓA' : 'PHIÊN BẢN HIỆN HÀNH'}</span>
+             </span>`
+          : `<span class="text-[10px] font-mono text-slate-400">Version Lịch Sử (Đã đóng)</span>`;
+
+        // Render changed field list (diff) if available
+        let diffHtml = '';
+        if (ver.changes && ver.changes.length > 0) {
+          const diffRows = ver.changes.map(ch => `
+            <tr class="border-b border-[#F1F5F9] text-xs font-mono">
+              <td class="py-1 px-2.5 font-bold text-amber-950">${ch.field_name}</td>
+              <td class="py-1 px-2.5 text-rose-700 bg-rose-50/50 line-through">${ch.old_value !== null ? ch.old_value : 'NULL'}</td>
+              <td class="py-1 px-2.5 text-emerald-800 bg-emerald-50/50 font-bold">${ch.new_value !== null ? ch.new_value : 'NULL'}</td>
+            </tr>
+          `).join('');
+
+          diffHtml = `
+            <div class="mt-2.5 p-2.5 bg-amber-50/60 border border-amber-200/80 rounded-lg">
+              <div class="text-[10px] font-bold text-amber-900 uppercase tracking-wider mb-1.5">
+                Các Cột Thay Đổi ở Version ${ver.version_number} (${ver.changes.length} cột)
+              </div>
+              <table class="w-full text-left bg-white rounded border border-amber-200 text-xs">
+                <thead class="bg-slate-50 text-[10px] text-slate-500 uppercase">
+                  <tr>
+                    <th class="py-1 px-2.5">Cột</th>
+                    <th class="py-1 px-2.5">Giá Trị Cũ</th>
+                    <th class="py-1 px-2.5">Giá Trị Mới</th>
+                  </tr>
+                </thead>
+                <tbody>${diffRows}</tbody>
+              </table>
+            </div>
+          `;
+        }
+
+        const sourceFileShort = ver.source_file.split('/').pop();
+
+        return `
+          <div class="relative pl-7 pb-6 ${idx === versions.length - 1 ? 'pb-0' : ''}">
+            ${idx !== versions.length - 1 ? '<div class="absolute left-2.5 top-6 bottom-0 w-[2px] bg-slate-200"></div>' : ''}
+            <div class="absolute left-0 top-1 w-5 h-5 rounded-full border-2 border-white shadow-xs flex items-center justify-center text-[10px] font-bold font-mono ${ver.operation === 'DELETE' ? 'bg-rose-600 text-white ring-4 ring-rose-100' : (ver.is_current ? 'bg-emerald-600 text-white ring-4 ring-emerald-100' : 'bg-slate-700 text-white')}">
+              ${ver.version_number}
+            </div>
+
+            <div class="p-3.5 bg-white rounded-xl border ${ver.operation === 'DELETE' ? 'border-rose-300 bg-rose-50/30' : (ver.is_current ? 'border-emerald-300' : 'border-[#E2E8F0]')}">
+              <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#F1F5F9]">
+                <div class="flex items-center space-x-2">
+                  <span class="text-xs font-mono font-bold px-2 py-0.5 rounded border ${opBadgeClass}">
+                    ${opIcon} ${ver.operation} (Ver ${ver.version_number})
+                  </span>
+                  <span class="text-xs font-mono text-[#0F172A] font-semibold">${ver.valid_from}</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                  ${isCurrentBadge}
+                  <button onclick="toggleModalVerSnapshot('${recordId}', ${ver.version_number})" class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 shadow-2xs transition flex items-center space-x-1 cursor-pointer">
+                    <span>👁️ Xem Dữ Liệu Ver ${ver.version_number}</span>
+                    <svg id="modal-snap-icon-${ver.version_number}" class="w-3.5 h-3.5 text-indigo-500 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="text-[11px] text-slate-500 mt-1.5 font-mono flex items-center space-x-3">
+                <span>File: <strong class="text-slate-700">${sourceFileShort}</strong></span>
+                ${ver.valid_to ? `<span>Hiệu lực đến: <strong class="text-slate-700">${ver.valid_to}</strong></span>` : ''}
+              </div>
+
+              ${diffHtml}
+
+              <!-- Collapsible Full Attribute Snapshot in Modal Timeline (Yêu cầu 1: Xem thông tin version cũ) -->
+              <div id="modal-snap-box-${ver.version_number}" class="hidden mt-3 p-3.5 bg-slate-50/90 rounded-xl border border-slate-200 animate-accordion">
+                <div class="flex items-center justify-between mb-2 pb-1.5 border-b border-slate-200">
+                  <div class="text-[11px] font-bold text-slate-800 uppercase tracking-wider font-mono">
+                    Dữ Liệu Snapshot Tại Version ${ver.version_number} (${ver.valid_from})
+                  </div>
+                  <span class="text-[10px] text-slate-500 font-mono">File: ${sourceFileShort}</span>
+                </div>
+                ${renderVersionDataTable(ver.data, currentHistoryResult.columns, ver)}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('history-modal').classList.remove('hidden');
+    }
+
+    function closeHistoryModal() {
+      document.getElementById('history-modal').classList.add('hidden');
+    }
+
+    function handleModalBackdropClick(event) {
+      if (event.target.id === 'history-modal') {
+        closeHistoryModal();
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeHistoryModal();
+      }
+    });
+
+    // Initialize UI
+    initStep1Comboboxes();
+    selectStrategy('CDC'); // Default to CDC
+    onTenantIdChange();
+  </script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+# Executables
+db-provisioner.exe
+db-provisioner
+*.exe
+
+# Exported bundles & secrets
+exports/
+*.log
+*.tmp

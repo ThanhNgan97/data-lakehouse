@@ -1,4 +1,8 @@
 import os
+from spark_dependency_config import configure_pyspark_dependencies
+
+configure_pyspark_dependencies()
+
 from pyspark.sql import SparkSession
 from env_config import MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_ENDPOINT, NESSIE_API_URL, HADOOP_HOME, SPARK_LOCAL_IP
 
@@ -7,12 +11,6 @@ os.environ["PATH"] = os.path.join(HADOOP_HOME, "bin") + ";" + os.environ.get("PA
 os.environ["AWS_ACCESS_KEY_ID"] = MINIO_ACCESS_KEY
 os.environ["AWS_SECRET_ACCESS_KEY"] = MINIO_SECRET_KEY
 os.environ["SPARK_LOCAL_IP"] = SPARK_LOCAL_IP
-os.environ["PYSPARK_SUBMIT_ARGS"] = (
-    "--packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.4.3,"
-    "org.projectnessie.nessie-integrations:nessie-spark-extensions-3.5_2.12:0.77.1,"
-    "org.apache.hadoop:hadoop-aws:3.3.4 "
-    "pyspark-shell"
-)
 
 spark = (
     SparkSession.builder

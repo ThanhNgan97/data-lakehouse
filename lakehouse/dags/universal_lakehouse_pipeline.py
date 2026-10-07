@@ -276,6 +276,42 @@ def smoke_test_trino(**context):
 
 
 # =====================================================================
+# TASK 5: DYNAMIC SUPERSET PROVISIONING (BI PLANE AUTOMATION)
+# =====================================================================
+
+def provision_superset_dashboard_task(**context):
+    """Tự động sinh và import dashboard Superset cho dataset vừa được đưa vào tầng Gold."""
+    ti = context["ti"]
+    decision_file = ti.xcom_pull(task_ids="ai_semantic_profiler", key="decision_file")
+
+    if not decision_file or not os.path.exists(decision_file):
+        print(f"ℹ️ [Superset Task] Không tìm thấy decision file: '{decision_file}'. Bỏ qua auto-provisioning.")
+        return
+
+    print(f"🎨 [Superset Task] Bắt đầu tự động tạo Dashboard trên Superset từ '{decision_file}'...")
+    try:
+        from superset_dynamic_provisioner import provision_dynamic_dashboard
+        from ai_dataset_router import RoutingDecision
+
+        with open(decision_file, "r", encoding="utf-8") as f:
+            decision = RoutingDecision(**json.load(f))
+
+        output_dir = Path("/opt/airflow/spark/.generated_exports")
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        result = provision_dynamic_dashboard(
+            decision=decision,
+            output_dir=output_dir,
+            auto_import=True,
+            superset_url="http://superset:8088",
+        )
+        print("✅ [Superset Task] Tự động tạo Dashboard thành công:")
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+    except Exception as exc:
+        print(f"⚠️ [Superset Task] Gặp lỗi khi tạo dashboard (pipeline data vẫn thành công): {exc}")
+
+
+# =====================================================================
 # DAG DEFINITION
 # =====================================================================
 
@@ -286,7 +322,7 @@ with DAG(
     schedule_interval=None,
     start_date=datetime(2026, 1, 1),
     catchup=False,
-    tags=["lakehouse", "ai", "universal", "iceberg", "trino"],
+    tags=["lakehouse", "ai", "universal", "iceberg", "trino", "superset"],
 ) as dag:
 
     # 1. AI Profiler (Control Plane)
@@ -355,7 +391,16 @@ with DAG(
         trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
     )
 
+    # 7. Dynamic Superset Dashboard Provisioner (BI Plane)
+    auto_provision_superset = PythonOperator(
+        task_id="auto_provision_superset",
+        python_callable=provision_superset_dashboard_task,
+        trigger_rule=TriggerRule.ALL_SUCCESS,
+    )
+
     # Wire DAG Dependencies
     ai_semantic_profiler >> branch_router
     branch_router >> [kpi_ingest_bronze, api_runner, process_dynamic]
     [kpi_predictive_analysis, api_runner, process_dynamic] >> join_and_smoke_test
+    join_and_smoke_test >> auto_provision_superset
+

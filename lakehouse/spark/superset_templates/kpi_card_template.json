@@ -1,0 +1,26 @@
+{
+  "viz_type": "big_number_total",
+  "slice_name": "Tổng {metric_label}",
+  "params": {
+    "datasource": "1__table",
+    "viz_type": "big_number_total",
+    "metric": {
+      "expressionType": "SIMPLE",
+      "column": {
+        "column_name": "{column_name}",
+        "type": "{column_type}",
+        "is_dttm": false,
+        "filterable": true,
+        "groupby": true
+      },
+      "aggregate": "{aggregate}",
+      "hasCustomLabel": true,
+      "label": "{metric_label}"
+    },
+    "adhoc_filters": [],
+    "header_font_size": 0.38,
+    "subheader_font_size": 0.14,
+    "y_axis_format": "{y_axis_format}",
+    "time_format": "smart_date"
+  }
+}

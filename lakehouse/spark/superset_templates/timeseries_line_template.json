@@ -1,0 +1,36 @@
+{
+  "viz_type": "echarts_timeseries_line",
+  "slice_name": "Xu hướng {metric_label} theo thời gian",
+  "params": {
+    "datasource": "1__table",
+    "viz_type": "echarts_timeseries_line",
+    "x_axis": "{time_column}",
+    "x_axis_title": "Thời gian",
+    "metrics": [
+      {
+        "expressionType": "SIMPLE",
+        "column": {
+          "column_name": "{metric_column}",
+          "type": "{metric_type}",
+          "is_dttm": false,
+          "filterable": true,
+          "groupby": true
+        },
+        "aggregate": "{aggregate}",
+        "hasCustomLabel": true,
+        "label": "{metric_label}"
+      }
+    ],
+    "groupby": [],
+    "seriesType": "line",
+    "color_scheme": "supersetColors",
+    "show_legend": true,
+    "show_value": false,
+    "rich_tooltip": true,
+    "row_limit": 1000,
+    "truncateXAxis": false,
+    "truncateYAxis": false,
+    "y_axis_format": "{y_axis_format}",
+    "adhoc_filters": []
+  }
+}

@@ -17,3 +17,11 @@ metastore_db/
 # Local runtime/test artifacts
 *.log
 .pytest_cache/
+
+# Pipeline Runtime, AI Cache & Staging Data
+lakehouse/spark/.staging_downloads/
+lakehouse/spark/.routing_decisions/
+lakehouse/spark/.extracted_tables/
+lakehouse/spark/.generated_exports/
+superset_exports/generated/
+*.zip

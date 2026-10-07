@@ -143,7 +143,6 @@ def ensure_bronze_table(client) -> str:
                     Column(name="nhom_don_vi", dataType=DataType.STRING),
                     Column(name="quy_danh_gia", dataType=DataType.STRING),
                     Column(name="ket_qua_he_thong", dataType=DataType.STRING),
-                    Column(name="checksum_sha256", dataType=DataType.STRING),
                 ],
             )
         )

@@ -107,7 +107,9 @@ class SourceFile(Base):
     __tablename__ = "source_files"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    content_checksum_sha256 = Column("checksum_sha256", String(64), unique=True, nullable=False, index=True)
+    # Retained as a nullable compatibility column for existing databases.
+    # URL/file ingestion no longer calculates or stores SHA-256 values.
+    content_checksum_sha256 = Column("checksum_sha256", String(64), unique=True, nullable=True, index=True)
     original_filename = Column(String(512), nullable=False)
     mime_type = Column(String(255), nullable=True)
     file_size_bytes = Column(Float, nullable=False)

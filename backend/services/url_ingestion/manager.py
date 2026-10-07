@@ -36,17 +36,18 @@ def _candidate(record: ScanCandidate) -> FileCandidate:
 
 
 def _hash_stream(stream):
-    digest = hashlib.sha256()
+    digest = hashlib.sha256() if URL_CHECKSUM_DEDUP_ENABLED else None
     size = 0
     stream.seek(0)
     while True:
         chunk = stream.read(1024 * 1024)
         if not chunk:
             break
-        digest.update(chunk)
+        if digest is not None:
+            digest.update(chunk)
         size += len(chunk)
     stream.seek(0)
-    return digest.hexdigest(), size
+    return digest.hexdigest() if digest is not None else None, size
 
 
 def _safe_name(value: str) -> str:
@@ -59,7 +60,19 @@ def _history_for_job_file(db, job_file_id: str):
     ).order_by(UploadHistory.id.desc()).first()
 
 
-def _source_file(db, checksum: str, candidate: FileCandidate, size: int, claim_id: str, force_reprocess: bool = False):
+def _source_file(db, checksum: str | None, candidate: FileCandidate, size: int, claim_id: str, force_reprocess: bool = False):
+    if checksum is None:
+        source = SourceFile(
+            content_checksum_sha256=None,
+            original_filename=_safe_name(candidate.name),
+            mime_type=candidate.mime_type,
+            file_size_bytes=size,
+            processing_status=f"CLAIMED:{claim_id}",
+        )
+        db.add(source)
+        db.commit()
+        db.refresh(source)
+        return source, "CLAIMED", None
     existing = db.query(SourceFile).filter(SourceFile.content_checksum_sha256 == checksum).first()
     if existing:
         if existing.processing_status == f"CLAIMED:{claim_id}":
@@ -184,7 +197,6 @@ def process_import_job(job_id: str):
                 download = adapter.download(source_descriptor, candidate)
                 stream = download.stream
                 checksum, actual_size = _hash_stream(stream)
-                row.checksum_sha256 = checksum
                 row.actual_size = actual_size
                 imported_size = sum(value[0] or 0 for value in db.query(ImportJobFile.actual_size).filter(
                     ImportJobFile.import_job_id == job.id,
@@ -218,7 +230,8 @@ def process_import_job(job_id: str):
                         history.dag_run_id = existing_dag_run_id
                     db.commit()
                     continue
-                object_key = f"staging/{source.id}/{checksum[:12]}/{_safe_name(candidate.name)}"
+                object_identity = checksum[:12] if checksum else uuid.uuid4().hex[:12]
+                object_key = f"staging/{source.id}/{object_identity}/{_safe_name(candidate.name)}"
                 minio_client.put_object(MINIO_BUCKET_NAME, object_key, stream, actual_size)
                 source.storage_path = object_key
                 dag_run_id = _trigger_airflow(source, row)

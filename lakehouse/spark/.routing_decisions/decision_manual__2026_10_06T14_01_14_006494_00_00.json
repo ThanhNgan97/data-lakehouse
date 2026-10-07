@@ -1,0 +1,36 @@
+{
+  "dataset_domain": "generic",
+  "dataset_entity": "dynamic_sample_tuition_json",
+  "route_target": "generic_dynamic",
+  "registered_dataset_id": null,
+  "target_silver_table": "lakehouse.silver.dynamic_sample_tuition_json",
+  "target_quarantine_table": "lakehouse.silver.dynamic_sample_tuition_json_quarantine",
+  "target_gold_table": "lakehouse.gold.dynamic_sample_tuition_json_summary",
+  "business_keys": [
+    "student_id",
+    "amount_paid"
+  ],
+  "source_updated_at_field": null,
+  "dimension_columns": [
+    "student_id",
+    "student_name",
+    "faculty",
+    "academic_year",
+    "amount_paid",
+    "paid_at"
+  ],
+  "metric_columns": [
+    "semester"
+  ],
+  "suggested_visualizations": [
+    {
+      "chart_type": "bar",
+      "x_axis_or_dimension": "student_id",
+      "y_axis_or_metric": "semester",
+      "aggregation": "SUM",
+      "title": "Tổng semester theo student_id"
+    }
+  ],
+  "fallback_used": true,
+  "reasoning": "Gemini API gặp sự cố (503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.', 'status': 'UNAVAILABLE'}}). Tự động suy luận Business Keys=['student_id', 'amount_paid'], Metrics=['semester']."
+}

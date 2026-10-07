@@ -55,13 +55,19 @@ async def upload_file(
         # Trigger Airflow Pipeline
        
 
-        airflow_url = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/lakehouse_pipeline/dagRuns"
+        airflow_url = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/universal_lakehouse_pipeline/dagRuns"
         dag_run_id = None
         try:
-            # Assuming airflow-init sets up admin user with 'airflow:airflow'
-            resp = requests.post(airflow_url, json={}, auth=("airflow", "airflow"), timeout=5)
+            # Truyền conf chứa vị trí staging và tên file để AI Semantic Router xử lý
+            payload = {
+                "conf": {
+                    "input_path": object_name,
+                    "source_name": file.filename
+                }
+            }
+            resp = requests.post(airflow_url, json=payload, auth=("airflow", "airflow"), timeout=5)
             if resp.status_code in [200, 201]:
-                logging.info("Airflow pipeline triggered successfully.")
+                logging.info("Universal Airflow pipeline triggered successfully.")
                 dag_run_id = resp.json().get("dag_run_id")
                 history_record.dag_run_id = dag_run_id
                 history_record.pipeline_status = "running"
@@ -107,10 +113,14 @@ async def get_pipeline_status(
     """
     Gọi Airflow API để lấy trạng thái của DAG run và các task bên trong.
     """
-    airflow_base = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/lakehouse_pipeline/dagRuns/{dag_run_id}"
+    airflow_base = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/universal_lakehouse_pipeline/dagRuns/{dag_run_id}"
     try:
-        # Lấy trạng thái tổng quan DAG run
+        # Lấy trạng thái tổng quan DAG run (thử universal_lakehouse_pipeline trước, fallback về legacy)
         resp_dag = requests.get(airflow_base, auth=("airflow", "airflow"), timeout=5)
+        if resp_dag.status_code == 404:
+            airflow_base = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/lakehouse_pipeline/dagRuns/{dag_run_id}"
+            resp_dag = requests.get(airflow_base, auth=("airflow", "airflow"), timeout=5)
+
         state = "unknown"
         if resp_dag.status_code == 200:
             state = resp_dag.json().get("state", "unknown")

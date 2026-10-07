@@ -1,0 +1,50 @@
+{
+  "dataset_domain": "education",
+  "dataset_entity": "student_tuition",
+  "route_target": "generic_dynamic",
+  "registered_dataset_id": null,
+  "target_silver_table": "lakehouse.silver.student_tuition",
+  "target_quarantine_table": "lakehouse.silver.student_tuition_quarantine",
+  "target_gold_table": "lakehouse.gold.student_tuition_summary",
+  "business_keys": [
+    "student_id",
+    "paid_at"
+  ],
+  "source_updated_at_field": "paid_at",
+  "dimension_columns": [
+    "student_id",
+    "student_name",
+    "faculty",
+    "academic_year",
+    "semester",
+    "paid_at"
+  ],
+  "metric_columns": [
+    "amount_paid"
+  ],
+  "suggested_visualizations": [
+    {
+      "chart_type": "bar",
+      "x_axis_or_dimension": "faculty",
+      "y_axis_or_metric": "amount_paid",
+      "aggregation": "SUM",
+      "title": "Total Tuition Paid by Faculty"
+    },
+    {
+      "chart_type": "bar",
+      "x_axis_or_dimension": "academic_year",
+      "y_axis_or_metric": "amount_paid",
+      "aggregation": "AVG",
+      "title": "Average Tuition Paid per Academic Year"
+    },
+    {
+      "chart_type": "line",
+      "x_axis_or_dimension": "paid_at",
+      "y_axis_or_metric": "student_id",
+      "aggregation": "COUNT",
+      "title": "Number of Tuition Payments Over Time"
+    }
+  ],
+  "fallback_used": false,
+  "reasoning": "The dataset clearly pertains to student tuition payments, placing it in the 'education' domain. 'student_tuition' is a concise entity name. The combination of 'student_id' and 'paid_at' provides a robust unique key for individual payment transactions, as 'paid_at' includes time granularity. 'paid_at' also serves as the natural update timestamp. Columns like 'faculty', 'academic_year', 'semester' are excellent dimensions for slicing and dicing, while 'amount_paid' is the primary metric for aggregation. Suggested visualizations cover common analytical needs for this type of data."
+}

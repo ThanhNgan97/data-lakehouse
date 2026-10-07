@@ -247,10 +247,72 @@ services:
     networks:
       - lakehouse-network
 
+  # ========================================================
+  # AIRBYTE INGESTION CORE
+  # ========================================================
+  airbyte-db:
+    image: postgres:13-alpine
+    container_name: airbyte-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=airbyte
+      - POSTGRES_PASSWORD=airbyte
+      - POSTGRES_DB=airbyte
+    volumes:
+      - airbyte_db_data:/var/lib/postgresql/data
+    networks:
+      - lakehouse-network
+    mem_limit: 512m
+  airbyte-server:
+    image: airbyte/server:v0.64.0  # Cập nhật bản mới hỗ trợ Public API
+    container_name: airbyte-server
+    restart: unless-stopped
+    environment:
+      - DATABASE_USER=airbyte
+      - DATABASE_PASSWORD=airbyte
+      - DATABASE_URL=jdbc:postgresql://airbyte-db:5432/airbyte
+      - AIRBYTE_ROLE=server
+      - WORKSPACE_ROOT=/data
+    ports:
+      - "8001:8001"                # Expose port REST API cho tool gọi trực tiếp
+    depends_on:
+      - airbyte-db
+    networks:
+      - lakehouse-network
+    mem_limit: 1500m
+  airbyte-worker:
+    image: airbyte/worker:v0.64.0
+    container_name: airbyte-worker
+    restart: unless-stopped
+    environment:
+      - DATABASE_USER=airbyte
+      - DATABASE_PASSWORD=airbyte
+      - DATABASE_URL=jdbc:postgresql://airbyte-db:5432/airbyte
+      - AIRBYTE_ROLE=worker
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - airbyte-server
+    networks:
+      - lakehouse-network
+    mem_limit: 2000m
+  airbyte-webapp:
+    image: airbyte/webapp:v0.64.0
+    container_name: airbyte-webapp
+    restart: unless-stopped
+    ports:
+      - "${AIRBYTE_PORT:-8006}:80"  # UI Airbyte Web
+    depends_on:
+      - airbyte-server
+    networks:
+      - lakehouse-network
+    mem_limit: 256m
+
 volumes:
   postgres_data:
   minio_data:
   superset_home:
+  airbyte_db_data:
 
 networks:
   lakehouse-network:

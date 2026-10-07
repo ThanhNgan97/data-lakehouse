@@ -113,3 +113,251 @@ def test_checkpoint_dataset_must_match():
         raise AssertionError(
             "dataset mismatch must fail"
         )
+
+
+from unittest.mock import Mock, patch
+
+from api_dataset_registry import get_dataset_config
+from api_ingestion import IngestionResult
+from incremental_ingestion import (
+    IncrementalIngestionResult,
+    STATUS_COMMITTED,
+    run_incremental_ingestion,
+)
+
+import api_dataset_orchestration as orchestration
+
+
+def test_coordinator_derives_logical_batch():
+    before = _checkpoint(
+        "2026-10-07T01:00:00Z",
+        version=7,
+    )
+
+    expected_batch = logical_batch_id(
+        DATASET,
+        before,
+    )
+
+    after = CheckpointState(
+        dataset_id=DATASET,
+        strategy_type="timestamp",
+        checkpoint_payload={
+            "value": "2026-10-07T02:00:00Z",
+        },
+        version=8,
+        last_batch_id=expected_batch,
+    )
+
+    store = Mock()
+    store.load.return_value = before
+    store.compare_and_set.return_value = after
+
+    config = get_dataset_config(DATASET)
+
+    fetch = Mock(
+        return_value={
+            "data": [
+                {
+                    config.source_updated_at_field:
+                        "2026-10-07T02:00:00Z",
+                },
+            ],
+        }
+    )
+
+    bronze = Mock(
+        return_value=IngestionResult(
+            object_key=(
+                config.bronze_prefix
+                + "batch_id="
+                + expected_batch
+                + "/data.parquet"
+            ),
+            input_count=1,
+            dataframe_count=1,
+            readback_count=1,
+            batch_id=expected_batch,
+            sample_record_id="r1",
+            sample_checksum="checksum",
+        )
+    )
+
+    result = run_incremental_ingestion(
+        Mock(),
+        "http://mock/api",
+        dataset=DATASET,
+        checkpoint_store=store,
+        fetch_payload=fetch,
+        ingest_payload=bronze,
+    )
+
+    assert result.status == STATUS_COMMITTED
+    assert result.batch_id == expected_batch
+
+    assert (
+        bronze.call_args.kwargs["batch_id"]
+        == expected_batch
+    )
+
+    assert (
+        store.compare_and_set.call_args.kwargs[
+            "batch_id"
+        ]
+        == expected_batch
+    )
+
+
+def test_explicit_batch_id_remains_backward_compatible():
+    explicit = "legacy-explicit-batch"
+
+    before = _checkpoint(
+        "2026-10-07T01:00:00Z",
+        version=7,
+    )
+
+    store = Mock()
+    store.load.return_value = before
+
+    config = get_dataset_config(DATASET)
+
+    fetch = Mock(
+        return_value={
+            "data": [
+                {
+                    config.source_updated_at_field:
+                        "2026-10-07T02:00:00Z",
+                },
+            ],
+        }
+    )
+
+    bronze = Mock(
+        side_effect=RuntimeError(
+            "stop-after-batch-assertion"
+        )
+    )
+
+    try:
+        run_incremental_ingestion(
+            Mock(),
+            "http://mock/api",
+            dataset=DATASET,
+            batch_id=explicit,
+            checkpoint_store=store,
+            fetch_payload=fetch,
+            ingest_payload=bronze,
+        )
+    except RuntimeError as exc:
+        assert str(exc) == "stop-after-batch-assertion"
+    else:
+        raise AssertionError(
+            "expected controlled Bronze stop"
+        )
+
+    assert (
+        bronze.call_args.kwargs["batch_id"]
+        == explicit
+    )
+
+
+def test_orchestration_does_not_supply_run_based_batch():
+    config = get_dataset_config(DATASET)
+
+    logical = "airflow_api_logical_test"
+
+    before = _checkpoint(
+        "2026-10-07T01:00:00Z",
+        version=7,
+    )
+
+    after = CheckpointState(
+        dataset_id=DATASET,
+        strategy_type="timestamp",
+        checkpoint_payload={
+            "value": "2026-10-07T02:00:00Z",
+        },
+        version=8,
+        last_batch_id=logical,
+    )
+
+    bronze = IngestionResult(
+        object_key=(
+            config.bronze_prefix
+            + "batch_id="
+            + logical
+            + "/data.parquet"
+        ),
+        input_count=1,
+        dataframe_count=1,
+        readback_count=1,
+        batch_id=logical,
+        sample_record_id="r1",
+        sample_checksum="checksum",
+    )
+
+    result = IncrementalIngestionResult(
+        status=STATUS_COMMITTED,
+        dataset_id=DATASET,
+        batch_id=logical,
+        fetched_count=1,
+        updated_after="2026-10-07T01:00:00Z",
+        checkpoint_before=before,
+        checkpoint_after=after,
+        candidate_checkpoint={
+            "value": "2026-10-07T02:00:00Z",
+        },
+        bronze_result=bronze,
+    )
+
+    spark = Mock()
+    spark.sparkContext = Mock()
+
+    with patch.object(
+        orchestration,
+        "get_spark_session",
+        return_value=spark,
+    ):
+        with patch.object(
+            orchestration,
+            "run_incremental_ingestion",
+            return_value=result,
+        ) as run:
+            orchestration.command_ingest_bronze(
+                config,
+                "manual__different_run_id",
+            )
+
+    kwargs = run.call_args.kwargs
+
+    assert "batch_id" not in kwargs
+
+
+def test_downstream_resolves_committed_batch():
+    expected = "airflow_api_committed_batch"
+
+    state = CheckpointState(
+        dataset_id=DATASET,
+        strategy_type="timestamp",
+        checkpoint_payload={
+            "value": "2026-10-07T02:00:00Z",
+        },
+        version=8,
+        last_batch_id=expected,
+    )
+
+    store = Mock()
+    store.load.return_value = state
+
+    with patch.object(
+        orchestration,
+        "PostgresCheckpointStore",
+        return_value=store,
+    ):
+        actual = (
+            orchestration._latest_committed_batch_id(
+                DATASET
+            )
+        )
+
+    assert actual == expected

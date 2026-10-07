@@ -197,7 +197,7 @@ def run_incremental_ingestion(
     api_url: str,
     *,
     dataset: str,
-    batch_id: str,
+    batch_id: str | None = None,
     api_key: str | None = None,
     page_limit: int = 500,
     timeout_seconds: int = 30,
@@ -212,7 +212,10 @@ def run_incremental_ingestion(
     successfully. In the current Bronze implementation, that return occurs
     only after physical write and read-back validation succeed.
     """
-    if not isinstance(batch_id, str) or not batch_id.strip():
+    if batch_id is not None and (
+        not isinstance(batch_id, str)
+        or not batch_id.strip()
+    ):
         raise ValueError(
             "batch_id must be a non-empty string"
         )
@@ -237,6 +240,15 @@ def run_incremental_ingestion(
     )
 
     checkpoint_before = fetched.checkpoint_before
+
+    effective_batch_id = (
+        batch_id
+        if batch_id is not None
+        else logical_batch_id(
+            config.dataset,
+            checkpoint_before,
+        )
+    )
     updated_after = fetched.updated_after
     payload = fetched.payload
     records = payload["data"]
@@ -256,7 +268,7 @@ def run_incremental_ingestion(
         return IncrementalIngestionResult(
             status=STATUS_NO_CHANGE,
             dataset_id=config.dataset,
-            batch_id=batch_id,
+            batch_id=effective_batch_id,
             fetched_count=0,
             updated_after=updated_after,
             checkpoint_before=checkpoint_before,
@@ -286,7 +298,7 @@ def run_incremental_ingestion(
         payload,
         dataset=config.dataset,
         ingestion_mode="INCREMENTAL",
-        batch_id=batch_id,
+        batch_id=effective_batch_id,
         expected_count=fetched_count,
         input_label=f"HTTP GET {api_url} incremental",
     )

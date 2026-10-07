@@ -873,3 +873,231 @@ def test_page_three_failure_has_no_partial_bronze_and_recovery_commits_once():
     assert recovered.fetched_count == 3
     assert recovered.checkpoint_before == before
     assert recovered.checkpoint_after == after
+
+
+def test_pm_replay_100_then_plus_20_ends_with_120_total_bronze_rows():
+    config = get_dataset_config(DATASET)
+
+    class MemoryCheckpointStore:
+        def __init__(self):
+            self.state = None
+
+        def load(self, dataset_id):
+            assert dataset_id == DATASET
+            return self.state
+
+        def compare_and_set(
+            self,
+            *,
+            dataset_id,
+            strategy_type,
+            expected_version,
+            checkpoint_payload,
+            batch_id,
+        ):
+            assert dataset_id == DATASET
+
+            current_version = (
+                self.state.version
+                if self.state is not None
+                else None
+            )
+
+            assert (
+                current_version
+                == expected_version
+            )
+
+            next_version = (
+                1
+                if self.state is None
+                else self.state.version + 1
+            )
+
+            self.state = CheckpointState(
+                dataset_id=dataset_id,
+                strategy_type=strategy_type,
+                checkpoint_payload=dict(
+                    checkpoint_payload
+                ),
+                version=next_version,
+                last_batch_id=batch_id,
+            )
+
+            return self.state
+
+    store = MemoryCheckpointStore()
+
+    source_rows = []
+
+    for index in range(100):
+        source_rows.append({
+            "record_id": f"base-{index:03d}",
+            config.source_updated_at_field:
+                "2026-10-07T01:00:00Z",
+        })
+
+    bronze_objects = {}
+
+    def fetch_source(
+        _api_url,
+        *,
+        updated_after,
+        **_kwargs,
+    ):
+        if updated_after is None:
+            rows = list(source_rows)
+        else:
+            rows = [
+                dict(row)
+                for row in source_rows
+                if (
+                    row[
+                        config.source_updated_at_field
+                    ]
+                    > updated_after
+                )
+            ]
+
+        return {
+            "data": rows,
+        }
+
+    def write_bronze(
+        _spark,
+        payload,
+        *,
+        batch_id,
+        expected_count,
+        **_kwargs,
+    ):
+        object_key = (
+            config.bronze_prefix
+            + "batch_id="
+            + batch_id
+            + "/data.parquet"
+        )
+
+        rows = [
+            dict(row)
+            for row in payload["data"]
+        ]
+
+        assert len(rows) == expected_count
+
+        # Same object key means replay replaces
+        # that logical batch instead of adding
+        # another copy.
+        bronze_objects[object_key] = rows
+
+        return IngestionResult(
+            object_key=object_key,
+            input_count=len(rows),
+            dataframe_count=len(rows),
+            readback_count=len(rows),
+            batch_id=batch_id,
+            sample_record_id=(
+                rows[0]["record_id"]
+            ),
+            sample_checksum="checksum",
+        )
+
+    def bronze_total():
+        return sum(
+            len(rows)
+            for rows in bronze_objects.values()
+        )
+
+    # ------------------------------------------
+    # Run 1:
+    # source = 100
+    # Bronze total must become 100.
+    # ------------------------------------------
+
+    first = run_incremental_ingestion(
+        Mock(),
+        "http://mock/api",
+        dataset=DATASET,
+        checkpoint_store=store,
+        fetch_payload=fetch_source,
+        ingest_payload=write_bronze,
+    )
+
+    assert first.status == STATUS_COMMITTED
+    assert first.fetched_count == 100
+
+    assert len(bronze_objects) == 1
+    assert bronze_total() == 100
+
+    first_batch = first.batch_id
+
+    assert store.state is not None
+    assert store.state.version == 1
+    assert store.state.checkpoint_payload == {
+        "value": "2026-10-07T01:00:00Z",
+    }
+
+    # ------------------------------------------
+    # Replay with unchanged source:
+    # F3 sees no records newer than checkpoint.
+    # Therefore NO_CHANGE and Bronze stays 100.
+    # ------------------------------------------
+
+    replay = run_incremental_ingestion(
+        Mock(),
+        "http://mock/api",
+        dataset=DATASET,
+        checkpoint_store=store,
+        fetch_payload=fetch_source,
+        ingest_payload=write_bronze,
+    )
+
+    assert replay.status == "NO_CHANGE"
+    assert replay.fetched_count == 0
+
+    assert len(bronze_objects) == 1
+    assert bronze_total() == 100
+
+    # NO_CHANGE must not advance checkpoint.
+    assert store.state.version == 1
+
+    # ------------------------------------------
+    # Source receives 20 new records.
+    # ------------------------------------------
+
+    for index in range(20):
+        source_rows.append({
+            "record_id": f"new-{index:03d}",
+            config.source_updated_at_field:
+                "2026-10-07T02:00:00Z",
+        })
+
+    # ------------------------------------------
+    # Next incremental run:
+    # only 20 new rows are written.
+    # Bronze total becomes 120.
+    # ------------------------------------------
+
+    next_run = run_incremental_ingestion(
+        Mock(),
+        "http://mock/api",
+        dataset=DATASET,
+        checkpoint_store=store,
+        fetch_payload=fetch_source,
+        ingest_payload=write_bronze,
+    )
+
+    assert next_run.status == STATUS_COMMITTED
+    assert next_run.fetched_count == 20
+
+    assert len(bronze_objects) == 2
+    assert bronze_total() == 120
+
+    assert next_run.batch_id != first_batch
+
+    assert store.state.version == 2
+    assert store.state.last_batch_id == next_run.batch_id
+
+    assert store.state.checkpoint_payload == {
+        "value": "2026-10-07T02:00:00Z",
+    }

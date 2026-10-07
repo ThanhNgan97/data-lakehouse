@@ -248,7 +248,7 @@ def profile_with_rule_fallback(
 ) -> RoutingDecision:
     """Bộ suy luận quy tắc dự phòng khi AI không khả dụng hoặc lỗi."""
     clean_name = to_snake_case(suggested_name) or "generic_dataset"
-    if clean_name.endswith((".json", ".csv", ".parquet", ".xlsx")):
+    if clean_name.endswith((".json", ".csv", ".tsv", ".parquet", ".xlsx", ".xls")):
         clean_name = clean_name.rsplit(".", 1)[0]
 
     # Chuẩn hóa tên cột

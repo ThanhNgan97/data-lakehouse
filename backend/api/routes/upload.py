@@ -1,4 +1,6 @@
 import logging
+import os
+import uuid
 import requests
 from threading import Thread
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
@@ -11,6 +13,7 @@ from core.config import MAX_UPLOAD_FILE_BYTES, MINIO_BUCKET_NAME
 from core.config import AIRFLOW_FILE_DAG_ID, AIRFLOW_WEBSERVER_URL
 from services.url_ingestion.state import derive_job_status, utcnow
 from services.url_ingestion.manager import process_import_job
+from services.url_ingestion.policies import SUPPORTED_EXTENSIONS
 router = APIRouter()
 @router.get("/")
 def read_root():
@@ -27,7 +30,14 @@ async def upload_file(
     try:
        
         # Mọi file người dùng nạp vào đều phải qua tầng Staging.
-        object_name = f"staging/{file.filename}"
+        safe_filename = os.path.basename(file.filename or "upload.bin")
+        extension = os.path.splitext(safe_filename)[1].lower()
+        if extension not in SUPPORTED_EXTENSIONS:
+            raise HTTPException(
+                status_code=415,
+                detail="Định dạng chưa được hỗ trợ. Chỉ nhận PDF, DOCX, CSV, TSV, XLSX, XLS, JSON và Parquet.",
+            )
+        object_name = f"staging/manual/{uuid.uuid4().hex}/{safe_filename}"
 
         file.file.seek(0, 2)
         file_size = file.file.tell()
@@ -41,6 +51,9 @@ async def upload_file(
             )
 
    
+        if file_size == 0:
+            raise HTTPException(status_code=422, detail="File rỗng, không có dữ liệu để xử lý.")
+
         minio_client.put_object(
             bucket_name=MINIO_BUCKET_NAME,
             object_name=object_name,
@@ -53,7 +66,7 @@ async def upload_file(
         
         history_record = UploadHistory(
             user_id=user_id,
-            filename=file.filename,
+            filename=safe_filename,
             file_size_bytes=file_size,
             file_type=file.content_type,
             s3_path=object_name,
@@ -73,10 +86,10 @@ async def upload_file(
             payload = {
                 "conf": {
                     "input_path": object_name,
-                    "source_name": file.filename
+                    "source_name": safe_filename
                 }
             }
-            resp = requests.post(airflow_url, json=payload, auth=("airflow", "airflow"), timeout=5)
+            resp = requests.post(airflow_url, json=payload, auth=("airflow", "airflow"), timeout=30)
             if resp.status_code in [200, 201]:
                 logging.info("Universal Airflow pipeline triggered successfully.")
                 dag_run_id = resp.json().get("dag_run_id")

@@ -6,6 +6,7 @@ import { Badge, Card, LakehouseMark } from "../components/ui";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 const MAX_UPLOAD_FILE_BYTES = 100 * 1024 * 1024;
+const UPLOAD_EXTENSIONS = ["pdf", "docx", "csv", "tsv", "xlsx", "xls", "json", "parquet"];
 const supersetUrl =
   import.meta.env.VITE_SUPERSET_DASHBOARD_URL ||
   "http://localhost:8088/superset/dashboard/1/?standalone=3";
@@ -169,6 +170,12 @@ const UserUpload = () => {
 
   const processFile = async (file) => {
     if (!file) return;
+    const extension = file.name.split(".").pop()?.toLowerCase();
+    if (!UPLOAD_EXTENSIONS.includes(extension)) {
+      setUploadStatus("");
+      setUploadError("Định dạng file chưa được hỗ trợ. Hãy chọn PDF, DOCX, CSV, TSV, XLSX, XLS, JSON hoặc Parquet.");
+      return;
+    }
     if (file.size > MAX_UPLOAD_FILE_BYTES) {
       setUploadStatus("");
       setUploadError("File vượt giới hạn 100 MB.");
@@ -207,6 +214,7 @@ const UserUpload = () => {
       );
     } finally {
       setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       setTimeout(() => setUploadProgress(0), 1200);
     }
   };
@@ -440,7 +448,7 @@ const UserUpload = () => {
               type="file"
               ref={fileInputRef}
               onChange={(e) => processFile(e.target.files[0])}
-              accept=".pdf,.docx"
+              accept=".pdf,.docx,.csv,.tsv,.xlsx,.xls,.json,.parquet"
               className="hidden"
             />
 
@@ -473,7 +481,7 @@ const UserUpload = () => {
                   : "Kéo thả file hoặc bấm để chọn"}
               </p>
               <p className="mt-1 text-[11px] text-ink-400 font-data">
-                Hỗ trợ định dạng: PDF, DOCX
+                Hỗ trợ: PDF, DOCX, CSV, TSV, XLSX, XLS, JSON, PARQUET
               </p>
               <span className="mt-2 inline-flex items-center rounded-full border border-cobalt-200 bg-cobalt-50 px-2.5 py-1 text-[11px] font-semibold text-cobalt-700">
                 Tối đa 100 MB mỗi file

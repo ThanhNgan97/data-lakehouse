@@ -361,3 +361,331 @@ def test_downstream_resolves_committed_batch():
         )
 
     assert actual == expected
+
+
+from checkpoint_store import CheckpointConflictError
+
+
+def _recovery_bronze_result(
+    config,
+    *,
+    batch_id,
+    count,
+):
+    return IngestionResult(
+        object_key=(
+            config.bronze_prefix
+            + "batch_id="
+            + batch_id
+            + "/data.parquet"
+        ),
+        input_count=count,
+        dataframe_count=count,
+        readback_count=count,
+        batch_id=batch_id,
+        sample_record_id="r1",
+        sample_checksum="checksum",
+    )
+
+
+def test_checkpoint_failure_replay_reuses_same_logical_batch():
+    before = _checkpoint(
+        "2026-10-07T01:00:00Z",
+        version=7,
+    )
+
+    expected_batch = logical_batch_id(
+        DATASET,
+        before,
+    )
+
+    after = CheckpointState(
+        dataset_id=DATASET,
+        strategy_type="timestamp",
+        checkpoint_payload={
+            "value": "2026-10-07T02:00:00Z",
+        },
+        version=8,
+        last_batch_id=expected_batch,
+    )
+
+    config = get_dataset_config(DATASET)
+
+    store = Mock()
+    store.load.return_value = before
+    store.compare_and_set.side_effect = [
+        CheckpointConflictError(
+            "simulated checkpoint failure"
+        ),
+        after,
+    ]
+
+    payload = {
+        "data": [
+            {
+                config.source_updated_at_field:
+                    "2026-10-07T02:00:00Z",
+            },
+        ],
+    }
+
+    fetch = Mock(
+        side_effect=[
+            payload,
+            payload,
+        ]
+    )
+
+    written_batches = []
+    written_keys = []
+
+    def bronze_side_effect(
+        *_args,
+        **kwargs,
+    ):
+        batch_id = kwargs["batch_id"]
+        count = kwargs["expected_count"]
+
+        written_batches.append(batch_id)
+
+        result = _recovery_bronze_result(
+            config,
+            batch_id=batch_id,
+            count=count,
+        )
+
+        written_keys.append(
+            result.object_key
+        )
+
+        return result
+
+    bronze = Mock(
+        side_effect=bronze_side_effect
+    )
+
+    try:
+        run_incremental_ingestion(
+            Mock(),
+            "http://mock/api",
+            dataset=DATASET,
+            checkpoint_store=store,
+            fetch_payload=fetch,
+            ingest_payload=bronze,
+        )
+    except CheckpointConflictError as exc:
+        assert (
+            str(exc)
+            == "simulated checkpoint failure"
+        )
+    else:
+        raise AssertionError(
+            "first run must fail at checkpoint"
+        )
+
+    recovered = run_incremental_ingestion(
+        Mock(),
+        "http://mock/api",
+        dataset=DATASET,
+        checkpoint_store=store,
+        fetch_payload=fetch,
+        ingest_payload=bronze,
+    )
+
+    assert written_batches == [
+        expected_batch,
+        expected_batch,
+    ]
+
+    assert written_keys[0] == written_keys[1]
+
+    assert bronze.call_count == 2
+    assert store.compare_and_set.call_count == 2
+
+    assert recovered.status == STATUS_COMMITTED
+    assert recovered.batch_id == expected_batch
+    assert recovered.checkpoint_before == before
+    assert recovered.checkpoint_after == after
+
+    assert (
+        recovered.checkpoint_after.last_batch_id
+        == expected_batch
+    )
+
+
+def test_recovery_with_new_source_rows_reuses_batch_and_advances():
+    before = _checkpoint(
+        "2026-10-07T01:00:00Z",
+        version=7,
+    )
+
+    expected_batch = logical_batch_id(
+        DATASET,
+        before,
+    )
+
+    config = get_dataset_config(DATASET)
+
+    after = CheckpointState(
+        dataset_id=DATASET,
+        strategy_type="timestamp",
+        checkpoint_payload={
+            "value": "2026-10-07T03:00:00Z",
+        },
+        version=8,
+        last_batch_id=expected_batch,
+    )
+
+    first_payload = {
+        "data": [
+            {
+                config.source_updated_at_field:
+                    "2026-10-07T01:30:00Z",
+            },
+            {
+                config.source_updated_at_field:
+                    "2026-10-07T02:00:00Z",
+            },
+        ],
+    }
+
+    recovery_payload = {
+        "data": [
+            {
+                config.source_updated_at_field:
+                    "2026-10-07T01:30:00Z",
+            },
+            {
+                config.source_updated_at_field:
+                    "2026-10-07T02:00:00Z",
+            },
+            {
+                config.source_updated_at_field:
+                    "2026-10-07T03:00:00Z",
+            },
+        ],
+    }
+
+    store = Mock()
+    store.load.return_value = before
+    store.compare_and_set.side_effect = [
+        CheckpointConflictError(
+            "simulated checkpoint failure"
+        ),
+        after,
+    ]
+
+    fetch = Mock(
+        side_effect=[
+            first_payload,
+            recovery_payload,
+        ]
+    )
+
+    written_batches = []
+    written_counts = []
+    written_keys = []
+
+    def bronze_side_effect(
+        *_args,
+        **kwargs,
+    ):
+        batch_id = kwargs["batch_id"]
+        count = kwargs["expected_count"]
+
+        written_batches.append(batch_id)
+        written_counts.append(count)
+
+        result = _recovery_bronze_result(
+            config,
+            batch_id=batch_id,
+            count=count,
+        )
+
+        written_keys.append(
+            result.object_key
+        )
+
+        return result
+
+    bronze = Mock(
+        side_effect=bronze_side_effect
+    )
+
+    try:
+        run_incremental_ingestion(
+            Mock(),
+            "http://mock/api",
+            dataset=DATASET,
+            checkpoint_store=store,
+            fetch_payload=fetch,
+            ingest_payload=bronze,
+        )
+    except CheckpointConflictError:
+        pass
+    else:
+        raise AssertionError(
+            "first run must fail at checkpoint"
+        )
+
+    recovered = run_incremental_ingestion(
+        Mock(),
+        "http://mock/api",
+        dataset=DATASET,
+        checkpoint_store=store,
+        fetch_payload=fetch,
+        ingest_payload=bronze,
+    )
+
+    assert written_batches == [
+        expected_batch,
+        expected_batch,
+    ]
+
+    assert written_keys[0] == written_keys[1]
+
+    assert written_counts == [
+        2,
+        3,
+    ]
+
+    first_cas = (
+        store.compare_and_set.call_args_list[
+            0
+        ].kwargs
+    )
+
+    second_cas = (
+        store.compare_and_set.call_args_list[
+            1
+        ].kwargs
+    )
+
+    assert first_cas["checkpoint_payload"] == {
+        "value": "2026-10-07T02:00:00Z",
+    }
+
+    assert second_cas["checkpoint_payload"] == {
+        "value": "2026-10-07T03:00:00Z",
+    }
+
+    assert (
+        first_cas["batch_id"]
+        == expected_batch
+    )
+
+    assert (
+        second_cas["batch_id"]
+        == expected_batch
+    )
+
+    assert recovered.status == STATUS_COMMITTED
+
+    assert recovered.candidate_checkpoint == {
+        "value": "2026-10-07T03:00:00Z",
+    }
+
+    assert (
+        recovered.checkpoint_after
+        == after
+    )

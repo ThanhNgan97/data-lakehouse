@@ -543,6 +543,13 @@ def route_from_file_path(file_path: Union[str, Path]) -> RoutingDecision:
                     break
         return route_dataset(records, source_name=filename)
 
+    elif suffix in [".xlsx", ".xls"]:
+        import pandas as pd
+
+        frame = pd.read_excel(path, sheet_name=0, nrows=16)
+        frame = frame.where(frame.notna(), None)
+        return route_dataset(frame.to_dict(orient="records"), source_name=filename)
+
     else:
         # Nếu là file khác (.parquet, .docx, .pdf, .doc, ảnh), đoán sơ bộ qua tên file
         dummy_cols = ["file_content", "checksum"]

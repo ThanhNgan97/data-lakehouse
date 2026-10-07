@@ -158,10 +158,20 @@ def determine_branch(**context):
     """Đọc XCom và trả về Task ID của nhánh được chọn."""
     ti = context["ti"]
     route_target = ti.xcom_pull(task_ids="ai_semantic_profiler", key="route_target")
+    input_path = ti.xcom_pull(task_ids="ai_semantic_profiler", key="input_path") or ""
     print(f"🔀 [Branch Router] Route target nhận được từ AI: '{route_target}'")
 
     if route_target == "legacy_kpi":
-        return "kpi_flow.ingest_bronze"
+        # Legacy KPI is an OCR/document flow. Structured KPI files are already
+        # parsed datasets and belong in the generic Spark transformation flow.
+        extension = Path(input_path).suffix.lower()
+        if extension in {".pdf", ".doc", ".docx"}:
+            return "kpi_flow.ingest_bronze"
+        print(
+            f"Structured KPI input '{extension or 'unknown'}' detected; "
+            "routing to generic processor instead of document OCR."
+        )
+        return "generic_flow.process_dynamic_silver_gold"
     elif route_target == "registered_api":
         return "api_flow.run_registered_api"
     else:

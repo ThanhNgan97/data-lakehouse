@@ -179,6 +179,15 @@ def read_input_dataset(spark: SparkSession, input_path: str) -> DataFrame:
     elif path_lower.endswith((".csv", ".tsv")):
         delimiter = "\t" if path_lower.endswith(".tsv") else ","
         df = spark.read.option("header", "true").option("inferSchema", "true").option("delimiter", delimiter).csv(input_path)
+    elif path_lower.endswith((".xlsx", ".xls")):
+        import pandas as pd
+
+        pandas_df = pd.read_excel(input_path, sheet_name=0)
+        if pandas_df.empty or not len(pandas_df.columns):
+            raise ValueError(f"File Excel '{input_path}' khÃ´ng cÃ³ dá»¯ liá»‡u.")
+        pandas_df.columns = [str(column) for column in pandas_df.columns]
+        pandas_df = pandas_df.where(pandas_df.notna(), None)
+        df = spark.createDataFrame(pandas_df)
     else:
         # Mặc định thử đọc parquet rồi đến json
         try:
@@ -268,7 +277,10 @@ def process_generic_dataset(
             print(f"✅ [Silver] Đã khởi tạo bảng và chèn thành công {records_processed} bản ghi.")
         else:
             print(f"🔍 [Silver] Bảng '{target_table}' đã tồn tại. Tiến hành Schema Evolution & MERGE...")
-            apply_iceberg_schema_evolution(spark, target_table, clean_df)
+            # MERGE writes the technical Silver timestamp as well. Include it
+            # in schema evolution for older tables created by legacy pipelines.
+            evolution_df = clean_df.withColumn("_silver_updated_at", F.current_timestamp())
+            apply_iceberg_schema_evolution(spark, target_table, evolution_df)
 
             # Phân loại bản ghi: mergeable vs quarantine vs duplicate/stale
             mergeable, quarantine, stale, duplicate = classify_against_target(

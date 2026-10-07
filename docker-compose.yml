@@ -203,7 +203,9 @@ services:
       AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
       AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_WEBSERVER_SECRET_KEY}
       AIRFLOW__WEBSERVER__WEB_SERVER_SESSION_LIFETIME: '604800'
-      AIRFLOW__WEBSERVER__SESSION_COOKIE_SAMESITE: 'None'
+      # Local Airflow is served over plain HTTP. Browsers reject SameSite=None
+      # cookies unless Secure=true, which drops the session and breaks CSRF.
+      AIRFLOW__WEBSERVER__SESSION_COOKIE_SAMESITE: 'Lax'
       AIRFLOW__WEBSERVER__SESSION_COOKIE_SECURE: 'False'
       MINIO_ENDPOINT: 'http://minio:9000'
       NESSIE_API_URL: 'http://nessie:19120/api/v1'
@@ -211,6 +213,7 @@ services:
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark
       - ./.env:/opt/airflow/.env
+      - airflow_ivy_cache:/home/airflow/.ivy2
     command: webserver
     depends_on:
       postgres:
@@ -232,12 +235,14 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:${PG_PASSWORD}@postgres:5432/airflow_db
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_WEBSERVER_SECRET_KEY}
       MINIO_ENDPOINT: 'http://minio:9000'
       NESSIE_API_URL: 'http://nessie:19120/api/v1'
     volumes:
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark
       - ./.env:/opt/airflow/.env
+      - airflow_ivy_cache:/home/airflow/.ivy2
     command: scheduler
     depends_on:
       postgres:
@@ -313,6 +318,7 @@ volumes:
   minio_data:
   superset_home:
   airbyte_db_data:
+  airflow_ivy_cache:
 
 networks:
   lakehouse-network:

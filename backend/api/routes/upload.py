@@ -1,17 +1,21 @@
 import logging
 import requests
+from threading import Thread
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
 from api.dependencies import get_current_user
 from db.database import get_db
 from sqlalchemy.orm import Session
-from db.models import UploadHistory, User
+from db.models import ImportJob, ImportJobFile, SourceFile, UploadHistory, User
 from db.minio_client import minio_client
-from core.config import MINIO_BUCKET_NAME
-from core.config import AIRFLOW_WEBSERVER_URL
+from core.config import MAX_UPLOAD_FILE_BYTES, MINIO_BUCKET_NAME
+from core.config import AIRFLOW_FILE_DAG_ID, AIRFLOW_WEBSERVER_URL
+from services.url_ingestion.state import derive_job_status, utcnow
+from services.url_ingestion.manager import process_import_job
 router = APIRouter()
 @router.get("/")
 def read_root():
     return {"message": "Welcome to the Lakehouse API!"}
+
 
 @router.post("/upload")
 @router.post("/upload/")
@@ -28,6 +32,13 @@ async def upload_file(
         file.file.seek(0, 2)
         file_size = file.file.tell()
         file.file.seek(0)
+
+        if file_size > MAX_UPLOAD_FILE_BYTES:
+            max_size_mb = MAX_UPLOAD_FILE_BYTES // (1024 * 1024)
+            raise HTTPException(
+                status_code=413,
+                detail=f"File vượt giới hạn {max_size_mb} MB.",
+            )
 
    
         minio_client.put_object(
@@ -55,7 +66,7 @@ async def upload_file(
         # Trigger Airflow Pipeline
        
 
-        airflow_url = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/universal_lakehouse_pipeline/dagRuns"
+        airflow_url = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/{AIRFLOW_FILE_DAG_ID}/dagRuns"
         dag_run_id = None
         try:
             # Truyền conf chứa vị trí staging và tên file để AI Semantic Router xử lý
@@ -85,6 +96,8 @@ async def upload_file(
             "message": f"Đã đẩy trực tiếp file {file.filename} vào trạm {object_name} của MinIO và kích hoạt pipeline!",
             "dag_run_id": dag_run_id
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi đẩy file  {str(e)}")
 
@@ -113,14 +126,10 @@ async def get_pipeline_status(
     """
     Gọi Airflow API để lấy trạng thái của DAG run và các task bên trong.
     """
-    airflow_base = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/universal_lakehouse_pipeline/dagRuns/{dag_run_id}"
+    airflow_base = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/{AIRFLOW_FILE_DAG_ID}/dagRuns/{dag_run_id}"
     try:
         # Lấy trạng thái tổng quan DAG run (thử universal_lakehouse_pipeline trước, fallback về legacy)
         resp_dag = requests.get(airflow_base, auth=("airflow", "airflow"), timeout=5)
-        if resp_dag.status_code == 404:
-            airflow_base = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/lakehouse_pipeline/dagRuns/{dag_run_id}"
-            resp_dag = requests.get(airflow_base, auth=("airflow", "airflow"), timeout=5)
-
         state = "unknown"
         if resp_dag.status_code == 200:
             state = resp_dag.json().get("state", "unknown")
@@ -155,6 +164,36 @@ async def get_pipeline_status(
                 
             if record.metadata_info:
                 parsed_data = record.metadata_info.get("parsed_data")
+
+        job_files = db.query(ImportJobFile).filter(ImportJobFile.dag_run_id == dag_run_id).all()
+        if job_files and state in {"success", "failed"}:
+            transitioned_job_ids = set()
+            for job_file in job_files:
+                if job_file.status not in {"COMPLETED", "FAILED"}:
+                    transitioned_job_ids.add(job_file.import_job_id)
+                job_file.status = "COMPLETED" if state == "success" else "FAILED"
+                job_file.completed_at = utcnow()
+                if state == "failed" and not job_file.error_code:
+                    job_file.error_code = "AIRFLOW_FAILED"
+                    job_file.error_message = error_message or "Universal pipeline failed."
+                if job_file.source_file_id:
+                    source_file = db.query(SourceFile).filter(SourceFile.id == job_file.source_file_id).first()
+                    if source_file:
+                        source_file.processing_status = "COMPLETED" if state == "success" else "FAILED"
+                        source_file.processed_at = utcnow()
+            for job_id in {item.import_job_id for item in job_files}:
+                job = db.query(ImportJob).filter(ImportJob.id == job_id).first()
+                if not job:
+                    continue
+                states = [value[0] for value in db.query(ImportJobFile.status).filter(
+                    ImportJobFile.import_job_id == job.id
+                ).all()]
+                job.status = derive_job_status(states, bool(job.cancel_requested_at))
+                if job.status not in {"PENDING", "PROCESSING"}:
+                    job.completed_at = utcnow()
+            db.commit()
+            for job_id in transitioned_job_ids:
+                Thread(target=process_import_job, args=(job_id,), daemon=True).start()
             
         return {
             "dag_run_id": dag_run_id,

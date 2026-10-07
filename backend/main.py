@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from threading import Thread
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -8,6 +9,8 @@ async def lifespan(app: FastAPI):
     """Khởi tạo DB (tạo bảng + seed users mặc định) khi server start."""
     from db.database import init_db
     init_db()
+    from services.url_ingestion.manager import resume_pending_imports
+    Thread(target=resume_pending_imports, daemon=True, name="url-import-outbox-replay").start()
     yield
 
 
@@ -28,6 +31,9 @@ app.include_router(auth.router, prefix="/api", tags=["Authentication"])
 # Upload + Upload History
 from api.routes import upload
 app.include_router(upload.router, prefix="/api", tags=["Upload"])
+
+from api.routes import url_import
+app.include_router(url_import.router, prefix="/api", tags=["URL Import"])
 
 # Catalog (Nessie history / references)
 from api.routes import catalog

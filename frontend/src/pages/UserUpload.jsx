@@ -5,6 +5,7 @@ import Icon from "../components/icons";
 import { Badge, Card, LakehouseMark } from "../components/ui";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+const MAX_UPLOAD_FILE_BYTES = 100 * 1024 * 1024;
 const supersetUrl =
   import.meta.env.VITE_SUPERSET_DASHBOARD_URL ||
   "http://localhost:8088/superset/dashboard/1/?standalone=3";
@@ -31,34 +32,48 @@ const STATUS_CONFIG = {
    dùng màu "lake" (phân tích/insight). */
 const PIPELINE_TASKS = [
   {
-    id: "ingest_bronze",
-    label: "Extract",
-    sub: "Bronze",
+    id: "profile",
+    taskIds: ["ai_semantic_profiler"],
+    label: "Profile",
+    sub: "AI Semantic",
     tone: "bronze",
     dot: "bg-bronze-500",
   },
   {
-    id: "bronze_to_silver",
-    label: "Transform",
-    sub: "Silver",
+    id: "route",
+    taskIds: ["branch_router"],
+    label: "Route",
+    sub: "Universal",
     tone: "silver",
     dot: "bg-silver-500",
   },
   {
-    id: "silver_to_gold",
-    label: "Load",
-    sub: "Gold",
+    id: "process",
+    taskIds: [
+      "kpi_flow.ingest_bronze", "kpi_flow.bronze_to_silver",
+      "kpi_flow.silver_to_gold", "kpi_flow.predictive_analysis",
+      "api_flow.run_registered_api", "generic_flow.process_dynamic_silver_gold",
+    ],
+    label: "Process",
+    sub: "Selected Flow",
     tone: "gold",
     dot: "bg-gold-500",
   },
   {
-    id: "predictive_analysis",
-    label: "Analyze",
-    sub: "Predict",
+    id: "validate",
+    taskIds: ["join_and_smoke_test"],
+    label: "Validate",
+    sub: "Trino Smoke Test",
     tone: "lake",
     dot: "bg-lake-500",
   },
 ];
+
+const taskForStage = (tasks = [], taskIds) => {
+  const matches = tasks.filter((task) => taskIds.includes(task.task_id));
+  const priority = ["failed", "running", "up_for_retry", "queued", "success"];
+  return priority.map((state) => matches.find((task) => task.state === state)).find(Boolean) || matches[0];
+};
 
 const UserUpload = () => {
   const navigate = useNavigate();
@@ -71,7 +86,14 @@ const UserUpload = () => {
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [activePipeline, setActivePipeline] = useState(null);
+  const [inputMode, setInputMode] = useState("upload");
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [urlManifest, setUrlManifest] = useState(null);
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState([]);
+  const [urlBusy, setUrlBusy] = useState(false);
+  const [activeImportJob, setActiveImportJob] = useState(null);
   const pollingRef = useRef(null);
+  const urlPollingRef = useRef(null);
 
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -101,6 +123,7 @@ const UserUpload = () => {
     fetchHistory();
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
+      if (urlPollingRef.current) clearInterval(urlPollingRef.current);
     };
   }, [fetchHistory]);
 
@@ -128,10 +151,12 @@ const UserUpload = () => {
         setActivePipeline(res.data);
         if (["success", "failed", "unreachable"].includes(state)) {
           clearInterval(pollingRef.current);
+          pollingRef.current = null;
           fetchHistory();
         }
       } catch {
         clearInterval(pollingRef.current);
+        pollingRef.current = null;
       }
     }, 5000);
   };
@@ -144,6 +169,11 @@ const UserUpload = () => {
 
   const processFile = async (file) => {
     if (!file) return;
+    if (file.size > MAX_UPLOAD_FILE_BYTES) {
+      setUploadStatus("");
+      setUploadError("File vượt giới hạn 100 MB.");
+      return;
+    }
     setUploadError("");
     setUploadStatus("");
     setUploading(true);
@@ -185,6 +215,81 @@ const UserUpload = () => {
     e.preventDefault();
     setIsDragging(true);
   };
+
+  const scanSourceUrl = async () => {
+    setUploadError("");
+    setUploadStatus("");
+    setUrlManifest(null);
+    setActiveImportJob(null);
+    setUrlBusy(true);
+    try {
+      const res = await axios.post(`${API_URL}/url-import/scan`, { url: sourceUrl, recursive: false }, { headers: authHeader() });
+      setUrlManifest(res.data);
+      setSelectedCandidateIds(res.data.files.filter((file) => file.supported).map((file) => file.candidate_id));
+    } catch (err) {
+      setUploadError(err.response?.data?.detail || "Không thể quét URL nguồn.");
+    } finally {
+      setUrlBusy(false);
+    }
+  };
+
+  const importSourceUrl = async () => {
+    setUploadError("");
+    setUploadStatus("");
+    setUrlBusy(true);
+    try {
+      const candidateIds = selectedCandidateIds;
+      const res = await axios.post(`${API_URL}/url-import/jobs`, {
+        scan_id: urlManifest.scan_id,
+        candidate_ids: candidateIds,
+        force_reprocess: true,
+      }, { headers: { ...authHeader(), "Idempotency-Key": crypto.randomUUID() } });
+      setUploadStatus(res.data.message || "Đã nhập file từ URL.");
+      setActiveImportJob(res.data);
+      setUrlManifest(null);
+      fetchHistory();
+      pollImportJob(res.data.job_id);
+    } catch (err) {
+      setUploadError(err.response?.data?.detail || "Không thể nhập file từ URL.");
+    } finally {
+      setUrlBusy(false);
+    }
+  };
+  const pollImportJob = (jobId) => {
+    if (urlPollingRef.current) clearInterval(urlPollingRef.current);
+    urlPollingRef.current = setInterval(async () => {
+      try {
+        const res = await axios.get(`${API_URL}/url-import/jobs/${jobId}`, { headers: authHeader() });
+        setActiveImportJob(res.data);
+        fetchHistory();
+        const activeFile = res.data.files?.find((file) => file.dag_run_id && file.status === "PROCESSING");
+        if (activeFile && !pollingRef.current) pollPipelineStatus(activeFile.dag_run_id);
+        if (["COMPLETED", "PARTIAL_SUCCESS", "FAILED", "CANCELLED"].includes(res.data.status)) {
+          clearInterval(urlPollingRef.current);
+          urlPollingRef.current = null;
+          setUploadStatus(`Import URL: ${res.data.status}`);
+          fetchHistory();
+        }
+      } catch {
+        clearInterval(urlPollingRef.current);
+        urlPollingRef.current = null;
+      }
+    }, 3000);
+  };
+
+  const retryImportJob = async () => {
+    if (!activeImportJob?.job_id) return;
+    const res = await axios.post(`${API_URL}/url-import/jobs/${activeImportJob.job_id}/retry`, {}, { headers: authHeader() });
+    setActiveImportJob(res.data);
+    pollImportJob(activeImportJob.job_id);
+  };
+
+  const cancelImportJob = async () => {
+    if (!activeImportJob?.job_id) return;
+    const res = await axios.post(`${API_URL}/url-import/jobs/${activeImportJob.job_id}/cancel`, {}, { headers: authHeader() });
+    setActiveImportJob(res.data);
+  };
+
   const onDragLeave = (e) => {
     e.preventDefault();
     setIsDragging(false);
@@ -245,6 +350,92 @@ const UserUpload = () => {
               </p>
             </div>
 
+            <div className="mb-4 grid grid-cols-2 rounded-xl bg-ink-50 p-1 text-xs font-semibold">
+              <button type="button" onClick={() => setInputMode("upload")}
+                className={`rounded-lg px-3 py-2 transition ${inputMode === "upload" ? "bg-white text-cobalt-700 shadow-sm" : "text-ink-500"}`}>
+                Upload file
+              </button>
+              <button type="button" onClick={() => setInputMode("url")}
+                className={`rounded-lg px-3 py-2 transition ${inputMode === "url" ? "bg-white text-cobalt-700 shadow-sm" : "text-ink-500"}`}>
+                Dán đường dẫn URL
+              </button>
+            </div>
+
+            {inputMode === "url" ? (
+              <div className="flex-1 rounded-[22px] border border-ink-100 bg-ink-50/40 p-4">
+                <label className="block text-xs font-semibold text-ink-700">
+                  Đường dẫn file
+                  <input type="url" value={sourceUrl}
+                    onChange={(event) => { setSourceUrl(event.target.value); setUrlManifest(null); setSelectedCandidateIds([]); }}
+                    placeholder="https://example.com/data/report.pdf"
+                    className="mt-2 w-full rounded-xl border border-ink-200 bg-white px-3 py-2.5 text-sm font-normal outline-none focus:border-cobalt-400 focus:ring-2 focus:ring-cobalt-100" />
+                </label>
+                <p className="mt-2 text-[11px] text-ink-400">Hỗ trợ file HTTP trực tiếp và Google Drive file/folder · tối đa 100 MB/file.</p>
+                {!urlManifest ? (
+                  <button type="button" disabled={!sourceUrl || urlBusy} onClick={scanSourceUrl}
+                    className="mt-4 w-full rounded-xl bg-cobalt-600 px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-50">
+                    {urlBusy ? "Đang quét..." : "Scan URL"}
+                  </button>
+                ) : (
+                  <div className="mt-4 rounded-xl border border-ink-100 bg-white p-3">
+                    <p className="text-xs font-semibold text-ink-800">
+                      Tìm thấy {urlManifest.summary.discovered} file · Có thể import {urlManifest.summary.accepted}
+                    </p>
+                    {urlManifest.files.map((file) => (
+                      <div key={file.candidate_id} className="mt-2 flex items-center justify-between gap-3 text-xs">
+                        <label className="flex min-w-0 items-center gap-2 text-ink-700">
+                          <input type="checkbox" disabled={!file.supported}
+                            checked={selectedCandidateIds.includes(file.candidate_id)}
+                            onChange={(event) => setSelectedCandidateIds((current) => event.target.checked
+                              ? [...current, file.candidate_id]
+                              : current.filter((id) => id !== file.candidate_id))} />
+                          <span className="truncate">{file.supported ? "✓" : "✕"} {file.name}</span>
+                        </label>
+                        <span className="shrink-0 text-ink-400">{file.size ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : "Không rõ"}</span>
+                      </div>
+                    ))}
+                    {urlManifest.files[0]?.reason && <p className="mt-2 text-xs text-rose-600">{urlManifest.files[0].reason}</p>}
+                    <button type="button" disabled={!selectedCandidateIds.length || urlBusy} onClick={importSourceUrl}
+                      className="mt-3 w-full rounded-xl bg-cobalt-600 px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-50">
+                      {urlBusy ? "Đang import..." : "Import file"}
+                    </button>
+                  </div>
+                )}
+                {activeImportJob && (
+                  <div className="mt-3 rounded-xl border border-lake-100 bg-lake-50 p-3 text-xs">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-semibold text-ink-800">Import {activeImportJob.status}</span>
+                      <span className="font-data text-ink-400">{activeImportJob.files?.length || 0} file</span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-ink-600">
+                      {Object.entries(activeImportJob.counts || {}).map(([status, count]) => (
+                        <span key={status} className="rounded bg-white px-2 py-1">
+                          {status === "DUPLICATE" ? "\u0110\u00e3 x\u1eed l\u00fd tr\u01b0\u1edbc \u0111\u00f3" : status}: {count}
+                        </span>
+                      ))}
+                    </div>
+                    {(activeImportJob.counts?.DUPLICATE || 0) > 0 && (
+                      <p className="mt-2 rounded-lg border border-sky-100 bg-white px-3 py-2 text-[11px] text-sky-700">
+                        {"File c\u00f3 n\u1ed9i dung gi\u1ed1ng h\u1ec7t file \u0111\u00e3 x\u1eed l\u00fd th\u00e0nh c\u00f4ng, n\u00ean h\u1ec7 th\u1ed1ng d\u00f9ng l\u1ea1i k\u1ebft qu\u1ea3 v\u00e0 kh\u00f4ng ch\u1ea1y pipeline l\u1eb7p l\u1ea1i."}
+                      </p>
+                    )}
+                    <div className="mt-3 flex gap-2">
+                      {["FAILED", "PARTIAL_SUCCESS"].includes(activeImportJob.status) && (
+                        <button type="button" onClick={retryImportJob} className="rounded-lg bg-cobalt-600 px-3 py-2 font-semibold text-white">
+                          Retry file lỗi
+                        </button>
+                      )}
+                      {["PENDING", "PROCESSING"].includes(activeImportJob.status) && (
+                        <button type="button" onClick={cancelImportJob} className="rounded-lg border border-rose-200 bg-white px-3 py-2 font-semibold text-rose-600">
+                          Hủy import
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+            <>
             <input
               type="file"
               ref={fileInputRef}
@@ -284,6 +475,9 @@ const UserUpload = () => {
               <p className="mt-1 text-[11px] text-ink-400 font-data">
                 Hỗ trợ định dạng: PDF, DOCX
               </p>
+              <span className="mt-2 inline-flex items-center rounded-full border border-cobalt-200 bg-cobalt-50 px-2.5 py-1 text-[11px] font-semibold text-cobalt-700">
+                Tối đa 100 MB mỗi file
+              </span>
               {!uploading && (
                 <span className="mt-4 inline-flex h-9 items-center justify-center rounded-control bg-cobalt-600 px-4 text-xs font-semibold text-white shadow-sm transition group-hover:bg-cobalt-700">
                   <span className="mr-1.5 text-base leading-none">+</span>
@@ -298,6 +492,8 @@ const UserUpload = () => {
                 />
               )}
             </div>
+            </>
+            )}
 
             {uploadStatus && (
               <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm flex items-start gap-2.5">
@@ -434,9 +630,7 @@ const UserUpload = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 xl:gap-5">
               {PIPELINE_TASKS.map((pt) => {
-                const t = activePipeline.tasks?.find(
-                  (x) => x.task_id === pt.id,
-                );
+                const t = taskForStage(activePipeline.tasks, pt.taskIds);
                 const state = t?.state || "pending";
 
                 let dotClass = "bg-ink-200 border-ink-100";

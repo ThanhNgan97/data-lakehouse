@@ -24,10 +24,17 @@ MINIO_URL         = os.getenv("MINIO_URL",         "127.0.0.1:9000")
 MINIO_ACCESS_KEY  = os.getenv("MINIO_ACCESS_KEY",  "minioadmin")
 MINIO_SECRET_KEY  = os.getenv("MINIO_SECRET_KEY",  "minioadmin")
 MINIO_BUCKET_NAME = os.getenv("MINIO_BUCKET_NAME", "university-lakehouse")
+MAX_UPLOAD_FILE_BYTES = int(os.getenv("MAX_UPLOAD_FILE_BYTES", str(100 * 1024 * 1024)))
 
 # Nessie
 NESSIE_API_URL = os.getenv("NESSIE_API_URL", "http://localhost:19120/api/v1")
 
 # Airflow
 AIRFLOW_WEBSERVER_URL = os.getenv("AIRFLOW_WEBSERVER_URL", "http://localhost:8080")
+AIRFLOW_FILE_DAG_ID = os.getenv("AIRFLOW_FILE_DAG_ID", "universal_lakehouse_pipeline")
+
+# Universal URL Ingestion rollout flags.
+URL_INGESTION_ENABLED = os.getenv("URL_INGESTION_ENABLED", "true").lower() == "true"
+URL_CHECKSUM_DEDUP_ENABLED = os.getenv("URL_CHECKSUM_DEDUP_ENABLED", "false").lower() == "true"
+GOOGLE_DRIVE_INGESTION_ENABLED = os.getenv("GOOGLE_DRIVE_INGESTION_ENABLED", "true").lower() == "true"
 

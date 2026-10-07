@@ -1,0 +1,76 @@
+{
+  "dataset_domain": "generic",
+  "dataset_entity": "genshin_impact_character_stats",
+  "route_target": "generic_dynamic",
+  "registered_dataset_id": null,
+  "target_silver_table": "lakehouse.silver.genshin_impact_character_stats",
+  "target_quarantine_table": "lakehouse.silver.genshin_impact_character_stats_quarantine",
+  "target_gold_table": "lakehouse.gold.genshin_impact_character_stats_summary",
+  "business_keys": [
+    "name"
+  ],
+  "source_updated_at_field": "",
+  "dimension_columns": [
+    "name",
+    "rarity",
+    "weapon",
+    "element",
+    "3D-model",
+    "region",
+    "release_date",
+    "banner_versions",
+    "banner_dates",
+    "roles",
+    "asc_stat_bonus_category",
+    "is_standard_banner",
+    "is_archon"
+  ],
+  "metric_columns": [
+    "days_since_release",
+    "constellation_0_pull",
+    "constellation_1_pull",
+    "constellation_2_pull",
+    "constellation_3_pull",
+    "constellation_4_pull",
+    "constellation_5_pull",
+    "constellation_6_pull",
+    "constellation_7_pull",
+    "lvl_90_HP",
+    "lvl_90_ATK",
+    "lvl_90_DEF",
+    "duplicate_rate",
+    "c6_rate",
+    "avg_copies_per_player",
+    "num_banners",
+    "months_since_release",
+    "pulled_count"
+  ],
+  "suggested_visualizations": [
+    {
+      "chart_type": "bar",
+      "x_axis_or_dimension": "rarity",
+      "y_axis_or_metric": "pulled_count",
+      "aggregation": "SUM",
+      "title": "Total Pulled Count by Rarity"
+    },
+    {
+      "chart_type": "bar",
+      "x_axis_or_dimension": "region",
+      "y_axis_or_metric": "lvl_90_HP",
+      "aggregation": "AVG",
+      "title": "Average HP at Lvl 90 by Region"
+    },
+    {
+      "chart_type": "pie",
+      "x_axis_or_dimension": "element",
+      "y_axis_or_metric": "name",
+      "aggregation": "COUNT_DISTINCT",
+      "title": "Number of Characters per Element"
+    }
+  ],
+  "is_existing_table_match": false,
+  "column_mapping": {},
+  "new_columns": [],
+  "fallback_used": false,
+  "reasoning": "The dataset 'genshin_impact.csv' contains information about Genshin Impact characters and their statistics, including pull rates, combat stats, and release details. This entity is entirely new and does not semantically match any of the existing Silver tables ('dynamic_sample_tuition_json', 'kpi_cusc_master', 'student_tuition'), which are related to education. Therefore, 'is_existing_table_match' is set to false, and a new entity 'genshin_impact_character_stats' is created under the 'generic' domain. 'name' is identified as the unique business key. No explicit 'updated_at' field is present in the source data. Columns are categorized into dimensions (categorical/descriptive) and metrics (quantitative/aggregatable) based on their nature."
+}

@@ -1,0 +1,102 @@
+{
+  "table_name": "dynamic_sample_tuition_json_summary",
+  "main_dttm_col": null,
+  "description": "AI Generated Data Mart: dynamic_sample_tuition_json (generic)",
+  "default_endpoint": null,
+  "offset": 0,
+  "cache_timeout": null,
+  "schema": "gold",
+  "sql": null,
+  "params": null,
+  "template_params": null,
+  "filter_select_enabled": true,
+  "fetch_values_predicate": null,
+  "extra": null,
+  "uuid": "64c40b5d-4622-4c28-99b8-36406fdb2b3f",
+  "columns": [
+    {
+      "column_name": "student_id",
+      "verbose_name": "Student Id",
+      "is_dttm": false,
+      "is_active": true,
+      "type": "VARCHAR",
+      "groupby": true,
+      "filterable": true
+    },
+    {
+      "column_name": "student_name",
+      "verbose_name": "Student Name",
+      "is_dttm": false,
+      "is_active": true,
+      "type": "VARCHAR",
+      "groupby": true,
+      "filterable": true
+    },
+    {
+      "column_name": "faculty",
+      "verbose_name": "Faculty",
+      "is_dttm": false,
+      "is_active": true,
+      "type": "VARCHAR",
+      "groupby": true,
+      "filterable": true
+    },
+    {
+      "column_name": "academic_year",
+      "verbose_name": "Academic Year",
+      "is_dttm": false,
+      "is_active": true,
+      "type": "VARCHAR",
+      "groupby": true,
+      "filterable": true
+    },
+    {
+      "column_name": "amount_paid",
+      "verbose_name": "Amount Paid",
+      "is_dttm": false,
+      "is_active": true,
+      "type": "VARCHAR",
+      "groupby": true,
+      "filterable": true
+    },
+    {
+      "column_name": "paid_at",
+      "verbose_name": "Paid At",
+      "is_dttm": false,
+      "is_active": true,
+      "type": "VARCHAR",
+      "groupby": true,
+      "filterable": true
+    },
+    {
+      "column_name": "sum_semester",
+      "verbose_name": "Tổng semester",
+      "is_dttm": false,
+      "is_active": true,
+      "type": "DOUBLE",
+      "groupby": false,
+      "filterable": true
+    }
+  ],
+  "metrics": [
+    {
+      "metric_name": "count",
+      "verbose_name": "Tổng số bản ghi",
+      "metric_type": "count",
+      "expression": "COUNT(*)"
+    },
+    {
+      "metric_name": "total_semester",
+      "verbose_name": "Tổng semester",
+      "metric_type": "sum",
+      "expression": "SUM(sum_semester)"
+    },
+    {
+      "metric_name": "average_semester",
+      "verbose_name": "Trung bình semester",
+      "metric_type": "avg",
+      "expression": "AVG(avg_semester)"
+    }
+  ],
+  "database_uuid": "41989b72-5069-4671-8a40-78245bd3bd30"
+}

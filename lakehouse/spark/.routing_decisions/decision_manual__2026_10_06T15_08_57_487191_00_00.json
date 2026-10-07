@@ -1,0 +1,24 @@
+{
+  "dataset_domain": "generic",
+  "dataset_entity": "kpi_q3_2026_test_new_chart_rules_pdf",
+  "route_target": "generic_dynamic",
+  "registered_dataset_id": null,
+  "target_silver_table": "lakehouse.silver.kpi_q3_2026_test_new_chart_rules_pdf",
+  "target_quarantine_table": "lakehouse.silver.kpi_q3_2026_test_new_chart_rules_pdf_quarantine",
+  "target_gold_table": "lakehouse.gold.kpi_q3_2026_test_new_chart_rules_pdf_summary",
+  "business_keys": [
+    "file_content"
+  ],
+  "source_updated_at_field": null,
+  "dimension_columns": [
+    "file_content",
+    "checksum"
+  ],
+  "metric_columns": [],
+  "suggested_visualizations": [],
+  "is_existing_table_match": false,
+  "column_mapping": {},
+  "new_columns": [],
+  "fallback_used": true,
+  "reasoning": "Deterministic Rule-based Inferrer. Tự động suy luận Business Keys=['file_content'], Metrics=[]."
+}

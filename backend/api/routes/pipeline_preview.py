@@ -42,7 +42,7 @@ TRINO_PORT     = int(os.getenv("TRINO_PORT", "8080"))
 TRINO_USER     = os.getenv("TRINO_USER", "admin")
 TRINO_CATALOG  = "lakehouse"
 
-# Whitelist bảng Gold hợp lệ (tránh SQL injection qua query param 'table')
+# Whitelist bảng Gold mặc định (dành cho legacy KPI)
 GOLD_TABLES = {
     "kpi_tong_hop_don_vi":     "Tổng hợp KPI theo đơn vị",
     "kpi_chi_tiet_dashboard":  "Chi tiết đầy đủ KPI",
@@ -51,11 +51,22 @@ GOLD_TABLES = {
     "kpi_du_doan_tuong_lai":   "Dự đoán kết quả tương lai",
 }
 
+# Regex kiểm tra an toàn tên bảng động (chống SQL injection)
+TABLE_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_]{1,64}$")
+
 # [MỚI] Regex validate giá trị nhom_don_vi truyền vào từ query param.
-# Dữ liệu thực tế là mã đơn vị viết hoa, có thể chứa chữ Đ (VD: "ĐT", "PM",
-# "QTCL", "VP", "RD", "HT"). Chặn mọi ký tự khác (dấu nháy, khoảng trắng,
-# ký tự đặc biệt SQL...) để không thể chèn SQL injection qua tham số này.
 NHOM_DON_VI_PATTERN = re.compile(r"^[A-ZĐ]{1,20}$")
+
+
+def _validate_table_name(table_name: str) -> str:
+    """Xác thực tên bảng an toàn theo chuẩn identifier."""
+    clean_name = table_name.strip()
+    if not TABLE_NAME_PATTERN.match(clean_name):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Tên bảng '{table_name}' không hợp lệ. Chỉ chấp nhận chữ cái, số và dấu gạch dưới.",
+        )
+    return clean_name
 
 
 def _validate_nhom_don_vi(value: str) -> str:
@@ -168,57 +179,89 @@ def preview_silver(limit: int = Query(50, ge=1, le=500), current_user=Depends(ge
 
 @router.get("/gold/preview")
 def preview_gold(
-    table: str = Query(..., description=f"Một trong: {', '.join(GOLD_TABLES.keys())}"),
+    table: str = Query(..., description="Tên bảng trong schema gold"),
     limit: int = Query(50, ge=1, le=500),
     nhom_don_vi: str | None = Query(
         default=None,
-        description="[MỚI] Lọc kết quả theo mã đơn vị (VD: PM, HT, VP, QTCL, RD, ĐT). "
-                    "Dùng khi drill-down từ bảng 'kpi_tong_hop_don_vi' xuống chi tiết.",
+        description="[Tùy chọn] Lọc kết quả theo mã đơn vị (VD: PM, HT, VP, QTCL, RD, ĐT).",
     ),
     current_user=Depends(get_current_user),
 ):
-    """Query 1 trong 4 bảng Gold qua Trino, có thể lọc thêm theo đơn vị."""
-    if table not in GOLD_TABLES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Bảng '{table}' không hợp lệ. Chọn 1 trong: {list(GOLD_TABLES.keys())}",
-        )
+    """Query bất kỳ bảng Gold nào qua Trino (hỗ trợ cả bảng KPI cũ lẫn bảng động mới sinh từ AI)."""
+    safe_table = _validate_table_name(table)
 
     where_clause = ""
     if nhom_don_vi:
-        # [MỚI] Validate whitelist ký tự trước khi đưa vào SQL (chống injection).
-        # Cả 4 bảng Gold đều có cột nhom_don_vi nên áp dụng chung được.
         safe_value = _validate_nhom_don_vi(nhom_don_vi.strip().upper())
         where_clause = f"WHERE nhom_don_vi = '{safe_value}'"
 
     try:
-        sort_col = "thoi_gian_du_doan" if table == "kpi_du_doan_tuong_lai" else "thoi_gian_dong_goi_gold"
-        columns, rows = _run_trino_query(
-            f"SELECT * FROM gold.{table} {where_clause} "
-            f"ORDER BY {sort_col} DESC LIMIT {limit}"
-        )
-        _, count_rows = _run_trino_query(
-            f"SELECT COUNT(*) FROM gold.{table} {where_clause}"
-        )
-        total_rows = count_rows[0][0]
+        # Kiểm tra xem bảng có tồn tại trong Trino gold schema không
+        _, check_rows = _run_trino_query(f"SHOW TABLES FROM gold LIKE '{safe_table}'")
+        if not check_rows:
+            raise HTTPException(status_code=404, detail=f"Bảng 'gold.{safe_table}' không tồn tại trong Trino catalog.")
+
+        # Lấy danh sách cột để sắp xếp phù hợp
+        columns, sample_rows = _run_trino_query(f"SELECT * FROM gold.{safe_table} {where_clause} LIMIT {limit}")
+        _, count_rows = _run_trino_query(f"SELECT COUNT(*) FROM gold.{safe_table} {where_clause}")
+        total_rows = count_rows[0][0] if count_rows else 0
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Không truy vấn được bảng gold.{table} qua Trino: {e}")
+        raise HTTPException(status_code=502, detail=f"Không truy vấn được bảng gold.{safe_table} qua Trino: {e}")
+
+    table_label = GOLD_TABLES.get(safe_table, f"Bảng dữ liệu {safe_table}")
 
     return {
         "layer": "gold",
-        "source_table": f"lakehouse.gold.{table}",
-        "table_label": GOLD_TABLES[table],
+        "source_table": f"lakehouse.gold.{safe_table}",
+        "table_label": table_label,
         "total_rows": total_rows,
         "columns": columns,
-        "rows": [dict(zip(columns, r)) for r in rows],
+        "rows": [dict(zip(columns, r)) for r in sample_rows],
         "filter_applied": {"nhom_don_vi": nhom_don_vi} if nhom_don_vi else None,
     }
 
 
 @router.get("/gold/tables")
 def list_gold_tables(current_user=Depends(get_current_user)):
-    """Danh sách 4 bảng Gold hiện có, để frontend hiện dropdown khi click node 'Gold'."""
-    return [{"table": k, "label": v} for k, v in GOLD_TABLES.items()]
+    """Danh sách các bảng Gold hiện có trong Trino (kết hợp bảng mặc định và bảng mới sinh)."""
+    tables = []
+    seen = set()
+    for k, v in GOLD_TABLES.items():
+        tables.append({"table": k, "label": v, "is_legacy": True})
+        seen.add(k)
+
+    try:
+        _, dynamic_rows = _run_trino_query("SHOW TABLES FROM gold")
+        for row in dynamic_rows:
+            tbl_name = row[0]
+            if tbl_name not in seen:
+                tables.append({"table": tbl_name, "label": f"Bảng tổng hợp {tbl_name}", "is_legacy": False})
+                seen.add(tbl_name)
+    except Exception:
+        pass  # Nếu Trino chưa sẵn sàng thì trả về bảng mặc định
+
+    return tables
+
+
+@router.get("/catalog/tables")
+def list_all_catalog_tables(current_user=Depends(get_current_user)):
+    """[MỚI] Tự động khám phá toàn bộ các bảng trong Lakehouse (cả Silver và Gold)."""
+    catalog = {"silver": [], "gold": []}
+    try:
+        _, silver_rows = _run_trino_query("SHOW TABLES FROM silver")
+        catalog["silver"] = [r[0] for r in silver_rows]
+    except Exception:
+        pass
+
+    try:
+        _, gold_rows = _run_trino_query("SHOW TABLES FROM gold")
+        catalog["gold"] = [r[0] for r in gold_rows]
+    except Exception:
+        pass
+
+    return catalog
 
 
 @router.get("/gold/units")

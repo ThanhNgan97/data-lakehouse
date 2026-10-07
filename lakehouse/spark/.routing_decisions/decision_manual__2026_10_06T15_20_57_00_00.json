@@ -1,0 +1,36 @@
+{
+  "dataset_domain": "kpi",
+  "dataset_entity": "kpi_cusc_master",
+  "route_target": "legacy_kpi",
+  "registered_dataset_id": null,
+  "target_silver_table": "lakehouse.silver.kpi_cusc_master",
+  "target_quarantine_table": "lakehouse.silver.kpi_cusc_quarantine",
+  "target_gold_table": "lakehouse.gold.kpi_tong_hop_don_vi",
+  "business_keys": [
+    "ma_chi_tieu",
+    "quy_danh_gia"
+  ],
+  "source_updated_at_field": "thoi_gian_cap_nhat",
+  "dimension_columns": [
+    "nhom_don_vi",
+    "quy_danh_gia",
+    "dinh_ky_thu_thap"
+  ],
+  "metric_columns": [
+    "muc_dat_numeric"
+  ],
+  "suggested_visualizations": [
+    {
+      "chart_type": "bar",
+      "x_axis_or_dimension": "nhom_don_vi",
+      "y_axis_or_metric": "ty_le_hoan_thanh_phan_tram",
+      "aggregation": "AVG",
+      "title": "Tỷ lệ hoàn thành KPI theo đơn vị"
+    }
+  ],
+  "is_existing_table_match": false,
+  "column_mapping": {},
+  "new_columns": [],
+  "fallback_used": false,
+  "reasoning": "Phát hiện cấu trúc cột đặc thù của KPI CUSC (legacy_kpi route)."
+}

@@ -1,0 +1,16 @@
+{
+  "viz_type": "table",
+  "slice_name": "Chi tiết dữ liệu {entity_label}",
+  "params": {
+    "datasource": "1__table",
+    "viz_type": "table",
+    "query_mode": "raw",
+    "all_columns": [],
+    "include_search": true,
+    "show_cell_bars": false,
+    "server_page_length": 15,
+    "row_limit": 1000,
+    "order_by_cols": [],
+    "adhoc_filters": []
+  }
+}

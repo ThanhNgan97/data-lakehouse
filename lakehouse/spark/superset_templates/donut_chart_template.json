@@ -1,0 +1,33 @@
+{
+  "viz_type": "pie",
+  "slice_name": "Cơ cấu theo {dimension_label}",
+  "params": {
+    "datasource": "1__table",
+    "viz_type": "pie",
+    "groupby": [
+      "{dimension_column}"
+    ],
+    "metric": {
+      "expressionType": "SIMPLE",
+      "column": {
+        "column_name": "{metric_column}",
+        "type": "{metric_type}",
+        "is_dttm": false,
+        "filterable": true,
+        "groupby": true
+      },
+      "aggregate": "{aggregate}",
+      "hasCustomLabel": true,
+      "label": "{metric_label}"
+    },
+    "donut": true,
+    "show_legend": true,
+    "show_labels": true,
+    "show_labels_threshold": 3,
+    "label_type": "key_value",
+    "number_format": "{number_format}",
+    "sort_by_metric": true,
+    "row_limit": 10,
+    "adhoc_filters": []
+  }
+}

@@ -29,6 +29,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     col, when, count, round, current_timestamp, lag, create_map, lit,
     first, min as spark_min, max as spark_max, struct, regexp_extract,
+    percent_rank, sum as spark_sum, avg as spark_avg,
 )
 from pyspark.sql.window import Window
 from itertools import chain
@@ -54,6 +55,22 @@ GOLD_SUMMARY_COLUMNS = [
     "quy_danh_gia", "nhom_don_vi",
     "tong_chi_tieu_danh_gia", "so_chi_tieu_dat", "so_chi_tieu_khong_dat",
     "ty_le_hoan_thanh_phan_tram", "thoi_gian_dong_goi_gold",
+    # Chuẩn hóa theo kiến trúc Decision-driven Analytics (superset-new-implement.md)
+    "total_records",
+    "sum_muc_dat_numeric",
+    "avg_muc_dat_numeric",
+    "thoi_gian_cap_nhat",
+    "_gold_generated_at",
+    "target_value",
+    "target_achievement_pct",
+    "target_variance_amount",
+    "performance_tier",
+    "health_status",
+    "action_priority",
+    "risk_score",
+    "alert_flag",
+    "aging_days",
+    "recommended_action",
 ]
 GOLD_DETAIL_COLUMNS = [
     "ma_chi_tieu", "nhom_don_vi", "ten_phong_ban", "quy_danh_gia",
@@ -214,14 +231,79 @@ def run_silver_to_gold(spark):
 
         df_summary = df_filtered.groupBy("quy_danh_gia", "nhom_don_vi").agg(
             count("*").alias("tong_chi_tieu_danh_gia"),
+            count("*").alias("total_records"),
             count(when(col("ket_qua_he_thong") == "ĐẠT", True)).alias("so_chi_tieu_dat"),
-            count(when(col("ket_qua_he_thong") == "KHÔNG ĐẠT", True)).alias("so_chi_tieu_khong_dat")
+            count(when(col("ket_qua_he_thong") == "KHÔNG ĐẠT", True)).alias("so_chi_tieu_khong_dat"),
+            round(spark_sum(when(col("muc_dat_numeric").isNotNull(), col("muc_dat_numeric")).otherwise(0.0)), 2).alias("sum_muc_dat_numeric"),
+            round(spark_avg(when(col("muc_dat_numeric").isNotNull(), col("muc_dat_numeric")).otherwise(0.0)), 2).alias("avg_muc_dat_numeric"),
         )
 
         df_summary = df_summary.withColumn(
             "ty_le_hoan_thanh_phan_tram",
             round((col("so_chi_tieu_dat") / col("tong_chi_tieu_danh_gia")) * 100, 2)
-        ).withColumn("thoi_gian_dong_goi_gold", current_timestamp())
+        ).withColumn(
+            "thoi_gian_dong_goi_gold", current_timestamp()
+        ).withColumn(
+            "thoi_gian_cap_nhat", current_timestamp()
+        ).withColumn(
+            "_gold_generated_at", current_timestamp()
+        )
+
+        # CÁC TRƯỜNG RA QUYẾT ĐỊNH (DECISION-DRIVEN FIELDS THEO superset-new-implement.md)
+        # 1. Target & Variance Fields (Mục tiêu chuẩn: 100% tỷ lệ hoàn thành KPI)
+        target_val = 100.0
+        df_summary = df_summary \
+            .withColumn("target_value", lit(target_val).cast("double")) \
+            .withColumn("target_achievement_pct", col("ty_le_hoan_thanh_phan_tram")) \
+            .withColumn("target_variance_amount", round(col("ty_le_hoan_thanh_phan_tram") - lit(target_val), 2))
+
+        # 2. Performance Tier (Pareto 80/20 & Phân khúc hiệu suất: TIER_A / TIER_B / TIER_C)
+        win_spec = Window.orderBy(col("ty_le_hoan_thanh_phan_tram").desc())
+        df_summary = df_summary.withColumn("p_rank", percent_rank().over(win_spec))
+        df_summary = df_summary.withColumn(
+            "performance_tier",
+            when((col("p_rank") <= 0.20) | (col("target_achievement_pct") >= 90.0), "TIER_A")
+            .when((col("p_rank") <= 0.50) | (col("target_achievement_pct") >= 75.0), "TIER_B")
+            .otherwise("TIER_C")
+        )
+
+        # 3. Health Status & Action Priority
+        df_summary = df_summary.withColumn(
+            "health_status",
+            when(col("target_achievement_pct") >= 85.0, "HEALTHY")
+            .when(col("target_achievement_pct") >= 60.0, "AT_RISK")
+            .otherwise("CRITICAL")
+        ).withColumn(
+            "action_priority",
+            when(col("health_status") == "CRITICAL", "HIGH")
+            .when(col("health_status") == "AT_RISK", "MEDIUM")
+            .otherwise("LOW")
+        )
+
+        # 4. Risk Score & Alert Flag
+        df_summary = df_summary.withColumn(
+            "risk_score",
+            round(
+                when(col("health_status") == "CRITICAL", lit(0.70) + (lit(0.30) * col("p_rank")))
+                .when(col("health_status") == "AT_RISK", lit(0.40) + (lit(0.25) * col("p_rank")))
+                .otherwise(lit(0.05) + (lit(0.15) * col("p_rank"))),
+                2
+            )
+        ).withColumn(
+            "alert_flag",
+            when(col("health_status") != "HEALTHY", lit(True)).otherwise(lit(False))
+        )
+
+        # 5. Aging Days
+        df_summary = df_summary.withColumn("aging_days", lit(0).cast("integer"))
+
+        # 6. Recommended Action (Khuyến nghị hành động định hướng nghiệp vụ)
+        df_summary = df_summary.withColumn(
+            "recommended_action",
+            when(col("health_status") == "CRITICAL", "Cần can thiệp khẩn / Rà soát nguyên nhân không đạt chỉ tiêu")
+            .when(col("health_status") == "AT_RISK", "Đôn đốc tiến độ / Cảnh báo nguy cơ chậm trễ")
+            .otherwise("Duy trì hiệu suất / Đề xuất vinh danh khen thưởng")
+        )
 
         df_summary = df_summary.select(*GOLD_SUMMARY_COLUMNS)
 

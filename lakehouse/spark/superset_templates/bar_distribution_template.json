@@ -1,0 +1,39 @@
+{
+  "viz_type": "echarts_timeseries_bar",
+  "slice_name": "Phân bổ {metric_label} theo {dimension_label}",
+  "params": {
+    "datasource": "1__table",
+    "viz_type": "echarts_timeseries_bar",
+    "x_axis": "{dimension_column}",
+    "x_axis_sort_asc": true,
+    "x_axis_sort_series": "value",
+    "x_axis_sort_series_ascending": false,
+    "x_axis_title": "{dimension_label}",
+    "metrics": [
+      {
+        "expressionType": "SIMPLE",
+        "column": {
+          "column_name": "{metric_column}",
+          "type": "{metric_type}",
+          "is_dttm": false,
+          "filterable": true,
+          "groupby": true
+        },
+        "aggregate": "{aggregate}",
+        "hasCustomLabel": true,
+        "label": "{metric_label}"
+      }
+    ],
+    "groupby": [],
+    "seriesType": "bar",
+    "color_scheme": "supersetColors",
+    "show_legend": false,
+    "show_value": true,
+    "rich_tooltip": true,
+    "row_limit": 50,
+    "truncateXAxis": false,
+    "truncateYAxis": false,
+    "y_axis_format": "{y_axis_format}",
+    "adhoc_filters": []
+  }
+}

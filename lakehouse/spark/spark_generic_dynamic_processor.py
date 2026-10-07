@@ -60,7 +60,7 @@ os.environ["PYSPARK_SUBMIT_ARGS"]   = (
     "pyspark-shell"
 )
 
-from pyspark.sql import DataFrame, SparkSession, functions as F
+from pyspark.sql import DataFrame, SparkSession, Window, functions as F
 from pyspark.sql.types import (
     BooleanType, DoubleType, IntegerType, LongType, StringType,
     StructField, StructType, TimestampType,
@@ -320,6 +320,28 @@ def process_generic_dataset(
         valid_metrics = [to_snake_case(m) for m in decision.metric_columns if to_snake_case(m) in existing_cols]
         valid_dims = [to_snake_case(d) for d in decision.dimension_columns if to_snake_case(d) in existing_cols]
 
+        # Bảo toàn cột thời gian (source_updated_at_field) sang tầng Gold để Superset query không bị lỗi
+        # Nếu cột thời gian là số epoch (DOUBLE/LONG/FLOAT/INT), chuẩn hóa sang TIMESTAMP trong Gold để Superset nhận diện đúng
+        if decision.source_updated_at_field:
+            clean_ts = to_snake_case(decision.source_updated_at_field)
+            if clean_ts in existing_cols:
+                ts_type = silver_source.schema[clean_ts].dataType
+                from pyspark.sql.types import (
+                    ByteType, ShortType, IntegerType, LongType, FloatType, DoubleType, DecimalType
+                )
+                if isinstance(ts_type, (ByteType, ShortType, IntegerType, LongType, FloatType, DoubleType, DecimalType)):
+                    silver_source = silver_source.withColumn(
+                        clean_ts,
+                        F.when(
+                            F.col(clean_ts) > 1e11,
+                            F.to_timestamp(F.from_unixtime((F.col(clean_ts) / 1000.0).cast("long")))
+                        ).otherwise(
+                            F.to_timestamp(F.from_unixtime(F.col(clean_ts).cast("long")))
+                        )
+                    )
+                if clean_ts not in valid_dims:
+                    valid_dims.append(clean_ts)
+
         if not valid_dims and business_keys:
             valid_dims = business_keys
 
@@ -332,10 +354,175 @@ def process_generic_dataset(
 
             agg_expressions.append(F.current_timestamp().alias("_gold_generated_at"))
 
-            gold_mart = silver_source.groupBy(*valid_dims).agg(*agg_expressions)
+            gold_raw = silver_source.groupBy(*valid_dims).agg(*agg_expressions)
+
+            # =====================================================================
+            # ENRICHMENT: TÍNH TOÁN CÁC TRƯỜNG RA QUYẾT ĐỊNH (DECISION-DRIVEN FIELDS)
+            # Theo chuẩn superset-new-implement.md:
+            # 1. Action Flags & Alert Status (action_priority, health_status, risk_score, alert_flag)
+            # 2. Variance & Benchmark Context (target_value, target_achievement_pct, target_variance_amount)
+            # 3. Actionable Segmentation (performance_tier: TIER_A/B/C Pareto 80/20)
+            # 4. Aging & Action Recommendations (aging_days, recommended_action)
+            # =====================================================================
+            priority_eval_keywords = [
+                "pulled_count", "amount_paid", "tuition_amount", "amount", "revenue",
+                "sales", "diem_tb", "gpa", "lvl_90_atk", "score", "so_tcdk", "diem_tbrl"
+            ]
+            primary_eval_metric = None
+            for kw in priority_eval_keywords:
+                for m in valid_metrics:
+                    if kw in m:
+                        primary_eval_metric = m
+                        break
+                if primary_eval_metric:
+                    break
+            if not primary_eval_metric and valid_metrics:
+                primary_eval_metric = valid_metrics[0]
+
+            if primary_eval_metric:
+                if any(k in primary_eval_metric for k in ["diem", "gpa", "tbrl", "atk", "hp", "def", "rate", "score"]):
+                    eval_col = f"avg_{primary_eval_metric}"
+                else:
+                    eval_col = f"sum_{primary_eval_metric}"
+            else:
+                eval_col = "total_records"
+
+            # Benchmark trung bình trên toàn bộ bảng Gold
+            stats_row = gold_raw.select(
+                F.avg(eval_col).alias("bench_avg"),
+                F.max(eval_col).alias("bench_max")
+            ).first()
+
+            bench_avg = float(stats_row["bench_avg"] or 100.0)
+            target_val = round(bench_avg * 1.15, 2)
+            if target_val <= 0:
+                target_val = 1.0
+
+            # Window xếp hạng cho phân khúc Pareto và risk score
+            win_spec = Window.orderBy(F.col(eval_col).desc())
+            gold_enriched = gold_raw.withColumn("p_rank", F.percent_rank().over(win_spec))
+
+            # 1. Target & Variance Fields
+            gold_enriched = gold_enriched \
+                .withColumn("target_value", F.lit(target_val).cast("double")) \
+                .withColumn("target_achievement_pct", F.round((F.col(eval_col) / F.lit(target_val)) * 100.0, 1)) \
+                .withColumn("target_variance_amount", F.round(F.col(eval_col) - F.lit(target_val), 2))
+
+            # 2. Performance Tier (Pareto 80/20: Top 20% -> A, Next 30% -> B, Remaining 50% -> C)
+            gold_enriched = gold_enriched.withColumn(
+                "performance_tier",
+                F.when(F.col("p_rank") <= 0.20, "TIER_A")
+                 .when(F.col("p_rank") <= 0.50, "TIER_B")
+                 .otherwise("TIER_C")
+            )
+
+            # 3. Health Status & Action Priority
+            gold_enriched = gold_enriched.withColumn(
+                "health_status",
+                F.when(F.col("target_achievement_pct") >= 90.0, "HEALTHY")
+                 .when(F.col("target_achievement_pct") >= 60.0, "AT_RISK")
+                 .otherwise("CRITICAL")
+            ).withColumn(
+                "action_priority",
+                F.when(F.col("health_status") == "CRITICAL", "HIGH")
+                 .when(F.col("health_status") == "AT_RISK", "MEDIUM")
+                 .otherwise("LOW")
+            )
+
+            # 4. Risk Score & Alert Flag
+            gold_enriched = gold_enriched.withColumn(
+                "risk_score",
+                F.round(
+                    F.when(F.col("health_status") == "CRITICAL", F.lit(0.70) + (F.lit(0.30) * F.col("p_rank")))
+                     .when(F.col("health_status") == "AT_RISK", F.lit(0.40) + (F.lit(0.25) * F.col("p_rank")))
+                     .otherwise(F.lit(0.05) + (F.lit(0.15) * F.col("p_rank"))),
+                    2
+                )
+            ).withColumn(
+                "alert_flag",
+                F.when(F.col("health_status") != "HEALTHY", F.lit(True)).otherwise(F.lit(False))
+            )
+
+            # 5. Aging Days (Số ngày kể từ mốc thời gian)
+            if decision.source_updated_at_field:
+                clean_ts = to_snake_case(decision.source_updated_at_field)
+                if clean_ts in existing_cols:
+                    ts_type = gold_enriched.schema[clean_ts].dataType
+                    from pyspark.sql.types import (
+                        ByteType, ShortType, IntegerType, LongType, FloatType, DoubleType, DecimalType,
+                        DateType, TimestampType
+                    )
+                    ts_types_tuple = (TimestampType,)
+                    try:
+                        from pyspark.sql.types import TimestampNTZType
+                        ts_types_tuple = (TimestampType, TimestampNTZType)
+                    except ImportError:
+                        pass
+
+                    if isinstance(ts_type, (ByteType, ShortType, IntegerType, LongType, FloatType, DoubleType, DecimalType)):
+                        date_expr = F.when(
+                            F.col(clean_ts) > 1e11,
+                            F.to_date(F.from_unixtime((F.col(clean_ts) / 1000.0).cast("long")))
+                        ).otherwise(
+                            F.to_date(F.from_unixtime(F.col(clean_ts).cast("long")))
+                        )
+                    elif isinstance(ts_type, ts_types_tuple):
+                        date_expr = F.to_date(F.col(clean_ts))
+                    elif isinstance(ts_type, DateType):
+                        date_expr = F.col(clean_ts)
+                    else:
+                        date_expr = F.coalesce(
+                            F.to_date(F.col(clean_ts)),
+                            F.to_date(F.to_timestamp(F.col(clean_ts))),
+                            F.to_date(F.from_unixtime(F.col(clean_ts).cast("long"))),
+                            F.current_date()
+                        )
+
+                    gold_enriched = gold_enriched.withColumn(
+                        "aging_days",
+                        F.greatest(F.lit(0), F.coalesce(F.datediff(F.current_date(), date_expr), F.lit(0))).cast("integer")
+                    )
+                else:
+                    gold_enriched = gold_enriched.withColumn("aging_days", F.lit(0).cast("integer"))
+            else:
+                gold_enriched = gold_enriched.withColumn("aging_days", F.lit(0).cast("integer"))
+
+            # 6. Recommended Action (Khuyến nghị hành động định hướng nghiệp vụ)
+            entity_lower = decision.dataset_entity.lower()
+            if any(k in entity_lower for k in ["student", "award", "tuition", "hoc_tap", "diem"]):
+                gold_enriched = gold_enriched.withColumn(
+                    "recommended_action",
+                    F.when(F.col("health_status") == "CRITICAL", "Cố vấn học vụ can thiệp / Cảnh báo học tập")
+                     .when(F.col("health_status") == "AT_RISK", "Cần bổ trợ kiến thức / Theo dõi sát sao")
+                     .otherwise("Đạt chuẩn xuất sắc / Đề xuất vinh danh khen thưởng")
+                )
+            elif any(k in entity_lower for k in ["genshin", "game", "character"]):
+                gold_enriched = gold_enriched.withColumn(
+                    "recommended_action",
+                    F.when(F.col("health_status") == "CRITICAL", "Hiệu suất thấp / Cần buff chỉ số hoặc rerun banner")
+                     .when(F.col("health_status") == "AT_RISK", "Chỉ số trung bình / Cần tối ưu build vũ khí & di vật")
+                     .otherwise("Top Meta / Nhân vật chủ lực - duy trì ưu tiên tài nguyên")
+                )
+            elif any(k in entity_lower for k in ["iot", "telemetry", "sensor", "device", "cam_bien"]):
+                gold_enriched = gold_enriched.withColumn(
+                    "recommended_action",
+                    F.when(F.col("health_status") == "CRITICAL", "Cảnh báo vượt ngưỡng cảm biến / Cần bảo trì thiết bị khẩn")
+                     .when(F.col("health_status") == "AT_RISK", "Thông số tiệm cận ngưỡng rủi ro / Kiểm tra định kỳ thiết bị")
+                     .otherwise("Chỉ số an toàn chuẩn / Thiết bị hoạt động ổn định")
+                )
+            else:
+                gold_enriched = gold_enriched.withColumn(
+                    "recommended_action",
+                    F.when(F.col("health_status") == "CRITICAL", "Ưu tiên can thiệp khẩn / Kiểm toán rủi ro hoạt động")
+                     .when(F.col("health_status") == "AT_RISK", "Theo dõi sát / Cần kế hoạch nâng cao hiệu suất")
+                     .otherwise("Đạt chuẩn SLA / Duy trì và nhân rộng mô hình")
+                )
+
+            # Loại bỏ cột phụ trung gian p_rank trước khi ghi xuống Iceberg
+            gold_mart = gold_enriched.drop("p_rank")
             gold_mart.writeTo(gold_table).using("iceberg").createOrReplace()
             gold_count = gold_mart.count()
-            print(f"✅ [Gold] Đã tổng hợp thành công {gold_count} dòng dữ liệu vào '{gold_table}'.")
+            print(f"✅ [Gold] Đã tổng hợp thành công {gold_count} dòng dữ liệu kèm Decision Fields vào '{gold_table}'.")
         else:
             print("ℹ️ [Gold] Bỏ qua tầng Gold do không xác định được dimension gom nhóm.")
 

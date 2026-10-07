@@ -144,6 +144,20 @@
   - Khi người dùng upload file qua Web UI/API, tự động kích hoạt `universal_lakehouse_pipeline` kèm payload cấu hình `conf`.
   - Endpoint kiểm tra trạng thái (`/upload/pipeline-status/{dag_run_id}`) hỗ trợ cả `universal_lakehouse_pipeline` và `lakehouse_pipeline` cũ.
 
+### Phase 8: Multimodal Document Table Extractor & Dynamic PDF Routing
+- ✅ Cập nhật `ai_dataset_router.py`:
+  - Bổ sung hàm `profile_and_extract_document_with_gemini(file_path)`: Sử dụng Gemini 2.5 Flash Multimodal để đọc trực tiếp nội dung file PDF, Word, Ảnh từ `staging/`.
+  - Nhận diện thông minh:
+    - Nếu là báo cáo KPI CUSC: Định tuyến sang `legacy_kpi` (bảo toàn tương thích ngược 100%).
+    - Nếu là tài liệu có bảng biểu bất kỳ (ví dụ: Quyết định khen thưởng sinh viên `02-10-2026 qd-khenthuongnh25-26_k48.signed.pdf`): Gemini tự động bóc tách 100% dữ liệu bảng thành file JSON cấu trúc trung gian (`.extracted_tables/`).
+  - Định tuyến sang nhánh `generic_dynamic` với đầy đủ metadata: `business_keys=['ma_sv']`, `dimension_columns=['lop', 'xep_loai', 'nganh']`, `metric_columns=['diem_tb', 'diem_tbrl', 'so_tcdk']`.
+- ✅ Cập nhật `universal_lakehouse_pipeline.py`:
+  - Task `ai_semantic_profiler` truyền đường dẫn file JSON đã bóc tách (`extracted_json_path`) làm `input_path` cho Spark Dynamic Processor.
+- ✅ Kết quả thực nghiệm:
+  - Bóc tách thành công toàn bộ **119 sinh viên** từ file PDF khen thưởng.
+  - Tạo thành công bảng Iceberg Silver `lakehouse.silver.student_awards_k48` (119 bản ghi) và Gold Mart `lakehouse.gold.student_awards_k48_summary` (117 dòng aggregate).
+  - Tự động di chuyển file PDF từ `staging/` sang `archive/` sau khi hoàn tất.
+
 ---
 
 ## 🛑 BẢNG NHẬT KÝ LỖI & PHÒNG NGỪA (ERROR LOG & LESSONS LEARNED)

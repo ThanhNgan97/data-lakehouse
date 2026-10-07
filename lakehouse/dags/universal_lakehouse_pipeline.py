@@ -137,11 +137,14 @@ def run_ai_semantic_profiling(**context):
     with open(decision_file_path, "w", encoding="utf-8") as f:
         f.write(decision.model_dump_json(indent=2))
 
+    # Nếu tài liệu đã được bóc tách sang JSON bảng, cập nhật input_path cho Spark Processor
+    effective_input_path = decision.extracted_json_path if decision.extracted_json_path else input_path
+
     # Đẩy các thông tin quan trọng lên XCom
     ti = context["ti"]
     ti.xcom_push(key="route_target", value=decision.route_target)
     ti.xcom_push(key="decision_file", value=decision_file_path)
-    ti.xcom_push(key="input_path", value=input_path)
+    ti.xcom_push(key="input_path", value=effective_input_path)
     ti.xcom_push(key="source_name", value=source_name)
     ti.xcom_push(key="s3_staging_key", value=s3_staging_key)
     ti.xcom_push(key="dataset_entity", value=decision.dataset_entity)
@@ -290,6 +293,8 @@ with DAG(
     ai_semantic_profiler = PythonOperator(
         task_id="ai_semantic_profiler",
         python_callable=run_ai_semantic_profiling,
+        retries=3,
+        retry_delay=timedelta(seconds=5),
     )
 
     # 2. Branch Decision

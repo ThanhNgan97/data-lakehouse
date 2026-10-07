@@ -15,6 +15,9 @@ Bronze mechanics remain delegated to their existing specialized components.
 
 from __future__ import annotations
 
+import hashlib
+import json
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -42,6 +45,52 @@ STATUS_NO_CHANGE = "NO_CHANGE"
 FetchPayload = Callable[..., dict[str, Any]]
 IngestPayload = Callable[..., IngestionResult]
 
+
+def logical_batch_id(
+    dataset_id: str,
+    checkpoint_before: CheckpointState | None,
+) -> str:
+    """Return a stable batch id for one safe source checkpoint."""
+    if (
+        not isinstance(dataset_id, str)
+        or not dataset_id.strip()
+    ):
+        raise ValueError(
+            "dataset_id must be a non-empty string"
+        )
+
+    if checkpoint_before is None:
+        identity = {
+            "dataset_id": dataset_id,
+            "strategy_type": None,
+            "checkpoint_payload": None,
+        }
+    else:
+        if checkpoint_before.dataset_id != dataset_id:
+            raise ValueError(
+                "checkpoint dataset does not match dataset_id"
+            )
+
+        identity = {
+            "dataset_id": dataset_id,
+            "strategy_type": checkpoint_before.strategy_type,
+            "checkpoint_payload": (
+                checkpoint_before.checkpoint_payload
+            ),
+        }
+
+    canonical = json.dumps(
+        identity,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+    digest = hashlib.sha256(
+        canonical.encode("utf-8")
+    ).hexdigest()[:20]
+
+    return f"airflow_api_{digest}"
 
 class CheckpointStrategyMismatchError(RuntimeError):
     """Stored checkpoint strategy disagrees with current dataset config."""
@@ -148,7 +197,7 @@ def run_incremental_ingestion(
     api_url: str,
     *,
     dataset: str,
-    batch_id: str,
+    batch_id: str | None = None,
     api_key: str | None = None,
     page_limit: int = 500,
     timeout_seconds: int = 30,
@@ -163,7 +212,10 @@ def run_incremental_ingestion(
     successfully. In the current Bronze implementation, that return occurs
     only after physical write and read-back validation succeed.
     """
-    if not isinstance(batch_id, str) or not batch_id.strip():
+    if batch_id is not None and (
+        not isinstance(batch_id, str)
+        or not batch_id.strip()
+    ):
         raise ValueError(
             "batch_id must be a non-empty string"
         )
@@ -188,6 +240,15 @@ def run_incremental_ingestion(
     )
 
     checkpoint_before = fetched.checkpoint_before
+
+    effective_batch_id = (
+        batch_id
+        if batch_id is not None
+        else logical_batch_id(
+            config.dataset,
+            checkpoint_before,
+        )
+    )
     updated_after = fetched.updated_after
     payload = fetched.payload
     records = payload["data"]
@@ -207,7 +268,7 @@ def run_incremental_ingestion(
         return IncrementalIngestionResult(
             status=STATUS_NO_CHANGE,
             dataset_id=config.dataset,
-            batch_id=batch_id,
+            batch_id=effective_batch_id,
             fetched_count=0,
             updated_after=updated_after,
             checkpoint_before=checkpoint_before,
@@ -237,7 +298,7 @@ def run_incremental_ingestion(
         payload,
         dataset=config.dataset,
         ingestion_mode="INCREMENTAL",
-        batch_id=batch_id,
+        batch_id=effective_batch_id,
         expected_count=fetched_count,
         input_label=f"HTTP GET {api_url} incremental",
     )

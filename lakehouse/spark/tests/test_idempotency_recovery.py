@@ -689,3 +689,187 @@ def test_recovery_with_new_source_rows_reuses_batch_and_advances():
         recovered.checkpoint_after
         == after
     )
+
+
+def test_page_three_failure_has_no_partial_bronze_and_recovery_commits_once():
+    before = _checkpoint(
+        "2026-10-07T01:00:00Z",
+        version=7,
+    )
+
+    expected_batch = logical_batch_id(
+        DATASET,
+        before,
+    )
+
+    config = get_dataset_config(DATASET)
+
+    after = CheckpointState(
+        dataset_id=DATASET,
+        strategy_type="timestamp",
+        checkpoint_payload={
+            "value": "2026-10-07T03:00:00Z",
+        },
+        version=8,
+        last_batch_id=expected_batch,
+    )
+
+    store = Mock()
+    store.load.return_value = before
+    store.compare_and_set.return_value = after
+
+    page_events = []
+    attempt = {
+        "number": 0,
+    }
+
+    def fetch_pages(
+        *_args,
+        **_kwargs,
+    ):
+        attempt["number"] += 1
+
+        if attempt["number"] == 1:
+            page_events.extend([
+                "run1_page1_ok",
+                "run1_page2_ok",
+                "run1_page3_fail",
+            ])
+
+            raise RuntimeError(
+                "simulated page 3 failure"
+            )
+
+        page_events.extend([
+            "run2_page1_ok",
+            "run2_page2_ok",
+            "run2_page3_ok",
+        ])
+
+        return {
+            "data": [
+                {
+                    "record_id": "r1",
+                    config.source_updated_at_field:
+                        "2026-10-07T01:30:00Z",
+                },
+                {
+                    "record_id": "r2",
+                    config.source_updated_at_field:
+                        "2026-10-07T02:00:00Z",
+                },
+                {
+                    "record_id": "r3",
+                    config.source_updated_at_field:
+                        "2026-10-07T03:00:00Z",
+                },
+            ],
+        }
+
+    bronze = Mock(
+        return_value=_recovery_bronze_result(
+            config,
+            batch_id=expected_batch,
+            count=3,
+        )
+    )
+
+    # ------------------------------------------
+    # First run:
+    # page 1 OK, page 2 OK, page 3 FAIL.
+    # ------------------------------------------
+
+    try:
+        run_incremental_ingestion(
+            Mock(),
+            "http://mock/api",
+            dataset=DATASET,
+            checkpoint_store=store,
+            fetch_payload=fetch_pages,
+            ingest_payload=bronze,
+        )
+    except RuntimeError as exc:
+        assert (
+            str(exc)
+            == "simulated page 3 failure"
+        )
+    else:
+        raise AssertionError(
+            "first run must fail on page 3"
+        )
+
+    assert page_events == [
+        "run1_page1_ok",
+        "run1_page2_ok",
+        "run1_page3_fail",
+    ]
+
+    # No partial Bronze is allowed.
+    bronze.assert_not_called()
+
+    # Checkpoint must remain untouched.
+    store.compare_and_set.assert_not_called()
+
+    # ------------------------------------------
+    # Recovery run:
+    # all three pages succeed.
+    # ------------------------------------------
+
+    recovered = run_incremental_ingestion(
+        Mock(),
+        "http://mock/api",
+        dataset=DATASET,
+        checkpoint_store=store,
+        fetch_payload=fetch_pages,
+        ingest_payload=bronze,
+    )
+
+    assert page_events == [
+        "run1_page1_ok",
+        "run1_page2_ok",
+        "run1_page3_fail",
+        "run2_page1_ok",
+        "run2_page2_ok",
+        "run2_page3_ok",
+    ]
+
+    # Bronze is written exactly once:
+    # only after the complete recovery fetch.
+    assert bronze.call_count == 1
+
+    bronze_kwargs = (
+        bronze.call_args.kwargs
+    )
+
+    assert (
+        bronze_kwargs["batch_id"]
+        == expected_batch
+    )
+
+    assert (
+        bronze_kwargs["expected_count"]
+        == 3
+    )
+
+    # Checkpoint advances exactly once,
+    # after the successful Bronze write.
+    assert store.compare_and_set.call_count == 1
+
+    cas_kwargs = (
+        store.compare_and_set.call_args.kwargs
+    )
+
+    assert (
+        cas_kwargs["batch_id"]
+        == expected_batch
+    )
+
+    assert cas_kwargs["checkpoint_payload"] == {
+        "value": "2026-10-07T03:00:00Z",
+    }
+
+    assert recovered.status == STATUS_COMMITTED
+    assert recovered.batch_id == expected_batch
+    assert recovered.fetched_count == 3
+    assert recovered.checkpoint_before == before
+    assert recovered.checkpoint_after == after

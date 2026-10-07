@@ -202,6 +202,7 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
       AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_WEBSERVER_SECRET_KEY}
+      AIRFLOW__WEBSERVER__CONFIG_FILE: '/opt/airflow/webserver_config.py'
       AIRFLOW__WEBSERVER__WEB_SERVER_SESSION_LIFETIME: '604800'
       # Local Airflow is served over plain HTTP. Browsers reject SameSite=None
       # cookies unless Secure=true, which drops the session and breaks CSRF.
@@ -210,6 +211,7 @@ services:
       MINIO_ENDPOINT: 'http://minio:9000'
       NESSIE_API_URL: 'http://nessie:19120/api/v1'
     volumes:
+      - ./airflow_webserver_config.py:/opt/airflow/webserver_config.py:ro
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark
       - ./.env:/opt/airflow/.env

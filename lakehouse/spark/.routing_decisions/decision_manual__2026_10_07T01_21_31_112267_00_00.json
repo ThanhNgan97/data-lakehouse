@@ -1,0 +1,27 @@
+{
+  "dataset_domain": "unstructured",
+  "dataset_entity": "kpi_cusc_master",
+  "route_target": "legacy_kpi",
+  "registered_dataset_id": null,
+  "target_silver_table": "lakehouse.silver.kpi_cusc_master",
+  "target_quarantine_table": "lakehouse.silver.kpi_cusc_quarantine",
+  "target_gold_table": "lakehouse.gold.kpi_tong_hop_don_vi",
+  "business_keys": [
+    "ma_chi_tieu",
+    "quy_danh_gia"
+  ],
+  "source_updated_at_field": "thoi_gian_cap_nhat",
+  "dimension_columns": [
+    "nhom_don_vi",
+    "quy_danh_gia"
+  ],
+  "metric_columns": [
+    "muc_dat_numeric"
+  ],
+  "suggested_visualizations": [],
+  "is_existing_table_match": false,
+  "column_mapping": {},
+  "new_columns": [],
+  "fallback_used": true,
+  "reasoning": "Tài liệu nhị phân/văn bản '02-10-2026 qd-khenthuongnh25-26_k48.signed.pdf' được định tuyến sang ingest_bronze để bóc tách nội dung."
+}

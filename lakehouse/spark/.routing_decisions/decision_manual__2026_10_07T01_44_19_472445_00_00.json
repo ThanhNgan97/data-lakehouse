@@ -1,0 +1,25 @@
+{
+  "dataset_domain": "generic",
+  "dataset_entity": "02_10_2026_qd_khenthuongnh25_26_k48_signed_pdf",
+  "route_target": "generic_dynamic",
+  "registered_dataset_id": null,
+  "target_silver_table": "lakehouse.silver.02_10_2026_qd_khenthuongnh25_26_k48_signed_pdf",
+  "target_quarantine_table": "lakehouse.silver.02_10_2026_qd_khenthuongnh25_26_k48_signed_pdf_quarantine",
+  "target_gold_table": "lakehouse.gold.02_10_2026_qd_khenthuongnh25_26_k48_signed_pdf_summary",
+  "business_keys": [
+    "file_content"
+  ],
+  "source_updated_at_field": null,
+  "dimension_columns": [
+    "file_content",
+    "checksum"
+  ],
+  "metric_columns": [],
+  "suggested_visualizations": [],
+  "is_existing_table_match": false,
+  "column_mapping": {},
+  "new_columns": [],
+  "fallback_used": true,
+  "extracted_json_path": null,
+  "reasoning": "Gemini Doc Error: 503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.', 'status': 'UNAVAILABLE'}}. Tự động suy luận Business Keys=['file_content'], Metrics=[]."
+}

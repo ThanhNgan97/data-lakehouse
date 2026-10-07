@@ -1,0 +1,40 @@
+{
+  "dataset_domain": "education",
+  "dataset_entity": "student_awards_k48",
+  "route_target": "generic_dynamic",
+  "registered_dataset_id": null,
+  "target_silver_table": "lakehouse.silver.student_awards_k48",
+  "target_quarantine_table": "lakehouse.silver.student_awards_k48_quarantine",
+  "target_gold_table": "lakehouse.gold.student_awards_k48_summary",
+  "business_keys": [
+    "ma_sv"
+  ],
+  "source_updated_at_field": null,
+  "dimension_columns": [
+    "lop",
+    "don_vi",
+    "xep_loai",
+    "nganh",
+    "chuyen_nganh"
+  ],
+  "metric_columns": [
+    "so_tcdk",
+    "diem_tb",
+    "diem_tbrl"
+  ],
+  "suggested_visualizations": [
+    {
+      "chart_type": "bar",
+      "x_axis_or_dimension": "lop",
+      "y_axis_or_metric": "so_tcdk",
+      "aggregation": "AVG",
+      "title": "Trung bình so_tcdk theo lop"
+    }
+  ],
+  "is_existing_table_match": false,
+  "column_mapping": {},
+  "new_columns": [],
+  "fallback_used": false,
+  "extracted_json_path": "/opt/airflow/spark/.extracted_tables/student_awards_k48_1791337973.json",
+  "reasoning": "Gemini đọc tài liệu '02-10-2026 qd-khenthuongnh25-26_k48.signed.pdf': bóc tách thành công 119 dòng dữ liệu bảng, định tuyến sang generic_dynamic."
+}

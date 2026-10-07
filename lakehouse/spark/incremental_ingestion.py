@@ -15,6 +15,9 @@ Bronze mechanics remain delegated to their existing specialized components.
 
 from __future__ import annotations
 
+import hashlib
+import json
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -42,6 +45,52 @@ STATUS_NO_CHANGE = "NO_CHANGE"
 FetchPayload = Callable[..., dict[str, Any]]
 IngestPayload = Callable[..., IngestionResult]
 
+
+def logical_batch_id(
+    dataset_id: str,
+    checkpoint_before: CheckpointState | None,
+) -> str:
+    """Return a stable batch id for one safe source checkpoint."""
+    if (
+        not isinstance(dataset_id, str)
+        or not dataset_id.strip()
+    ):
+        raise ValueError(
+            "dataset_id must be a non-empty string"
+        )
+
+    if checkpoint_before is None:
+        identity = {
+            "dataset_id": dataset_id,
+            "strategy_type": None,
+            "checkpoint_payload": None,
+        }
+    else:
+        if checkpoint_before.dataset_id != dataset_id:
+            raise ValueError(
+                "checkpoint dataset does not match dataset_id"
+            )
+
+        identity = {
+            "dataset_id": dataset_id,
+            "strategy_type": checkpoint_before.strategy_type,
+            "checkpoint_payload": (
+                checkpoint_before.checkpoint_payload
+            ),
+        }
+
+    canonical = json.dumps(
+        identity,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+    digest = hashlib.sha256(
+        canonical.encode("utf-8")
+    ).hexdigest()[:20]
+
+    return f"airflow_api_{digest}"
 
 class CheckpointStrategyMismatchError(RuntimeError):
     """Stored checkpoint strategy disagrees with current dataset config."""

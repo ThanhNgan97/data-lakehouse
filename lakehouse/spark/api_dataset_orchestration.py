@@ -30,6 +30,7 @@ from incremental_ingestion import (
     run_incremental_ingestion,
 )
 from bronze_writer import read_parquet_object
+from checkpoint_store import PostgresCheckpointStore
 from nessie_catalog_utils import use_main
 from spark_bronze_to_silver import get_spark_session
 
@@ -160,6 +161,25 @@ def _checkpoint_payload(state) -> str:
     )
 
 
+def _latest_committed_batch_id(
+    dataset_id: str,
+) -> str:
+    state = PostgresCheckpointStore().load(
+        dataset_id
+    )
+
+    if state is None:
+        raise RuntimeError(
+            "checkpoint is missing for committed batch"
+        )
+
+    if not state.last_batch_id:
+        raise RuntimeError(
+            "checkpoint has no committed batch_id"
+        )
+
+    return state.last_batch_id
+
 def command_api_preflight(
     config: ApiDatasetConfig,
     run_id: str,
@@ -211,11 +231,6 @@ def command_ingest_bronze(
     config: ApiDatasetConfig,
     run_id: str,
 ):
-    batch_id = deterministic_batch_id(
-        config.dataset,
-        run_id,
-    )
-
     spark = get_spark_session()
     spark.sparkContext.setLogLevel("WARN")
 
@@ -224,7 +239,6 @@ def command_ingest_bronze(
             spark,
             source_api_url(config),
             dataset=config.dataset,
-            batch_id=batch_id,
             api_key=_api_key(),
             page_limit=500,
             timeout_seconds=30,
@@ -313,9 +327,8 @@ def command_validate_bronze(
     config: ApiDatasetConfig,
     run_id: str,
 ) -> None:
-    batch_id = deterministic_batch_id(
-        config.dataset,
-        run_id,
+    batch_id = _latest_committed_batch_id(
+        config.dataset
     )
     object_key = (
         f"{config.bronze_prefix}"
@@ -395,9 +408,8 @@ def command_process_silver(
     config: ApiDatasetConfig,
     run_id: str,
 ) -> None:
-    batch_id = deterministic_batch_id(
-        config.dataset,
-        run_id,
+    batch_id = _latest_committed_batch_id(
+        config.dataset
     )
     processor = _load_callable(
         str(config.silver_processor)

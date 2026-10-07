@@ -7,8 +7,7 @@ qua Nessie (branch / merge / tag) trong các pipeline Spark.
 
 [CẬP NHẬT theo Yêu cầu 4] check_quality_silver() bổ sung 2 kiểm tra mới:
   - Trùng khóa nghiệp vụ (ma_chi_tieu, quy_danh_gia): phát hiện lỗi ingest lặp
-    cho cùng 1 kỳ (khác với checksum trùng ở chỗ: đây là trùng logic, không
-    nhất thiết trùng checksum).
+    cho cùng một kỳ đánh giá.
   - quy_danh_gia = 'UNKNOWN_KY': dữ liệu không xác định được kỳ đánh giá từ
     nội dung file (xem spark_ingest_bronze.py) -> KHÔNG merge vào main, giữ
     branch để admin kiểm tra thủ công qua CatalogHistoryTimeline.jsx.
@@ -116,10 +115,9 @@ def check_quality_silver(spark, table_name: str):
     Kiểm tra chất lượng dữ liệu tối thiểu cho bảng Silver TRÊN BRANCH hiện tại:
       1. Bảng phải có ít nhất 1 dòng dữ liệu (không rỗng)
       2. Không có bản ghi thiếu ma_chi_tieu hoặc ket_qua_he_thong (NULL)
-      3. Không có checksum_sha256 bị trùng lặp
-      4. [MỚI] Không có tổ hợp (ma_chi_tieu, quy_danh_gia) bị trùng -> nghi ngờ
+      3. Không có tổ hợp (ma_chi_tieu, quy_danh_gia) bị trùng -> nghi ngờ
          ingest lặp cho cùng 1 kỳ đánh giá.
-      5. [MỚI] Không còn bản ghi nào có quy_danh_gia = 'UNKNOWN_KY' -> không
+      4. Không còn bản ghi nào có quy_danh_gia = 'UNKNOWN_KY' -> không
          xác định được kỳ đánh giá từ nội dung file nguồn, cần admin xử lý
          thủ công trước khi cho phép merge vào main.
     Raise DataQualityError nếu bất kỳ điều kiện nào không đạt.
@@ -137,14 +135,6 @@ def check_quality_silver(spark, table_name: str):
     if null_key_rows > 0:
         raise DataQualityError(
             f"Phát hiện {null_key_rows} bản ghi thiếu ma_chi_tieu hoặc ket_qua_he_thong."
-        )
-
-    total_checksum = df.select("checksum_sha256").count()
-    distinct_checksum = df.select("checksum_sha256").distinct().count()
-    if total_checksum != distinct_checksum:
-        dup_count = total_checksum - distinct_checksum
-        raise DataQualityError(
-            f"Phát hiện {dup_count} bản ghi có checksum_sha256 bị trùng lặp."
         )
 
     # [MỚI - Yêu cầu 4] Khóa nghiệp vụ thật sự là (ma_chi_tieu, quy_danh_gia)
@@ -171,7 +161,7 @@ def check_quality_silver(spark, table_name: str):
         )
 
     print(f"✅ Dữ liệu đạt chất lượng: {total_rows} dòng, không NULL khoá chính, "
-          f"không trùng checksum, không trùng (ma_chi_tieu, quy_danh_gia), "
+          f"không trùng (ma_chi_tieu, quy_danh_gia), "
           f"không còn kỳ đánh giá UNKNOWN_KY.")
     return True
 

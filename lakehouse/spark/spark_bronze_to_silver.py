@@ -107,7 +107,6 @@ def init_silver_table_if_needed(spark, branch_name="main"):
             hanh_dong_khac_phuc STRING,
             minh_chung_type STRING,
             minh_chung_path STRING,
-            checksum_sha256 STRING,
             thoi_gian_ingest_silver TIMESTAMP
         ) USING iceberg
         PARTITIONED BY (quy_danh_gia)
@@ -147,6 +146,9 @@ def init_silver_table_if_needed(spark, branch_name="main"):
             if col_name not in existing_columns:
                 print(f"🔧 Đang bổ sung cột '{col_name}' vào bảng {SILVER_TABLE}...")
                 spark.sql(f"ALTER TABLE {SILVER_TABLE} ADD COLUMN {col_name} {col_type}")
+        if "checksum_sha256" in existing_columns:
+            print(f"Removing technical column 'checksum_sha256' from {SILVER_TABLE}...")
+            spark.sql(f"ALTER TABLE {SILVER_TABLE} DROP COLUMN checksum_sha256")
     except Exception:
         pass
 
@@ -241,7 +243,6 @@ def run_bronze_to_silver(spark, run_id=""):
             StructField("hanh_dong_khac_phuc", StringType(), True),
             StructField("minh_chung_type", StringType(), True),
             StructField("minh_chung_path", StringType(), True),
-            StructField("checksum_sha256", StringType(), True)
         ])
         
         df_bronze = spark.read.schema(bronze_schema).parquet(bronze_parquet_path)
@@ -270,19 +271,18 @@ def run_bronze_to_silver(spark, run_id=""):
                 t.hanh_dong_khac_phuc = s.hanh_dong_khac_phuc,
                 t.minh_chung_type = s.minh_chung_type,
                 t.minh_chung_path = s.minh_chung_path,
-                t.checksum_sha256 = s.checksum_sha256,
                 t.thoi_gian_ingest_silver = s.thoi_gian_ingest_silver
             WHEN NOT MATCHED THEN
               INSERT (
                 file_nguon, ma_chi_tieu, nhom_don_vi, quy_danh_gia, noi_dung_muc_tieu,
                 dinh_ky_thu_thap, muc_dang_ky, muc_dang_ky_numeric, muc_dat, muc_dat_numeric,
-                ket_qua_he_thong, nguyen_nhan, hanh_dong_khac_phuc, minh_chung_type, minh_chung_path, checksum_sha256,
+                ket_qua_he_thong, nguyen_nhan, hanh_dong_khac_phuc, minh_chung_type, minh_chung_path,
                 thoi_gian_ingest_silver
               )
               VALUES (
                 s.file_nguon, s.ma_chi_tieu, s.nhom_don_vi, s.quy_danh_gia, s.noi_dung_muc_tieu,
                 s.dinh_ky_thu_thap, s.muc_dang_ky, s.muc_dang_ky_numeric, s.muc_dat, s.muc_dat_numeric,
-                s.ket_qua_he_thong, s.nguyen_nhan, s.hanh_dong_khac_phuc, s.minh_chung_type, s.minh_chung_path, s.checksum_sha256,
+                s.ket_qua_he_thong, s.nguyen_nhan, s.hanh_dong_khac_phuc, s.minh_chung_type, s.minh_chung_path,
                 s.thoi_gian_ingest_silver
               )
         """)

@@ -12,7 +12,6 @@ TẦNG BRONZE - AI & NATIVE HYBRID INGESTION
 import io
 import os
 import sys
-import hashlib
 import re
 import zipfile
 import xml.etree.ElementTree as ET
@@ -89,10 +88,6 @@ def get_s3_client():
         "s3", endpoint_url=MINIO_ENDPOINT,
         aws_access_key_id=MINIO_ACCESS_KEY, aws_secret_access_key=MINIO_SECRET_KEY,
     )
-
-
-def generate_checksum(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def clean_status_text(text: str) -> str:
@@ -381,10 +376,6 @@ def process_single_file(s3_client, file_key):
         mdat_clean = str(m_dat).strip().lower()
         kq_clean = clean_status_text(kq)
 
-        checksum = generate_checksum(
-            f"{file_key}_{ma_clean}_{quy_clean}_{dk_clean}_{mdk_clean}_{mdat_clean}_{kq_clean}"
-        )
-
         file_extracted.append({
             "file_nguon": os.path.basename(file_key),
             "ma_chi_tieu": ma_str,
@@ -401,7 +392,6 @@ def process_single_file(s3_client, file_key):
             "hanh_dong_khac_phuc": str(hanh_dong).strip(),
             "minh_chung_type": ext.replace(".", "").lower(),
             "minh_chung_path": file_key,
-            "checksum_sha256": checksum,
         })
 
     is_success = bool(raw_rows)

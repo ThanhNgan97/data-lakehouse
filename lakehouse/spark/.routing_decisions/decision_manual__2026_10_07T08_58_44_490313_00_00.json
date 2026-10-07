@@ -1,0 +1,54 @@
+{
+  "dataset_domain": "education",
+  "dataset_entity": "student_tuition",
+  "route_target": "generic_dynamic",
+  "registered_dataset_id": null,
+  "target_silver_table": "lakehouse.silver.student_tuition",
+  "target_quarantine_table": "lakehouse.silver.student_tuition_quarantine",
+  "target_gold_table": "lakehouse.gold.student_tuition_summary",
+  "business_keys": [
+    "student_id",
+    "academic_year",
+    "semester",
+    "paid_at"
+  ],
+  "source_updated_at_field": "paid_at",
+  "dimension_columns": [
+    "student_id",
+    "student_name",
+    "faculty",
+    "academic_year",
+    "semester"
+  ],
+  "metric_columns": [
+    "amount_paid"
+  ],
+  "suggested_visualizations": [
+    {
+      "chart_type": "bar",
+      "x_axis_or_dimension": "faculty",
+      "y_axis_or_metric": "amount_paid",
+      "aggregation": "SUM",
+      "title": "Total Tuition Paid by Faculty"
+    },
+    {
+      "chart_type": "line",
+      "x_axis_or_dimension": "paid_at",
+      "y_axis_or_metric": "amount_paid",
+      "aggregation": "SUM",
+      "title": "Total Tuition Paid Over Time"
+    },
+    {
+      "chart_type": "bar",
+      "x_axis_or_dimension": "academic_year",
+      "y_axis_or_metric": "amount_paid",
+      "aggregation": "AVG",
+      "title": "Average Tuition Paid per Academic Year"
+    }
+  ],
+  "is_existing_table_match": false,
+  "column_mapping": {},
+  "new_columns": [],
+  "fallback_used": false,
+  "reasoning": "The input dataset 'dynamic_sample_tuition.json' contains student tuition payment records. This entity (student_tuition) does not semantically match any of the existing Silver tables ('kpi_cusc_master', 'learning_outcomes', 'teaching_progress'). Therefore, it is identified as a new, distinct entity requiring a new Silver table. The business key is a composite of student_id, academic_year, semester, and paid_at to uniquely identify each payment transaction."
+}

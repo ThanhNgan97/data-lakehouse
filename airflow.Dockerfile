@@ -6,7 +6,9 @@ USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
     default-jdk-headless \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /home/airflow/.ivy2/cache /home/airflow/.ivy2/jars \
+    && chown -R airflow:root /home/airflow/.ivy2
 
 ENV JAVA_HOME=/usr/lib/jvm/default-java
 
@@ -20,4 +22,6 @@ RUN pip install --no-cache-dir \
     pdfplumber \
     boto3 \
     psycopg2-binary \
+    openpyxl \
+    xlrd \
     google-genai

@@ -609,14 +609,40 @@ Trả về duy nhất định dạng JSON:
 }
 """
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[file_part, prompt],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                temperature=0.0
-            )
-        )
+        # Thử lần lượt các mô hình Gemini với cơ chế exponential backoff
+        candidate_models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+        response = None
+        last_error = None
+
+        for model_name in candidate_models:
+            for attempt in range(3):
+                try:
+                    response = client.models.generate_content(
+                        model=model_name,
+                        contents=[file_part, prompt],
+                        config=types.GenerateContentConfig(
+                            response_mime_type="application/json",
+                            temperature=0.0
+                        )
+                    )
+                    if response and response.text:
+                        break
+                except Exception as api_err:
+                    last_error = api_err
+                    err_str = str(api_err).lower()
+                    if any(k in err_str for k in ["503", "429", "unavailable", "high demand", "resource_exhausted", "quota"]):
+                        wait_sec = 3 * (2 ** attempt)
+                        print(f"⚠️ Gemini API tạm thời quá tải ({model_name}). Đang thử lại sau {wait_sec}s (Lần {attempt+1}/3)...")
+                        time.sleep(wait_sec)
+                        continue
+                    else:
+                        break
+            if response and response.text:
+                break
+
+        if not response or not response.text:
+            raise RuntimeError(f"Tất cả các mô hình Gemini đều quá tải hoặc không khả dụng: {last_error}")
+
         res_data = json.loads(response.text)
 
         if res_data.get("is_kpi_cusc", False):
@@ -711,9 +737,10 @@ Trả về duy nhất định dạng JSON:
         )
 
     except Exception as exc:
-        print(f"⚠️ [Document Extractor Error] Lỗi khi gọi Gemini đọc tài liệu: {exc}")
-        dummy_cols = ["file_content", "checksum"]
-        return profile_with_rule_fallback(dummy_cols, [], suggested_name=filename, reason=f"Gemini Doc Error: {exc}")
+        print(f"❌ [Document Extractor Error] Lỗi khi bóc tách tài liệu '{filename}': {exc}")
+        raise RuntimeError(
+            f"Không thể bóc tách bảng từ tài liệu '{filename}' qua Gemini AI ({exc}). Vui lòng thử lại sau vài giây!"
+        )
 
 
 def route_from_file_path(file_path: Union[str, Path]) -> RoutingDecision:

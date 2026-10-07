@@ -283,6 +283,8 @@ with DAG(
     ai_semantic_profiler = PythonOperator(
         task_id="ai_semantic_profiler",
         python_callable=run_ai_semantic_profiling,
+        retries=3,
+        retry_delay=timedelta(seconds=5),
     )
 
     # 2. Branch Decision

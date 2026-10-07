@@ -122,6 +122,26 @@ class ApiDatasetPipelineDagTest(
             )
         )
 
+    def test_ingest_bronze_uses_no_change_skip_code(
+        self,
+    ):
+        task = self.dag.get_task(
+            "ingest_bronze"
+        )
+
+        skip_codes = task.skip_on_exit_code
+
+        if isinstance(skip_codes, int):
+            self.assertEqual(
+                skip_codes,
+                99,
+            )
+        else:
+            self.assertIn(
+                99,
+                skip_codes,
+            )
+
     def test_each_task_invokes_generic_runner(
         self,
     ):

@@ -51,6 +51,7 @@ else:
 
 PG_USER           = os.environ.get("PG_USER") or "postgres"
 PG_PASSWORD       = os.environ.get("PG_PASSWORD",       "240203")
+PG_DATABASE       = os.environ.get("PG_DATABASE") or "university_db"
 PG_MAINTENANCE_DB = os.environ.get("PG_MAINTENANCE_DB") or "postgres"
 NESSIE_DB         = os.environ.get("NESSIE_DB") or "nessie_db"
 

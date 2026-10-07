@@ -22,10 +22,12 @@ from api_dataset_registry import (
     ApiDatasetConfig,
     get_dataset_config,
 )
-from api_ingestion import (
-    METADATA_COLUMNS,
-    fetch_http_api_payload,
-    ingest_http_api_to_bronze,
+from api_ingestion import METADATA_COLUMNS
+from incremental_ingestion import (
+    STATUS_COMMITTED,
+    STATUS_NO_CHANGE,
+    fetch_incremental_payload,
+    run_incremental_ingestion,
 )
 from bronze_writer import read_parquet_object
 from nessie_catalog_utils import use_main
@@ -139,13 +141,32 @@ def _print_primitive_result(
             )
 
 
+def _checkpoint_version(state) -> str:
+    if state is None:
+        return "NONE"
+
+    return str(state.version)
+
+
+def _checkpoint_payload(state) -> str:
+    if state is None:
+        return "NONE"
+
+    return json.dumps(
+        state.checkpoint_payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
 def command_api_preflight(
     config: ApiDatasetConfig,
     run_id: str,
 ) -> None:
     url = source_api_url(config)
 
-    payload = fetch_http_api_payload(
+    result = fetch_incremental_payload(
         url,
         dataset=config.dataset,
         api_key=_api_key(),
@@ -153,30 +174,43 @@ def command_api_preflight(
         timeout_seconds=30,
     )
 
-    record_count = len(payload["data"])
-
-    if record_count <= 0:
-        raise RuntimeError(
-            "API preflight returned no records"
-        )
-
     print(f"DATASET_ID={config.dataset}")
     print(f"SCHEMA_VERSION={config.schema_version}")
     print(f"SOURCE_API_PATH={config.source_api_path}")
     print("SOURCE_ENDPOINT_REACHABLE=True")
-    print(f"SOURCE_RECORD_COUNT={record_count}")
+    print(
+        f"SOURCE_RECORD_COUNT="
+        f"{result.fetched_count}"
+    )
+    print(
+        "UPDATED_AFTER="
+        + (result.updated_after or "NONE")
+    )
+    print(
+        "CHECKPOINT_BEFORE_VERSION="
+        + _checkpoint_version(
+            result.checkpoint_before
+        )
+    )
+    print(
+        "CHECKPOINT_BEFORE_PAYLOAD="
+        + _checkpoint_payload(
+            result.checkpoint_before
+        )
+    )
     print(
         "SOURCE_SYSTEM="
-        + str(payload.get("source_system"))
+        + str(result.payload.get("source_system"))
     )
     print(f"AIRFLOW_RUN_ID={run_id}")
+    print("INCREMENTAL_PREFLIGHT=True")
     print("API_PREFLIGHT_PASS=True")
 
 
 def command_ingest_bronze(
     config: ApiDatasetConfig,
     run_id: str,
-) -> None:
+):
     batch_id = deterministic_batch_id(
         config.dataset,
         run_id,
@@ -186,11 +220,10 @@ def command_ingest_bronze(
     spark.sparkContext.setLogLevel("WARN")
 
     try:
-        result = ingest_http_api_to_bronze(
+        result = run_incremental_ingestion(
             spark,
             source_api_url(config),
             dataset=config.dataset,
-            ingestion_mode="FULL_DEMO",
             batch_id=batch_id,
             api_key=_api_key(),
             page_limit=500,
@@ -198,24 +231,83 @@ def command_ingest_bronze(
         )
 
         print(f"DATASET_ID={config.dataset}")
-        print(f"BRONZE_BATCH_ID={result.batch_id}")
-        print(f"BRONZE_OBJECT_KEY={result.object_key}")
+        print(
+            f"INGESTION_STATUS={result.status}"
+        )
+        print(
+            f"SOURCE_RECORD_COUNT="
+            f"{result.fetched_count}"
+        )
+        print(
+            "UPDATED_AFTER="
+            + (result.updated_after or "NONE")
+        )
+        print(
+            "CHECKPOINT_BEFORE_VERSION="
+            + _checkpoint_version(
+                result.checkpoint_before
+            )
+        )
+        print(
+            "CHECKPOINT_BEFORE_PAYLOAD="
+            + _checkpoint_payload(
+                result.checkpoint_before
+            )
+        )
+        print(
+            "CHECKPOINT_AFTER_VERSION="
+            + _checkpoint_version(
+                result.checkpoint_after
+            )
+        )
+        print(
+            "CHECKPOINT_AFTER_PAYLOAD="
+            + _checkpoint_payload(
+                result.checkpoint_after
+            )
+        )
+
+        if result.status == STATUS_NO_CHANGE:
+            print("BRONZE_WRITTEN=False")
+            print("BRONZE_READBACK_COUNT=0")
+            print("CHECKPOINT_ADVANCED=False")
+            print("INGEST_BRONZE_NO_CHANGE=True")
+            return result
+
+        if result.status != STATUS_COMMITTED:
+            raise RuntimeError(
+                "Unexpected incremental ingestion status: "
+                + repr(result.status)
+            )
+
+        bronze = result.bronze_result
+
+        if bronze is None:
+            raise RuntimeError(
+                "COMMITTED result missing Bronze evidence"
+            )
+
+        print(f"BRONZE_BATCH_ID={bronze.batch_id}")
+        print(f"BRONZE_OBJECT_KEY={bronze.object_key}")
         print(
             f"BRONZE_INPUT_COUNT="
-            f"{result.input_count}"
+            f"{bronze.input_count}"
         )
         print(
             f"BRONZE_DATAFRAME_COUNT="
-            f"{result.dataframe_count}"
+            f"{bronze.dataframe_count}"
         )
         print(
             f"BRONZE_READBACK_COUNT="
-            f"{result.readback_count}"
+            f"{bronze.readback_count}"
         )
+        print("BRONZE_WRITTEN=True")
+        print("CHECKPOINT_ADVANCED=True")
         print("INGEST_BRONZE_PASS=True")
+
+        return result
     finally:
         spark.stop()
-
 
 def command_validate_bronze(
     config: ApiDatasetConfig,
@@ -731,10 +823,18 @@ def main() -> None:
         + config.dataset
     )
 
-    COMMANDS[args.command](
+    result = COMMANDS[args.command](
         config,
         args.run_id,
     )
+
+    if (
+        args.command == "ingest-bronze"
+        and getattr(result, "status", None)
+        == STATUS_NO_CHANGE
+    ):
+        print("ORCHESTRATION_SKIP_EXIT_CODE=99")
+        raise SystemExit(99)
 
 
 if __name__ == "__main__":

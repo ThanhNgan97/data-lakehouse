@@ -18,6 +18,7 @@ import json
 import os
 import re
 import sys
+import time
 import unicodedata
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -114,6 +115,9 @@ class RoutingDecision(BaseModel):
     )
     fallback_used: bool = Field(
         False, description="True nếu phải sử dụng Rule-based Inferrer do AI không khả dụng"
+    )
+    extracted_json_path: Optional[str] = Field(
+        None, description="Đường dẫn file JSON đã bóc tách từ tài liệu phi cấu trúc (nếu có)"
     )
     reasoning: str = Field(
         description="Giải thích ngắn gọn lý do đưa ra quyết định định tuyến"
@@ -519,8 +523,201 @@ def route_from_json_string(json_str: str, source_name: str = "api_payload") -> R
     return route_dataset(parsed, source_name)
 
 
+def profile_and_extract_document_with_gemini(file_path: Path) -> RoutingDecision:
+    """Sử dụng Gemini Multimodal để đọc tài liệu (PDF, Word, Ảnh), xác định loại tài liệu
+    và bóc tách bảng thành JSON nếu không phải KPI CUSC."""
+    filename = file_path.name
+    suffix = file_path.suffix.lower()
+
+    # Kiểm tra nhanh: Nếu tên file chứa từ khóa rõ ràng của KPI CUSC
+    fname_lower = filename.lower()
+    if any(kw in fname_lower for kw in ["kpi_cusc", "cusc_kpi", "danh_gia_muc_tieu_cusc"]):
+        return RoutingDecision(
+            dataset_domain="kpi",
+            dataset_entity="kpi_cusc_master",
+            route_target="legacy_kpi",
+            target_silver_table="lakehouse.silver.kpi_cusc_master",
+            target_quarantine_table="lakehouse.silver.kpi_cusc_quarantine",
+            target_gold_table="lakehouse.gold.kpi_tong_hop_don_vi",
+            business_keys=["ma_chi_tieu", "quy_danh_gia"],
+            source_updated_at_field="thoi_gian_cap_nhat",
+            dimension_columns=["nhom_don_vi", "quy_danh_gia"],
+            metric_columns=["muc_dat_numeric"],
+            suggested_visualizations=[],
+            fallback_used=False,
+            reasoning=f"Tài liệu '{filename}' được nhận diện là báo cáo KPI CUSC, định tuyến sang legacy_kpi."
+        )
+
+    api_key = GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "")
+    if not api_key:
+        return RoutingDecision(
+            dataset_domain="unstructured",
+            dataset_entity="kpi_cusc_master",
+            route_target="legacy_kpi",
+            target_silver_table="lakehouse.silver.kpi_cusc_master",
+            target_quarantine_table="lakehouse.silver.kpi_cusc_quarantine",
+            target_gold_table="lakehouse.gold.kpi_tong_hop_don_vi",
+            business_keys=["ma_chi_tieu", "quy_danh_gia"],
+            fallback_used=True,
+            reasoning="Thiếu GEMINI_API_KEY để phân tích tài liệu phi cấu trúc."
+        )
+
+    try:
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=api_key)
+        with open(file_path, "rb") as f:
+            file_bytes = f.read()
+
+        mime_map = {
+            ".pdf": "application/pdf",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".png": "image/png"
+        }
+        mime_type = mime_map.get(suffix, "application/pdf")
+        file_part = types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
+
+        prompt = """Bạn là một chuyên gia AI Data Architect cho Data Lakehouse.
+Hãy đọc kỹ tài liệu đính kèm này và thực hiện các yêu cầu:
+1. Xác định đây có phải là báo cáo đánh giá KPI/mục tiêu của CUSC không? (Các bảng có Mã chỉ tiêu, Mức đăng ký, Mức đạt, Kết quả hệ thống).
+   - Nếu ĐÚNG là KPI CUSC: Đặt "is_kpi_cusc": true.
+   - Nếu KHÔNG PHẢI KPI CUSC (ví dụ: Quyết định khen thưởng, Bảng điểm sinh viên, Danh sách học phí, Bảng lương, v.v.): Đặt "is_kpi_cusc": false.
+2. Nếu "is_kpi_cusc": false:
+   - Trích xuất toàn bộ dữ liệu bảng trong tài liệu thành danh sách các dòng dữ liệu.
+   - Chuẩn hóa tên các cột thành snake_case không dấu (ví dụ: stt, ma_sv, ho_va_ten, ngay_sinh, lop, don_vi, so_tcdk, diem_tb, diem_tbrl, xep_loai, nganh, chuyen_nganh).
+   - Xác định:
+     * dataset_domain: education, finance, hr, generic...
+     * dataset_entity: Tên thực thể chuẩn snake_case tiếng Anh (ví dụ: student_awards_k48, student_scores, tuition_payments...)
+     * business_keys: Danh sách cột khóa chính định danh (ví dụ: ["ma_sv"])
+     * dimension_columns: Các cột phân loại (ví dụ: ["lop", "xep_loai", "nganh"])
+     * metric_columns: Các cột số liệu định lượng (ví dụ: ["diem_tb", "diem_tbrl", "so_tcdk"])
+     * reasoning: Tóm tắt ngắn gọn nội dung tài liệu.
+
+Trả về duy nhất định dạng JSON:
+{
+  "is_kpi_cusc": false,
+  "dataset_domain": "education",
+  "dataset_entity": "student_awards_k48",
+  "columns": ["stt", "ma_sv", "ho_va_ten", "ngay_sinh", "lop", "don_vi", "so_tcdk", "diem_tb", "diem_tbrl", "xep_loai", "nganh"],
+  "business_keys": ["ma_sv"],
+  "dimension_columns": ["lop", "don_vi", "xep_loai", "nganh"],
+  "metric_columns": ["so_tcdk", "diem_tb", "diem_tbrl"],
+  "reasoning": "...",
+  "records": [ ...toàn bộ các dòng dữ liệu dạng dict hoặc array các giá trị... ]
+}
+"""
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[file_part, prompt],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.0
+            )
+        )
+        res_data = json.loads(response.text)
+
+        if res_data.get("is_kpi_cusc", False):
+            return RoutingDecision(
+                dataset_domain="kpi",
+                dataset_entity="kpi_cusc_master",
+                route_target="legacy_kpi",
+                target_silver_table="lakehouse.silver.kpi_cusc_master",
+                target_quarantine_table="lakehouse.silver.kpi_cusc_quarantine",
+                target_gold_table="lakehouse.gold.kpi_tong_hop_don_vi",
+                business_keys=["ma_chi_tieu", "quy_danh_gia"],
+                source_updated_at_field="thoi_gian_cap_nhat",
+                dimension_columns=["nhom_don_vi", "quy_danh_gia"],
+                metric_columns=["muc_dat_numeric"],
+                suggested_visualizations=[],
+                fallback_used=False,
+                reasoning=f"Gemini phân tích nội dung '{filename}': xác nhận là báo cáo KPI CUSC."
+            )
+
+        raw_records = res_data.get("records", [])
+        columns = [to_snake_case(c) for c in res_data.get("columns", [])]
+
+        if not raw_records:
+            return RoutingDecision(
+                dataset_domain="unstructured",
+                dataset_entity=to_snake_case(filename.rsplit(".", 1)[0]),
+                route_target="legacy_kpi",
+                target_silver_table="lakehouse.silver.kpi_cusc_master",
+                target_quarantine_table="lakehouse.silver.kpi_cusc_quarantine",
+                target_gold_table="lakehouse.gold.kpi_tong_hop_don_vi",
+                business_keys=["ma_chi_tieu", "quy_danh_gia"],
+                fallback_used=True,
+                reasoning=f"Không tìm thấy bảng dữ liệu trong tài liệu '{filename}'."
+            )
+
+        # Chuẩn hóa raw_records thành list of dicts
+        normalized_records = []
+        for item in raw_records:
+            if isinstance(item, dict):
+                normalized_records.append({to_snake_case(k): v for k, v in item.items()})
+            elif isinstance(item, list) and columns:
+                normalized_records.append(dict(zip(columns, item)))
+
+        # Lưu records ra file JSON để Spark Dynamic Processor đọc trực tiếp
+        extracted_dir = Path("/opt/airflow/spark/.extracted_tables")
+        try:
+            extracted_dir.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            extracted_dir = Path("./lakehouse/spark/.extracted_tables")
+            extracted_dir.mkdir(parents=True, exist_ok=True)
+
+        entity = to_snake_case(res_data.get("dataset_entity", filename.rsplit(".", 1)[0])) or "extracted_document"
+        json_file_path = str(extracted_dir / f"{entity}_{int(time.time())}.json")
+        with open(json_file_path, "w", encoding="utf-8") as jf:
+            json.dump(normalized_records, jf, ensure_ascii=False, indent=2)
+
+        print(f"📄 [Document Extractor] Đã bóc tách thành công {len(normalized_records)} dòng từ PDF vào '{json_file_path}'")
+
+        dims = [to_snake_case(d) for d in res_data.get("dimension_columns", [])]
+        mets = [to_snake_case(m) for m in res_data.get("metric_columns", [])]
+        b_keys = [to_snake_case(k) for k in res_data.get("business_keys", [])]
+        if not b_keys and normalized_records:
+            b_keys = [list(normalized_records[0].keys())[0]]
+
+        charts = []
+        if dims and mets:
+            charts.append(
+                SuggestedVisualization(
+                    chart_type="bar",
+                    x_axis_or_dimension=dims[0],
+                    y_axis_or_metric=mets[0],
+                    aggregation="AVG",
+                    title=f"Trung bình {mets[0]} theo {dims[0]}"
+                )
+            )
+
+        return RoutingDecision(
+            dataset_domain=res_data.get("dataset_domain", "education"),
+            dataset_entity=entity,
+            route_target="generic_dynamic",
+            target_silver_table=f"lakehouse.silver.{entity}",
+            target_quarantine_table=f"lakehouse.silver.{entity}_quarantine",
+            target_gold_table=f"lakehouse.gold.{entity}_summary",
+            business_keys=b_keys,
+            source_updated_at_field=None,
+            dimension_columns=dims,
+            metric_columns=mets,
+            suggested_visualizations=charts,
+            extracted_json_path=json_file_path,
+            fallback_used=False,
+            reasoning=f"Gemini đọc tài liệu '{filename}': bóc tách thành công {len(normalized_records)} dòng dữ liệu bảng, định tuyến sang generic_dynamic."
+        )
+
+    except Exception as exc:
+        print(f"⚠️ [Document Extractor Error] Lỗi khi gọi Gemini đọc tài liệu: {exc}")
+        dummy_cols = ["file_content", "checksum"]
+        return profile_with_rule_fallback(dummy_cols, [], suggested_name=filename, reason=f"Gemini Doc Error: {exc}")
+
+
 def route_from_file_path(file_path: Union[str, Path]) -> RoutingDecision:
-    """Định tuyến từ đường dẫn file trên đĩa (CSV, JSON)."""
+    """Định tuyến từ đường dẫn file trên đĩa (CSV, JSON, PDF, DOCX, Ảnh)."""
     path = Path(file_path)
     if not path.exists():
         raise FileNotFoundError(f"Không tìm thấy file: {file_path}")
@@ -543,29 +740,13 @@ def route_from_file_path(file_path: Union[str, Path]) -> RoutingDecision:
                     break
         return route_dataset(records, source_name=filename)
 
+    elif suffix in [".pdf", ".docx", ".doc", ".png", ".jpg", ".jpeg"]:
+        # Tự động đọc tài liệu bằng Gemini Multimodal để xác định loại tài liệu
+        return profile_and_extract_document_with_gemini(path)
+
     else:
-        # Nếu là file khác (.parquet, .docx, .pdf, .doc, ảnh), đoán sơ bộ qua tên file
+        # Nếu là file parquet hoặc file khác
         dummy_cols = ["file_content", "checksum"]
-        legacy_check = check_legacy_kpi_match(dummy_cols, filename)
-        if legacy_check:
-            return legacy_check
-        # Nếu là tài liệu phi cấu trúc (.pdf, .docx, .doc...), chuyển về kpi_flow (bronze ingest)
-        if any(filename.lower().endswith(ext) for ext in [".pdf", ".docx", ".doc", ".png", ".jpg", ".jpeg"]):
-            return RoutingDecision(
-                dataset_domain="unstructured",
-                dataset_entity="kpi_cusc_master",
-                route_target="legacy_kpi",
-                target_silver_table="lakehouse.silver.kpi_cusc_master",
-                target_quarantine_table="lakehouse.silver.kpi_cusc_quarantine",
-                target_gold_table="lakehouse.gold.kpi_tong_hop_don_vi",
-                business_keys=["ma_chi_tieu", "quy_danh_gia"],
-                source_updated_at_field="thoi_gian_cap_nhat",
-                dimension_columns=["nhom_don_vi", "quy_danh_gia"],
-                metric_columns=["muc_dat_numeric"],
-                suggested_visualizations=[],
-                fallback_used=True,
-                reasoning=f"Tài liệu nhị phân/văn bản '{filename}' được định tuyến sang ingest_bronze để bóc tách nội dung."
-            )
         return profile_with_rule_fallback(dummy_cols, [], suggested_name=filename)
 
 

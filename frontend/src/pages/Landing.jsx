@@ -267,7 +267,7 @@ const Landing = () => {
                     onClick={goToUpload}
                     className="inline-flex items-center justify-center gap-2.5 rounded-panel bg-cobalt-700 px-7 py-3.5 text-sm font-semibold text-white shadow-elevated transition hover:bg-cobalt-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-cobalt-600/20 sm:text-base"
                   >
-                    Tải lên dữ liệu
+                    Kết nối nguồn dữ liệu
                     <Upload className="h-5 w-5" />
                   </button>
                 </div>

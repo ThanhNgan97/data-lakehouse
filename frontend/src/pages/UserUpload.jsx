@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import UserTopNavigation from "../components/UserTopNavigation";
 import Icon from "../components/icons";
 import { Badge, Card } from "../components/ui";
 
@@ -159,7 +159,6 @@ const formatDuration = (seconds) => {
 };
 
 const UserUpload = () => {
-  const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -328,12 +327,6 @@ const UserUpload = () => {
         pollingRef.current = null;
       }
     }, 5000);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    navigate("/login");
   };
 
   const processFile = async (file) => {
@@ -509,59 +502,17 @@ const UserUpload = () => {
   const importProgress = importTotal
     ? Math.round(((importFinished + importInProgress * 0.5) / importTotal) * 100)
     : 0;
-  const username = localStorage.getItem("username") || "Người dùng";
-  const userInitials = username
-    .split(/[\s._-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "ND";
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F6F8FC] font-sans">
-      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto flex w-full max-w-[1920px] flex-wrap items-center justify-between gap-x-4 px-3 sm:px-5 md:flex-nowrap md:px-6 lg:px-7 xl:px-8 2xl:px-10">
-          <button type="button" onClick={() => navigate("/")} className="flex h-[72px] shrink-0 items-center gap-3 text-left">
-            <img src="/CUSC Logo Series.png" alt="CUSC Logo" className="h-11 w-auto object-contain sm:h-12" />
-            <span className="hidden font-display text-base font-extrabold tracking-tight text-navy-950 xl:block">CUSC ANALYSIS</span>
-          </button>
-
-          <nav className="order-3 flex w-full items-center gap-1 overflow-x-auto border-t border-ink-100 py-1.5 md:order-none md:w-auto md:flex-1 md:justify-center md:border-0 md:py-0" aria-label="Điều hướng chính">
-            <button type="button" onClick={() => navigate("/")} className="flex h-11 shrink-0 items-center gap-2 rounded-lg px-3 text-xs font-semibold text-ink-500 transition hover:bg-ink-50 hover:text-navy-900 sm:text-sm">
-              <Icon name="home" className="h-[18px] w-[18px]" strokeWidth={2} /> Trang chủ
-            </button>
-            <button type="button" className="relative flex h-11 shrink-0 items-center gap-2 rounded-lg bg-cobalt-50 px-3 text-xs font-bold text-cobalt-700 sm:text-sm" aria-current="page">
-              <Icon name="uploadCloud" className="h-[18px] w-[18px]" strokeWidth={2} /> Tải file
-              <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-cobalt-600" />
-            </button>
-            <button type="button" onClick={() => navigate("/#data-sources")} className="flex h-11 shrink-0 items-center gap-2 rounded-lg px-3 text-xs font-semibold text-ink-500 transition hover:bg-ink-50 hover:text-navy-900 sm:text-sm">
-              <Icon name="api" className="h-[18px] w-[18px]" strokeWidth={2} /> API
-            </button>
-            <button type="button" onClick={() => navigate("/#data-sources")} className="flex h-11 shrink-0 items-center gap-2 rounded-lg px-3 text-xs font-semibold text-ink-500 transition hover:bg-ink-50 hover:text-navy-900 sm:text-sm">
-              <Icon name="database" className="h-[18px] w-[18px]" strokeWidth={2} /> Database
-            </button>
-            <button type="button" onClick={() => navigate("/#data-sources")} className="flex h-11 shrink-0 items-center gap-2 rounded-lg px-3 text-xs font-semibold text-ink-500 transition hover:bg-ink-50 hover:text-navy-900 sm:text-sm">
-              <Icon name="iot" className="h-[18px] w-[18px]" strokeWidth={2} /> IoT
-            </button>
-          </nav>
-
-          <div className="flex h-16 shrink-0 items-center gap-3">
-            <div className="flex items-center gap-2.5 border-r border-ink-100 pr-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-cobalt-600 text-xs font-extrabold text-white shadow-sm">{userInitials}</span>
-              <div className="hidden max-w-32 leading-tight lg:block">
-                <p className="truncate text-xs font-bold text-navy-950" title={username}>{username}</p>
-                <p className="mt-0.5 text-[10px] text-ink-400">Người dùng hệ thống</p>
-              </div>
-            </div>
-            <button onClick={handleLogout} className="flex items-center gap-2 rounded-lg bg-navy-950 px-3.5 py-2.5 text-xs font-bold text-white shadow-[0_8px_18px_-10px_rgba(15,23,42,0.8)] transition hover:-translate-y-0.5 hover:bg-rose-600 hover:shadow-[0_10px_20px_-10px_rgba(225,29,72,0.75)] sm:text-sm">
-              <Icon name="logOut" className="h-4 w-4" />
-              <span className="hidden min-[430px]:inline">Đăng xuất</span>
-            </button>
-          </div>
-        </div>
-      </header>
+      <UserTopNavigation />
 
       <main className="mx-auto w-full max-w-[1920px] flex-1 space-y-5 px-3 py-5 sm:px-5 sm:py-7 md:px-6 lg:space-y-7 lg:px-7 xl:px-8 2xl:px-10">
+        <div>
+          <p className="mb-1 text-xs font-semibold text-blue-700">Workspace nguồn dữ liệu</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Tải file</h1>
+          <p className="mt-2 text-sm text-slate-500">Tải file từ máy tính hoặc nhập từ URL, theo dõi tiến trình xử lý và xem báo cáo.</p>
+        </div>
         {/* ROW 1 — Upload + History */}
         <section className="grid grid-cols-1 items-stretch gap-5 xl:grid-cols-[7fr_13fr] xl:gap-6 2xl:gap-7">
           {/* 1. Upload Card */}

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff, User, Lock, AlertCircle } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Eye, EyeOff, User, Lock, AlertCircle } from "lucide-react";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:8000/api";
@@ -346,7 +346,15 @@ const Login = ({ setToken, setRole }) => {
       </section>
 
       <section className="flex min-h-[620px] w-full flex-col items-center justify-between bg-[#F8F9FF] px-5 py-8 sm:px-10 sm:py-10 lg:min-h-screen lg:w-[52%] lg:px-12 lg:py-12">
-        <div className="w-full" />
+        <div className="w-full max-w-[440px] pb-6">
+          <Link
+            to="/"
+            className="-ml-3 inline-flex min-h-11 items-center gap-2 rounded-control px-3 py-2 text-sm font-semibold text-cobalt-700 transition hover:bg-cobalt-50 hover:text-cobalt-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cobalt-500 focus-visible:ring-offset-2"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            <span>Về trang chủ</span>
+          </Link>
+        </div>
 
         <div className="my-auto w-full max-w-[440px] rounded-panel border border-white bg-white p-7 shadow-popover sm:p-9">
           <p className="font-data text-[11px] font-semibold uppercase tracking-[0.08em] text-cobalt-700">

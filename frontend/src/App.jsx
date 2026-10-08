@@ -10,6 +10,8 @@ import AdminDashboard from "./pages/AdminDashboard";
 import CatalogHistoryTimeline from "./pages/CatalogHistoryTimeline";
 import Login from "./pages/auth/Login";
 import UserUpload from "./pages/UserUpload";
+import UserHome from "./pages/UserHome";
+import UserSourcePending from "./pages/UserSourcePending";
 import Landing from "./pages/Landing";
 
 // Axios global 401 interceptor — tự động logout khi token hết hạn
@@ -47,8 +49,13 @@ function App() {
 
         <Route
           path="/user"
-          element={token ? <UserUpload /> : <Navigate to="/login" />}
+          element={token ? <UserHome /> : <Navigate to="/login" />}
         />
+
+        <Route path="/user/file" element={token ? <UserUpload /> : <Navigate to="/login" />} />
+        <Route path="/user/api" element={token ? <UserSourcePending name="API" /> : <Navigate to="/login" />} />
+        <Route path="/user/database" element={token ? <UserSourcePending name="Database" /> : <Navigate to="/login" />} />
+        <Route path="/user/iot" element={token ? <UserSourcePending name="IoT" /> : <Navigate to="/login" />} />
 
         <Route
           path="/admin"

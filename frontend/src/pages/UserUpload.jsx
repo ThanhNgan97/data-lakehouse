@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import UserTopNavigation from "../components/UserTopNavigation";
 import Icon from "../components/icons";
 import { Badge, Card, LakehouseMark } from "../components/ui";
 
@@ -77,7 +77,6 @@ const taskForStage = (tasks = [], taskIds) => {
 };
 
 const UserUpload = () => {
-  const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -160,12 +159,6 @@ const UserUpload = () => {
         pollingRef.current = null;
       }
     }, 5000);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    navigate("/login");
   };
 
   const processFile = async (file) => {
@@ -316,32 +309,14 @@ const UserUpload = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
-      <header className="bg-white border-b border-slate-200 px-4 sm:px-6 md:px-8 py-3.5 flex justify-between items-center sticky top-0 z-50 shadow-sm">
-        <div className="flex items-center gap-3 min-w-0">
-          <img
-            src="/CUSC Logo Series.png"
-            alt="CUSC Logo"
-            className="h-10 w-auto object-contain shrink-0"
-          />
-          <div className="min-w-0">
-            <h1 className="text-sm sm:text-base md:text-lg font-bold text-slate-900 leading-tight tracking-tight truncate">
-              CUSC ANALYSIS PLATFORM
-            </h1>
-            <p className="text-[10px] sm:text-[11px] md:text-xs text-slate-500 font-medium truncate">
-              Trung tâm Công nghệ Thông tin - Đại học Cần Thơ
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={handleLogout}
-          className="flex shrink-0 items-center gap-2 px-3 sm:px-4 py-2 bg-ink-900 hover:bg-rose-600 text-white rounded-lg text-xs sm:text-sm font-semibold transition"
-        >
-          <Icon name="logOut" className="w-4 h-4" />
-          Đăng xuất
-        </button>
-      </header>
+      <UserTopNavigation />
 
       <main className="flex-1 w-full max-w-[1480px] mx-auto p-4 md:p-6 lg:p-8 space-y-7 lg:space-y-8">
+        <div>
+          <p className="mb-1 text-xs font-semibold text-blue-700">Workspace nguồn dữ liệu</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Tải file</h1>
+          <p className="mt-2 text-sm text-slate-500">Tải file từ máy tính hoặc nhập từ URL, theo dõi tiến trình xử lý và xem báo cáo.</p>
+        </div>
         {/* ROW 1 — Upload + History */}
         <section className="grid grid-cols-1 xl:grid-cols-12 items-stretch gap-5 lg:gap-6 xl:h-[430px] 2xl:h-[450px]">
           {/* 1. Upload Card */}

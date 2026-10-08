@@ -1,0 +1,35 @@
+.portal-home .micro-dot-bg {
+  background-color: #f8faff;
+  background-image: radial-gradient(#d1d5db .75px, transparent .75px);
+  background-size: 20px 20px;
+}
+
+.portal-home .card-soft-shadow {
+  box-shadow: 0 10px 30px -5px rgba(26, 54, 126, .05);
+}
+
+.portal-home .medallion-shadow {
+  box-shadow: 0 20px 40px -15px rgba(29, 78, 216, .07);
+}
+
+.portal-title-line {
+  font-size: clamp(16px, 4.6vw, 36px);
+  white-space: nowrap;
+}
+
+.portal-home #nguon-du-lieu {
+  scroll-margin-top: 180px;
+}
+
+@media (min-width: 1024px) {
+  .portal-title-line {
+    font-size: clamp(24px, 2.35vw, 36px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-home * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

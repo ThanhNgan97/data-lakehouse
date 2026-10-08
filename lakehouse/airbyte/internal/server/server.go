@@ -343,7 +343,8 @@ func (s *Server) handleSyncToAirbyte(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := &http.Client{Timeout: 60 * time.Second}
+	// Airbyte connector container initialization & check can take 60-90s on Windows Docker
+	client := &http.Client{Timeout: 180 * time.Second}
 	resp, err := client.Post(targetEndpoint, "application/json", bytes.NewReader(bundleBytes))
 	if err != nil {
 		writeError(w, http.StatusBadGateway, fmt.Sprintf("Failed to contact Airbyte Coordinator at %s: %v", targetEndpoint, err))

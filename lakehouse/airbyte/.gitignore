@@ -2,6 +2,7 @@
 db-provisioner.exe
 db-provisioner
 *.exe
+*.exe~
 
 # Exported bundles & secrets
 exports/

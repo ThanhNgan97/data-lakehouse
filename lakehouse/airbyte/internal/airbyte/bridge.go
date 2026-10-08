@@ -1,9 +1,11 @@
 package airbyte
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -12,10 +14,13 @@ import (
 )
 
 type BridgeConfig struct {
-	Port         int
-	AirbyteURL   string
-	ClientID     string
-	ClientSecret string
+	Port            int
+	AirbyteURL      string
+	ClientID        string
+	ClientSecret    string
+	AirflowURL      string
+	AirflowUsername string
+	AirflowPassword string
 }
 
 type BridgeServer struct {
@@ -52,6 +57,15 @@ func NewBridgeServer(cfg BridgeConfig) *BridgeServer {
 	}
 	if cfg.ClientSecret == "" {
 		cfg.ClientSecret = "TyYQbcYAFigm1mrK7H8z50kHCcCVZA3g"
+	}
+	if cfg.AirflowURL == "" {
+		cfg.AirflowURL = "http://localhost:8080"
+	}
+	if cfg.AirflowUsername == "" {
+		cfg.AirflowUsername = "airflow"
+	}
+	if cfg.AirflowPassword == "" {
+		cfg.AirflowPassword = "admin"
 	}
 	return &BridgeServer{
 		cfg:    cfg,
@@ -154,7 +168,7 @@ func (b *BridgeServer) OnboardAndSync(ctx context.Context, bundle model.AirbyteC
 		}
 		if bundle.SyncStrategy == model.SyncStrategyCDC {
 			sourceConfig["replication_method"] = map[string]any{
-				"method": "CDC",
+				"method":                  "CDC",
 				"initial_waiting_seconds": 30,
 			}
 		} else {
@@ -179,7 +193,7 @@ func (b *BridgeServer) OnboardAndSync(ctx context.Context, bundle model.AirbyteC
 		}
 		if bundle.SyncStrategy == model.SyncStrategyCDC {
 			sourceConfig["replication_method"] = map[string]any{
-				"method": "CDC",
+				"method":                  "CDC",
 				"initial_waiting_seconds": 30,
 			}
 		} else {
@@ -204,11 +218,11 @@ func (b *BridgeServer) OnboardAndSync(ctx context.Context, bundle model.AirbyteC
 			}
 			slotName = sanitizePostgresSlotName(slotName)
 			sourceConfig["replication_method"] = map[string]any{
-				"method": "CDC",
-				"plugin": "pgoutput",
-				"publication": pubName,
-				"replication_slot": slotName,
-				"snapshot_mode": "initial",
+				"method":                  "CDC",
+				"plugin":                  "pgoutput",
+				"publication":             pubName,
+				"replication_slot":        slotName,
+				"snapshot_mode":           "initial",
 				"initial_waiting_seconds": 30,
 			}
 		} else {
@@ -239,7 +253,7 @@ func (b *BridgeServer) OnboardAndSync(ctx context.Context, bundle model.AirbyteC
 	if bucketName == "" {
 		bucketName = "university-lakehouse"
 	}
-	destPath := fmt.Sprintf("bronze_archive/%s", tenantID)
+	destPath := fmt.Sprintf("staging/%s", tenantID)
 	if bundle.MinIODestination.RecommendedPath != "" {
 		cleanP := strings.TrimRight(bundle.MinIODestination.RecommendedPath, "/")
 		cleanP = strings.TrimSuffix(cleanP, "/table=${STREAM_NAME}")
@@ -316,6 +330,10 @@ func (b *BridgeServer) OnboardAndSync(ctx context.Context, bundle model.AirbyteC
 		return nil, fmt.Errorf("Airbyte sync trigger failed: %w", err)
 	}
 
+	// The request returns immediately while this watcher completes the hand-off
+	// from Airbyte to the generic relational-context DAG.
+	go b.monitorSyncAndTriggerAirflow(jobID, tenantID)
+
 	var discoveredList []ResourceSummary
 	for _, v := range bundle.ExposedViews {
 		discoveredList = append(discoveredList, ResourceSummary{
@@ -337,6 +355,78 @@ func (b *BridgeServer) OnboardAndSync(ctx context.Context, bundle model.AirbyteC
 		JobStatus:           "RUNNING",
 		DiscoveredResources: discoveredList,
 	}, nil
+}
+
+func (b *BridgeServer) monitorSyncAndTriggerAirflow(jobID int64, contextID string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Hour)
+	defer cancel()
+
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		status, err := b.client.PollJobStatus(ctx, jobID)
+		if err != nil {
+			if ctx.Err() != nil {
+				fmt.Printf("\n❌ Airbyte job #%d watcher stopped: %v\n", jobID, ctx.Err())
+				return
+			}
+			fmt.Printf("\n⚠️ Cannot read Airbyte job #%d yet: %v\n", jobID, err)
+		} else {
+			switch strings.ToLower(status) {
+			case "succeeded", "success":
+				if err := b.triggerAirflowDAG(ctx, jobID, contextID); err != nil {
+					fmt.Printf("\n❌ Airflow hand-off failed for Airbyte job #%d: %v\n", jobID, err)
+					return
+				}
+				fmt.Printf("\n✅ Airbyte job #%d completed; triggered Airflow context '%s'.\n", jobID, contextID)
+				return
+			case "failed", "cancelled", "canceled", "incomplete":
+				fmt.Printf("\n❌ Airbyte job #%d ended with status %s; Airflow was not triggered.\n", jobID, status)
+				return
+			}
+		}
+
+		select {
+		case <-ctx.Done():
+			fmt.Printf("\n❌ Timed out waiting for Airbyte job #%d.\n", jobID)
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func (b *BridgeServer) triggerAirflowDAG(ctx context.Context, jobID int64, contextID string) error {
+	payload := map[string]any{
+		"dag_run_id": fmt.Sprintf("airbyte__%d", jobID),
+		"conf": map[string]any{
+			"context_id":     contextID,
+			"airbyte_job_id": jobID,
+		},
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("encode DAG request: %w", err)
+	}
+
+	url := strings.TrimRight(b.cfg.AirflowURL, "/") + "/api/v1/dags/universal_lakehouse_pipeline/dagRuns"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create DAG request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.SetBasicAuth(b.cfg.AirflowUsername, b.cfg.AirflowPassword)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("call Airflow at %s: %w", b.cfg.AirflowURL, err)
+	}
+	defer resp.Body.Close()
+	responseBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return fmt.Errorf("Airflow returned %s: %s", resp.Status, strings.TrimSpace(string(responseBody)))
+	}
+	return nil
 }
 
 func sanitizePostgresSlotName(name string) string {
@@ -386,4 +476,3 @@ func sanitizePostgresIdent(name string) string {
 	}
 	return res
 }
-

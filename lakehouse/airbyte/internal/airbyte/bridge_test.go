@@ -8,6 +8,13 @@ import (
 	"testing"
 )
 
+func TestBridgeUsesLocalAirflowCredentialDefaults(t *testing.T) {
+	bridge := NewBridgeServer(BridgeConfig{})
+	if bridge.cfg.AirflowUsername != "airflow" || bridge.cfg.AirflowPassword != "airflow" {
+		t.Fatalf("unexpected Airflow defaults: %q/%q", bridge.cfg.AirflowUsername, bridge.cfg.AirflowPassword)
+	}
+}
+
 func TestTriggerAirflowDAGCarriesContextAndJobID(t *testing.T) {
 	var got map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -43,5 +50,22 @@ func TestTriggerAirflowDAGCarriesContextAndJobID(t *testing.T) {
 	}
 	if conf["context_id"] != "ctu_ioc_test" || conf["airbyte_job_id"] != float64(65) {
 		t.Fatalf("unexpected conf: %#v", conf)
+	}
+}
+
+func TestTriggerAirflowDAGTreatsExistingRunAsSuccess(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusConflict)
+		_, _ = w.Write([]byte(`{"detail":"DAG Run id airbyte__65 already exists"}`))
+	}))
+	defer server.Close()
+
+	bridge := NewBridgeServer(BridgeConfig{
+		AirflowURL:      server.URL,
+		AirflowUsername: "airflow",
+		AirflowPassword: "airflow",
+	})
+	if err := bridge.triggerAirflowDAG(context.Background(), 65, "ctu_ioc_test"); err != nil {
+		t.Fatalf("existing deterministic run should be success: %v", err)
 	}
 }

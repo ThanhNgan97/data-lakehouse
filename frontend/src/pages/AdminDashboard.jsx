@@ -39,7 +39,7 @@ const AdminDashboard = () => {
     dashboard: 'Báo cáo Thường niên Chất lượng Giáo dục',
     pipeline: 'Pipeline Dữ liệu: Bronze → Silver → Gold',
     catalog: 'Lịch sử Pipeline (Nessie Catalog)',
-    history: 'Lịch sử Tải lên dữ liệu',
+    history: 'Lịch sử Tải lên Dữ liệu',
     users: 'Quản lý Người dùng',
   };
   const TAB_DESC = {
@@ -88,7 +88,7 @@ const AdminDashboard = () => {
                 CUSC ANALYSIS PLATFORM
               </h1>
               <p className="mt-1 truncate text-[9px] font-medium text-navy-300">
-                Trung tâm Công nghệ Thông tin - ĐHCT
+                Trung tâm Công nghệ Phần mềm - ĐHCT
               </p>
             </div>
           </div>

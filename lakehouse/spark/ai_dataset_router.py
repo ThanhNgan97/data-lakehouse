@@ -68,7 +68,7 @@ class RoutingDecision(BaseModel):
         description="Tên thực thể chuẩn hóa tiếng Anh snake_case, ví dụ: student_scores, tuition_payments"
     )
     route_target: str = Field(
-        description="Nhánh định tuyến: 'legacy_kpi' | 'registered_api' | 'generic_dynamic'"
+        description="Nhánh định tuyến: 'legacy_kpi' | 'registered_api' | 'generic_dynamic' | 'relational_context'"
     )
     registered_dataset_id: Optional[str] = Field(
         None, description="ID dataset đã đăng ký (nếu thuộc registered_api)"

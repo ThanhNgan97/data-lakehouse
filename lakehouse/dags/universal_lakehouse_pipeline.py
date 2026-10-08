@@ -30,6 +30,8 @@ SPARK_DIR = "/opt/airflow/spark"
 if SPARK_DIR not in sys.path:
     sys.path.insert(0, SPARK_DIR)
 
+from relational_context import build_context_manifest, parse_context_object_key
+
 default_args = {
     "owner": "lakehouse",
     "depends_on_past": False,
@@ -56,6 +58,24 @@ def _get_s3_client():
     )
 
 
+def _list_s3_objects(s3, bucket: str, prefix: str):
+    """List every object below a prefix, including pages beyond S3's 1,000-key limit."""
+    objects = []
+    paginator = s3.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+        objects.extend(page.get("Contents", []))
+    return objects
+
+
+def _download_staging_object(s3, bucket: str, key: str, downloads_dir: Path) -> str:
+    """Preserve the nested key locally so equal names such as part_0.parquet never collide."""
+    relative = Path(key.replace("staging/", "", 1))
+    local_target = downloads_dir / relative
+    local_target.parent.mkdir(parents=True, exist_ok=True)
+    s3.download_file(bucket, key, str(local_target))
+    return str(local_target)
+
+
 def run_ai_semantic_profiling(**context):
     """Lấy mẫu dữ liệu và gọi AI Semantic Profiler để đưa ra quyết định định tuyến.
     Ưu tiên 1: input_path từ dag_run.conf
@@ -67,8 +87,12 @@ def run_ai_semantic_profiling(**context):
     conf = dag_run.conf if dag_run and dag_run.conf else {}
 
     input_path = conf.get("input_path")
+    context_id = conf.get("context_id")
+    airbyte_job_id = conf.get("airbyte_job_id")
     source_name = conf.get("source_name", "")
     s3_staging_key = None
+    context_manifest_file = None
+    context_objects = None
 
     from env_config import MINIO_BUCKET_NAME
     downloads_dir = Path("/opt/airflow/spark/.staging_downloads")
@@ -78,21 +102,25 @@ def run_ai_semantic_profiling(**context):
     if input_path:
         if input_path.startswith("staging/") or input_path.startswith("s3://"):
             s3_key = input_path.replace(f"s3://{MINIO_BUCKET_NAME}/", "").lstrip("/")
-            local_target = downloads_dir / Path(s3_key).name
             s3 = _get_s3_client()
-            s3.download_file(MINIO_BUCKET_NAME, s3_key, str(local_target))
-            input_path = str(local_target)
+            input_path = _download_staging_object(
+                s3, MINIO_BUCKET_NAME, s3_key, downloads_dir
+            )
             source_name = Path(s3_key).name
             s3_staging_key = s3_key
+            parsed = parse_context_object_key(s3_key)
+            if parsed:
+                context_id = parsed["context_id"]
             print(f"📥 [MinIO] Đã tải file từ '{s3_key}' về '{input_path}'")
 
     # Ưu tiên 2: Tự động quét trạm staging/ trên MinIO
     if not input_path:
         try:
             s3 = _get_s3_client()
-            resp = s3.list_objects_v2(Bucket=MINIO_BUCKET_NAME, Prefix="staging/")
+            staging_prefix = f"staging/{context_id}/" if context_id else "staging/"
+            contents = _list_s3_objects(s3, MINIO_BUCKET_NAME, staging_prefix)
             staging_items = [
-                obj for obj in resp.get("Contents", [])
+                obj for obj in contents
                 if obj.get("Size", 0) > 0 and obj.get("Key") != "staging/"
             ]
             if staging_items:
@@ -101,10 +129,13 @@ def run_ai_semantic_profiling(**context):
                 latest_item = staging_items[0]
                 s3_staging_key = latest_item["Key"]
                 filename = Path(s3_staging_key).name
-                local_target = downloads_dir / filename
-                s3.download_file(MINIO_BUCKET_NAME, s3_staging_key, str(local_target))
-                input_path = str(local_target)
+                input_path = _download_staging_object(
+                    s3, MINIO_BUCKET_NAME, s3_staging_key, downloads_dir
+                )
                 source_name = filename
+                parsed = parse_context_object_key(s3_staging_key)
+                if parsed:
+                    context_id = parsed["context_id"]
                 print(f"🔍 [MinIO Staging] Tự động phát hiện file mới trong staging/: '{s3_staging_key}' ({latest_item.get('Size', 0)} bytes)")
         except Exception as se:
             print(f"⚠️ [MinIO Staging Scan] Không thể quét staging/: {se}")
@@ -119,12 +150,52 @@ def run_ai_semantic_profiling(**context):
         else:
             raise ValueError("Không tìm thấy dữ liệu trong staging/ và không có default test file!")
 
+    # Airbyte relational landing: the processing unit is the whole context, not
+    # whichever part file happened to be newest.
+    if context_id and s3_staging_key and parse_context_object_key(s3_staging_key):
+        s3 = _get_s3_client()
+        context_objects = _list_s3_objects(
+            s3, MINIO_BUCKET_NAME, f"staging/{context_id}/"
+        )
+        manifest = build_context_manifest(
+            context_objects,
+            context_id,
+            bucket=MINIO_BUCKET_NAME,
+            batch_id=(f"airbyte_job_{airbyte_job_id}" if airbyte_job_id else run_id),
+        )
+        if manifest["objects"]:
+            manifests_dir = Path("/opt/airflow/spark/.context_manifests")
+            manifests_dir.mkdir(parents=True, exist_ok=True)
+            clean_run_id = "".join(c if c.isalnum() else "_" for c in run_id)
+            context_manifest_file = str(
+                manifests_dir / f"{context_id}_{clean_run_id}.json"
+            )
+            with open(context_manifest_file, "w", encoding="utf-8") as handle:
+                json.dump(manifest, handle, ensure_ascii=False, indent=2)
+            print(
+                f"📦 [Relational Context] '{context_id}': "
+                f"{len(manifest['entities'])} entities, {len(manifest['objects'])} objects"
+            )
+
     print(f"🔍 [AI Profiler] Đang phân tích mẫu dữ liệu từ '{input_path}' (Source: {source_name})...")
 
     # Gọi module ai_dataset_router
     from ai_dataset_router import route_from_file_path
 
     decision = route_from_file_path(input_path)
+    if context_manifest_file:
+        safe_context = "".join(
+            char if char.isalnum() or char == "_" else "_" for char in context_id.lower()
+        ).strip("_")
+        decision.dataset_entity = f"{safe_context}_context"
+        decision.route_target = "relational_context"
+        decision.target_silver_table = f"lakehouse.silver.{safe_context}__context"
+        decision.target_quarantine_table = f"lakehouse.silver.{safe_context}__quarantine"
+        decision.target_gold_table = f"lakehouse.gold.{safe_context}_context"
+        decision.reasoning = (
+            f"Phát hiện Airbyte relational context '{context_id}' với nhiều entity; "
+            "định tuyến theo manifest thay vì xử lý một file riêng lẻ."
+        )
     print("✅ [AI Profiler] Quyết định định tuyến:")
     print(decision.model_dump_json(indent=2))
 
@@ -147,6 +218,8 @@ def run_ai_semantic_profiling(**context):
     ti.xcom_push(key="input_path", value=effective_input_path)
     ti.xcom_push(key="source_name", value=source_name)
     ti.xcom_push(key="s3_staging_key", value=s3_staging_key)
+    ti.xcom_push(key="context_id", value=context_id)
+    ti.xcom_push(key="context_manifest", value=context_manifest_file)
     ti.xcom_push(key="dataset_entity", value=decision.dataset_entity)
     ti.xcom_push(key="registered_dataset_id", value=decision.registered_dataset_id)
     ti.xcom_push(key="target_silver_table", value=decision.target_silver_table)
@@ -177,6 +250,8 @@ def determine_branch(**context):
         return "generic_flow.process_dynamic_silver_gold"
     elif route_target == "registered_api":
         return "api_flow.run_registered_api"
+    elif route_target == "relational_context":
+        return "relational_flow.process_relational_context"
     else:
         return "generic_flow.process_dynamic_silver_gold"
 
@@ -186,7 +261,7 @@ def determine_branch(**context):
 # =====================================================================
 
 def _trino_rest_query(sql: str) -> bool:
-    """Truy vấn Trino qua REST API chính thức (/v1/statement) dùng urllib thuần."""
+    """Run a Trino statement to completion through the REST protocol."""
     import urllib.request
     trino_host = os.environ.get("TRINO_HOST", "trino")
     trino_port = os.environ.get("TRINO_PORT", "8080")
@@ -198,19 +273,25 @@ def _trino_rest_query(sql: str) -> bool:
         "X-Trino-Source": "universal_lakehouse_pipeline",
         "Content-Type": "text/plain; charset=utf-8",
     }
-    req = urllib.request.Request(
+    request = urllib.request.Request(
         statement_url,
         data=sql.encode("utf-8"),
         headers=headers,
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            payload = json.loads(resp.read().decode("utf-8"))
+        for _ in range(10_000):
+            with urllib.request.urlopen(request, timeout=30) as resp:
+                payload = json.loads(resp.read().decode("utf-8"))
             if payload.get("error"):
                 print(f"⚠️ Trino query error: {payload['error'].get('message')}")
                 return False
-            return True
+            next_uri = payload.get("nextUri")
+            if not next_uri:
+                return True
+            request = urllib.request.Request(next_uri, headers=headers, method="GET")
+        print("⚠️ Trino query exceeded the REST response-page limit.")
+        return False
     except Exception as exc:
         print(f"⚠️ Trino connection error: {exc}")
         return False
@@ -223,6 +304,18 @@ def smoke_test_trino(**context):
     target_silver = ti.xcom_pull(task_ids="ai_semantic_profiler", key="target_silver_table") or "lakehouse.silver.kpi_cusc_master"
     target_gold = ti.xcom_pull(task_ids="ai_semantic_profiler", key="target_gold_table") or "lakehouse.gold.kpi_tong_hop_don_vi"
     s3_staging_key = ti.xcom_pull(task_ids="ai_semantic_profiler", key="s3_staging_key")
+    context_manifest = ti.xcom_pull(task_ids="ai_semantic_profiler", key="context_manifest")
+    decision_file = ti.xcom_pull(task_ids="ai_semantic_profiler", key="decision_file")
+
+    # The relational processor refines the decision after key/relationship profiling.
+    if context_manifest and decision_file and os.path.exists(decision_file):
+        try:
+            with open(decision_file, "r", encoding="utf-8") as handle:
+                updated_decision = json.load(handle)
+            target_silver = updated_decision.get("target_silver_table") or target_silver
+            target_gold = updated_decision.get("target_gold_table") or target_gold
+        except Exception as exc:
+            print(f"⚠️ Không thể đọc RoutingDecision đã cập nhật: {exc}")
 
     print(f"🔍 [Trino Smoke Test] Đang kiểm tra truy vấn Trino trên các bảng:")
     print(f"  - Silver: {target_silver}")
@@ -241,12 +334,56 @@ def smoke_test_trino(**context):
         else:
             print(f"ℹ️ [Trino] Gold table '{target_gold}' đã được ghi trong Iceberg.")
 
+        if context_manifest and (not silver_ok or not gold_ok):
+            raise RuntimeError(
+                "Relational context is not queryable through Trino; "
+                "the staging batch will be retained for retry."
+            )
+
         print("🎉 [Trino Smoke Test] Hoàn tất! Dữ liệu đã sẵn sàng để truy vấn và trực quan hóa trên Superset.")
     except Exception as exc:
+        if context_manifest:
+            raise
         print(f"ℹ️ [Trino Smoke Test] Hoàn tất kiểm tra với thông báo: {exc}")
 
-    # Tự động di chuyển (Archive) file nguồn từ MinIO staging/ sang archive/
-    if s3_staging_key:
+    # Relational contexts are committed and archived atomically by manifest.
+    if context_manifest and os.path.exists(context_manifest):
+        try:
+            with open(context_manifest, "r", encoding="utf-8") as handle:
+                manifest = json.load(handle)
+            from env_config import MINIO_BUCKET_NAME
+            s3 = _get_s3_client()
+            safe_batch = "".join(
+                char if char.isalnum() or char in "_-" else "_"
+                for char in str(manifest.get("batch_id") or "batch")
+            )
+            context_id = manifest["context_id"]
+            archived = 0
+            for item in manifest.get("objects", []):
+                key = item["key"]
+                try:
+                    s3.head_object(Bucket=MINIO_BUCKET_NAME, Key=key)
+                except Exception:
+                    continue
+                relative = key.replace(f"staging/{context_id}/", "", 1)
+                archive_key = (
+                    f"archive/{context_id}/batch_id={safe_batch}/{relative}"
+                )
+                s3.copy_object(
+                    Bucket=MINIO_BUCKET_NAME,
+                    CopySource={"Bucket": MINIO_BUCKET_NAME, "Key": key},
+                    Key=archive_key,
+                )
+                s3.delete_object(Bucket=MINIO_BUCKET_NAME, Key=key)
+                archived += 1
+            print(
+                f"✅ [Context Archive] Đã archive {archived} object của "
+                f"context '{context_id}', batch '{safe_batch}'."
+            )
+        except Exception as exc:
+            raise RuntimeError(f"Không thể archive relational context: {exc}") from exc
+    # Tự động di chuyển (Archive) file nguồn đơn lẻ từ MinIO staging/ sang archive/
+    elif s3_staging_key:
         try:
             from env_config import MINIO_BUCKET_NAME
             s3 = _get_s3_client()
@@ -384,6 +521,19 @@ with DAG(
             ),
         )
 
+    # 5.1 Branch D: Multi-table Airbyte relational context
+    with TaskGroup("relational_flow", tooltip="Xử lý context quan hệ nhiều bảng từ Airbyte") as relational_flow:
+        process_relational = BashOperator(
+            task_id="process_relational_context",
+            bash_command=(
+                "cd /opt/airflow/spark && "
+                "python spark_relational_context_processor.py "
+                '--manifest "{{ task_instance.xcom_pull(task_ids=\'ai_semantic_profiler\', key=\'context_manifest\') }}" '
+                '--decision-file "{{ task_instance.xcom_pull(task_ids=\'ai_semantic_profiler\', key=\'decision_file\') }}" '
+                '--run-id "{{ run_id }}"'
+            ),
+        )
+
     # 6. Join & Smoke Test
     join_and_smoke_test = PythonOperator(
         task_id="join_and_smoke_test",
@@ -400,7 +550,7 @@ with DAG(
 
     # Wire DAG Dependencies
     ai_semantic_profiler >> branch_router
-    branch_router >> [kpi_ingest_bronze, api_runner, process_dynamic]
-    [kpi_predictive_analysis, api_runner, process_dynamic] >> join_and_smoke_test
+    branch_router >> [kpi_ingest_bronze, api_runner, process_dynamic, process_relational]
+    [kpi_predictive_analysis, api_runner, process_dynamic, process_relational] >> join_and_smoke_test
     join_and_smoke_test >> auto_provision_superset
 

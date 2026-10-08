@@ -67,6 +67,8 @@ Below are all the ports used across this tool and its connected ecosystem:
    * Auto-configures PostgreSQL/MySQL CDC sources (`snapshot_mode: initial`).
    * Auto-configures MinIO S3 Parquet destinations.
    * Establishes connections and immediately triggers the initial sync job.
+   * Watches the Airbyte job and, after it succeeds, triggers the generic Airflow
+     context pipeline with `context_id` and `airbyte_job_id`.
 
 5. **Parquet SCD Type 2 & Version History Explorer:**
    * Full-screen data table browser for Parquet files stored in MinIO.
@@ -116,9 +118,14 @@ Run without arguments (or double-click the `.exe`):
 ### Mode 2: Server-side Airbyte Bridge Daemon
 Run on the server hosting Airbyte OSS and MinIO:
 ```bash
-./db-provisioner.exe bridge --port 9090
+./db-provisioner.exe bridge --port 9090 \
+  --airflow-url http://localhost:8080 \
+  --airflow-user airflow \
+  --airflow-password admin
 ```
 * Acts as an automated coordinator between client tools and Airbyte OSS at `http://localhost:8000`.
+* Airflow values can also be supplied through `AIRFLOW_WEBSERVER_URL`,
+  `_AIRFLOW_WWW_USER_USERNAME`, and `AIRFLOW_ADMIN_PASSWORD`.
 
 ---
 

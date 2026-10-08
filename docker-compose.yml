@@ -210,6 +210,9 @@ services:
       AIRFLOW__WEBSERVER__SESSION_COOKIE_SECURE: 'False'
       MINIO_ENDPOINT: 'http://minio:9000'
       NESSIE_API_URL: 'http://nessie:19120/api/v1'
+      TRINO_HOST: 'trino'
+      TRINO_PORT: '8080'
+      TRINO_HTTP_URL: 'http://trino:8080'
     volumes:
       - ./airflow_webserver_config.py:/opt/airflow/webserver_config.py:ro
       - ./lakehouse/dags:/opt/airflow/dags
@@ -239,6 +242,9 @@ services:
       AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_WEBSERVER_SECRET_KEY}
       MINIO_ENDPOINT: 'http://minio:9000'
       NESSIE_API_URL: 'http://nessie:19120/api/v1'
+      TRINO_HOST: 'trino'
+      TRINO_PORT: '8080'
+      TRINO_HTTP_URL: 'http://trino:8080'
     volumes:
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark

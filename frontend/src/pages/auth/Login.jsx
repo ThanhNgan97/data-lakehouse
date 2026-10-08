@@ -284,7 +284,7 @@ const Login = ({ setToken, setRole }) => {
                 CUSC ANALYSIS PLATFORM
               </p>
               <p className="mt-0.5 truncate text-xs font-medium text-blue-100/80 sm:text-sm">
-                Trung tâm Công nghệ Thông tin - Đại học Cần Thơ
+                Trung tâm Công nghệ Phần mềm - Đại học Cần Thơ
               </p>
             </div>
           </div>

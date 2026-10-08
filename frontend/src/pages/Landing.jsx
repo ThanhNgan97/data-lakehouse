@@ -100,7 +100,7 @@ const Landing = () => {
                 CUSC ANALYSIS PLATFORM
               </span>
               <span className="mt-0.5 block truncate text-[11px] font-medium text-ink-500">
-                Trung tâm Công nghệ Thông tin - CTU
+                Trung tâm Công nghệ Phần mềm - CTU
               </span>
             </div>
           </div>
@@ -391,7 +391,7 @@ const Landing = () => {
             </span>
           </div>
           <div className="text-sm text-slate-500">
-            Trung tâm Công nghệ Thông tin - Đại học Cần Thơ
+            Trung tâm Công nghệ Phần mềm - Đại học Cần Thơ
           </div>
         </div>
       </footer>

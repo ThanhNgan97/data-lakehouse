@@ -150,9 +150,15 @@ def run_ai_semantic_profiling(**context):
         else:
             raise ValueError("Không tìm thấy dữ liệu trong staging/ và không có default test file!")
 
-    # Airbyte relational landing: the processing unit is the whole context, not
-    # whichever part file happened to be newest.
-    if context_id and s3_staging_key and parse_context_object_key(s3_staging_key):
+    # Airbyte relational landing: only an explicit Airbyte-triggered run may
+    # process a whole context. Folder depth alone is not a routing signal;
+    # manual UI uploads also have a nested staging path.
+    is_airbyte_relational_run = airbyte_job_id is not None and bool(context_id)
+    if (
+        is_airbyte_relational_run
+        and s3_staging_key
+        and parse_context_object_key(s3_staging_key)
+    ):
         s3 = _get_s3_client()
         context_objects = _list_s3_objects(
             s3, MINIO_BUCKET_NAME, f"staging/{context_id}/"

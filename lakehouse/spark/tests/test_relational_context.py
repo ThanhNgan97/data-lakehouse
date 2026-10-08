@@ -27,6 +27,12 @@ class RelationalContextPlanningTest(unittest.TestCase):
         self.assertEqual(parsed["context_id"], "ctu_ioc_test")
         self.assertEqual(parsed["entity"], "diem_danh_lop_hp")
 
+    def test_manual_upload_is_not_parsed_as_relational_context(self):
+        parsed = parse_context_object_key(
+            "staging/manual/a510b1109595490399276402b899622e/train.csv"
+        )
+        self.assertIsNone(parsed)
+
     def test_manifest_keeps_all_entities_in_one_context(self):
         objects = [
             {

@@ -14,6 +14,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
 
 SUPPORTED_TABULAR_EXTENSIONS = (".parquet", ".json", ".csv", ".tsv")
+NON_RELATIONAL_STAGING_CONTEXTS = frozenset({"manual"})
 TECHNICAL_COLUMN_PREFIXES = (
     "_airbyte_",
     "airbyte_",
@@ -138,6 +139,11 @@ def parse_context_object_key(
     relative = key[len(normalized_root):]
     parts = [part for part in relative.split("/") if part]
     if len(parts) < 3 or parts[1] == "_control":
+        return None
+    # UI uploads use staging/manual/<upload-id>/<filename>. That layout is
+    # intentionally similar to a relational context, but every upload is an
+    # independent dataset and must be routed by its file contents instead.
+    if parts[0].lower() in NON_RELATIONAL_STAGING_CONTEXTS:
         return None
     if not parts[-1].lower().endswith(SUPPORTED_TABULAR_EXTENSIONS):
         return None

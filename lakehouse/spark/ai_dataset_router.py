@@ -534,6 +534,35 @@ def route_from_json_string(json_str: str, source_name: str = "api_payload") -> R
     return route_dataset(parsed, source_name)
 
 
+def _extract_docx_text(file_path: Path) -> str:
+    """Extract Word paragraphs and tables without sending raw DOCX bytes to Gemini."""
+    try:
+        from docx import Document
+    except ImportError as exc:
+        raise RuntimeError("Thiếu thư viện python-docx trong Airflow image") from exc
+
+    document = Document(str(file_path))
+    sections: List[str] = []
+    for paragraph in document.paragraphs:
+        text = paragraph.text.strip()
+        if text:
+            sections.append(text)
+
+    for table_index, table in enumerate(document.tables, start=1):
+        rows: List[str] = []
+        for row in table.rows:
+            values = [cell.text.strip().replace("\n", " ") for cell in row.cells]
+            if any(values):
+                rows.append("\t".join(values))
+        if rows:
+            sections.append(f"[BẢNG {table_index}]\n" + "\n".join(rows))
+
+    extracted = "\n\n".join(sections).strip()
+    if not extracted:
+        raise ValueError(f"DOCX '{file_path.name}' không chứa văn bản hoặc bảng có thể đọc")
+    return extracted
+
+
 def profile_and_extract_document_with_gemini(file_path: Path) -> RoutingDecision:
     """Sử dụng Gemini Multimodal để đọc tài liệu (PDF, Word, Ảnh), xác định loại tài liệu
     và bóc tách bảng thành JSON nếu không phải KPI CUSC."""
@@ -578,18 +607,6 @@ def profile_and_extract_document_with_gemini(file_path: Path) -> RoutingDecision
         from google.genai import types
 
         client = genai.Client(api_key=api_key)
-        with open(file_path, "rb") as f:
-            file_bytes = f.read()
-
-        mime_map = {
-            ".pdf": "application/pdf",
-            ".jpg": "image/jpeg",
-            ".jpeg": "image/jpeg",
-            ".png": "image/png"
-        }
-        mime_type = mime_map.get(suffix, "application/pdf")
-        file_part = types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
-
         prompt = """Bạn là một chuyên gia AI Data Architect cho Data Lakehouse.
 Hãy đọc kỹ tài liệu đính kèm này và thực hiện các yêu cầu:
 1. Xác định đây có phải là báo cáo đánh giá KPI/mục tiêu của CUSC không? (Các bảng có Mã chỉ tiêu, Mức đăng ký, Mức đạt, Kết quả hệ thống).
@@ -620,8 +637,44 @@ Trả về duy nhất định dạng JSON:
 }
 """
 
+        if suffix == ".docx":
+            # Gemini document vision is designed for PDF. Sending raw DOCX
+            # bytes as application/pdf causes a 400 response. Preserve Word
+            # paragraphs and tables locally, then send them as text instead.
+            document_text = _extract_docx_text(file_path)
+            contents = (
+                f"{prompt}\n\n"
+                f"Tên tài liệu: {filename}\n"
+                "Nội dung DOCX đã được trích xuất, giữ nguyên thứ tự đoạn và bảng:\n"
+                f"{document_text}"
+            )
+        else:
+            with open(file_path, "rb") as f:
+                file_bytes = f.read()
+            mime_map = {
+                ".pdf": "application/pdf",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".png": "image/png",
+            }
+            mime_type = mime_map.get(suffix)
+            if not mime_type:
+                raise ValueError(f"Định dạng tài liệu chưa được hỗ trợ: {suffix}")
+            file_part = types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
+            contents = [file_part, prompt]
+
         # Thử lần lượt các mô hình Gemini với cơ chế exponential backoff
-        candidate_models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+        # 2.0/1.5 no longer support generateContent. Deployments can override
+        # this list without another code change as model availability evolves.
+        configured_models = os.getenv(
+            "GEMINI_DOCUMENT_MODELS",
+            "gemini-2.5-flash,gemini-2.5-flash-lite",
+        )
+        candidate_models = list(dict.fromkeys(
+            model.strip() for model in configured_models.split(",") if model.strip()
+        ))
+        if not candidate_models:
+            raise ValueError("GEMINI_DOCUMENT_MODELS không chứa model hợp lệ")
         response = None
         last_error = None
 
@@ -630,7 +683,7 @@ Trả về duy nhất định dạng JSON:
                 try:
                     response = client.models.generate_content(
                         model=model_name,
-                        contents=[file_part, prompt],
+                        contents=contents,
                         config=types.GenerateContentConfig(
                             response_mime_type="application/json",
                             temperature=0.0
@@ -647,6 +700,10 @@ Trả về duy nhất định dạng JSON:
                         time.sleep(wait_sec)
                         continue
                     else:
+                        print(
+                            f"⚠️ Gemini model '{model_name}' từ chối request ({api_err}); "
+                            "chuyển sang model fallback."
+                        )
                         break
             if response and response.text:
                 break

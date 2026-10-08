@@ -36,6 +36,8 @@ from relational_context import (
     candidate_combinations,
     candidate_key_columns,
     is_technical_column,
+    infer_context_semantics,
+    rank_semantic_metrics,
 )
 from spark_generic_dynamic_processor import (
     apply_iceberg_schema_evolution,
@@ -320,14 +322,51 @@ def _update_routing_decision(
     metrics = []
     anchor_keys = set(plan.anchor_key)
     for field in gold_df.schema.fields:
-        if field.name.startswith("_"):
+        clean = field.name.lower()
+        if is_technical_column(clean) or clean.startswith("_"):
             continue
-        if isinstance(field.dataType, NumericType):
+        is_identifier = (
+            field.name in anchor_keys
+            or clean == "id"
+            or clean.startswith("ma_")
+            or clean.endswith(("_id", "_key", "_code"))
+        )
+        is_numeric_dimension = any(k in clean for k in ("nam_hoc", "academic_year", "hoc_ky", "semester"))
+        if isinstance(field.dataType, NumericType) and not is_identifier and not is_numeric_dimension:
             metrics.append(field.name)
-        elif isinstance(field.dataType, StringType) or field.name in anchor_keys:
+        elif isinstance(field.dataType, StringType) or is_identifier or is_numeric_dimension:
             dimensions.append(field.name)
 
+    preferred_dimensions = (
+        "ten_don_vi", "loai_don_vi", "faculty", "khoa", "hoc_ky", "semester",
+        "nam_hoc", "academic_year", "ten_mon_hoc", "trang_thai", "giang_vien",
+    )
+    dimensions.sort(
+        key=lambda column: (
+            -sum(1 for keyword in preferred_dimensions if keyword in column.lower()),
+            column in anchor_keys,
+            column,
+        )
+    )
+    ranked_metrics = rank_semantic_metrics(metrics)
+    # Keep the first dashboard slots diverse: one strong metric per source
+    # entity before filling the remaining slots by score.
+    metrics = []
+    seen_metric_entities = set()
+    for metric in ranked_metrics:
+        entity = metric.split("__", 1)[0]
+        if entity not in seen_metric_entities:
+            metrics.append(metric)
+            seen_metric_entities.add(entity)
+    metrics.extend(metric for metric in ranked_metrics if metric not in metrics)
+    semantics = infer_context_semantics(
+        context_id,
+        list(silver_tables),
+        [field.name for field in gold_df.schema.fields],
+    )
+
     decision.dataset_entity = f"{context_id}_context"
+    decision.dataset_domain = semantics["domain"]
     decision.route_target = "relational_context"
     decision.target_silver_table = silver_tables[plan.anchor_entity]
     decision.target_quarantine_table = f"lakehouse.silver.{_safe_name(context_id)}__quarantine"
@@ -335,6 +374,10 @@ def _update_routing_decision(
     decision.business_keys = list(plan.anchor_key)
     decision.dimension_columns = dimensions[:12]
     decision.metric_columns = metrics[:20]
+    decision.source_updated_at_field = None
+    decision.dashboard_archetype = semantics["archetype"]
+    decision.dashboard_routing_confidence = semantics["confidence"]
+    decision.dashboard_routing_signals = semantics["signals"]
     decision.reasoning = (
         f"Relational context '{context_id}' joined around anchor "
         f"'{plan.anchor_entity}' using key {list(plan.anchor_key)}."

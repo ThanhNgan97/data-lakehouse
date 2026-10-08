@@ -101,6 +101,17 @@ class RoutingDecision(BaseModel):
         default_factory=list,
         description="Gợi ý các biểu đồ trực quan hóa phù hợp cho Superset"
     )
+    dashboard_archetype: Optional[str] = Field(
+        None,
+        description="Template dashboard đã chọn: performance_risk, time_series, entity_catalog hoặc categorical_distribution",
+    )
+    dashboard_routing_confidence: Optional[float] = Field(
+        None, description="Độ tin cậy 0..1 của quyết định chọn dashboard template"
+    )
+    dashboard_routing_signals: List[str] = Field(
+        default_factory=list,
+        description="Các tín hiệu nghiệp vụ giải thích vì sao template được chọn",
+    )
     is_existing_table_match: bool = Field(
         False,
         description="True nếu dữ liệu mới này được nhận diện là phiên bản mở rộng/tiến hóa của một bảng Silver đã có"

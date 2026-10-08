@@ -23,10 +23,107 @@ TECHNICAL_COLUMN_PREFIXES = (
     "context_",
 )
 
+DOMAIN_KEYWORDS = {
+    "education": (
+        "student", "sinh_vien", "hoc_phan", "mon_hoc", "giang_day",
+        "diem_danh", "hoc_ky", "nam_hoc", "giang_vien", "dao_tao",
+    ),
+    "finance": ("payment", "invoice", "revenue", "amount", "tuition", "hoc_phi", "thanh_toan"),
+    "hr": ("employee", "staff", "nhan_vien", "can_bo", "department", "phong_ban"),
+    "commerce": ("order", "product", "customer", "sales", "don_hang", "san_pham", "khach_hang"),
+    "iot": ("iot", "sensor", "telemetry", "device_log", "cam_bien", "scada"),
+    "healthcare": ("patient", "clinical", "hospital", "benh_nhan", "y_te"),
+}
+
+PERFORMANCE_KEYWORDS = (
+    "ty_le", "rate", "score", "progress", "tien_do", "completion",
+    "attendance", "diem_danh", "satisfaction", "hai_long", "risk", "sla",
+)
+
+GENUINE_TIME_KEYWORDS = (
+    "event_time", "event_at", "occurred_at", "transaction_at", "paid_at",
+    "created_at", "ngay_yeu_cau", "ngay_hoan_thanh", "timestamp",
+)
+
 
 def is_technical_column(column: str) -> bool:
     clean = column.lower()
     return clean.startswith(TECHNICAL_COLUMN_PREFIXES)
+
+
+def infer_context_semantics(
+    context_id: str,
+    entity_names: Sequence[str],
+    columns: Sequence[str],
+) -> Dict[str, Any]:
+    """Produce an auditable domain/template decision from business-only names."""
+    business_columns = [c.lower() for c in columns if not is_technical_column(c)]
+    corpus = " ".join([context_id.lower(), *[e.lower() for e in entity_names], *business_columns])
+    domain_scores = {
+        domain: sum(1 for keyword in keywords if keyword in corpus)
+        for domain, keywords in DOMAIN_KEYWORDS.items()
+    }
+    best_domain, best_score = max(domain_scores.items(), key=lambda item: item[1])
+    domain = best_domain if best_score else "generic"
+
+    performance_signals = sorted({k for k in PERFORMANCE_KEYWORDS if k in corpus})
+    time_signals = sorted({k for k in GENUINE_TIME_KEYWORDS if k in corpus})
+    if domain == "iot" and time_signals:
+        archetype = "time_series"
+        signals = [f"domain:{domain}", *[f"time:{s}" for s in time_signals[:3]]]
+    elif performance_signals:
+        risk_signals = [k for k in ("risk", "sla", "benchmark", "target") if k in corpus]
+        archetype = "performance_risk" if risk_signals else "operational_performance"
+        signals = [f"domain:{domain}", *[f"performance:{s}" for s in performance_signals[:5]]]
+    elif len(entity_names) > 1:
+        archetype = "categorical_distribution"
+        signals = [f"domain:{domain}", f"relational_entities:{len(entity_names)}"]
+    else:
+        archetype = "entity_catalog"
+        signals = [f"domain:{domain}", "single_entity"]
+
+    evidence_count = max(1, best_score + len(performance_signals) + len(time_signals))
+    confidence = min(0.98, 0.55 + 0.05 * evidence_count)
+    return {
+        "domain": domain,
+        "archetype": archetype,
+        "confidence": round(confidence, 2),
+        "signals": signals,
+    }
+
+
+def rank_semantic_metrics(columns: Sequence[str]) -> List[str]:
+    """Rank physical Gold metric columns by business usefulness."""
+    def score(column: str) -> tuple[int, str]:
+        clean = column.lower()
+        value = 0
+        average_semantics = any(k in clean for k in ("ty_le", "rate", "score", "diem", "hai_long", "progress"))
+        additive_semantics = any(k in clean for k in ("amount", "revenue", "count", "so_luot", "so_sv", "so_tiet"))
+        if any(k in clean for k in PERFORMANCE_KEYWORDS):
+            value += 100
+        business_priority = {
+            "ty_le_hien_dien": 45,
+            "ty_le_dung_tien_do": 42,
+            "ty_le_nhap_diem": 40,
+            "diem_danh_gia": 38,
+            "muc_do_hai_long": 36,
+        }
+        value += max((weight for keyword, weight in business_priority.items() if keyword in clean), default=0)
+        if "__avg__" in clean and average_semantics:
+            value += 70
+        if "__sum__" in clean and additive_semantics:
+            value += 60
+        if clean.endswith("__record_count"):
+            value += 35
+        if "__sum__" in clean and average_semantics:
+            value -= 50
+        if "__avg__" in clean and additive_semantics:
+            value -= 20
+        if any(k in clean for k in ("thu_tu", "sequence", "ordinal")):
+            value -= 100
+        return value, clean
+
+    return sorted(columns, key=score, reverse=True)
 
 
 def parse_context_object_key(

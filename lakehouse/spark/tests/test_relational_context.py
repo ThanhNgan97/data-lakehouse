@@ -13,7 +13,9 @@ from relational_context import (
     build_context_manifest,
     build_context_plan,
     candidate_key_columns,
+    infer_context_semantics,
     parse_context_object_key,
+    rank_semantic_metrics,
 )
 
 
@@ -103,6 +105,25 @@ class RelationalContextPlanningTest(unittest.TestCase):
         self.assertEqual(ranked[0], "ma_lop_hp")
         self.assertNotIn("_airbyte_extracted_at", ranked)
         self.assertNotIn("airbyte_raw_id", ranked)
+
+    def test_semantic_router_ignores_airbyte_time_and_detects_education_performance(self):
+        result = infer_context_semantics(
+            "ctu_ioc_test",
+            ["lop_hoc_phan", "diem_danh_lop_hp", "tien_do_giang_day"],
+            ["airbyte_updated_at", "ma_lop_hp", "ty_le_hien_dien", "ty_le_dung_tien_do"],
+        )
+        self.assertEqual(result["domain"], "education")
+        self.assertEqual(result["archetype"], "operational_performance")
+        self.assertFalse(any("airbyte" in signal for signal in result["signals"]))
+
+    def test_semantic_metric_ranking_prefers_average_rate_over_sum(self):
+        ranked = rank_semantic_metrics([
+            "diem_danh__sum__ty_le_hien_dien",
+            "diem_danh__avg__ty_le_hien_dien",
+            "dm_don_vi__thu_tu_hien_thi",
+        ])
+        self.assertEqual(ranked[0], "diem_danh__avg__ty_le_hien_dien")
+        self.assertEqual(ranked[-1], "dm_don_vi__thu_tu_hien_thi")
 
 
 if __name__ == "__main__":

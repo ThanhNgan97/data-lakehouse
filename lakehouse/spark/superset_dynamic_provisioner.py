@@ -2507,6 +2507,7 @@ def provision_dynamic_dashboard(
         "status": "SUCCESS" if (import_success or not auto_import) else "ZIP_READY",
         "table_name": table_name,
         "dashboard_title": bundle["dashboard_title"],
+        "dashboard_slug": slug,
         "dashboard_uuid": bundle["dashboard_uuid"],
         "zip_path": str(zip_path),
         "imported": import_success,

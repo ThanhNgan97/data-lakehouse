@@ -239,7 +239,7 @@ func (b *BridgeServer) OnboardAndSync(ctx context.Context, bundle model.AirbyteC
 	if bucketName == "" {
 		bucketName = "university-lakehouse"
 	}
-	destPath := fmt.Sprintf("bronze_archive/%s", tenantID)
+	destPath := fmt.Sprintf("staging/%s", tenantID)
 	if bundle.MinIODestination.RecommendedPath != "" {
 		cleanP := strings.TrimRight(bundle.MinIODestination.RecommendedPath, "/")
 		cleanP = strings.TrimSuffix(cleanP, "/table=${STREAM_NAME}")

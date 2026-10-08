@@ -67,9 +67,10 @@ type StreamInfo struct {
 	Files      []string `json:"files"`
 }
 
-// ListStreams lists all table directories inside bronze_archive/ (or bronze/) for all tenants
+// ListStreams lists table directories in staging/. Legacy bronze paths remain readable
+// so existing Airbyte data can still be inspected during migration.
 func (c *Client) ListStreams(ctx context.Context) ([]StreamInfo, error) {
-	prefixes := []string{"bronze_archive/", "bronze/"}
+	prefixes := []string{"staging/", "bronze_archive/", "bronze/"}
 	streamMap := make(map[string]*StreamInfo)
 
 	for _, prefix := range prefixes {
@@ -173,6 +174,8 @@ type TableHistoryResult struct {
 // QueryVersionHistory reads parquet files for a stream and reconstructs version history
 func (c *Client) QueryVersionHistory(ctx context.Context, tenantID, tableName, filterID string) (*TableHistoryResult, error) {
 	prefixes := []string{
+		fmt.Sprintf("staging/%s/%s/", tenantID, tableName),
+		fmt.Sprintf("staging/tenant_id=%s/%s/", tenantID, tableName),
 		fmt.Sprintf("bronze_archive/%s/%s/", tenantID, tableName),
 		fmt.Sprintf("bronze_archive/tenant_id=%s/%s/", tenantID, tableName),
 		fmt.Sprintf("bronze/%s/%s/", tenantID, tableName),
@@ -519,6 +522,8 @@ func (c *Client) CheckTenantExists(ctx context.Context, tenantID string) (*MinIO
 	}
 
 	prefixes := []string{
+		fmt.Sprintf("staging/%s/", cleanID),
+		fmt.Sprintf("staging/tenant_id=%s/", cleanID),
 		fmt.Sprintf("bronze_archive/%s/", cleanID),
 		fmt.Sprintf("bronze_archive/tenant_id=%s/", cleanID),
 		fmt.Sprintf("bronze/%s/", cleanID),

@@ -1,6 +1,6 @@
 # ⚡ Airbyte Data Lakehouse - Secure DB Provisioning & Ingestion Tool
 
-A standalone, zero-dependency Go application engineered to safely onboard external and customer relational databases (PostgreSQL, MySQL, SQL Server) into an enterprise **MinIO-backed Data Lakehouse** via **Airbyte CDC (Change Data Capture)** and **Parquet landing (`bronze_archive/`)**.
+A standalone, zero-dependency Go application engineered to safely onboard external and customer relational databases (PostgreSQL, MySQL, SQL Server) into an enterprise **MinIO-backed Data Lakehouse** via **Airbyte CDC (Change Data Capture)** and **Parquet landing (`staging/`)**.
 
 ---
 
@@ -23,7 +23,7 @@ This tool bridges the gap between **Customer DBAs** (who prioritize database sec
 │            │                           │            │               ▼                              │
 │            └──────── (HTTP / Sync) ─────────────────┼─▶ [MinIO Object Storage (:9000, :9001)]      │
 │                      or Manual JSON Handoff         │   - Bucket: university-lakehouse             │
-│                                                     │   - Prefix: bronze_archive/<tenant_id>/      │
+│                                                     │   - Prefix: staging/<tenant_id>/             │
 │                                                     │   - Snappy Compressed Parquet (.parquet)     │
 └────────────────────────────────────────┘            └──────────────────────────────────────────────┘
 ```
@@ -59,7 +59,7 @@ Below are all the ports used across this tool and its connected ecosystem:
    * Dynamic duplicate tenant detection against live MinIO buckets (`/api/check-tenant`).
    * Clean, deterministic landing directory structure:
      ```text
-     s3://university-lakehouse/bronze_archive/<tenant_id>/<table_name>/part_0.parquet
+     s3://university-lakehouse/staging/<tenant_id>/<table_name>/part_0.parquet
      ```
 
 4. **Automated Airbyte Bridge (Zero Manual Setup):**

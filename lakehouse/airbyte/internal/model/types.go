@@ -91,7 +91,7 @@ type ProvisionPlan struct {
 	StatementTimeoutSec  int          `json:"statement_timeout_sec"`          // default: 30s
 	Views                []ViewRule   `json:"views"`
 	MinIOBucket          string       `json:"minio_bucket,omitempty"`          // default: university-lakehouse
-	MinIOPath            string       `json:"minio_path,omitempty"`            // default: bronze_archive/<tenant>
+	MinIOPath            string       `json:"minio_path,omitempty"`            // default: staging/<tenant>
 	RawSQLScript         string       `json:"raw_sql_script,omitempty"`
 	AuditSQLScript       string       `json:"audit_sql_script,omitempty"`
 }

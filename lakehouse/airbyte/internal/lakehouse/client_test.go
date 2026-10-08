@@ -19,7 +19,7 @@ func TestFullVersionHistory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to list streams: %v", err)
 	}
-	t.Logf("Found %d streams in MinIO bronze_archive/ (or bronze/)", len(streams))
+	t.Logf("Found %d streams in MinIO staging/ (or legacy bronze paths)", len(streams))
 
 	// Test orders table which has part_0 and part_1!
 	res, err := client.QueryVersionHistory(ctx, "tenant_client_01", "orders", "")

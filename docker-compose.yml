@@ -215,7 +215,6 @@ services:
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark
       - ./.env:/opt/airflow/.env
-      - airflow_ivy_cache:/home/airflow/.ivy2
     command: webserver
     depends_on:
       postgres:
@@ -244,7 +243,6 @@ services:
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark
       - ./.env:/opt/airflow/.env
-      - airflow_ivy_cache:/home/airflow/.ivy2
     command: scheduler
     depends_on:
       postgres:
@@ -320,7 +318,6 @@ volumes:
   minio_data:
   superset_home:
   airbyte_db_data:
-  airflow_ivy_cache:
 
 networks:
   lakehouse-network:

@@ -11,6 +11,10 @@ from datetime import datetime
 import boto3
 import argparse
 from db_utils import update_pipeline_error
+from spark_dependency_config import configure_pyspark_dependencies
+
+configure_pyspark_dependencies()
+
 from pyspark.sql import SparkSession, Window
 from pyspark.sql.functions import current_timestamp, row_number, desc
 
@@ -35,13 +39,6 @@ os.environ["PATH"]                  = os.path.join(HADOOP_HOME, "bin") + ";" + o
 os.environ["AWS_ACCESS_KEY_ID"]     = MINIO_ACCESS_KEY
 os.environ["AWS_SECRET_ACCESS_KEY"] = MINIO_SECRET_KEY
 os.environ["SPARK_LOCAL_IP"]        = SPARK_LOCAL_IP
-os.environ["PYSPARK_SUBMIT_ARGS"] = (
-    "--driver-java-options \"-Djava.net.preferIPv4Stack=true\" "
-    "--packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.4.3,"
-    "org.projectnessie.nessie-integrations:nessie-spark-extensions-3.5_2.12:0.77.1,"
-    "org.apache.hadoop:hadoop-aws:3.3.4 "
-    "pyspark-shell"
-)
 
 SILVER_TABLE = "lakehouse.silver.kpi_cusc_master"
 BRONZE_PREFIX          = "bronze/"

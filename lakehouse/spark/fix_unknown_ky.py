@@ -1,8 +1,11 @@
-from pyspark.sql import SparkSession
 import os
+from spark_dependency_config import configure_pyspark_dependencies
+
+configure_pyspark_dependencies()
+
+from pyspark.sql import SparkSession
 
 os.environ['SPARK_LOCAL_IP'] = '127.0.0.1'
-os.environ['PYSPARK_SUBMIT_ARGS'] = '--driver-java-options "-Djava.net.preferIPv4Stack=true" --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.4.3,org.projectnessie.nessie-integrations:nessie-spark-extensions-3.5_2.12:0.77.1,org.apache.hadoop:hadoop-aws:3.3.4 pyspark-shell'
 
 spark = SparkSession.builder \
     .config('spark.driver.host', '127.0.0.1') \

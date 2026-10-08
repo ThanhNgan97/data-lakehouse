@@ -21,6 +21,10 @@ khi đã merge và cần khôi phục khẩn cấp).
 
 import os
 import sys
+from spark_dependency_config import configure_pyspark_dependencies
+
+configure_pyspark_dependencies()
+
 from pyspark.sql import SparkSession
 
 from nessie_catalog_utils import create_tag
@@ -34,11 +38,6 @@ os.environ["PATH"]                  = os.path.join(HADOOP_HOME, "bin") + ";" + o
 os.environ["AWS_ACCESS_KEY_ID"]     = MINIO_ACCESS_KEY
 os.environ["AWS_SECRET_ACCESS_KEY"] = MINIO_SECRET_KEY
 os.environ["SPARK_LOCAL_IP"]        = SPARK_LOCAL_IP
-os.environ["PYSPARK_SUBMIT_ARGS"] = (
-    "--packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.4.3,"
-    "org.projectnessie.nessie-integrations:nessie-spark-extensions-3.5_2.12:0.77.1 "
-    "pyspark-shell"
-)
 
 
 def get_spark_session():

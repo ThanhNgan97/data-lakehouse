@@ -1,6 +1,7 @@
 import logging
 import os
 import uuid
+import ast
 import requests
 from threading import Thread
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
@@ -159,6 +160,35 @@ async def get_pipeline_status(
                     "start_date": t.get("start_date"),
                     "end_date": t.get("end_date")
                 })
+
+        # Read the metadata returned by the final provisioning task. The
+        # frontend owns the browser-facing Superset origin; this API only
+        # exposes the stable dashboard identity for the current DAG run.
+        dashboard = None
+        resp_dashboard = requests.get(
+            f"{airflow_base}/taskInstances/auto_provision_superset/xcomEntries/return_value",
+            auth=("airflow", "airflow"),
+            timeout=5,
+        )
+        if resp_dashboard.status_code == 200:
+            xcom_value = resp_dashboard.json().get("value")
+            if isinstance(xcom_value, str):
+                try:
+                    import json
+                    xcom_value = json.loads(xcom_value)
+                except (TypeError, ValueError):
+                    # Airflow 2.9 returns the non-deserialized XCom value as a
+                    # Python mapping repr (single quotes), not valid JSON.
+                    try:
+                        xcom_value = ast.literal_eval(xcom_value)
+                    except (SyntaxError, ValueError):
+                        xcom_value = None
+            if isinstance(xcom_value, dict) and xcom_value.get("dashboard_slug"):
+                dashboard = {
+                    "slug": xcom_value["dashboard_slug"],
+                    "title": xcom_value.get("dashboard_title"),
+                    "imported": bool(xcom_value.get("imported")),
+                }
         
         # Cập nhật pipeline_status vào DB (nếu chưa bị set cứng từ Spark thành failed)
         record = db.query(UploadHistory).filter(UploadHistory.dag_run_id == dag_run_id).first()
@@ -213,7 +243,8 @@ async def get_pipeline_status(
             "state": state,
             "tasks": tasks,
             "error_message": error_message,
-            "parsed_data": parsed_data
+            "parsed_data": parsed_data,
+            "dashboard": dashboard,
         }
     except Exception as e:
         return {"state": "unreachable", "error": str(e), "tasks": []}

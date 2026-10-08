@@ -7,9 +7,15 @@ import { Badge, Card, LakehouseMark } from "../components/ui";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 const MAX_UPLOAD_FILE_BYTES = 100 * 1024 * 1024;
 const UPLOAD_EXTENSIONS = ["pdf", "docx", "csv", "tsv", "xlsx", "xls", "json", "parquet"];
-const supersetUrl =
-  import.meta.env.VITE_SUPERSET_DASHBOARD_URL ||
-  "http://localhost:8088/superset/dashboard/1/?standalone=3";
+const SUPERSET_ORIGIN = new URL(
+  import.meta.env.VITE_SUPERSET_URL ||
+    import.meta.env.VITE_SUPERSET_DASHBOARD_URL ||
+    "http://localhost:8088",
+).origin;
+const dashboardUrlFor = (slug) =>
+  slug
+    ? `${SUPERSET_ORIGIN}/superset/dashboard/${encodeURIComponent(slug)}/?standalone=3`
+    : "";
 const authHeader = () => ({
   Authorization: `Bearer ${localStorage.getItem("token")}`,
 });
@@ -95,6 +101,7 @@ const UserUpload = () => {
   const [activeImportJob, setActiveImportJob] = useState(null);
   const pollingRef = useRef(null);
   const urlPollingRef = useRef(null);
+  const dashboardPollingRef = useRef(null);
 
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -104,6 +111,18 @@ const UserUpload = () => {
       });
       const hist = res.data || [];
       setHistory(hist);
+
+      if (hist[0]?.dag_run_id) {
+        try {
+          const statusRes = await axios.get(
+            `${API_URL}/upload/pipeline-status/${hist[0].dag_run_id}`,
+            { headers: authHeader() },
+          );
+          setActivePipeline(statusRes.data);
+        } catch {
+          /* Keep history usable while Airflow is temporarily unavailable. */
+        }
+      }
 
       if (
         hist.length > 0 &&
@@ -125,8 +144,48 @@ const UserUpload = () => {
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
       if (urlPollingRef.current) clearInterval(urlPollingRef.current);
+      if (dashboardPollingRef.current) clearInterval(dashboardPollingRef.current);
     };
   }, [fetchHistory]);
+
+  useEffect(() => {
+    if (
+      activePipeline?.state !== "success" ||
+      activePipeline?.dashboard?.imported ||
+      !activePipeline?.dag_run_id
+    ) {
+      if (dashboardPollingRef.current) {
+        clearInterval(dashboardPollingRef.current);
+        dashboardPollingRef.current = null;
+      }
+      return undefined;
+    }
+
+    // XCom can become visible a fraction after the DAG changes to success.
+    // Retry automatically so the user never has to press "Làm mới".
+    dashboardPollingRef.current = setInterval(async () => {
+      try {
+        const res = await axios.get(
+          `${API_URL}/upload/pipeline-status/${activePipeline.dag_run_id}`,
+          { headers: authHeader() },
+        );
+        setActivePipeline(res.data);
+      } catch {
+        /* Keep retrying while this completed run is selected. */
+      }
+    }, 2000);
+
+    return () => {
+      if (dashboardPollingRef.current) {
+        clearInterval(dashboardPollingRef.current);
+        dashboardPollingRef.current = null;
+      }
+    };
+  }, [
+    activePipeline?.state,
+    activePipeline?.dashboard?.imported,
+    activePipeline?.dag_run_id,
+  ]);
 
   const pollPipelineStatus = (dagRunId) => {
     if (!dagRunId) return;
@@ -313,6 +372,11 @@ const UserUpload = () => {
       label: item.pipeline_status,
       tone: "ink",
     };
+
+  const completedDashboardUrl =
+    activePipeline?.state === "success" && activePipeline?.dashboard?.imported
+      ? dashboardUrlFor(activePipeline.dashboard.slug)
+      : "";
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
@@ -719,6 +783,7 @@ const UserUpload = () => {
         )}
 
         {/* ROW 3 — Superset Analytics */}
+        {activePipeline?.state === "success" && (
         <Card className="overflow-hidden flex flex-col">
           <div className="px-5 sm:px-6 py-4 border-b border-ink-100 bg-white flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center shrink-0">
             <div>
@@ -732,8 +797,9 @@ const UserUpload = () => {
                 Gold Layer · Apache Superset
               </p>
             </div>
+            {completedDashboardUrl && (
             <a
-              href={supersetUrl}
+              href={completedDashboardUrl}
               target="_blank"
               rel="noreferrer"
               className="self-start sm:self-auto text-xs text-lake-700 hover:text-lake-800 bg-lake-50 hover:bg-lake-100 px-3 py-1.5 rounded-lg transition font-semibold flex items-center gap-1.5"
@@ -741,15 +807,25 @@ const UserUpload = () => {
               Mở tab mới
               <Icon name="externalLink" className="w-3.5 h-3.5" />
             </a>
+            )}
           </div>
           <div className="bg-[#FAFBFD] relative p-2 sm:p-3">
-            <iframe
-              src={supersetUrl}
-              title="Superset Chart"
-              className="w-full h-[560px] sm:h-[620px] lg:h-[720px] xl:h-[820px] border border-ink-100 bg-white rounded-xl shadow-inner"
-            ></iframe>
+            {completedDashboardUrl ? (
+              <iframe
+                key={completedDashboardUrl}
+                src={completedDashboardUrl}
+                title={activePipeline.dashboard.title || "Superset Dashboard"}
+                className="w-full h-[560px] sm:h-[620px] lg:h-[720px] xl:h-[820px] border border-ink-100 bg-white rounded-xl shadow-inner"
+                allowFullScreen
+              />
+            ) : (
+              <div className="flex min-h-48 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-6 text-center text-sm font-medium text-amber-800">
+                Đang đồng bộ dashboard từ Superset, giao diện sẽ tự động hiển thị ngay khi sẵn sàng...
+              </div>
+            )}
           </div>
         </Card>
+        )}
       </main>
     </div>
   );

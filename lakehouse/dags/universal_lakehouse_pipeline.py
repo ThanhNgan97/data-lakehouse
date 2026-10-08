@@ -307,6 +307,9 @@ def provision_superset_dashboard_task(**context):
         )
         print("✅ [Superset Task] Tự động tạo Dashboard thành công:")
         print(json.dumps(result, indent=2, ensure_ascii=False))
+        # PythonOperator stores this mapping in XCom so the API can embed the
+        # dashboard produced for this exact DAG run.
+        return result
     except Exception as exc:
         print(f"⚠️ [Superset Task] Gặp lỗi khi tạo dashboard (pipeline data vẫn thành công): {exc}")
 

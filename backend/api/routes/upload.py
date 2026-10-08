@@ -190,21 +190,28 @@ async def get_pipeline_status(
                     "imported": bool(xcom_value.get("imported")),
                 }
         
-        # Cập nhật pipeline_status vào DB (nếu chưa bị set cứng từ Spark thành failed)
+        # Đồng bộ trạng thái hiện tại từ Airflow. Một DAG run có thể được clear
+        # và retry sau khi Spark đã ghi lỗi vào DB, vì vậy "failed" không được
+        # ghim vĩnh viễn nếu chính DAG run đó sau cùng đã thành công.
         record = db.query(UploadHistory).filter(UploadHistory.dag_run_id == dag_run_id).first()
-        
-        # Nếu Spark đã đánh dấu failed trong DB (kèm error_message), ghi đè state bằng failed 
-        # và lấy thông báo lỗi ra trả về FE.
+
         error_message = None
         parsed_data = None
         if record:
-            if record.pipeline_status == "failed" and record.metadata_info:
-                state = "failed"
-                error_message = record.metadata_info.get("error_message")
-            elif state != "unknown" and record.pipeline_status != "failed":
+            metadata = dict(record.metadata_info or {})
+            if state == "success":
+                metadata.pop("error_message", None)
+                record.metadata_info = metadata
+                record.pipeline_status = "success"
+                db.commit()
+            elif state == "failed":
+                record.pipeline_status = "failed"
+                error_message = metadata.get("error_message")
+                db.commit()
+            elif state != "unknown":
                 record.pipeline_status = state
                 db.commit()
-                
+
             if record.metadata_info:
                 parsed_data = record.metadata_info.get("parsed_data")
 

@@ -162,6 +162,63 @@ def dedup_by_business_key(df_bronze):
     return df_staging, df_discarded
 
 
+def repair_existing_silver_duplicates(spark, table_name):
+    """Keep one latest row per KPI business key on the active Nessie branch.
+
+    Older pipeline versions could append the same KPI snapshot repeatedly. A
+    MERGE updates every matching target row but cannot collapse duplicates that
+    already exist, so the quality gate would otherwise block every future run.
+    The repair is performed on the temporary ingestion branch and reaches main
+    only after all quality checks pass.
+    """
+    current = spark.table(table_name)
+    total_rows = current.count()
+    if total_rows == 0:
+        return 0
+
+    order_columns = [desc("thoi_gian_ingest_silver"), desc("file_nguon")]
+    window = Window.partitionBy("ma_chi_tieu", "quy_danh_gia").orderBy(
+        *order_columns
+    )
+    repaired = (
+        current
+        .withColumn("_repair_rank", row_number().over(window))
+        .filter("_repair_rank = 1")
+        .drop("_repair_rank")
+        .select(*current.columns)
+        .localCheckpoint(eager=True)
+    )
+    repaired_rows = repaired.count()
+    removed_rows = total_rows - repaired_rows
+    if removed_rows <= 0:
+        return 0
+
+    print(
+        f"🧹 Phát hiện {removed_rows} dòng Silver trùng từ các lần ingest cũ. "
+        "Đang sửa trên Nessie branch hiện tại trước khi nạp batch mới..."
+    )
+    repaired.writeTo(table_name).overwritePartitions()
+    spark.catalog.clearCache()
+
+    remaining_duplicates = (
+        spark.table(table_name)
+        .groupBy("ma_chi_tieu", "quy_danh_gia")
+        .count()
+        .filter("count > 1")
+        .count()
+    )
+    if remaining_duplicates:
+        raise DataQualityError(
+            f"Không thể tự sửa {remaining_duplicates} khóa Silver bị trùng."
+        )
+
+    print(
+        f"✅ Đã sửa Silver: giữ lại {repaired_rows}/{total_rows} dòng mới nhất, "
+        f"loại {removed_rows} dòng trùng."
+    )
+    return removed_rows
+
+
 def save_discarded_duplicates(df_discarded, s3_client):
     """Ghi lại các bản ghi bị loại do trùng khóa nghiệp vụ."""
     dup_count = df_discarded.count()
@@ -222,6 +279,7 @@ def run_bronze_to_silver(spark, run_id=""):
         use_branch(spark, branch_name)
 
         init_silver_table_if_needed(spark, branch_name)
+        repair_existing_silver_duplicates(spark, SILVER_TABLE)
 
         from pyspark.sql.types import StructType, StructField, StringType, DoubleType
         bronze_schema = StructType([

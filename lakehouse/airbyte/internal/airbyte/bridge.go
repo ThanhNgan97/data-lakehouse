@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/datalakehouse/airbyte-config-tool/internal/model"
+	"golang.org/x/net/websocket"
 )
 
 type BridgeConfig struct {
@@ -24,8 +25,9 @@ type BridgeConfig struct {
 }
 
 type BridgeServer struct {
-	cfg    BridgeConfig
-	client *AirbyteClient
+	cfg       BridgeConfig
+	client    *AirbyteClient
+	statusHub *bridgeStatusHub
 }
 
 type OnboardResponse struct {
@@ -37,6 +39,7 @@ type OnboardResponse struct {
 	AirbyteConnectionID string            `json:"airbyte_connection_id"`
 	AirbyteJobID        int64             `json:"airbyte_job_id"`
 	JobStatus           string            `json:"job_status"`
+	DatabaseEngine      string            `json:"database_engine"`
 	DiscoveredResources []ResourceSummary `json:"discovered_resources"`
 }
 
@@ -68,14 +71,26 @@ func NewBridgeServer(cfg BridgeConfig) *BridgeServer {
 		cfg.AirflowPassword = "admin"
 	}
 	return &BridgeServer{
-		cfg:    cfg,
-		client: NewAirbyteClient(cfg.AirbyteURL, cfg.ClientID, cfg.ClientSecret),
+		cfg:       cfg,
+		client:    NewAirbyteClient(cfg.AirbyteURL, cfg.ClientID, cfg.ClientSecret),
+		statusHub: newBridgeStatusHub(),
 	}
 }
 
 func (b *BridgeServer) StartServer() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/airbyte/onboard-source", b.handleOnboardSource)
+	mux.HandleFunc("/api/v1/airbyte/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	})
+	mux.HandleFunc("/api/v1/airbyte/status", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(b.statusHub.snapshot())
+	})
+	mux.Handle("/api/v1/airbyte/events", websocket.Handler(b.handleStatusEvents))
 
 	addr := fmt.Sprintf(":%d", b.cfg.Port)
 	fmt.Printf("\n🚀 Airbyte Official API Bridge listening at %s\n", addr)
@@ -330,10 +345,6 @@ func (b *BridgeServer) OnboardAndSync(ctx context.Context, bundle model.AirbyteC
 		return nil, fmt.Errorf("Airbyte sync trigger failed: %w", err)
 	}
 
-	// The request returns immediately while this watcher completes the hand-off
-	// from Airbyte to the generic relational-context DAG.
-	go b.monitorSyncAndTriggerAirflow(jobID, tenantID)
-
 	var discoveredList []ResourceSummary
 	for _, v := range bundle.ExposedViews {
 		discoveredList = append(discoveredList, ResourceSummary{
@@ -344,7 +355,7 @@ func (b *BridgeServer) OnboardAndSync(ctx context.Context, bundle model.AirbyteC
 		})
 	}
 
-	return &OnboardResponse{
+	response := &OnboardResponse{
 		Status:              "SUCCESS",
 		Message:             fmt.Sprintf("Airbyte OSS đã kết nối thành công tới database nguồn (%d Views), tự động cấu hình MinIO Parquet Destination và đã kích hoạt Sync Job #%d!", len(discoveredList), jobID),
 		TenantID:            bundle.TenantID,
@@ -353,8 +364,26 @@ func (b *BridgeServer) OnboardAndSync(ctx context.Context, bundle model.AirbyteC
 		AirbyteConnectionID: connID,
 		AirbyteJobID:        jobID,
 		JobStatus:           "RUNNING",
+		DatabaseEngine:      bundle.DatabaseEngine,
 		DiscoveredResources: discoveredList,
-	}, nil
+	}
+	b.statusHub.update(BridgeStatus{
+		Status:              "SYNCING",
+		Message:             response.Message,
+		TenantID:            response.TenantID,
+		DatabaseEngine:      response.DatabaseEngine,
+		AirbyteSourceID:     response.AirbyteSourceID,
+		AirbyteDestID:       response.AirbyteDestID,
+		AirbyteConnectionID: response.AirbyteConnectionID,
+		AirbyteJobID:        response.AirbyteJobID,
+		JobStatus:           response.JobStatus,
+		DiscoveredResources: response.DiscoveredResources,
+	})
+
+	// The request returns immediately while this watcher completes the hand-off
+	// from Airbyte to the generic relational-context DAG.
+	go b.monitorSyncAndTriggerAirflow(jobID, tenantID)
+	return response, nil
 }
 
 func (b *BridgeServer) monitorSyncAndTriggerAirflow(jobID int64, contextID string) {
@@ -373,12 +402,15 @@ func (b *BridgeServer) monitorSyncAndTriggerAirflow(jobID int64, contextID strin
 			}
 			fmt.Printf("\n⚠️ Cannot read Airbyte job #%d yet: %v\n", jobID, err)
 		} else {
+			b.statusHub.setJobStatus(jobID, strings.ToUpper(status), "")
 			switch strings.ToLower(status) {
 			case "succeeded", "success":
 				if err := b.triggerAirflowDAG(ctx, jobID, contextID); err != nil {
+					b.statusHub.setJobStatus(jobID, "FAILED", fmt.Sprintf("Airflow hand-off failed: %v", err))
 					fmt.Printf("\n❌ Airflow hand-off failed for Airbyte job #%d: %v\n", jobID, err)
 					return
 				}
+				b.statusHub.setJobStatus(jobID, "SUCCEEDED", "Airbyte sync completed; Airflow pipeline triggered.")
 				fmt.Printf("\n✅ Airbyte job #%d completed; triggered Airflow context '%s'.\n", jobID, contextID)
 				return
 			case "failed", "cancelled", "canceled", "incomplete":
@@ -389,6 +421,7 @@ func (b *BridgeServer) monitorSyncAndTriggerAirflow(jobID int64, contextID strin
 
 		select {
 		case <-ctx.Done():
+			b.statusHub.setJobStatus(jobID, "FAILED", "Timed out while waiting for Airbyte sync.")
 			fmt.Printf("\n❌ Timed out waiting for Airbyte job #%d.\n", jobID)
 			return
 		case <-ticker.C:

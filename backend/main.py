@@ -35,6 +35,9 @@ app.include_router(upload.router, prefix="/api", tags=["Upload"])
 from api.routes import url_import
 app.include_router(url_import.router, prefix="/api", tags=["URL Import"])
 
+from api.routes import api_sources
+app.include_router(api_sources.router, prefix="/api", tags=["API Sources"])
+
 # Catalog (Nessie history / references)
 from api.routes import catalog
 app.include_router(catalog.router, prefix="/api", tags=["Catalog"])

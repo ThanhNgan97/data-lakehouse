@@ -352,7 +352,7 @@ const Login = ({ setToken, setRole }) => {
             className="-ml-3 inline-flex min-h-11 items-center gap-2 rounded-control px-3 py-2 text-sm font-semibold text-cobalt-700 transition hover:bg-cobalt-50 hover:text-cobalt-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cobalt-500 focus-visible:ring-offset-2"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            <span>Về trang chủ</span>
+            {/* <span>Về trang chủ</span> */}
           </Link>
         </div>
 

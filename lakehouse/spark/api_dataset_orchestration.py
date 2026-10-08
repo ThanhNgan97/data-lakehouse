@@ -77,6 +77,10 @@ def require_orchestration_config(
 def source_api_url(
     config: ApiDatasetConfig,
 ) -> str:
+    runtime_url = os.getenv("SOURCE_API_URL", "").strip()
+    if runtime_url:
+        return runtime_url
+
     base_url = (
         os.getenv("CTU_IOC_API_BASE_URL")
         or DEFAULT_API_BASE_URL

@@ -11,7 +11,7 @@ const layers = [
 
 const sources = [
   { title: "Tải file", icon: UploadCloud, tone: "file", to: "/user/file", description: "Tải file từ máy tính hoặc nhập từ URL và theo dõi tiến trình xử lý.", metadata: "8 định dạng · Tối đa 100 MB", action: "Tải file ngay" },
-  { title: "Kết nối API", icon: Code2, tone: "api", to: "/user/api", description: "Định hướng tiếp nhận dữ liệu từ các API bên ngoài.", metadata: "Dự kiến · Chưa khả dụng", action: "Kết nối API" },
+  { title: "Kết nối API", icon: Code2, tone: "api", to: "/user/api", description: "Kết nối, kiểm tra và đồng bộ dữ liệu từ các REST API bên ngoài.", metadata: "REST API · Bearer Token", action: "Kết nối API" },
   { title: "Kết nối Database", icon: Database, tone: "database", to: "/user/database", description: "Định hướng kết nối nguồn dữ liệu từ cơ sở dữ liệu nghiệp vụ.", metadata: "Dự kiến · Chưa khả dụng", action: "Kết nối Database" },
   { title: "Kết nối IoT", icon: Zap, tone: "iot", to: "/user/iot", description: "Định hướng tiếp nhận dữ liệu từ thiết bị và cảm biến.", metadata: "Dự kiến · Chưa khả dụng", action: "Kết nối IoT" },
 ];

@@ -39,7 +39,7 @@ const AdminDashboard = () => {
     dashboard: 'Báo cáo Thường niên Chất lượng Giáo dục',
     pipeline: 'Pipeline Dữ liệu: Bronze → Silver → Gold',
     catalog: 'Lịch sử Pipeline (Nessie Catalog)',
-    history: 'Lịch sử Tải lên Dữ liệu',
+    history: 'Lịch sử Tải lên dữ liệu',
     users: 'Quản lý Người dùng',
   };
   const TAB_DESC = {

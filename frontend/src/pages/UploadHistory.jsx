@@ -92,7 +92,7 @@ const UploadHistory = () => {
             className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 self-start rounded-control border border-line bg-white px-3 text-xs font-semibold text-ink-600 shadow-sm transition hover:border-cobalt-200 hover:bg-cobalt-50 hover:text-cobalt-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cobalt-500 focus-visible:ring-offset-2 sm:self-auto"
           >
             <Icon name="refresh" className="h-3.5 w-3.5" />
-            Làm mới
+            Làm mới danh sách
           </button>
         </div>
 

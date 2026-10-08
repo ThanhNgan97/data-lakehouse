@@ -88,7 +88,7 @@ const AdminDashboard = () => {
                 CUSC ANALYSIS PLATFORM
               </h1>
               <p className="mt-1 truncate text-[9px] font-medium text-navy-300">
-                Trung tâm Công nghệ Thông tin - ĐHCT
+                Trung tâm Công nghệ Phần mềm - ĐHCT
               </p>
             </div>
           </div>

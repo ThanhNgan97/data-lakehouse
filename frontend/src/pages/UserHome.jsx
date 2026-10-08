@@ -117,7 +117,7 @@ export default function UserHome() {
       <footer className="portal-footer">
         <div className="portal-shell">
           <span>© 2026 CUSC. Bảo lưu mọi quyền.</span>
-          <span>Trung tâm Công nghệ Thông tin - Đại học Cần Thơ</span>
+          <span>Trung tâm Công nghệ Phần mềm - Đại học Cần Thơ</span>
         </div>
       </footer>
     </div>

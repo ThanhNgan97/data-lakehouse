@@ -41,6 +41,7 @@ if str(_CURRENT_DIR) not in sys.path:
     sys.path.insert(0, str(_CURRENT_DIR))
 
 from ai_dataset_router import RoutingDecision, to_snake_case
+from relational_context import is_technical_column
 
 DATABASE_UUID = "41989b72-5069-4671-8a40-78245bd3bd30"  # CTU IOC Trino UUID
 NAMESPACE_SUPERSET = uuid.NAMESPACE_DNS
@@ -164,6 +165,18 @@ VIETNAMESE_DICTIONARY: Dict[str, str] = {
     "thoi_gian_cap_nhat": "Thời Gian Cập Nhật",
     "thoi_gian_dong_goi_gold": "Thời Gian Đóng Gói Gold",
     "_gold_generated_at": "Thời Gian Khởi Tạo Gold",
+    "ty_le_hien_dien": "Tỷ Lệ Hiện Diện (%)",
+    "tong_luot_diem_danh": "Tổng Lượt Điểm Danh",
+    "so_luot_co_mat": "Số Lượt Có Mặt",
+    "ty_le_dung_tien_do": "Tỷ Lệ Đúng Tiến Độ (%)",
+    "ty_le_nhap_diem": "Tỷ Lệ Nhập Điểm (%)",
+    "diem_danh_gia": "Điểm Đánh Giá",
+    "muc_do_hai_long": "Mức Độ Hài Lòng",
+    "so_sv_khao_sat": "Số SV Khảo Sát",
+    "ma_lop_hp": "Mã Lớp HP",
+    "ten_mon_hoc": "Tên Môn Học",
+    "ten_don_vi": "Tên Đơn Vị",
+    "loai_don_vi": "Loại Đơn Vị",
     # Nhóm Decision-driven Fields (Chuẩn superset-new-implement.md)
     "action_priority": "Mức Độ Ưu Tiên Xử Lý",
     "health_status": "Trạng Thái Sức Khỏe Nghiệp Vụ",
@@ -199,6 +212,13 @@ ENTITY_NAME_MAP: Dict[str, str] = {
     "kpi_tong_hop_don_vi": "Tổng Hợp KPI CUSC",
     "iot_telemetry": "Dữ Liệu Đo Lường IoT & Cảm Biến",
     "iot_telemetry_summary": "Tổng Hợp Đo Lường Cảm Biến IoT",
+    "ctu_ioc_test_context": "Tổng Quan Điều Hành Đào Tạo CTU IOC",
+    "dm_don_vi_dao_tao": "Danh Mục Đơn Vị Đào Tạo",
+    "diem_danh_lop_hp": "Điểm Danh Lớp HP",
+    "tien_do_giang_day": "Tiến Độ Giảng Dạy",
+    "tien_do_nhap_diem": "Tiến Độ Nhập Điểm",
+    "khao_sat_sinh_vien": "Khảo Sát Sinh Viên",
+    "doi_lich_giang_day": "Đổi Lịch Giảng Dạy",
 }
 
 
@@ -212,6 +232,27 @@ def to_vietnamese_label(field: str) -> str:
     """Chuyển đổi tên trường snake_case thành nhãn tiếng Việt có dấu chuẩn xác và viết hoa viết tắt."""
     raw = field.strip().lower()
 
+    # Relational Gold fields use <entity>__<aggregation>__<business_field>.
+    # Render the business meaning first and keep the source entity as context.
+    if "__" in raw:
+        parts = raw.split("__")
+        entity = parts[0]
+        if len(parts) >= 3 and parts[1] in {"sum", "avg"}:
+            business_field = "__".join(parts[2:])
+            base = to_vietnamese_label(business_field)
+            aggregate = "Tổng" if parts[1] == "sum" else "Bình Quân"
+            return capitalize_abbreviations(
+                f"{aggregate} {base} – {to_vietnamese_label(entity)}"
+            )
+        if len(parts) == 2 and parts[1] == "record_count":
+            return capitalize_abbreviations(f"Số Bản Ghi – {to_vietnamese_label(entity)}")
+        if len(parts) == 2:
+            return capitalize_abbreviations(
+                f"{to_vietnamese_label(parts[1])} – {to_vietnamese_label(entity)}"
+            )
+
+    if raw in ENTITY_NAME_MAP:
+        return capitalize_abbreviations(ENTITY_NAME_MAP[raw])
     if raw in VIETNAMESE_DICTIONARY:
         return capitalize_abbreviations(VIETNAMESE_DICTIONARY[raw])
 
@@ -232,7 +273,9 @@ def to_vietnamese_label(field: str) -> str:
     parts = raw.split("_")
     translated = []
     for p in parts:
-        if p in VIETNAMESE_DICTIONARY:
+        if p == "co" and raw != "co":
+            translated.append("Có")
+        elif p in VIETNAMESE_DICTIONARY:
             translated.append(VIETNAMESE_DICTIONARY[p])
         elif p == "tb":
             translated.append("TB")
@@ -267,7 +310,8 @@ def is_average_metric(metric_name: str) -> bool:
     return any(k in m_lower for k in [
         "diem", "gpa", "ty_le", "ti_le", "rate", "percent", "score", "avg_",
         "atk", "hp", "def", "copies", "stat",
-        "temp", "nhiet_do", "humidity", "do_am", "co", "lpg", "smoke", "ppm", "celsius"
+        "temp", "nhiet_do", "humidity", "do_am", "lpg", "smoke", "ppm", "celsius",
+        "__avg__",
     ])
 
 
@@ -338,8 +382,9 @@ def build_dataset_yaml(decision: RoutingDecision) -> Tuple[Dict[str, Any], str]:
 
     # 1. Cấu hình Dimensions & Temporal
     for dim in decision.dimension_columns:
-        col_snake = to_snake_case(dim)
-        if col_snake in added_cols or not _col_valid(col_snake):
+        raw_dim = dim.strip().lower()
+        col_snake = raw_dim if real_cols_set and raw_dim in real_cols_set else to_snake_case(dim)
+        if is_technical_column(col_snake) or col_snake in added_cols or not _col_valid(col_snake):
             continue
         added_cols.add(col_snake)
         is_dttm = bool(decision.source_updated_at_field and col_snake == to_snake_case(decision.source_updated_at_field))
@@ -357,7 +402,7 @@ def build_dataset_yaml(decision: RoutingDecision) -> Tuple[Dict[str, Any], str]:
     main_dttm = None
     if decision.source_updated_at_field:
         main_dttm = to_snake_case(decision.source_updated_at_field)
-        if not _col_valid(main_dttm):
+        if is_technical_column(main_dttm) or not _col_valid(main_dttm):
             main_dttm = None
 
     if not main_dttm and real_cols_set:
@@ -394,9 +439,32 @@ def build_dataset_yaml(decision: RoutingDecision) -> Tuple[Dict[str, Any], str]:
 
     # 3. Cấu hình Metrics (Số liệu)
     for metric in decision.metric_columns:
-        m_snake = to_snake_case(metric)
+        raw_metric = metric.strip().lower()
+        m_snake = raw_metric if real_cols_set and raw_metric in real_cols_set else to_snake_case(metric)
+        if is_technical_column(m_snake):
+            continue
         m_vn = to_vietnamese_label(metric)
         is_avg = is_average_metric(metric)
+
+        # Relational context metrics already exist as physical Gold columns.
+        if _col_valid(m_snake):
+            added_cols.add(m_snake)
+            columns_config.append({
+                "column_name": m_snake,
+                "verbose_name": m_vn,
+                "is_dttm": False,
+                "is_active": True,
+                "type": "DOUBLE",
+                "groupby": False,
+                "filterable": True,
+            })
+            metrics_config.append({
+                "metric_name": f"metric_{m_snake}",
+                "verbose_name": m_vn,
+                "metric_type": "avg" if is_avg else "sum",
+                "expression": f"{'AVG' if is_avg else 'SUM'}({m_snake})",
+            })
+            continue
 
         sum_col = f"sum_{m_snake}"
         if _col_valid(sum_col):
@@ -465,7 +533,7 @@ def build_dataset_yaml(decision: RoutingDecision) -> Tuple[Dict[str, Any], str]:
     # Bổ sung bất kỳ cột thực tế nào còn lại từ bảng Trino
     if real_cols_set:
         for rc in real_cols_set:
-            if rc not in added_cols and not rc.startswith("_"):
+            if rc not in added_cols and not rc.startswith("_") and not is_technical_column(rc):
                 added_cols.add(rc)
                 columns_config.append({
                     "column_name": rc,
@@ -823,6 +891,7 @@ def build_chart_line(
 
 class DashboardArchetype(str, Enum):
     PERFORMANCE_RISK = "performance_risk"
+    OPERATIONAL_PERFORMANCE = "operational_performance"
     TIME_SERIES = "time_series"
     ENTITY_CATALOG = "entity_catalog"
     CATEGORICAL_DISTRIBUTION = "categorical_distribution"
@@ -833,6 +902,10 @@ def detect_dashboard_archetype(
     valid_cols: Set[str]
 ) -> DashboardArchetype:
     """Tự động nhận diện Archetype nghiệp vụ của Dataset để tuyển chọn Template phù hợp nhất."""
+    explicit = (decision.dashboard_archetype or "").lower()
+    if explicit in {item.value for item in DashboardArchetype}:
+        return DashboardArchetype(explicit)
+
     domain_lower = (decision.dataset_domain or "").lower()
     entity_lower = (decision.dataset_entity or "").lower()
 
@@ -864,7 +937,7 @@ def detect_dashboard_archetype(
         has_time = True
     else:
         for c in valid_cols:
-            if c.startswith("_") or c in metric_cols_snake or f"sum_{c}" in valid_cols or f"avg_{c}" in valid_cols:
+            if is_technical_column(c) or c.startswith("_") or c in metric_cols_snake or f"sum_{c}" in valid_cols or f"avg_{c}" in valid_cols:
                 continue
             if c in strict_time_exact or any(c.endswith(f"_{t}") for t in ["date", "time", "timestamp", "at", "dt"]):
                 has_time = True
@@ -1824,6 +1897,137 @@ def _build_layout_entity_catalog(
     return charts, position, title, desc, {}
 
 
+def _build_layout_operational_performance(
+    decision: RoutingDecision,
+    dataset_uuid: str,
+    valid_cols: Set[str],
+    table_name: str,
+    entity_label: str,
+    _resolve,
+) -> Tuple[List[Tuple[Dict[str, Any], str]], Dict[str, Any], str, str, Dict[str, str]]:
+    """Overview for multi-entity operational contexts without inventing risk fields."""
+    charts: List[Tuple[Dict[str, Any], str]] = []
+    key = _resolve(decision.business_keys[0] if decision.business_keys else "id")
+    dimensions = [
+        _resolve(to_snake_case(column))
+        for column in decision.dimension_columns
+        if not is_technical_column(column)
+    ]
+    dimensions = list(dict.fromkeys(column for column in dimensions if column in valid_cols))
+
+    def metric_info(name: str) -> Tuple[str, str, str, str]:
+        field = _resolve(to_snake_case(name), fallback=key)
+        average = is_average_metric(name)
+        label = to_vietnamese_label(name)
+        if average and label.startswith("Bình Quân "):
+            label = label[len("Bình Quân "):]
+        return (
+            field,
+            label,
+            "AVG" if average else "SUM",
+            ",.1f" if average else ",.0f",
+        )
+
+    metric_infos = [metric_info(name) for name in decision.metric_columns[:3]]
+
+    count_chart, count_uuid = build_chart_kpi(
+        table_name, dataset_uuid, "op_total_entities", "Tổng Số Đối Tượng",
+        key, "COUNT", ",.0f",
+    )
+    charts.append((count_chart, count_uuid))
+
+    for index in range(3):
+        if index < len(metric_infos):
+            field, label, aggregate, number_format = metric_infos[index]
+            chart, chart_uuid = build_chart_kpi(
+                table_name, dataset_uuid, f"op_metric_{index + 1}", label,
+                field, aggregate, number_format,
+            )
+        else:
+            chart, chart_uuid = build_chart_kpi(
+                table_name, dataset_uuid, f"op_count_{index + 1}", "Tổng Số Bản Ghi",
+                key, "COUNT", ",.0f",
+            )
+        charts.append((chart, chart_uuid))
+
+    visual_charts: List[Tuple[Dict[str, Any], str]] = []
+    if dimensions:
+        pie, pie_uuid = build_chart_pie(
+            table_name, dataset_uuid, dimensions[0], to_vietnamese_label(dimensions[0]),
+            key, "Số lượng", "COUNT", ",.0f",
+        )
+        visual_charts.append((pie, pie_uuid))
+    for index, info in enumerate(metric_infos[:2]):
+        dimension = dimensions[min(index, len(dimensions) - 1)] if dimensions else key
+        field, label, aggregate, number_format = info
+        bar, bar_uuid = build_chart_bar(
+            table_name, dataset_uuid, dimension, to_vietnamese_label(dimension),
+            field, label, aggregate, number_format, True,
+        )
+        visual_charts.append((bar, bar_uuid))
+    charts.extend(visual_charts)
+
+    detail_columns = [
+        column for column in sorted(valid_cols)
+        if not column.startswith("_") and not is_technical_column(column)
+    ]
+    table_chart, table_uuid = build_chart_table(
+        table_name, dataset_uuid, detail_columns, entity_label, decision.metric_columns,
+    )
+    table_chart["slice_name"] = f"Chi Tiết Vận Hành {entity_label}"
+    charts.append((table_chart, table_uuid))
+
+    position: Dict[str, Any] = {
+        "ROOT_ID": {"type": "ROOT", "children": ["GRID_ID"], "id": "ROOT_ID"},
+        "GRID_ID": {
+            "type": "GRID", "children": ["ROW-OP-KPI", "ROW-OP-VISUAL", "ROW-OP-TABLE"],
+            "id": "GRID_ID", "parents": ["ROOT_ID"],
+        },
+    }
+    kpi_children = []
+    for index, (chart, chart_uuid) in enumerate(charts[:4], 1):
+        item_id = f"CHART-OP-KPI-{index}"
+        kpi_children.append(item_id)
+        position[item_id] = {
+            "children": [], "id": item_id,
+            "meta": {"chartId": 401 + index, "height": 22, "sliceName": chart["slice_name"], "uuid": chart_uuid, "width": 3},
+            "parents": ["ROOT_ID", "GRID_ID", "ROW-OP-KPI"], "type": "CHART",
+        }
+    position["ROW-OP-KPI"] = {
+        "children": kpi_children, "id": "ROW-OP-KPI", "meta": {"background": "BACKGROUND_TRANSPARENT"},
+        "parents": ["ROOT_ID", "GRID_ID"], "type": "ROW",
+    }
+    visual_children = []
+    for index, (chart, chart_uuid) in enumerate(visual_charts, 1):
+        item_id = f"CHART-OP-VISUAL-{index}"
+        visual_children.append(item_id)
+        position[item_id] = {
+            "children": [], "id": item_id,
+            "meta": {"chartId": 410 + index, "height": 48, "sliceName": chart["slice_name"], "uuid": chart_uuid, "width": 4},
+            "parents": ["ROOT_ID", "GRID_ID", "ROW-OP-VISUAL"], "type": "CHART",
+        }
+    position["ROW-OP-VISUAL"] = {
+        "children": visual_children, "id": "ROW-OP-VISUAL", "meta": {"background": "BACKGROUND_TRANSPARENT"},
+        "parents": ["ROOT_ID", "GRID_ID"], "type": "ROW",
+    }
+    position["CHART-OP-TABLE"] = {
+        "children": [], "id": "CHART-OP-TABLE",
+        "meta": {"chartId": 499, "height": 60, "sliceName": table_chart["slice_name"], "uuid": table_uuid, "width": 12},
+        "parents": ["ROOT_ID", "GRID_ID", "ROW-OP-TABLE"], "type": "CHART",
+    }
+    position["ROW-OP-TABLE"] = {
+        "children": ["CHART-OP-TABLE"], "id": "ROW-OP-TABLE", "meta": {"background": "BACKGROUND_TRANSPARENT"},
+        "parents": ["ROOT_ID", "GRID_ID"], "type": "ROW",
+    }
+    title = f"[Auto] {entity_label} – Tổng Quan Vận Hành"
+    description = (
+        f"Dashboard vận hành đa thực thể cho {entity_label}. "
+        f"Router confidence={decision.dashboard_routing_confidence}; "
+        f"signals={', '.join(decision.dashboard_routing_signals)}."
+    )
+    return charts, position, title, description, {}
+
+
 def _build_layout_categorical_distribution(
     decision: RoutingDecision,
     dataset_uuid: str,
@@ -2079,8 +2283,16 @@ def build_dashboard_bundle(decision: RoutingDecision) -> Dict[str, Any]:
     def _resolve(pref: str, fallback: str = "total_records") -> str:
         if pref.lower() in valid_cols:
             return pref
+        normalized = to_snake_case(pref)
+        physical_matches = sorted(c for c in valid_cols if to_snake_case(c) == normalized)
+        if physical_matches:
+            return physical_matches[0]
         if fallback.lower() in valid_cols:
             return fallback
+        fallback_normalized = to_snake_case(fallback)
+        fallback_matches = sorted(c for c in valid_cols if to_snake_case(c) == fallback_normalized)
+        if fallback_matches:
+            return fallback_matches[0]
         return list(valid_cols)[0] if valid_cols else "total_records"
 
     # Xác định Metric chính (Primary Outcome Metric)
@@ -2098,7 +2310,7 @@ def build_dashboard_bundle(decision: RoutingDecision) -> Dict[str, Any]:
             break
 
     # Xử lý các từ khóa ngắn đặc thù IoT (dùng word boundary để tránh match nhầm như 'co' trong 'convenient' hay 'comfort')
-    if not primary_eval_metric:
+    if not primary_eval_metric and (decision.dataset_domain or "").lower() == "iot":
         for kw in ["co", "smoke", "lpg", "gas"]:
             for m in decision.metric_columns:
                 m_words = m.lower().replace('/', ' ').replace('_', ' ').split()
@@ -2120,7 +2332,7 @@ def build_dashboard_bundle(decision: RoutingDecision) -> Dict[str, Any]:
                 break
         if rank_metric:
             break
-    if not rank_metric:
+    if not rank_metric and (decision.dataset_domain or "").lower() == "iot":
         for kw in ["co", "smoke", "lpg"]:
             for m in decision.metric_columns:
                 m_words = m.lower().replace('/', ' ').replace('_', ' ').split()
@@ -2146,6 +2358,15 @@ def build_dashboard_bundle(decision: RoutingDecision) -> Dict[str, Any]:
             entity_label=entity_label,
             primary_eval_metric=primary_eval_metric,
             rank_metric=rank_metric,
+            _resolve=_resolve,
+        )
+    elif archetype == DashboardArchetype.OPERATIONAL_PERFORMANCE:
+        charts, position, title, desc, label_colors = _build_layout_operational_performance(
+            decision=decision,
+            dataset_uuid=dataset_uuid,
+            valid_cols=valid_cols,
+            table_name=table_name,
+            entity_label=entity_label,
             _resolve=_resolve,
         )
     elif archetype == DashboardArchetype.TIME_SERIES:
@@ -2507,6 +2728,7 @@ def provision_dynamic_dashboard(
         "status": "SUCCESS" if (import_success or not auto_import) else "ZIP_READY",
         "table_name": table_name,
         "dashboard_title": bundle["dashboard_title"],
+        "dashboard_slug": slug,
         "dashboard_uuid": bundle["dashboard_uuid"],
         "zip_path": str(zip_path),
         "imported": import_success,

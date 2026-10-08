@@ -2,14 +2,20 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import axios from "axios";
 import UserTopNavigation from "../components/UserTopNavigation";
 import Icon from "../components/icons";
-import { Badge, Card, LakehouseMark } from "../components/ui";
+import { Badge, Card } from "../components/ui";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 const MAX_UPLOAD_FILE_BYTES = 100 * 1024 * 1024;
 const UPLOAD_EXTENSIONS = ["pdf", "docx", "csv", "tsv", "xlsx", "xls", "json", "parquet"];
-const supersetUrl =
-  import.meta.env.VITE_SUPERSET_DASHBOARD_URL ||
-  "http://localhost:8088/superset/dashboard/1/?standalone=3";
+const SUPERSET_ORIGIN = new URL(
+  import.meta.env.VITE_SUPERSET_URL ||
+    import.meta.env.VITE_SUPERSET_DASHBOARD_URL ||
+    "http://localhost:8088",
+).origin;
+const dashboardUrlFor = (slug) =>
+  slug
+    ? `${SUPERSET_ORIGIN}/superset/dashboard/${encodeURIComponent(slug)}/?standalone=3`
+    : "";
 const authHeader = () => ({
   Authorization: `Bearer ${localStorage.getItem("token")}`,
 });
@@ -33,47 +39,123 @@ const STATUS_CONFIG = {
    dùng màu "lake" (phân tích/insight). */
 const PIPELINE_TASKS = [
   {
-    id: "profile",
-    taskIds: ["ai_semantic_profiler"],
-    label: "Profile",
-    sub: "AI Semantic",
+    id: "extract",
+    taskIds: ["ai_semantic_profiler", "kpi_flow.ingest_bronze", "api_flow.run_registered_api"],
+    label: "Extract",
+    sub: "Thu thập dữ liệu",
+    icon: "extract",
+    iconClass: "bg-orange-50 text-orange-600",
     tone: "bronze",
     dot: "bg-bronze-500",
+    number: "border-cobalt-100 bg-cobalt-50 text-cobalt-700",
   },
   {
-    id: "route",
-    taskIds: ["branch_router"],
-    label: "Route",
-    sub: "Universal",
+    id: "transform",
+    taskIds: ["branch_router", "kpi_flow.bronze_to_silver", "generic_flow.process_dynamic_silver_gold"],
+    label: "Transform",
+    sub: "Chuẩn hóa dữ liệu",
+    icon: "refresh",
+    iconClass: "bg-blue-50 text-blue-600",
     tone: "silver",
     dot: "bg-silver-500",
+    number: "border-lake-100 bg-lake-50 text-lake-700",
   },
   {
-    id: "process",
+    id: "load",
     taskIds: [
-      "kpi_flow.ingest_bronze", "kpi_flow.bronze_to_silver",
-      "kpi_flow.silver_to_gold", "kpi_flow.predictive_analysis",
-      "api_flow.run_registered_api", "generic_flow.process_dynamic_silver_gold",
+      "kpi_flow.silver_to_gold", "join_and_smoke_test",
     ],
-    label: "Process",
-    sub: "Selected Flow",
+    label: "Load",
+    sub: "Nạp vào Lakehouse",
+    icon: "loadData",
+    iconClass: "bg-amber-50 text-amber-600",
     tone: "gold",
     dot: "bg-gold-500",
+    number: "border-violet-100 bg-violet-50 text-violet-700",
   },
   {
-    id: "validate",
-    taskIds: ["join_and_smoke_test"],
-    label: "Validate",
-    sub: "Trino Smoke Test",
+    id: "analyze",
+    taskIds: ["kpi_flow.predictive_analysis", "auto_provision_superset"],
+    label: "Analyze",
+    sub: "Phân tích dữ liệu",
+    icon: "analyze",
+    iconClass: "bg-cyan-50 text-cyan-600",
     tone: "lake",
     dot: "bg-lake-500",
+    number: "border-emerald-100 bg-emerald-50 text-emerald-700",
   },
 ];
 
 const taskForStage = (tasks = [], taskIds) => {
   const matches = tasks.filter((task) => taskIds.includes(task.task_id));
-  const priority = ["failed", "running", "up_for_retry", "queued", "success"];
+  const priority = ["failed", "upstream_failed", "running", "up_for_retry", "queued", "success"];
   return priority.map((state) => matches.find((task) => task.state === state)).find(Boolean) || matches[0];
+};
+
+const formatFileSize = (bytes) => {
+  const value = Number(bytes);
+  if (!Number.isFinite(value) || value < 0) return "—";
+  if (value === 0) return "0 MB";
+  const megabytes = value / 1024 ** 2;
+  if (megabytes < 0.01) return "< 0.01 MB";
+  return `${megabytes.toFixed(megabytes >= 10 ? 1 : 2)} MB`;
+};
+
+const IMPORT_STATUS_LABELS = {
+  PENDING: "Đang chuẩn bị",
+  PROCESSING: "Đang nhập dữ liệu",
+  COMPLETED: "Đã hoàn thành",
+  PARTIAL_SUCCESS: "Hoàn thành một phần",
+  FAILED: "Import thất bại",
+  CANCELLED: "Đã hủy",
+};
+
+const IMPORT_FILE_STATUS_LABELS = {
+  QUEUED: "Đang chờ",
+  DOWNLOADING: "Đang tải",
+  PROCESSING: "Đang xử lý",
+  COMPLETED: "Hoàn thành",
+  DUPLICATE: "Đã có dữ liệu",
+  FAILED: "Thất bại",
+  UNSUPPORTED: "Không hỗ trợ",
+  CANCELLED: "Đã hủy",
+};
+
+const formatDate = (value) => {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+};
+
+const fileVisual = (filename = "") => {
+  const extension = filename.split(".").pop()?.toLowerCase();
+  if (extension === "pdf") return { icon: "filePdf", label: "PDF", className: "bg-rose-50 text-rose-600 ring-rose-100" };
+  if (["xlsx", "xls"].includes(extension)) {
+    return { icon: "fileExcel", label: extension.toUpperCase(), className: "bg-emerald-50 text-emerald-700 ring-emerald-100" };
+  }
+  if (["csv", "tsv"].includes(extension)) return { icon: "fileExcel", label: extension.toUpperCase(), className: "bg-teal-50 text-teal-700 ring-teal-100" };
+  if (extension === "docx") return { icon: "fileWord", label: "DOCX", className: "bg-blue-50 text-blue-700 ring-blue-100" };
+  if (extension === "json") return { icon: "fileJson", label: "JSON", className: "bg-amber-50 text-amber-700 ring-amber-100" };
+  if (extension === "parquet") return { icon: "fileParquet", label: "PARQ", className: "bg-violet-50 text-violet-700 ring-violet-100" };
+  return { icon: "file", label: extension?.toUpperCase() || "FILE", className: "bg-lake-50 text-lake-600 ring-lake-100" };
+};
+
+const durationInSeconds = (task, now) => {
+  if (!task?.start_date) return null;
+  const start = new Date(task.start_date).getTime();
+  const end = task.end_date ? new Date(task.end_date).getTime() : now;
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+  return Math.max(0, Math.round((end - start) / 1000));
+};
+
+const formatDuration = (seconds) => {
+  if (seconds === null) return "Chưa chạy";
+  if (seconds < 60) return `${seconds} giây`;
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return `${minutes} phút${remainder ? ` ${remainder} giây` : ""}`;
 };
 
 const UserUpload = () => {
@@ -85,7 +167,12 @@ const UserUpload = () => {
   const [uploadError, setUploadError] = useState("");
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [refreshingId, setRefreshingId] = useState(null);
+  const [now, setNow] = useState(Date.now());
   const [activePipeline, setActivePipeline] = useState(null);
+  const [reportFile, setReportFile] = useState("");
+  const [reportYear, setReportYear] = useState("");
+  const [reportTerm, setReportTerm] = useState("");
   const [inputMode, setInputMode] = useState("upload");
   const [sourceUrl, setSourceUrl] = useState("");
   const [urlManifest, setUrlManifest] = useState(null);
@@ -94,6 +181,7 @@ const UserUpload = () => {
   const [activeImportJob, setActiveImportJob] = useState(null);
   const pollingRef = useRef(null);
   const urlPollingRef = useRef(null);
+  const dashboardPollingRef = useRef(null);
 
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -103,6 +191,18 @@ const UserUpload = () => {
       });
       const hist = res.data || [];
       setHistory(hist);
+
+      if (hist[0]?.dag_run_id) {
+        try {
+          const statusRes = await axios.get(
+            `${API_URL}/upload/pipeline-status/${hist[0].dag_run_id}`,
+            { headers: authHeader() },
+          );
+          setActivePipeline(statusRes.data);
+        } catch {
+          /* Keep history usable while Airflow is temporarily unavailable. */
+        }
+      }
 
       if (
         hist.length > 0 &&
@@ -124,8 +224,76 @@ const UserUpload = () => {
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
       if (urlPollingRef.current) clearInterval(urlPollingRef.current);
+      if (dashboardPollingRef.current) clearInterval(dashboardPollingRef.current);
     };
   }, [fetchHistory]);
+
+  useEffect(() => {
+    if (!activePipeline?.tasks?.some((task) => task.state === "running")) return undefined;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [activePipeline]);
+
+  const removeHistoryItem = (id, index) => {
+    setHistory((current) => current.filter((item, itemIndex) => (item.id ?? itemIndex) !== (id ?? index)));
+  };
+
+  const refreshHistoryItem = async (item) => {
+    if (!item.dag_run_id) return;
+    setRefreshingId(item.id ?? item.dag_run_id);
+    try {
+      const res = await axios.get(`${API_URL}/upload/pipeline-status/${item.dag_run_id}`, {
+        headers: authHeader(),
+      });
+      setActivePipeline(res.data);
+      setHistory((current) => current.map((entry) =>
+        entry.id === item.id ? { ...entry, pipeline_status: res.data.state } : entry
+      ));
+    } catch {
+      /* Keep the current row unchanged when Airflow is unavailable. */
+    } finally {
+      setRefreshingId(null);
+    }
+  };
+
+  useEffect(() => {
+    if (
+      activePipeline?.state !== "success" ||
+      activePipeline?.dashboard?.imported ||
+      !activePipeline?.dag_run_id
+    ) {
+      if (dashboardPollingRef.current) {
+        clearInterval(dashboardPollingRef.current);
+        dashboardPollingRef.current = null;
+      }
+      return undefined;
+    }
+
+    // XCom can become visible a fraction after the DAG changes to success.
+    // Retry automatically so the user never has to press "Làm mới".
+    dashboardPollingRef.current = setInterval(async () => {
+      try {
+        const res = await axios.get(
+          `${API_URL}/upload/pipeline-status/${activePipeline.dag_run_id}`,
+          { headers: authHeader() },
+        );
+        setActivePipeline(res.data);
+      } catch {
+        /* Keep retrying while this completed run is selected. */
+      }
+    }, 2000);
+
+    return () => {
+      if (dashboardPollingRef.current) {
+        clearInterval(dashboardPollingRef.current);
+        dashboardPollingRef.current = null;
+      }
+    };
+  }, [
+    activePipeline?.state,
+    activePipeline?.dashboard?.imported,
+    activePipeline?.dag_run_id,
+  ]);
 
   const pollPipelineStatus = (dagRunId) => {
     if (!dagRunId) return;
@@ -195,7 +363,7 @@ const UserUpload = () => {
         },
       });
       setUploadProgress(100);
-      setUploadStatus(res.data.message);
+      setUploadStatus(`Đã tải lên ${file.name}`);
       if (res.data.dag_run_id) {
         pollPipelineStatus(res.data.dag_run_id);
       }
@@ -307,39 +475,64 @@ const UserUpload = () => {
       tone: "ink",
     };
 
+  const completedDashboardUrl =
+    activePipeline?.state === "success" && activePipeline?.dashboard?.imported
+      ? dashboardUrlFor(activePipeline.dashboard.slug)
+      : "";
+  const reportYears = [...new Set(history.map((item) => {
+    const filenameYear = item.filename?.match(/(?:19|20)\d{2}/)?.[0];
+    if (filenameYear) return filenameYear;
+    const date = item.uploaded_at ? new Date(item.uploaded_at) : null;
+    return date && !Number.isNaN(date.getTime()) ? String(date.getFullYear()) : null;
+  }).filter(Boolean))].sort((a, b) => Number(b) - Number(a));
+  const filteredDashboardUrl = completedDashboardUrl
+    ? (() => {
+        const url = new URL(completedDashboardUrl);
+        if (reportFile) url.searchParams.set("filename", reportFile);
+        if (reportYear) url.searchParams.set("year", reportYear);
+        if (reportTerm) url.searchParams.set("term", reportTerm);
+        return url.toString();
+      })()
+    : "";
+  const importCounts = activeImportJob?.counts || {};
+  const importTotal = activeImportJob?.files?.length || 0;
+  const importFinished = ["COMPLETED", "DUPLICATE", "FAILED", "UNSUPPORTED", "CANCELLED"]
+    .reduce((total, status) => total + (importCounts[status] || 0), 0);
+  const importInProgress = (importCounts.DOWNLOADING || 0) + (importCounts.PROCESSING || 0);
+  const importProgress = importTotal
+    ? Math.round(((importFinished + importInProgress * 0.5) / importTotal) * 100)
+    : 0;
+
   return (
-    <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
+    <div className="flex min-h-screen flex-col bg-[#F6F8FC] font-sans">
       <UserTopNavigation />
 
-      <main className="flex-1 w-full max-w-[1480px] mx-auto p-4 md:p-6 lg:p-8 space-y-7 lg:space-y-8">
+      <main className="mx-auto w-full max-w-[1920px] flex-1 space-y-5 px-3 py-5 sm:px-5 sm:py-7 md:px-6 lg:space-y-7 lg:px-7 xl:px-8 2xl:px-10">
         <div>
           <p className="mb-1 text-xs font-semibold text-blue-700">Workspace nguồn dữ liệu</p>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Tải file</h1>
           <p className="mt-2 text-sm text-slate-500">Tải file từ máy tính hoặc nhập từ URL, theo dõi tiến trình xử lý và xem báo cáo.</p>
         </div>
         {/* ROW 1 — Upload + History */}
-        <section className="grid grid-cols-1 xl:grid-cols-12 items-stretch gap-5 lg:gap-6 xl:h-[430px] 2xl:h-[450px]">
+        <section className="grid grid-cols-1 items-stretch gap-5 xl:grid-cols-[7fr_13fr] xl:gap-6 2xl:gap-7">
           {/* 1. Upload Card */}
-          <Card className="xl:col-span-5 h-full p-5 sm:p-6 flex flex-col">
+          <Card className="flex h-full min-w-0 flex-col rounded-2xl border-transparent p-4 shadow-elevated sm:p-5 xl:p-6">
             <div className="mb-3 shrink-0">
-              <p className="font-data text-[10px] uppercase tracking-[0.14em] text-lake-600 font-semibold mb-1">
-                Bước 1
-              </p>
-              <h2 className="text-lg font-bold text-ink-900">
-                Tải lên Dữ liệu
+              <h2 className="font-display text-lg font-extrabold tracking-tight text-navy-950 sm:text-xl">
+                Tải lên dữ liệu
               </h2>
-              <p className="text-xs text-ink-400 mt-1">
+              {/* <p className="text-xs text-ink-400 mt-1">
                 Hệ thống sẽ tự động đưa vào Bronze Zone và kích hoạt Pipeline
-              </p>
+              </p> */}
             </div>
 
-            <div className="mb-4 grid grid-cols-2 rounded-xl bg-ink-50 p-1 text-xs font-semibold">
+            <div className="mb-4 grid grid-cols-2 rounded-xl bg-ink-50/80 p-1 text-xs font-bold sm:text-[13px]">
               <button type="button" onClick={() => setInputMode("upload")}
-                className={`rounded-lg px-3 py-2 transition ${inputMode === "upload" ? "bg-white text-cobalt-700 shadow-sm" : "text-ink-500"}`}>
+                className={`rounded-lg px-3 py-2.5 transition ${inputMode === "upload" ? "bg-white text-cobalt-700 shadow-sm ring-1 ring-ink-100" : "text-ink-500 hover:text-navy-900"}`}>
                 Upload file
               </button>
               <button type="button" onClick={() => setInputMode("url")}
-                className={`rounded-lg px-3 py-2 transition ${inputMode === "url" ? "bg-white text-cobalt-700 shadow-sm" : "text-ink-500"}`}>
+                className={`rounded-lg px-3 py-2.5 transition ${inputMode === "url" ? "bg-white text-cobalt-700 shadow-sm ring-1 ring-ink-100" : "text-ink-500 hover:text-navy-900"}`}>
                 Dán đường dẫn URL
               </button>
             </div>
@@ -348,10 +541,28 @@ const UserUpload = () => {
               <div className="flex-1 rounded-[22px] border border-ink-100 bg-ink-50/40 p-4">
                 <label className="block text-xs font-semibold text-ink-700">
                   Đường dẫn file
-                  <input type="url" value={sourceUrl}
-                    onChange={(event) => { setSourceUrl(event.target.value); setUrlManifest(null); setSelectedCandidateIds([]); }}
-                    placeholder="https://example.com/data/report.pdf"
-                    className="mt-2 w-full rounded-xl border border-ink-200 bg-white px-3 py-2.5 text-sm font-normal outline-none focus:border-cobalt-400 focus:ring-2 focus:ring-cobalt-100" />
+                  <div className="relative mt-2">
+                    <input type="url" value={sourceUrl}
+                      onChange={(event) => { setSourceUrl(event.target.value); setUrlManifest(null); setSelectedCandidateIds([]); }}
+                      placeholder="https://example.com/data/report.pdf"
+                      className="w-full rounded-xl border border-ink-200 bg-white py-2.5 pl-3 pr-11 text-sm font-normal outline-none focus:border-cobalt-400 focus:ring-2 focus:ring-cobalt-100" />
+                    {sourceUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSourceUrl("");
+                          setUrlManifest(null);
+                          setSelectedCandidateIds([]);
+                          setUploadError("");
+                        }}
+                        aria-label="Xóa đường dẫn URL"
+                        title="Xóa đường dẫn"
+                        className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-ink-400 transition hover:bg-ink-100 hover:text-ink-700"
+                      >
+                        <Icon name="x" className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </label>
                 <p className="mt-2 text-[11px] text-ink-400">Hỗ trợ file HTTP trực tiếp và Google Drive file/folder · tối đa 100 MB/file.</p>
                 {!urlManifest ? (
@@ -374,7 +585,9 @@ const UserUpload = () => {
                               : current.filter((id) => id !== file.candidate_id))} />
                           <span className="truncate">{file.supported ? "✓" : "✕"} {file.name}</span>
                         </label>
-                        <span className="shrink-0 text-ink-400">{file.size ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : "Không rõ"}</span>
+                        <span className="shrink-0 font-data font-semibold text-ink-500">
+                          {file.size === null || file.size === undefined ? "Chưa xác định" : formatFileSize(file.size)}
+                        </span>
                       </div>
                     ))}
                     {urlManifest.files[0]?.reason && <p className="mt-2 text-xs text-rose-600">{urlManifest.files[0].reason}</p>}
@@ -384,16 +597,34 @@ const UserUpload = () => {
                     </button>
                   </div>
                 )}
-                {activeImportJob && (
-                  <div className="mt-3 rounded-xl border border-lake-100 bg-lake-50 p-3 text-xs">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="font-semibold text-ink-800">Import {activeImportJob.status}</span>
-                      <span className="font-data text-ink-400">{activeImportJob.files?.length || 0} file</span>
+                {false && activeImportJob && (
+                  <div className="mt-4 rounded-2xl bg-white p-4 text-xs shadow-[0_10px_28px_-18px_rgba(15,23,42,0.38)] ring-1 ring-ink-100">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`h-2.5 w-2.5 rounded-full ${["PENDING", "PROCESSING"].includes(activeImportJob.status) ? "animate-pulse bg-cobalt-500" : activeImportJob.status === "COMPLETED" ? "bg-emerald-500" : "bg-amber-500"}`} />
+                        <span className="text-sm font-bold text-navy-950">
+                          {IMPORT_STATUS_LABELS[activeImportJob.status] || activeImportJob.status}
+                        </span>
+                      </div>
+                      <span className="rounded-full bg-ink-50 px-2.5 py-1 font-data font-semibold text-ink-500">{importTotal} file</span>
                     </div>
-                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-ink-600">
-                      {Object.entries(activeImportJob.counts || {}).map(([status, count]) => (
-                        <span key={status} className="rounded bg-white px-2 py-1">
-                          {status === "DUPLICATE" ? "\u0110\u00e3 x\u1eed l\u00fd tr\u01b0\u1edbc \u0111\u00f3" : status}: {count}
+
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-ink-100">
+                      <div
+                        className="h-full rounded-full bg-cobalt-600 transition-all duration-500"
+                        style={{ width: `${["COMPLETED", "PARTIAL_SUCCESS", "FAILED", "CANCELLED"].includes(activeImportJob.status) ? 100 : importProgress}%` }}
+                      />
+                    </div>
+                    <div className="mt-1.5 flex items-center justify-between text-[10px] font-medium text-ink-400">
+                      <span>{importFinished}/{importTotal} file đã xử lý</span>
+                      <span>{["COMPLETED", "PARTIAL_SUCCESS", "FAILED", "CANCELLED"].includes(activeImportJob.status) ? 100 : importProgress}%</span>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {Object.entries(importCounts).map(([status, count]) => (
+                        <span key={status} className="rounded-lg bg-ink-50 px-2.5 py-2 text-center font-semibold text-ink-600">
+                          <span className="block text-sm font-bold text-navy-900">{count}</span>
+                          {IMPORT_FILE_STATUS_LABELS[status] || status}
                         </span>
                       ))}
                     </div>
@@ -402,14 +633,14 @@ const UserUpload = () => {
                         {"File c\u00f3 n\u1ed9i dung gi\u1ed1ng h\u1ec7t file \u0111\u00e3 x\u1eed l\u00fd th\u00e0nh c\u00f4ng, n\u00ean h\u1ec7 th\u1ed1ng d\u00f9ng l\u1ea1i k\u1ebft qu\u1ea3 v\u00e0 kh\u00f4ng ch\u1ea1y pipeline l\u1eb7p l\u1ea1i."}
                       </p>
                     )}
-                    <div className="mt-3 flex gap-2">
+                    <div className="mt-4 flex flex-wrap gap-2 border-t border-ink-100 pt-3">
                       {["FAILED", "PARTIAL_SUCCESS"].includes(activeImportJob.status) && (
-                        <button type="button" onClick={retryImportJob} className="rounded-lg bg-cobalt-600 px-3 py-2 font-semibold text-white">
-                          Retry file lỗi
+                        <button type="button" onClick={retryImportJob} className="rounded-lg bg-cobalt-600 px-3.5 py-2 font-bold text-white shadow-sm">
+                          Thử lại file lỗi
                         </button>
                       )}
                       {["PENDING", "PROCESSING"].includes(activeImportJob.status) && (
-                        <button type="button" onClick={cancelImportJob} className="rounded-lg border border-rose-200 bg-white px-3 py-2 font-semibold text-rose-600">
+                        <button type="button" onClick={cancelImportJob} className="rounded-lg bg-rose-50 px-3.5 py-2 font-bold text-rose-600 transition hover:bg-rose-100">
                           Hủy import
                         </button>
                       )}
@@ -432,17 +663,17 @@ const UserUpload = () => {
               onDragOver={onDragOver}
               onDragLeave={onDragLeave}
               onDrop={onDrop}
-              className={`relative min-h-[190px] flex-1 overflow-hidden rounded-[22px] border-2 border-dashed px-5 py-6 text-center transition-all duration-300 flex flex-col items-center justify-center group ${
+              className={`group relative flex min-h-[210px] flex-1 flex-col items-center justify-center overflow-hidden rounded-[18px] border-2 border-dashed px-3 py-5 text-center transition-all duration-300 sm:min-h-[240px] sm:rounded-[22px] sm:px-5 sm:py-6 ${
                 uploading
                   ? "cursor-wait opacity-90 bg-ink-50 border-ink-200"
-                  : "cursor-pointer border-cobalt-200 bg-ink-50/40 hover:border-cobalt-300 hover:bg-cobalt-50/40"
+                  : "cursor-pointer border-cobalt-200 bg-cobalt-50/40 hover:border-cobalt-400 hover:bg-cobalt-50/70 hover:shadow-sm"
               } ${isDragging ? "border-cobalt-500 bg-cobalt-50 scale-[1.01]" : ""}`}
             >
               <div
                 className={`w-12 h-12 mb-3 rounded-2xl flex items-center justify-center transition-all duration-300 ${
                   isDragging
                     ? "bg-cobalt-600 text-white scale-110"
-                    : "bg-cobalt-50 text-cobalt-600 group-hover:scale-105"
+                    : "border border-cobalt-100 bg-white text-cobalt-600 shadow-sm group-hover:scale-105"
                 }`}
               >
                 <Icon
@@ -450,19 +681,19 @@ const UserUpload = () => {
                   className="w-5 h-5"
                 />
               </div>
-              <p className="text-sm font-semibold text-ink-900">
+              <p className="text-sm font-bold text-navy-950 sm:text-base">
                 {uploading
                   ? "Đang tải lên và xử lý..."
                   : "Kéo thả file hoặc bấm để chọn"}
               </p>
-              <p className="mt-1 text-[11px] text-ink-400 font-data">
+              <p className="mt-1 max-w-full break-words text-[10px] font-medium text-ink-500 font-data sm:text-[11px]">
                 Hỗ trợ: PDF, DOCX, CSV, TSV, XLSX, XLS, JSON, PARQUET
               </p>
-              <span className="mt-2 inline-flex items-center rounded-full border border-cobalt-200 bg-cobalt-50 px-2.5 py-1 text-[11px] font-semibold text-cobalt-700">
+              <span className="mt-2 inline-flex items-center rounded-full bg-cobalt-50 px-3 py-1 text-[11px] font-bold text-cobalt-700 shadow-sm">
                 Tối đa 100 MB mỗi file
               </span>
               {!uploading && (
-                <span className="mt-4 inline-flex h-9 items-center justify-center rounded-control bg-cobalt-600 px-4 text-xs font-semibold text-white shadow-sm transition group-hover:bg-cobalt-700">
+                <span className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-cobalt-600 px-5 text-xs font-bold text-white shadow-[0_8px_18px_-8px_rgba(37,99,235,0.65)] transition group-hover:-translate-y-0.5 group-hover:bg-cobalt-700">
                   <span className="mr-1.5 text-base leading-none">+</span>
                   Chọn tệp từ máy tính
                 </span>
@@ -479,9 +710,9 @@ const UserUpload = () => {
             )}
 
             {uploadStatus && (
-              <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm flex items-start gap-2.5">
+              <div className="mt-4 flex min-w-0 items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
                 <Icon name="checkCircle" className="w-4 h-4 mt-0.5 shrink-0" />
-                <span className="font-medium">{uploadStatus}</span>
+                <span className="min-w-0 break-all font-medium leading-5">{uploadStatus}</span>
               </div>
             )}
             {uploadError && (
@@ -496,19 +727,19 @@ const UserUpload = () => {
           </Card>
 
           {/* 2. Upload History */}
-          <Card className="xl:col-span-7 h-full min-h-[360px] xl:min-h-0 overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between gap-4 px-5 sm:px-6 py-3.5 border-b border-ink-100 bg-white shrink-0">
+          <Card className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border-transparent shadow-elevated">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-ink-100 bg-white px-4 py-3.5 sm:px-6">
               <div className="min-w-0">
-                <h3 className="font-bold text-ink-900 text-base">
+                <h3 className="font-display text-lg font-extrabold tracking-tight text-navy-950 sm:text-xl">
                   Lịch sử tải lên
                 </h3>
-                <p className="text-[11px] text-ink-400 mt-0.5">
+                {/* <p className="text-[11px] text-ink-400 mt-0.5">
                   Tự động đồng bộ trạng thái Pipeline mỗi 5 giây
-                </p>
+                </p> */}
               </div>
               <button
                 onClick={fetchHistory}
-                className="flex shrink-0 items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-lake-700 bg-lake-50 hover:bg-lake-100 rounded-lg transition"
+                className="flex shrink-0 items-center gap-1.5 rounded-lg bg-lake-50 px-3 py-2 text-xs font-bold text-lake-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-lake-100"
                 disabled={historyLoading}
               >
                 <Icon
@@ -519,7 +750,7 @@ const UserUpload = () => {
               </button>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto bg-[#FAFBFD] p-3">
+            <div className="min-h-[280px] max-h-[440px] flex-1 overflow-y-auto bg-[#FAFBFD] p-2.5 sm:min-h-[340px] sm:p-3 xl:h-[382px] xl:min-h-0">
               {history.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-ink-300">
                   <Icon name="inbox" className="w-9 h-9 mb-3 opacity-60" />
@@ -531,52 +762,59 @@ const UserUpload = () => {
                 <div className="space-y-2">
                   {history.map((item, i) => {
                     const st = getStatus(item);
+                    const visual = fileVisual(item.filename);
                     return (
                       <div
                         key={item.id || i}
-                        className="bg-white border border-ink-100 rounded-xl p-2.5 hover:border-lake-200 hover:shadow-sm transition-all flex flex-col gap-2"
+                        className="flex flex-col gap-2 rounded-xl border border-ink-100 bg-white p-3 transition-all hover:-translate-y-px hover:border-lake-200 hover:shadow-card"
                       >
-                        <div className="flex items-center justify-between gap-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-9 h-9 rounded-lg bg-lake-50 text-lake-600 border border-lake-100 flex items-center justify-center shrink-0">
-                              <Icon name="file" className="w-4 h-4" />
+                            <div
+                              className={`flex h-11 w-12 shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg shadow-sm ring-1 ${visual.className}`}
+                              title={`File ${item.filename?.split(".").pop()?.toUpperCase() || "dữ liệu"}`}
+                            >
+                              <Icon name={visual.icon} className="h-5 w-5" strokeWidth={1.8} />
+                              <span className="font-data text-[8px] font-extrabold leading-none tracking-tight">{visual.label}</span>
                             </div>
                             <div className="min-w-0">
                               <h4
-                                className="font-semibold text-ink-800 text-sm truncate"
+                                className="truncate text-sm font-bold text-navy-950"
                                 title={item.filename}
                               >
                                 {item.filename}
                               </h4>
-                              <div className="text-[11px] text-ink-400 mt-1 flex items-center gap-2 truncate font-data">
-                                <span className="font-medium text-ink-500">
-                                  {item.username}
-                                </span>
+                              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-medium text-ink-500 font-data">
+                                <span className="font-medium text-ink-500">{formatFileSize(item.file_size_bytes)}</span>
                                 <span className="text-ink-200">•</span>
-                                <span title={item.dag_run_id}>
-                                  {item.dag_run_id?.slice(0, 12)}...
-                                </span>
+                                <span>{formatDate(item.uploaded_at)}</span>
                               </div>
                             </div>
                           </div>
 
-                          <div className="flex flex-col items-end shrink-0 gap-1.5">
+                          <div className="flex shrink-0 items-center justify-end gap-1 border-t border-ink-50 pt-2 sm:border-0 sm:pt-0 sm:gap-2">
                             <Badge tone={st.tone}>{st.label}</Badge>
-                            <span className="text-[10px] text-ink-300 font-data">
-                              {item.uploaded_at
-                                ? new Date(item.uploaded_at + "Z").toLocaleString(
-                                    "vi-VN",
-                                  )
-                                : "—"}
-                            </span>
+                            <button
+                              type="button"
+                              onClick={() => refreshHistoryItem(item)}
+                              disabled={!item.dag_run_id || refreshingId === (item.id ?? item.dag_run_id)}
+                              aria-label={`Tải lại trạng thái ${item.filename}`}
+                              title="Tải lại trạng thái"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-lake-600 transition hover:bg-lake-50 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <Icon name="refresh" className={`h-4 w-4 ${refreshingId === (item.id ?? item.dag_run_id) ? "animate-spin" : ""}`} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeHistoryItem(item.id, i)}
+                              aria-label={`Ẩn ${item.filename} khỏi giao diện`}
+                              title="Chỉ xóa khỏi giao diện"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-ink-400 transition hover:bg-rose-50 hover:text-rose-600"
+                            >
+                              <Icon name="trash" className="h-4 w-4" />
+                            </button>
                           </div>
                         </div>
-                        {item.metadata_info?.error_message && (
-                          <div className="bg-rose-50 border border-rose-100 rounded-lg p-2.5 text-xs text-rose-700 flex items-start gap-2">
-                            <Icon name="alertTriangle" className="w-4 h-4 shrink-0 mt-0.5" />
-                            <span className="font-medium line-clamp-2" title={item.metadata_info.error_message}>{item.metadata_info.error_message}</span>
-                          </div>
-                        )}
                       </div>
                     );
                   })}
@@ -588,18 +826,15 @@ const UserUpload = () => {
 
         {/* ROW 2 — Pipeline Status */}
         {activePipeline && (
-          <Card className="p-6 sm:p-7">
+          <Card className="min-w-0 rounded-2xl border-transparent p-4 shadow-elevated sm:p-6 lg:p-7">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
               <div>
-                <p className="font-data text-[10px] uppercase tracking-[0.14em] text-lake-600 font-semibold mb-1">
-                  Bước 2
-                </p>
-                <h3 className="text-base font-bold text-ink-900">
+                <h3 className="font-display text-lg font-extrabold tracking-tight text-navy-950 sm:text-xl">
                   Tiến trình Pipeline
                 </h3>
-                <p className="text-xs text-ink-400 mt-0.5">
+                {/* <p className="text-xs text-ink-400 mt-0.5">
                   Airflow Orchestration
-                </p>
+                </p> */}
               </div>
               {activePipeline.dag_run_id && (
                 <span
@@ -611,10 +846,11 @@ const UserUpload = () => {
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 xl:gap-5">
-              {PIPELINE_TASKS.map((pt) => {
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 2xl:grid-cols-4 2xl:gap-5">
+              {PIPELINE_TASKS.map((pt, index) => {
                 const t = taskForStage(activePipeline.tasks, pt.taskIds);
-                const state = t?.state || "pending";
+                const state = t?.state === "upstream_failed" ? "failed" : (t?.state || "pending");
+                const duration = durationInSeconds(t, now);
 
                 let dotClass = "bg-ink-200 border-ink-100";
                 let stateText = "Đang đợi";
@@ -648,67 +884,65 @@ const UserUpload = () => {
                 return (
                   <div
                     key={pt.id}
-                    className={`relative rounded-xl p-4 xl:p-5 border ${cardBorder} ${cardBg} transition-all duration-300`}
+                    className={`relative min-w-0 overflow-hidden rounded-xl border p-4 shadow-[0_8px_24px_-16px_rgba(15,23,42,0.35)] ${cardBorder} ${cardBg} transition-all duration-300 hover:-translate-y-1 hover:shadow-elevated 2xl:p-5`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 items-start gap-3">
-                        <span
-                          className={`mt-1 w-3 h-3 rounded-full border-2 shrink-0 ${dotClass}`}
-                        />
+                        <span className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm ${pt.iconClass}`}>
+                          <Icon
+                            name={pt.icon}
+                            className={`h-5 w-5 ${state === "running" ? (pt.id === "transform" ? "animate-spin" : "animate-pulse") : ""}`}
+                          />
+                          <span className={`absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white ${dotClass}`} />
+                        </span>
                         <div className="min-w-0">
                           <p
-                            className={`font-semibold text-sm ${state === "pending" ? "text-ink-400" : "text-ink-800"}`}
+                            className={`text-sm font-bold ${state === "pending" ? "text-ink-400" : "text-navy-950"}`}
                           >
-                            {pt.label}{" "}
-                            <span className="text-ink-300 font-data text-[11px] font-normal">
-                              · {pt.sub}
-                            </span>
+                            <span className={`mr-2 inline-flex h-6 min-w-6 items-center justify-center rounded-md border px-1 font-data text-[10px] ${pt.number}`}>B{index + 1}</span>
+                            {pt.label}
                           </p>
+                          <p className="mt-1 truncate text-[11px] font-medium text-ink-500">{pt.sub}</p>
                           <p
-                            className={`text-[11px] font-data font-medium mt-1 ${textColor}`}
+                            className={`mt-1.5 text-[11px] font-data font-semibold ${textColor}`}
                           >
-                            {stateText}
+                            {stateText} · {formatDuration(duration)}
                           </p>
                         </div>
                       </div>
                       <Icon
                         name={icon}
-                        className={`w-4 h-4 shrink-0 ${textColor}`}
+                        className={`h-4 w-4 shrink-0 ${textColor} ${state === "running" ? "animate-pulse" : ""}`}
+                      />
+                    </div>
+                    <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-ink-100">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${state === "failed" ? "bg-rose-500" : state === "success" ? "bg-emerald-500" : state === "running" ? "bg-lake-500 animate-pulse" : "bg-ink-200"}`}
+                        style={{ width: state === "success" || state === "failed" ? "100%" : state === "running" ? "65%" : "0%" }}
                       />
                     </div>
                   </div>
                 );
               })}
             </div>
-
-            {activePipeline.error_message && (
-              <div className="mt-5 p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3 text-rose-800 text-sm">
-                <Icon name="alertTriangle" className="w-5 h-5 shrink-0 mt-0.5 text-rose-600" />
-                <div>
-                  <p className="font-bold mb-1">Lỗi Pipeline:</p>
-                  <p className="font-medium whitespace-pre-wrap">{activePipeline.error_message}</p>
-                </div>
-              </div>
-            )}
           </Card>
         )}
 
         {/* ROW 3 — Superset Analytics */}
-        <Card className="overflow-hidden flex flex-col">
-          <div className="px-5 sm:px-6 py-4 border-b border-ink-100 bg-white flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center shrink-0">
+        {activePipeline?.state === "success" && (
+        <Card className="flex flex-col overflow-hidden rounded-2xl border-transparent shadow-elevated">
+          <div className="flex shrink-0 flex-col gap-3 border-b border-ink-100 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div>
-              <p className="font-data text-[10px] uppercase tracking-[0.14em] text-gold-500 font-semibold mb-1">
-                Bước 3
-              </p>
-              <h3 className="text-base font-bold text-ink-900">
+              <h3 className="font-display text-lg font-extrabold tracking-tight text-navy-950 sm:text-xl">
                 Báo cáo Phân tích
               </h3>
-              <p className="text-[11px] text-ink-400 mt-0.5 font-data">
+              {/* <p className="text-[11px] text-ink-400 mt-0.5 font-data">
                 Gold Layer · Apache Superset
-              </p>
+              </p> */}
             </div>
+            {completedDashboardUrl && (
             <a
-              href={supersetUrl}
+              href={filteredDashboardUrl}
               target="_blank"
               rel="noreferrer"
               className="self-start sm:self-auto text-xs text-lake-700 hover:text-lake-800 bg-lake-50 hover:bg-lake-100 px-3 py-1.5 rounded-lg transition font-semibold flex items-center gap-1.5"
@@ -716,15 +950,92 @@ const UserUpload = () => {
               Mở tab mới
               <Icon name="externalLink" className="w-3.5 h-3.5" />
             </a>
+            )}
           </div>
           <div className="bg-[#FAFBFD] relative p-2 sm:p-3">
-            <iframe
-              src={supersetUrl}
-              title="Superset Chart"
-              className="w-full h-[560px] sm:h-[620px] lg:h-[720px] xl:h-[820px] border border-ink-100 bg-white rounded-xl shadow-inner"
-            ></iframe>
+            {completedDashboardUrl ? (
+              <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start">
+                <aside className="w-full shrink-0 rounded-xl bg-white p-5 shadow-card ring-1 ring-ink-100 lg:sticky lg:top-20 lg:w-72 xl:w-80">
+                  <div className="mb-4 flex items-center gap-2">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-cobalt-50 text-cobalt-700">
+                      <Icon name="filter" className="h-[18px] w-[18px]" />
+                    </span>
+                    <div>
+                      <p className="text-base font-bold text-navy-950">Bộ lọc báo cáo</p>
+                      {/* <p className="text-[10px] text-ink-400">Lọc dữ liệu trên Superset</p> */}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                    <label className="text-sm font-bold text-ink-700">
+                      Tên file
+                      <select
+                        value={reportFile}
+                        onChange={(event) => setReportFile(event.target.value)}
+                        className="mt-2 w-full rounded-lg border border-ink-200 bg-white px-3 py-3 text-sm font-medium text-ink-700 outline-none transition focus:border-cobalt-400 focus:ring-2 focus:ring-cobalt-100"
+                      >
+                        <option value="">Tất cả file</option>
+                        {[...new Map(history.map((item) => [item.filename, item])).values()].map((item) => (
+                          <option key={item.id || item.filename} value={item.filename}>{item.filename}</option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="text-sm font-bold text-ink-700">
+                      Năm
+                      <select
+                        value={reportYear}
+                        onChange={(event) => setReportYear(event.target.value)}
+                        className="mt-2 w-full rounded-lg border border-ink-200 bg-white px-3 py-3 text-sm font-medium text-ink-700 outline-none transition focus:border-cobalt-400 focus:ring-2 focus:ring-cobalt-100"
+                      >
+                        <option value="">Tất cả năm</option>
+                        {reportYears.map((year) => <option key={year} value={year}>{year}</option>)}
+                      </select>
+                    </label>
+
+                    <label className="text-sm font-bold text-ink-700">
+                      Kỳ
+                      <select
+                        value={reportTerm}
+                        onChange={(event) => setReportTerm(event.target.value)}
+                        className="mt-2 w-full rounded-lg border border-ink-200 bg-white px-3 py-3 text-sm font-medium text-ink-700 outline-none transition focus:border-cobalt-400 focus:ring-2 focus:ring-cobalt-100"
+                      >
+                        <option value="">Tất cả kỳ</option>
+                        <option value="1">Kỳ 1</option>
+                        <option value="2">Kỳ 2</option>
+                        <option value="3">Kỳ 3</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  {(reportFile || reportYear || reportTerm) && (
+                    <button
+                      type="button"
+                      onClick={() => { setReportFile(""); setReportYear(""); setReportTerm(""); }}
+                      className="mt-5 flex w-full items-center justify-center gap-1.5 rounded-lg bg-ink-50 px-3 py-3 text-sm font-bold text-ink-600 transition hover:bg-ink-100"
+                    >
+                      <Icon name="x" className="h-3.5 w-3.5" />
+                      Xóa bộ lọc
+                    </button>
+                  )}
+                </aside>
+
+                <iframe
+                  key={filteredDashboardUrl}
+                  src={filteredDashboardUrl}
+                  title={activePipeline.dashboard.title || "Superset Dashboard"}
+                  className="h-[480px] min-w-0 flex-1 rounded-xl border border-ink-100 bg-white shadow-inner sm:h-[600px] lg:h-[720px] xl:h-[820px]"
+                  allowFullScreen
+                />
+              </div>
+            ) : (
+              <div className="flex min-h-48 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-6 text-center text-sm font-medium text-amber-800">
+                Đang đồng bộ dashboard từ Superset, giao diện sẽ tự động hiển thị ngay khi sẵn sàng...
+              </div>
+            )}
           </div>
         </Card>
+        )}
       </main>
     </div>
   );

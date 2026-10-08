@@ -68,7 +68,7 @@ class RoutingDecision(BaseModel):
         description="Tên thực thể chuẩn hóa tiếng Anh snake_case, ví dụ: student_scores, tuition_payments"
     )
     route_target: str = Field(
-        description="Nhánh định tuyến: 'legacy_kpi' | 'registered_api' | 'generic_dynamic'"
+        description="Nhánh định tuyến: 'legacy_kpi' | 'registered_api' | 'generic_dynamic' | 'relational_context'"
     )
     registered_dataset_id: Optional[str] = Field(
         None, description="ID dataset đã đăng ký (nếu thuộc registered_api)"
@@ -100,6 +100,17 @@ class RoutingDecision(BaseModel):
     suggested_visualizations: List[SuggestedVisualization] = Field(
         default_factory=list,
         description="Gợi ý các biểu đồ trực quan hóa phù hợp cho Superset"
+    )
+    dashboard_archetype: Optional[str] = Field(
+        None,
+        description="Template dashboard đã chọn: performance_risk, time_series, entity_catalog hoặc categorical_distribution",
+    )
+    dashboard_routing_confidence: Optional[float] = Field(
+        None, description="Độ tin cậy 0..1 của quyết định chọn dashboard template"
+    )
+    dashboard_routing_signals: List[str] = Field(
+        default_factory=list,
+        description="Các tín hiệu nghiệp vụ giải thích vì sao template được chọn",
     )
     is_existing_table_match: bool = Field(
         False,

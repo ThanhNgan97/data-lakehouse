@@ -1,0 +1,4387 @@
+ma_lop_hp,so_tiet_ke_hoach,so_tiet_thuc_day,ty_le_dung_tien_do,trang_thai_tien_do
+BK_HP0001,45,41,92.1,Cần đẩy nhanh
+BK_HP0002,45,43,94.6,Cần đẩy nhanh
+BK_HP0003,45,44,97.3,Đúng hạn
+BK_HP0004,30,27,89.5,Cần đẩy nhanh
+BK_HP0005,30,27,91.5,Cần đẩy nhanh
+BK_HP0006,30,27,90.6,Cần đẩy nhanh
+BK_HP0007,45,42,93.3,Cần đẩy nhanh
+BK_HP0008,45,41,92.1,Cần đẩy nhanh
+BK_HP0009,60,55,90.9,Cần đẩy nhanh
+BK_HP0010,60,59,98.2,Đúng hạn
+BK_HP0011,60,51,85.0,Cần đẩy nhanh
+BK_HP0012,45,41,90.9,Cần đẩy nhanh
+BK_HP0013,45,42,93.5,Cần đẩy nhanh
+BK_HP0014,30,28,93.1,Cần đẩy nhanh
+BK_HP0015,45,42,92.9,Cần đẩy nhanh
+BK_HP0016,45,41,91.5,Cần đẩy nhanh
+BK_HP0017,60,54,90.4,Cần đẩy nhanh
+BK_HP0018,30,29,98.3,Đúng hạn
+BK_HP0019,30,27,91.0,Cần đẩy nhanh
+BK_HP0020,30,28,93.2,Cần đẩy nhanh
+BK_HP0021,60,59,98.8,Đúng hạn
+BK_HP0022,60,56,93.9,Cần đẩy nhanh
+BK_HP0023,60,53,88.5,Cần đẩy nhanh
+BK_HP0024,30,29,95.5,Đúng hạn
+BK_HP0025,45,40,88.2,Cần đẩy nhanh
+BK_HP0026,60,56,93.9,Cần đẩy nhanh
+BK_HP0027,30,28,94.0,Cần đẩy nhanh
+BK_HP0028,60,55,91.9,Cần đẩy nhanh
+BK_HP0029,60,55,91.5,Cần đẩy nhanh
+BK_HP0030,45,44,97.4,Đúng hạn
+BK_HP0031,45,39,87.6,Cần đẩy nhanh
+BK_HP0032,45,40,89.7,Cần đẩy nhanh
+BK_HP0033,45,41,92.1,Cần đẩy nhanh
+BK_HP0034,45,44,97.3,Đúng hạn
+BK_HP0035,30,28,94.0,Cần đẩy nhanh
+BK_HP0036,45,41,92.1,Cần đẩy nhanh
+BK_HP0037,45,40,89.4,Cần đẩy nhanh
+BK_HP0038,30,28,93.0,Cần đẩy nhanh
+BK_HP0039,30,28,93.7,Cần đẩy nhanh
+BK_HP0040,45,42,92.3,Cần đẩy nhanh
+BK_HP0041,60,55,91.3,Cần đẩy nhanh
+BK_HP0042,60,54,89.7,Cần đẩy nhanh
+BK_HP0043,30,29,96.7,Đúng hạn
+BK_HP0044,45,40,88.0,Cần đẩy nhanh
+BK_HP0045,45,42,92.6,Cần đẩy nhanh
+BK_HP0046,30,28,91.9,Cần đẩy nhanh
+BK_HP0047,60,53,88.2,Cần đẩy nhanh
+BK_HP0048,45,41,91.8,Cần đẩy nhanh
+BK_HP0049,60,58,96.3,Đúng hạn
+BK_HP0050,45,44,97.2,Đúng hạn
+BK_HP0051,45,41,91.8,Cần đẩy nhanh
+BK_HP0052,45,42,92.8,Cần đẩy nhanh
+BK_HP0053,45,42,94.4,Cần đẩy nhanh
+BK_HP0054,45,38,84.8,Cần đẩy nhanh
+BK_HP0055,45,43,96.6,Đúng hạn
+BK_HP0056,60,57,95.7,Đúng hạn
+BK_HP0057,60,58,96.8,Đúng hạn
+BK_HP0058,30,30,98.9,Đúng hạn
+BK_HP0059,45,41,91.7,Cần đẩy nhanh
+BK_HP0060,45,41,92.1,Cần đẩy nhanh
+BK_HP0061,45,41,91.1,Cần đẩy nhanh
+BK_HP0062,30,27,91.3,Cần đẩy nhanh
+BK_HP0063,60,54,90.0,Cần đẩy nhanh
+BK_HP0064,60,54,90.5,Cần đẩy nhanh
+BK_HP0065,45,43,95.6,Đúng hạn
+BK_HP0066,45,43,95.7,Đúng hạn
+BK_HP0067,30,27,90.2,Cần đẩy nhanh
+BK_HP0068,45,40,88.1,Cần đẩy nhanh
+BK_HP0069,30,27,90.4,Cần đẩy nhanh
+BK_HP0070,45,44,98.4,Đúng hạn
+BK_HP0071,45,42,92.4,Cần đẩy nhanh
+BK_HP0072,60,51,85.5,Cần đẩy nhanh
+BK_HP0073,45,41,91.6,Cần đẩy nhanh
+BK_HP0074,60,56,93.4,Cần đẩy nhanh
+BK_HP0075,45,43,94.5,Cần đẩy nhanh
+BK_HP0076,45,43,95.9,Đúng hạn
+BK_HP0077,45,43,95.4,Đúng hạn
+BK_HP0078,45,39,86.7,Cần đẩy nhanh
+BK_HP0079,45,43,95.9,Đúng hạn
+BK_HP0080,60,55,92.0,Cần đẩy nhanh
+BK_HP0081,45,43,95.6,Đúng hạn
+BK_HP0082,45,42,92.7,Cần đẩy nhanh
+BK_HP0083,45,41,90.8,Cần đẩy nhanh
+BK_HP0084,45,42,92.3,Cần đẩy nhanh
+BK_HP0085,45,38,83.6,Cần đẩy nhanh
+BK_HP0086,45,43,95.0,Đúng hạn
+BK_HP0087,60,54,90.5,Cần đẩy nhanh
+BK_HP0088,45,43,95.3,Đúng hạn
+BK_HP0089,30,29,98.0,Đúng hạn
+BK_HP0090,60,58,96.6,Đúng hạn
+BK_HP0091,30,28,94.9,Cần đẩy nhanh
+BK_HP0092,30,26,86.4,Cần đẩy nhanh
+BK_HP0093,60,60,99.8,Đúng hạn
+BK_HP0094,45,42,92.5,Cần đẩy nhanh
+BK_HP0095,45,42,92.4,Cần đẩy nhanh
+BK_HP0096,60,57,94.2,Cần đẩy nhanh
+BK_HP0097,45,40,88.4,Cần đẩy nhanh
+BK_HP0098,45,39,87.7,Cần đẩy nhanh
+BK_HP0099,45,42,94.2,Cần đẩy nhanh
+BK_HP0100,30,28,92.7,Cần đẩy nhanh
+BK_HP0101,60,56,92.5,Cần đẩy nhanh
+BK_HP0102,45,41,92.1,Cần đẩy nhanh
+BK_HP0103,30,28,94.0,Cần đẩy nhanh
+BK_HP0104,45,43,95.1,Đúng hạn
+BK_HP0105,30,27,90.0,Cần đẩy nhanh
+BK_HP0106,60,54,90.1,Cần đẩy nhanh
+BK_HP0107,60,52,87.5,Cần đẩy nhanh
+BK_HP0108,45,42,94.4,Cần đẩy nhanh
+BK_HP0109,45,40,89.8,Cần đẩy nhanh
+BK_HP0110,30,26,88.2,Cần đẩy nhanh
+BK_HP0111,60,60,99.2,Đúng hạn
+BK_HP0112,45,41,92.0,Cần đẩy nhanh
+BK_HP0113,45,43,95.0,Đúng hạn
+BK_HP0114,60,56,92.5,Cần đẩy nhanh
+BK_HP0115,60,55,92.1,Cần đẩy nhanh
+BK_HP0116,45,43,95.0,Đúng hạn
+BK_HP0117,30,28,93.5,Cần đẩy nhanh
+BK_HP0118,60,56,93.7,Cần đẩy nhanh
+BK_HP0119,30,27,90.4,Cần đẩy nhanh
+BK_HP0120,45,44,97.9,Đúng hạn
+BK_HP0121,45,44,97.7,Đúng hạn
+BK_HP0122,60,55,92.0,Cần đẩy nhanh
+BK_HP0123,60,54,90.5,Cần đẩy nhanh
+BK_HP0124,30,28,92.2,Cần đẩy nhanh
+BK_HP0125,60,53,89.0,Cần đẩy nhanh
+BK_HP0126,45,43,94.5,Cần đẩy nhanh
+BK_HP0127,30,27,90.7,Cần đẩy nhanh
+BK_HP0128,45,41,91.7,Cần đẩy nhanh
+BK_HP0129,60,54,90.0,Cần đẩy nhanh
+BK_HP0130,30,29,95.1,Đúng hạn
+BK_HP0131,30,29,98.0,Đúng hạn
+BK_HP0132,30,26,87.7,Cần đẩy nhanh
+BK_HP0133,30,29,95.4,Đúng hạn
+BK_HP0134,45,41,91.8,Cần đẩy nhanh
+BK_HP0135,45,41,92.0,Cần đẩy nhanh
+BK_HP0136,45,45,99.5,Đúng hạn
+BK_HP0137,60,56,93.2,Cần đẩy nhanh
+BK_HP0138,30,28,93.8,Cần đẩy nhanh
+BK_HP0139,60,55,92.1,Cần đẩy nhanh
+BK_HP0140,60,55,92.0,Cần đẩy nhanh
+BK_HP0141,60,51,85.8,Cần đẩy nhanh
+BK_HP0142,45,41,91.4,Cần đẩy nhanh
+BK_HP0143,60,57,95.7,Đúng hạn
+BK_HP0144,30,27,90.6,Cần đẩy nhanh
+BK_HP0145,45,41,91.5,Cần đẩy nhanh
+BK_HP0146,45,43,95.4,Đúng hạn
+BK_HP0147,60,58,96.4,Đúng hạn
+BK_HP0148,60,55,91.3,Cần đẩy nhanh
+BK_HP0149,30,27,89.9,Cần đẩy nhanh
+BK_HP0150,30,29,95.4,Đúng hạn
+BK_HP0151,45,42,94.3,Cần đẩy nhanh
+BK_HP0152,30,29,96.0,Đúng hạn
+BK_HP0153,45,41,91.4,Cần đẩy nhanh
+BK_HP0154,45,42,93.1,Cần đẩy nhanh
+BK_HP0155,45,41,90.6,Cần đẩy nhanh
+BK_HP0156,45,42,92.5,Cần đẩy nhanh
+BK_HP0157,45,45,99.0,Đúng hạn
+BK_HP0158,45,43,96.6,Đúng hạn
+BK_HP0159,60,58,96.6,Đúng hạn
+BK_HP0160,45,42,92.6,Cần đẩy nhanh
+BK_HP0161,60,55,91.7,Cần đẩy nhanh
+BK_HP0162,60,54,89.8,Cần đẩy nhanh
+BK_HP0163,45,39,87.6,Cần đẩy nhanh
+BK_HP0164,45,42,94.1,Cần đẩy nhanh
+BK_HP0165,45,42,93.6,Cần đẩy nhanh
+BK_HP0166,30,28,92.1,Cần đẩy nhanh
+BK_HP0167,30,30,99.7,Đúng hạn
+BK_HP0168,45,41,91.8,Cần đẩy nhanh
+BK_HP0169,30,27,88.4,Cần đẩy nhanh
+BK_HP0170,30,27,89.5,Cần đẩy nhanh
+BK_HP0171,60,55,92.3,Cần đẩy nhanh
+BK_HP0172,30,27,90.9,Cần đẩy nhanh
+BK_HP0173,30,28,93.1,Cần đẩy nhanh
+BK_HP0174,45,42,94.1,Cần đẩy nhanh
+BK_HP0175,45,41,91.3,Cần đẩy nhanh
+BK_HP0176,45,40,89.5,Cần đẩy nhanh
+BK_HP0177,30,28,94.7,Cần đẩy nhanh
+BK_HP0178,45,42,92.8,Cần đẩy nhanh
+BK_HP0179,30,28,92.4,Cần đẩy nhanh
+BK_HP0180,30,28,91.8,Cần đẩy nhanh
+BK_HP0181,60,56,92.6,Cần đẩy nhanh
+BK_HP0182,45,45,99.9,Đúng hạn
+BK_HP0183,45,43,94.5,Cần đẩy nhanh
+BK_HP0184,60,54,89.6,Cần đẩy nhanh
+BK_HP0185,45,42,93.9,Cần đẩy nhanh
+BK_HP0186,45,43,95.1,Đúng hạn
+BK_HP0187,60,55,92.1,Cần đẩy nhanh
+BK_HP0188,60,55,91.0,Cần đẩy nhanh
+BK_HP0189,45,41,92.2,Cần đẩy nhanh
+BK_HP0190,60,51,85.0,Cần đẩy nhanh
+BK_HP0191,45,43,96.6,Đúng hạn
+BK_HP0192,45,42,93.6,Cần đẩy nhanh
+BK_HP0193,30,29,95.3,Đúng hạn
+BK_HP0194,45,42,94.4,Cần đẩy nhanh
+BK_HP0195,60,56,93.7,Cần đẩy nhanh
+BK_HP0196,30,28,92.0,Cần đẩy nhanh
+BK_HP0197,45,42,93.5,Cần đẩy nhanh
+BK_HP0198,60,55,92.0,Cần đẩy nhanh
+BK_HP0199,60,58,96.0,Đúng hạn
+BK_HP0200,45,44,96.7,Đúng hạn
+BK_HP0201,60,58,96.9,Đúng hạn
+BK_HP0202,45,41,90.1,Cần đẩy nhanh
+BK_HP0203,60,58,97.2,Đúng hạn
+BK_HP0204,45,41,91.3,Cần đẩy nhanh
+BK_HP0205,45,42,93.0,Cần đẩy nhanh
+BK_HP0206,30,28,92.9,Cần đẩy nhanh
+BK_HP0207,45,41,90.3,Cần đẩy nhanh
+BK_HP0208,60,55,91.3,Cần đẩy nhanh
+BK_HP0209,30,26,85.9,Cần đẩy nhanh
+BK_HP0210,45,41,90.4,Cần đẩy nhanh
+BK_HP0211,45,43,95.7,Đúng hạn
+BK_HP0212,30,28,94.1,Cần đẩy nhanh
+BK_HP0213,45,43,96.1,Đúng hạn
+BK_HP0214,60,54,90.6,Cần đẩy nhanh
+BK_HP0215,30,29,96.2,Đúng hạn
+BK_HP0216,60,49,82.3,Cần đẩy nhanh
+BK_HP0217,45,44,98.4,Đúng hạn
+BK_HP0218,60,54,90.0,Cần đẩy nhanh
+BK_HP0219,45,45,99.8,Đúng hạn
+BK_HP0220,45,41,91.5,Cần đẩy nhanh
+BK_HP0221,45,42,93.3,Cần đẩy nhanh
+BK_HP0222,60,55,91.9,Cần đẩy nhanh
+BK_HP0223,60,57,95.5,Đúng hạn
+BK_HP0224,45,40,88.1,Cần đẩy nhanh
+BK_HP0225,30,30,98.7,Đúng hạn
+BK_HP0226,60,58,96.3,Đúng hạn
+BK_HP0227,45,42,93.9,Cần đẩy nhanh
+BK_HP0228,60,58,96.6,Đúng hạn
+BK_HP0229,60,52,86.9,Cần đẩy nhanh
+BK_HP0230,60,57,94.5,Cần đẩy nhanh
+BK_HP0231,45,41,91.5,Cần đẩy nhanh
+BK_HP0232,60,58,97.0,Đúng hạn
+BK_HP0233,45,42,93.0,Cần đẩy nhanh
+BK_HP0234,45,41,91.2,Cần đẩy nhanh
+BK_HP0235,30,27,89.9,Cần đẩy nhanh
+BK_HP0236,45,44,97.9,Đúng hạn
+BK_HP0237,60,55,91.3,Cần đẩy nhanh
+BK_HP0238,30,29,95.9,Đúng hạn
+BK_HP0239,30,29,95.1,Đúng hạn
+BK_HP0240,45,45,99.4,Đúng hạn
+BK_HP0241,30,29,96.8,Đúng hạn
+BK_HP0242,45,41,90.7,Cần đẩy nhanh
+BK_HP0243,30,28,93.3,Cần đẩy nhanh
+BK_HP0244,45,43,95.4,Đúng hạn
+BK_HP0245,45,44,97.9,Đúng hạn
+BK_HP0246,30,28,95.0,Đúng hạn
+BK_HP0247,30,26,85.0,Cần đẩy nhanh
+BK_HP0248,45,41,90.1,Cần đẩy nhanh
+BK_HP0249,45,43,95.3,Đúng hạn
+BK_HP0250,30,27,89.7,Cần đẩy nhanh
+BK_HP0251,60,56,92.9,Cần đẩy nhanh
+BK_HP0252,45,41,91.7,Cần đẩy nhanh
+BK_HP0253,30,29,95.8,Đúng hạn
+BK_HP0254,45,40,88.4,Cần đẩy nhanh
+BK_HP0255,30,28,93.1,Cần đẩy nhanh
+BK_HP0256,60,55,92.3,Cần đẩy nhanh
+BK_HP0257,45,42,93.4,Cần đẩy nhanh
+BK_HP0258,45,40,89.4,Cần đẩy nhanh
+BK_HP0259,45,40,88.6,Cần đẩy nhanh
+BK_HP0260,60,56,94.1,Cần đẩy nhanh
+BK_HP0261,45,44,98.6,Đúng hạn
+BK_HP0262,45,43,94.9,Cần đẩy nhanh
+BK_HP0263,60,59,97.9,Đúng hạn
+BK_HP0264,45,43,95.7,Đúng hạn
+BK_HP0265,30,30,99.0,Đúng hạn
+BK_HP0266,30,28,92.9,Cần đẩy nhanh
+BK_HP0267,60,54,90.3,Cần đẩy nhanh
+BK_HP0268,60,56,92.6,Cần đẩy nhanh
+BK_HP0269,60,55,92.3,Cần đẩy nhanh
+BK_HP0270,45,45,98.9,Đúng hạn
+BK_HP0271,45,45,98.9,Đúng hạn
+BK_HP0272,60,54,89.9,Cần đẩy nhanh
+BK_HP0273,45,42,92.6,Cần đẩy nhanh
+BK_HP0274,60,59,98.3,Đúng hạn
+BK_HP0275,45,41,90.2,Cần đẩy nhanh
+BK_HP0276,60,58,96.6,Đúng hạn
+BK_HP0277,60,56,92.6,Cần đẩy nhanh
+BK_HP0278,45,42,93.6,Cần đẩy nhanh
+BK_HP0279,45,44,97.2,Đúng hạn
+BK_HP0280,30,28,92.0,Cần đẩy nhanh
+BK_HP0281,45,39,87.6,Cần đẩy nhanh
+BK_HP0282,45,41,90.1,Cần đẩy nhanh
+BK_HP0283,30,28,94.6,Cần đẩy nhanh
+BK_HP0284,60,55,92.0,Cần đẩy nhanh
+BK_HP0285,30,27,90.4,Cần đẩy nhanh
+BK_HP0286,45,41,90.9,Cần đẩy nhanh
+BK_HP0287,45,41,90.5,Cần đẩy nhanh
+BK_HP0288,30,29,95.3,Đúng hạn
+BK_HP0289,45,44,98.0,Đúng hạn
+BK_HP0290,60,57,94.9,Cần đẩy nhanh
+BK_HP0291,60,58,96.1,Đúng hạn
+BK_HP0292,60,55,91.5,Cần đẩy nhanh
+BK_HP0293,45,41,92.1,Cần đẩy nhanh
+BK_HP0294,30,27,90.8,Cần đẩy nhanh
+BK_HP0295,45,45,99.5,Đúng hạn
+BK_HP0296,60,57,94.7,Cần đẩy nhanh
+BK_HP0297,30,27,91.5,Cần đẩy nhanh
+BK_HP0298,45,43,95.6,Đúng hạn
+BK_HP0299,60,55,90.9,Cần đẩy nhanh
+BK_HP0300,45,41,90.2,Cần đẩy nhanh
+BK_HP0301,45,39,86.5,Cần đẩy nhanh
+BK_HP0302,30,28,92.0,Cần đẩy nhanh
+BK_HP0303,45,43,94.5,Cần đẩy nhanh
+BK_HP0304,30,29,97.4,Đúng hạn
+BK_HP0305,45,42,93.0,Cần đẩy nhanh
+BK_HP0306,60,56,93.7,Cần đẩy nhanh
+BK_HP0307,60,53,89.0,Cần đẩy nhanh
+BK_HP0308,30,29,96.4,Đúng hạn
+BK_HP0309,60,57,94.2,Cần đẩy nhanh
+BK_HP0310,45,42,93.9,Cần đẩy nhanh
+BK_HP0311,45,44,96.8,Đúng hạn
+BK_HP0312,45,41,90.1,Cần đẩy nhanh
+BK_HP0313,30,28,91.7,Cần đẩy nhanh
+BK_HP0314,45,41,91.0,Cần đẩy nhanh
+BK_HP0315,60,55,92.0,Cần đẩy nhanh
+BK_HP0316,45,40,89.7,Cần đẩy nhanh
+BK_HP0317,45,40,89.5,Cần đẩy nhanh
+BK_HP0318,45,39,86.2,Cần đẩy nhanh
+BK_HP0319,30,28,93.2,Cần đẩy nhanh
+BK_HP0320,60,54,90.7,Cần đẩy nhanh
+BK_HP0321,30,28,93.3,Cần đẩy nhanh
+BK_HP0322,30,30,99.6,Đúng hạn
+BK_HP0323,60,57,95.3,Đúng hạn
+BK_HP0324,60,58,96.2,Đúng hạn
+BK_HP0325,45,43,94.6,Cần đẩy nhanh
+BK_HP0326,45,45,99.2,Đúng hạn
+BK_HP0327,45,43,95.5,Đúng hạn
+BK_HP0328,60,55,92.2,Cần đẩy nhanh
+BK_HP0329,45,44,98.0,Đúng hạn
+BK_HP0330,30,28,94.5,Cần đẩy nhanh
+BK_HP0331,45,42,92.9,Cần đẩy nhanh
+BK_HP0332,45,42,93.0,Cần đẩy nhanh
+BK_HP0333,45,43,95.2,Đúng hạn
+BK_HP0334,45,41,90.3,Cần đẩy nhanh
+BK_HP0335,45,42,94.0,Cần đẩy nhanh
+BK_HP0336,45,40,88.5,Cần đẩy nhanh
+BK_HP0337,45,42,94.2,Cần đẩy nhanh
+BK_HP0338,60,56,94.0,Cần đẩy nhanh
+BK_HP0339,45,39,85.8,Cần đẩy nhanh
+BK_HP0340,30,27,91.6,Cần đẩy nhanh
+BK_HP0341,45,42,94.1,Cần đẩy nhanh
+BK_HP0342,45,44,97.2,Đúng hạn
+BK_HP0343,45,42,93.4,Cần đẩy nhanh
+BK_HP0344,45,40,89.4,Cần đẩy nhanh
+BK_HP0345,30,27,89.2,Cần đẩy nhanh
+BK_HP0346,60,56,92.8,Cần đẩy nhanh
+BK_HP0347,60,54,89.7,Cần đẩy nhanh
+BK_HP0348,45,41,91.4,Cần đẩy nhanh
+BK_HP0349,45,43,95.1,Đúng hạn
+BK_HP0350,45,43,96.1,Đúng hạn
+BK_HP0351,60,57,95.6,Đúng hạn
+BK_HP0352,30,30,98.4,Đúng hạn
+BK_HP0353,45,43,95.5,Đúng hạn
+BK_HP0354,45,41,91.7,Cần đẩy nhanh
+BK_HP0355,45,40,88.4,Cần đẩy nhanh
+BK_HP0356,30,28,92.0,Cần đẩy nhanh
+BK_HP0357,60,56,92.9,Cần đẩy nhanh
+BK_HP0358,30,28,92.9,Cần đẩy nhanh
+BK_HP0359,60,52,86.6,Cần đẩy nhanh
+BK_HP0360,45,41,90.9,Cần đẩy nhanh
+BK_HP0361,45,44,97.7,Đúng hạn
+BK_HP0362,45,44,97.2,Đúng hạn
+BK_HP0363,30,28,93.3,Cần đẩy nhanh
+BK_HP0364,45,42,92.8,Cần đẩy nhanh
+BK_HP0365,45,42,94.4,Cần đẩy nhanh
+BK_HP0366,30,27,90.2,Cần đẩy nhanh
+BK_HP0367,30,29,95.5,Đúng hạn
+BK_HP0368,45,43,96.3,Đúng hạn
+BK_HP0369,60,58,96.6,Đúng hạn
+BK_HP0370,45,42,92.5,Cần đẩy nhanh
+BK_HP0371,45,44,97.9,Đúng hạn
+BK_HP0372,45,41,90.3,Cần đẩy nhanh
+BK_HP0373,30,26,86.5,Cần đẩy nhanh
+BK_HP0374,45,40,88.8,Cần đẩy nhanh
+BK_HP0375,60,57,94.5,Cần đẩy nhanh
+BK_HP0376,45,41,91.5,Cần đẩy nhanh
+BK_HP0377,30,27,90.4,Cần đẩy nhanh
+BK_HP0378,45,42,92.5,Cần đẩy nhanh
+BK_HP0379,30,28,92.0,Cần đẩy nhanh
+BK_HP0380,45,42,94.2,Cần đẩy nhanh
+BK_HP0381,60,53,88.0,Cần đẩy nhanh
+BK_HP0382,30,26,85.0,Cần đẩy nhanh
+BK_HP0383,60,55,91.1,Cần đẩy nhanh
+BK_HP0384,60,57,94.2,Cần đẩy nhanh
+BK_HP0385,45,42,92.4,Cần đẩy nhanh
+BK_HP0386,45,41,91.0,Cần đẩy nhanh
+BK_HP0387,45,39,86.7,Cần đẩy nhanh
+BK_HP0388,30,26,86.5,Cần đẩy nhanh
+BK_HP0389,45,40,88.2,Cần đẩy nhanh
+BK_HP0390,45,40,88.8,Cần đẩy nhanh
+BK_HP0391,45,41,91.3,Cần đẩy nhanh
+BK_HP0392,30,29,96.7,Đúng hạn
+BK_HP0393,45,43,96.6,Đúng hạn
+BK_HP0394,60,53,88.3,Cần đẩy nhanh
+BK_HP0395,45,43,95.9,Đúng hạn
+BK_HP0396,60,58,96.6,Đúng hạn
+BK_HP0397,30,27,90.8,Cần đẩy nhanh
+BK_HP0398,45,39,86.4,Cần đẩy nhanh
+BK_HP0399,60,58,96.6,Đúng hạn
+BK_HP0400,30,28,92.4,Cần đẩy nhanh
+BK_HP0401,45,42,92.4,Cần đẩy nhanh
+BK_HP0402,60,54,89.5,Cần đẩy nhanh
+BK_HP0403,45,42,92.5,Cần đẩy nhanh
+BK_HP0404,60,57,94.8,Cần đẩy nhanh
+BK_HP0405,30,30,98.7,Đúng hạn
+BK_HP0406,45,41,91.5,Cần đẩy nhanh
+BK_HP0407,45,45,99.8,Đúng hạn
+BK_HP0408,60,54,90.2,Cần đẩy nhanh
+BK_HP0409,45,40,89.3,Cần đẩy nhanh
+BK_HP0410,45,40,89.2,Cần đẩy nhanh
+BK_HP0411,60,54,90.8,Cần đẩy nhanh
+BK_HP0412,45,42,92.7,Cần đẩy nhanh
+BK_HP0413,30,29,95.9,Đúng hạn
+BK_HP0414,45,42,92.6,Cần đẩy nhanh
+BK_HP0415,30,28,93.3,Cần đẩy nhanh
+BK_HP0416,45,42,93.7,Cần đẩy nhanh
+BK_HP0417,30,27,91.3,Cần đẩy nhanh
+BK_HP0418,45,45,99.7,Đúng hạn
+BK_HP0419,45,41,90.9,Cần đẩy nhanh
+BK_HP0420,45,39,87.0,Cần đẩy nhanh
+BK_HP0421,30,28,92.0,Cần đẩy nhanh
+BK_HP0422,30,26,87.9,Cần đẩy nhanh
+BK_HP0423,45,41,90.2,Cần đẩy nhanh
+BK_HP0424,30,28,93.0,Cần đẩy nhanh
+BK_HP0425,45,45,100.0,Đúng hạn
+BK_HP0426,45,40,89.5,Cần đẩy nhanh
+BK_HP0427,30,26,86.6,Cần đẩy nhanh
+BK_HP0428,30,27,88.8,Cần đẩy nhanh
+BK_HP0429,45,41,92.2,Cần đẩy nhanh
+BK_HP0430,45,42,94.1,Cần đẩy nhanh
+BK_HP0431,60,56,92.6,Cần đẩy nhanh
+BK_HP0432,60,58,97.0,Đúng hạn
+BK_HP0433,60,60,99.9,Đúng hạn
+BK_HP0434,30,28,92.1,Cần đẩy nhanh
+BK_HP0435,60,54,89.8,Cần đẩy nhanh
+BK_HP0436,30,29,95.8,Đúng hạn
+BK_HP0437,45,42,93.1,Cần đẩy nhanh
+BK_HP0438,45,40,89.7,Cần đẩy nhanh
+BK_HP0439,45,42,92.6,Cần đẩy nhanh
+BK_HP0440,60,53,88.5,Cần đẩy nhanh
+BK_HP0441,45,41,91.4,Cần đẩy nhanh
+BK_HP0442,45,40,88.9,Cần đẩy nhanh
+BK_HP0443,30,27,91.6,Cần đẩy nhanh
+BK_HP0444,60,55,91.7,Cần đẩy nhanh
+BK_HP0445,45,41,90.1,Cần đẩy nhanh
+BK_HP0446,45,41,90.6,Cần đẩy nhanh
+BK_HP0447,60,55,91.2,Cần đẩy nhanh
+BK_HP0448,60,58,96.6,Đúng hạn
+BK_HP0449,45,43,95.2,Đúng hạn
+BK_HP0450,60,58,96.4,Đúng hạn
+BK_HP0451,60,56,92.7,Cần đẩy nhanh
+BK_HP0452,45,41,90.4,Cần đẩy nhanh
+BK_HP0453,60,55,92.4,Cần đẩy nhanh
+BK_HP0454,45,43,94.5,Cần đẩy nhanh
+BK_HP0455,60,57,95.1,Đúng hạn
+BK_HP0456,60,58,96.0,Đúng hạn
+BK_HP0457,30,27,88.5,Cần đẩy nhanh
+BK_HP0458,45,41,92.2,Cần đẩy nhanh
+BK_HP0459,45,42,94.3,Cần đẩy nhanh
+BK_HP0460,30,28,94.8,Cần đẩy nhanh
+BK_HP0461,45,39,86.9,Cần đẩy nhanh
+BK_HP0462,30,29,97.4,Đúng hạn
+BK_HP0463,60,54,90.0,Cần đẩy nhanh
+BK_HP0464,45,43,95.5,Đúng hạn
+BK_HP0465,60,55,92.2,Cần đẩy nhanh
+BK_HP0466,45,42,93.1,Cần đẩy nhanh
+BK_HP0467,45,44,97.8,Đúng hạn
+BK_HP0468,45,43,95.1,Đúng hạn
+BK_HP0469,60,58,96.7,Đúng hạn
+BK_HP0470,60,56,94.0,Cần đẩy nhanh
+BK_HP0471,30,28,92.8,Cần đẩy nhanh
+BK_HP0472,45,41,91.0,Cần đẩy nhanh
+BK_HP0473,45,41,91.8,Cần đẩy nhanh
+BK_HP0474,30,29,95.6,Đúng hạn
+BK_HP0475,30,27,91.3,Cần đẩy nhanh
+BK_HP0476,45,42,93.3,Cần đẩy nhanh
+BK_HP0477,60,54,89.7,Cần đẩy nhanh
+BK_HP0478,45,45,99.2,Đúng hạn
+BK_HP0479,45,40,88.9,Cần đẩy nhanh
+BK_HP0480,45,40,89.5,Cần đẩy nhanh
+BK_HP0481,60,55,91.7,Cần đẩy nhanh
+BK_HP0482,30,28,94.5,Cần đẩy nhanh
+BK_HP0483,45,40,89.8,Cần đẩy nhanh
+BK_HP0484,30,29,96.5,Đúng hạn
+BK_HP0485,45,41,91.8,Cần đẩy nhanh
+BK_HP0486,45,43,95.2,Đúng hạn
+BK_HP0487,45,44,96.8,Đúng hạn
+BK_HP0488,45,44,97.4,Đúng hạn
+BK_HP0489,45,42,93.5,Cần đẩy nhanh
+BK_HP0490,30,26,88.3,Cần đẩy nhanh
+BK_HP0491,60,56,93.7,Cần đẩy nhanh
+BK_HP0492,45,42,92.4,Cần đẩy nhanh
+BK_HP0493,60,54,90.5,Cần đẩy nhanh
+BK_HP0494,45,43,94.5,Cần đẩy nhanh
+BK_HP0495,45,40,88.1,Cần đẩy nhanh
+BK_HP0496,45,42,92.5,Cần đẩy nhanh
+BK_HP0497,60,55,90.9,Cần đẩy nhanh
+BK_HP0498,45,40,88.6,Cần đẩy nhanh
+BK_HP0499,45,43,94.6,Cần đẩy nhanh
+BK_HP0500,60,59,98.4,Đúng hạn
+BK_HP0501,45,39,87.7,Cần đẩy nhanh
+BK_HP0502,30,29,96.1,Đúng hạn
+BK_HP0503,45,42,92.3,Cần đẩy nhanh
+BK_HP0504,60,56,94.0,Cần đẩy nhanh
+BK_HP0505,45,41,90.9,Cần đẩy nhanh
+BK_HP0506,45,41,92.1,Cần đẩy nhanh
+BK_HP0507,60,53,88.8,Cần đẩy nhanh
+BK_HP0508,45,44,98.4,Đúng hạn
+BK_HP0509,30,28,93.0,Cần đẩy nhanh
+BK_HP0510,60,56,93.5,Cần đẩy nhanh
+BK_HP0511,45,39,85.7,Cần đẩy nhanh
+BK_HP0512,45,43,96.4,Đúng hạn
+BK_HP0513,30,26,86.6,Cần đẩy nhanh
+BK_HP0514,45,40,90.0,Cần đẩy nhanh
+BK_HP0515,30,28,93.5,Cần đẩy nhanh
+BK_HP0516,45,41,91.6,Cần đẩy nhanh
+BK_HP0517,60,54,90.3,Cần đẩy nhanh
+BK_HP0518,45,40,89.3,Cần đẩy nhanh
+BK_HP0519,60,56,93.7,Cần đẩy nhanh
+BK_HP0520,30,29,98.2,Đúng hạn
+BK_HP0521,45,42,92.6,Cần đẩy nhanh
+BK_HP0522,45,44,96.7,Đúng hạn
+BK_HP0523,45,43,95.1,Đúng hạn
+BK_HP0524,45,39,87.7,Cần đẩy nhanh
+BK_HP0525,60,56,92.8,Cần đẩy nhanh
+BK_HP0526,45,40,89.0,Cần đẩy nhanh
+BK_HP0527,60,59,97.8,Đúng hạn
+BK_HP0528,60,53,88.9,Cần đẩy nhanh
+BK_HP0529,45,42,92.5,Cần đẩy nhanh
+BK_HP0530,45,41,91.9,Cần đẩy nhanh
+BK_HP0531,30,27,90.4,Cần đẩy nhanh
+BK_HP0532,30,27,91.5,Cần đẩy nhanh
+BK_HP0533,60,55,91.2,Cần đẩy nhanh
+BK_HP0534,60,52,86.5,Cần đẩy nhanh
+BK_HP0535,45,36,79.9,Cần đẩy nhanh
+BK_HP0536,30,28,94.6,Cần đẩy nhanh
+BK_HP0537,60,57,94.5,Cần đẩy nhanh
+BK_HP0538,45,44,97.0,Đúng hạn
+BK_HP0539,30,28,94.5,Cần đẩy nhanh
+BK_HP0540,60,59,98.1,Đúng hạn
+BK_HP0541,60,59,98.3,Đúng hạn
+BK_HP0542,30,28,93.5,Cần đẩy nhanh
+BK_HP0543,45,43,96.4,Đúng hạn
+BK_HP0544,45,39,85.7,Cần đẩy nhanh
+BK_HP0545,30,29,96.9,Đúng hạn
+BK_HP0546,45,41,91.7,Cần đẩy nhanh
+BK_HP0547,30,27,89.6,Cần đẩy nhanh
+BK_HP0548,30,27,90.2,Cần đẩy nhanh
+BK_HP0549,60,55,91.7,Cần đẩy nhanh
+BK_HP0550,45,44,97.1,Đúng hạn
+BK_HP0551,45,42,94.1,Cần đẩy nhanh
+BK_HP0552,45,40,89.6,Cần đẩy nhanh
+BK_HP0553,45,40,87.9,Cần đẩy nhanh
+BK_HP0554,60,52,87.4,Cần đẩy nhanh
+BK_HP0555,45,42,93.8,Cần đẩy nhanh
+BK_HP0556,30,28,93.0,Cần đẩy nhanh
+BK_HP0557,45,45,99.3,Đúng hạn
+BK_HP0558,45,43,96.5,Đúng hạn
+BK_HP0559,45,39,86.3,Cần đẩy nhanh
+BK_HP0560,60,56,93.8,Cần đẩy nhanh
+BK_HP0561,60,57,94.3,Cần đẩy nhanh
+BK_HP0562,45,41,91.8,Cần đẩy nhanh
+BK_HP0563,45,39,86.7,Cần đẩy nhanh
+BK_HP0564,60,55,91.5,Cần đẩy nhanh
+BK_HP0565,30,30,98.8,Đúng hạn
+BK_HP0566,45,43,95.2,Đúng hạn
+BK_HP0567,45,42,94.2,Cần đẩy nhanh
+BK_HP0568,30,26,87.7,Cần đẩy nhanh
+BK_HP0569,45,40,89.6,Cần đẩy nhanh
+BK_HP0570,45,43,96.0,Đúng hạn
+BK_HP0571,30,28,92.0,Cần đẩy nhanh
+BK_HP0572,45,44,97.8,Đúng hạn
+BK_HP0573,60,53,88.8,Cần đẩy nhanh
+BK_HP0574,60,53,88.3,Cần đẩy nhanh
+BK_HP0575,45,43,94.7,Cần đẩy nhanh
+BK_HP0576,45,43,94.6,Cần đẩy nhanh
+BK_HP0577,60,57,94.7,Cần đẩy nhanh
+BK_HP0578,60,59,97.9,Đúng hạn
+BK_HP0579,30,29,96.7,Đúng hạn
+BK_HP0580,45,41,91.9,Cần đẩy nhanh
+BK_HP0581,60,55,92.0,Cần đẩy nhanh
+BK_HP0582,45,41,92.0,Cần đẩy nhanh
+BK_HP0583,30,27,90.7,Cần đẩy nhanh
+BK_HP0584,45,41,90.5,Cần đẩy nhanh
+BK_HP0585,45,42,92.7,Cần đẩy nhanh
+BK_HP0586,60,56,93.4,Cần đẩy nhanh
+BK_HP0587,45,41,90.7,Cần đẩy nhanh
+BK_HP0588,30,27,90.7,Cần đẩy nhanh
+BK_HP0589,30,30,98.8,Đúng hạn
+BK_HP0590,30,27,90.5,Cần đẩy nhanh
+BK_HP0591,60,56,92.5,Cần đẩy nhanh
+BK_HP0592,45,43,96.0,Đúng hạn
+BK_HP0593,60,57,95.2,Đúng hạn
+BK_HP0594,45,43,94.5,Cần đẩy nhanh
+BK_HP0595,45,42,93.2,Cần đẩy nhanh
+BK_HP0596,60,56,93.2,Cần đẩy nhanh
+BK_HP0597,30,28,92.3,Cần đẩy nhanh
+BK_HP0598,45,43,95.0,Đúng hạn
+BK_HP0599,45,41,91.6,Cần đẩy nhanh
+BK_HP0600,60,54,90.5,Cần đẩy nhanh
+BK_HP0601,30,28,94.8,Cần đẩy nhanh
+BK_HP0602,30,28,92.7,Cần đẩy nhanh
+BK_HP0603,60,54,89.9,Cần đẩy nhanh
+BK_HP0604,45,44,96.9,Đúng hạn
+BK_HP0605,60,56,94.1,Cần đẩy nhanh
+BK_HP0606,45,42,92.3,Cần đẩy nhanh
+BK_HP0607,60,56,93.5,Cần đẩy nhanh
+BK_HP0608,60,54,89.5,Cần đẩy nhanh
+BK_HP0609,45,42,93.5,Cần đẩy nhanh
+BK_HP0610,45,42,93.5,Cần đẩy nhanh
+BK_HP0611,45,41,92.1,Cần đẩy nhanh
+BK_HP0612,30,28,91.8,Cần đẩy nhanh
+BK_HP0613,45,42,94.2,Cần đẩy nhanh
+BK_HP0614,45,43,95.4,Đúng hạn
+BK_HP0615,60,56,93.5,Cần đẩy nhanh
+BK_HP0616,60,57,94.7,Cần đẩy nhanh
+BK_HP0617,45,39,86.9,Cần đẩy nhanh
+BK_HP0618,45,41,90.7,Cần đẩy nhanh
+BK_HP0619,45,41,91.4,Cần đẩy nhanh
+BK_HP0620,30,27,90.8,Cần đẩy nhanh
+BK_HP0621,45,43,95.2,Đúng hạn
+BK_HP0622,30,28,92.8,Cần đẩy nhanh
+BK_HP0623,30,28,93.4,Cần đẩy nhanh
+BK_HP0624,45,41,91.6,Cần đẩy nhanh
+BK_HP0625,30,28,92.1,Cần đẩy nhanh
+BK_HP0626,45,43,94.7,Cần đẩy nhanh
+BK_HP0627,60,57,94.7,Cần đẩy nhanh
+BK_HP0628,60,52,86.7,Cần đẩy nhanh
+BK_HP0629,45,44,97.8,Đúng hạn
+BK_HP0630,45,42,93.4,Cần đẩy nhanh
+BK_HP0631,45,39,86.1,Cần đẩy nhanh
+BK_HP0632,45,42,93.7,Cần đẩy nhanh
+BK_HP0633,30,28,94.3,Cần đẩy nhanh
+BK_HP0634,60,52,87.0,Cần đẩy nhanh
+BK_HP0635,60,57,95.3,Đúng hạn
+BK_HP0636,60,56,93.6,Cần đẩy nhanh
+BK_HP0637,30,29,95.2,Đúng hạn
+BK_HP0638,60,60,99.8,Đúng hạn
+BK_HP0639,30,30,99.7,Đúng hạn
+BK_HP0640,45,42,92.6,Cần đẩy nhanh
+BK_HP0641,45,42,92.8,Cần đẩy nhanh
+BK_HP0642,45,42,93.1,Cần đẩy nhanh
+BK_HP0643,45,42,93.3,Cần đẩy nhanh
+BK_HP0644,60,55,92.3,Cần đẩy nhanh
+BK_HP0645,60,54,90.7,Cần đẩy nhanh
+BK_HP0646,60,54,90.6,Cần đẩy nhanh
+BK_HP0647,30,27,88.7,Cần đẩy nhanh
+BK_HP0648,45,42,93.0,Cần đẩy nhanh
+BK_HP0649,45,41,91.8,Cần đẩy nhanh
+BK_HP0650,45,40,88.4,Cần đẩy nhanh
+BK_HP0651,45,41,90.4,Cần đẩy nhanh
+BK_HP0652,45,38,85.0,Cần đẩy nhanh
+BK_HP0653,30,28,92.0,Cần đẩy nhanh
+BK_HP0654,30,27,91.5,Cần đẩy nhanh
+BK_HP0655,45,42,93.5,Cần đẩy nhanh
+BK_HP0656,45,41,90.7,Cần đẩy nhanh
+BK_HP0657,60,55,91.0,Cần đẩy nhanh
+BK_HP0658,45,44,97.8,Đúng hạn
+BK_HP0659,45,41,91.5,Cần đẩy nhanh
+BK_HP0660,45,42,93.1,Cần đẩy nhanh
+BK_HP0661,60,54,89.3,Cần đẩy nhanh
+BK_HP0662,60,56,93.9,Cần đẩy nhanh
+BK_HP0663,30,29,95.6,Đúng hạn
+BK_HP0664,60,57,95.5,Đúng hạn
+BK_HP0665,30,30,99.6,Đúng hạn
+BK_HP0666,60,57,94.3,Cần đẩy nhanh
+BK_HP0667,60,54,90.3,Cần đẩy nhanh
+BK_HP0668,45,40,88.4,Cần đẩy nhanh
+BK_HP0669,60,55,91.7,Cần đẩy nhanh
+BK_HP0670,45,43,96.6,Đúng hạn
+BK_HP0671,60,54,89.6,Cần đẩy nhanh
+BK_HP0672,60,54,90.8,Cần đẩy nhanh
+BK_HP0673,30,28,94.8,Cần đẩy nhanh
+BK_HP0674,60,57,95.6,Đúng hạn
+BK_HP0675,30,28,92.1,Cần đẩy nhanh
+BK_HP0676,30,29,97.1,Đúng hạn
+BK_HP0677,45,43,95.1,Đúng hạn
+BK_HP0678,30,27,91.2,Cần đẩy nhanh
+BK_HP0679,60,57,94.2,Cần đẩy nhanh
+BK_HP0680,60,59,98.5,Đúng hạn
+BK_HP0681,60,52,86.8,Cần đẩy nhanh
+BK_HP0682,60,55,91.4,Cần đẩy nhanh
+BK_HP0683,45,43,95.9,Đúng hạn
+BK_HP0684,30,28,91.8,Cần đẩy nhanh
+KHTN_HP0001,60,59,98.9,Đúng hạn
+KHTN_HP0002,45,43,94.5,Cần đẩy nhanh
+KHTN_HP0003,45,43,95.9,Đúng hạn
+KHTN_HP0004,45,41,92.0,Cần đẩy nhanh
+KHTN_HP0005,60,60,99.8,Đúng hạn
+KHTN_HP0006,45,42,94.1,Cần đẩy nhanh
+KHTN_HP0007,45,44,97.9,Đúng hạn
+KHTN_HP0008,30,26,87.8,Cần đẩy nhanh
+KHTN_HP0009,30,28,92.2,Cần đẩy nhanh
+KHTN_HP0010,30,28,94.7,Cần đẩy nhanh
+KHTN_HP0011,60,59,98.0,Đúng hạn
+KHTN_HP0012,30,27,91.3,Cần đẩy nhanh
+KHTN_HP0013,30,28,92.1,Cần đẩy nhanh
+KHTN_HP0014,30,29,97.5,Đúng hạn
+KHTN_HP0015,30,28,94.1,Cần đẩy nhanh
+KHTN_HP0016,30,27,90.0,Cần đẩy nhanh
+KHTN_HP0017,45,45,99.0,Đúng hạn
+KHTN_HP0018,45,42,92.7,Cần đẩy nhanh
+KHTN_HP0019,60,55,91.8,Cần đẩy nhanh
+KHTN_HP0020,45,44,96.7,Đúng hạn
+KHTN_HP0021,45,44,98.5,Đúng hạn
+KHTN_HP0022,30,27,89.4,Cần đẩy nhanh
+KHTN_HP0023,45,44,97.2,Đúng hạn
+KHTN_HP0024,45,42,92.7,Cần đẩy nhanh
+KHTN_HP0025,30,27,89.9,Cần đẩy nhanh
+KHTN_HP0026,30,28,94.3,Cần đẩy nhanh
+KHTN_HP0027,45,41,91.7,Cần đẩy nhanh
+KHTN_HP0028,45,42,93.6,Cần đẩy nhanh
+KHTN_HP0029,30,28,92.0,Cần đẩy nhanh
+KHTN_HP0030,30,29,96.0,Đúng hạn
+KHTN_HP0031,60,57,94.5,Cần đẩy nhanh
+KHTN_HP0032,45,45,98.9,Đúng hạn
+KHTN_HP0033,30,29,96.9,Đúng hạn
+KHTN_HP0034,30,29,97.3,Đúng hạn
+KHTN_HP0035,60,57,95.4,Đúng hạn
+KHTN_HP0036,45,42,94.0,Cần đẩy nhanh
+KHTN_HP0037,45,42,92.6,Cần đẩy nhanh
+KHTN_HP0038,45,43,96.0,Đúng hạn
+KHTN_HP0039,30,29,95.1,Đúng hạn
+KHTN_HP0040,60,57,94.9,Cần đẩy nhanh
+KHTN_HP0041,45,43,96.6,Đúng hạn
+KHTN_HP0042,45,42,93.6,Cần đẩy nhanh
+KHTN_HP0043,45,41,90.1,Cần đẩy nhanh
+KHTN_HP0044,45,41,91.6,Cần đẩy nhanh
+KHTN_HP0045,30,28,93.6,Cần đẩy nhanh
+KHTN_HP0046,60,60,99.4,Đúng hạn
+KHTN_HP0047,45,42,93.9,Cần đẩy nhanh
+KHTN_HP0048,60,56,93.6,Cần đẩy nhanh
+KHTN_HP0049,30,28,91.9,Cần đẩy nhanh
+KHTN_HP0050,30,29,97.1,Đúng hạn
+KHTN_HP0051,45,41,91.8,Cần đẩy nhanh
+KHTN_HP0052,60,57,94.4,Cần đẩy nhanh
+KHTN_HP0053,60,53,88.2,Cần đẩy nhanh
+KHTN_HP0054,45,43,95.4,Đúng hạn
+KHTN_HP0055,45,42,94.0,Cần đẩy nhanh
+KHTN_HP0056,60,57,95.1,Đúng hạn
+KHTN_HP0057,30,28,94.8,Cần đẩy nhanh
+KHTN_HP0058,30,29,95.7,Đúng hạn
+KHTN_HP0059,45,43,95.9,Đúng hạn
+KHTN_HP0060,60,53,88.6,Cần đẩy nhanh
+KHTN_HP0061,45,41,91.1,Cần đẩy nhanh
+KHTN_HP0062,45,44,97.2,Đúng hạn
+KHTN_HP0063,60,58,96.2,Đúng hạn
+KHTN_HP0064,30,26,88.2,Cần đẩy nhanh
+KHTN_HP0065,30,28,93.0,Cần đẩy nhanh
+KHTN_HP0066,45,41,91.7,Cần đẩy nhanh
+KHTN_HP0067,45,42,92.7,Cần đẩy nhanh
+KHTN_HP0068,45,42,93.7,Cần đẩy nhanh
+KHTN_HP0069,30,28,92.7,Cần đẩy nhanh
+KHTN_HP0070,45,43,96.0,Đúng hạn
+KHTN_HP0071,30,28,94.5,Cần đẩy nhanh
+KHTN_HP0072,45,41,90.3,Cần đẩy nhanh
+KHTN_HP0073,60,59,98.1,Đúng hạn
+KHTN_HP0074,45,43,96.5,Đúng hạn
+KHTN_HP0075,45,43,95.6,Đúng hạn
+KHTN_HP0076,45,42,92.3,Cần đẩy nhanh
+KHTN_HP0077,45,41,91.4,Cần đẩy nhanh
+KHTN_HP0078,45,42,94.3,Cần đẩy nhanh
+KHTN_HP0079,45,42,92.5,Cần đẩy nhanh
+KHTN_HP0080,45,42,92.9,Cần đẩy nhanh
+KHTN_HP0081,30,28,92.1,Cần đẩy nhanh
+KHTN_HP0082,45,40,89.7,Cần đẩy nhanh
+KHTN_HP0083,60,58,96.3,Đúng hạn
+KHTN_HP0084,45,39,85.8,Cần đẩy nhanh
+KHTN_HP0085,45,42,93.9,Cần đẩy nhanh
+KHTN_HP0086,45,42,92.9,Cần đẩy nhanh
+KHTN_HP0087,60,57,95.2,Đúng hạn
+KHTN_HP0088,45,43,96.2,Đúng hạn
+KHTN_HP0089,60,56,93.8,Cần đẩy nhanh
+KHTN_HP0090,60,58,97.0,Đúng hạn
+KHTN_HP0091,45,41,91.3,Cần đẩy nhanh
+KHTN_HP0092,30,28,93.4,Cần đẩy nhanh
+KHTN_HP0093,45,42,93.9,Cần đẩy nhanh
+KHTN_HP0094,60,59,98.3,Đúng hạn
+KHTN_HP0095,45,45,99.4,Đúng hạn
+KHTN_HP0096,45,42,93.2,Cần đẩy nhanh
+KHTN_HP0097,45,43,94.5,Cần đẩy nhanh
+KHTN_HP0098,60,53,88.5,Cần đẩy nhanh
+KHTN_HP0099,60,54,89.5,Cần đẩy nhanh
+KHTN_HP0100,45,42,93.2,Cần đẩy nhanh
+KHTN_HP0101,30,27,90.9,Cần đẩy nhanh
+KHTN_HP0102,60,57,95.0,Đúng hạn
+KHTN_HP0103,45,40,88.6,Cần đẩy nhanh
+KHTN_HP0104,45,38,85.2,Cần đẩy nhanh
+KHTN_HP0105,60,54,89.7,Cần đẩy nhanh
+KHTN_HP0106,45,43,94.6,Cần đẩy nhanh
+KHTN_HP0107,45,43,95.0,Đúng hạn
+KHTN_HP0108,30,27,88.6,Cần đẩy nhanh
+KHTN_HP0109,45,43,96.3,Đúng hạn
+KHTN_HP0110,45,40,89.7,Cần đẩy nhanh
+KHTN_HP0111,30,27,91.1,Cần đẩy nhanh
+KHTN_HP0112,45,40,88.0,Cần đẩy nhanh
+KHTN_HP0113,45,43,94.8,Cần đẩy nhanh
+KHTN_HP0114,45,41,91.0,Cần đẩy nhanh
+KHTN_HP0115,45,41,91.5,Cần đẩy nhanh
+KHTN_HP0116,60,58,96.0,Đúng hạn
+KHTN_HP0117,30,28,92.3,Cần đẩy nhanh
+KHTN_HP0118,45,42,93.4,Cần đẩy nhanh
+KHTN_HP0119,45,42,93.2,Cần đẩy nhanh
+KHTN_HP0120,60,52,86.8,Cần đẩy nhanh
+KHTN_HP0121,45,44,98.5,Đúng hạn
+KHTN_HP0122,60,53,89.1,Cần đẩy nhanh
+KHTN_HP0123,45,43,94.5,Cần đẩy nhanh
+KHTN_HP0124,45,43,95.5,Đúng hạn
+KHTN_HP0125,60,56,93.6,Cần đẩy nhanh
+KHTN_HP0126,60,57,95.7,Đúng hạn
+KHTN_HP0127,60,55,91.8,Cần đẩy nhanh
+KHTN_HP0128,60,54,90.6,Cần đẩy nhanh
+KHTN_HP0129,60,54,89.7,Cần đẩy nhanh
+KHTN_HP0130,45,41,92.1,Cần đẩy nhanh
+KHTN_HP0131,60,52,86.7,Cần đẩy nhanh
+KHTN_HP0132,30,27,90.0,Cần đẩy nhanh
+KHTN_HP0133,45,43,95.5,Đúng hạn
+KHTN_HP0134,45,42,93.1,Cần đẩy nhanh
+KHTN_HP0135,60,54,90.6,Cần đẩy nhanh
+KHTN_HP0136,30,28,92.6,Cần đẩy nhanh
+KHTN_HP0137,30,27,91.3,Cần đẩy nhanh
+KHTN_HP0138,45,45,99.6,Đúng hạn
+KHTN_HP0139,45,43,95.7,Đúng hạn
+KHTN_HP0140,60,56,92.6,Cần đẩy nhanh
+KHTN_HP0141,60,55,91.6,Cần đẩy nhanh
+KHTN_HP0142,30,28,94.5,Cần đẩy nhanh
+KHTN_HP0143,30,27,90.1,Cần đẩy nhanh
+KHTN_HP0144,60,51,85.4,Cần đẩy nhanh
+KHTN_HP0145,45,42,92.6,Cần đẩy nhanh
+KHTN_HP0146,45,43,94.8,Cần đẩy nhanh
+KHTN_HP0147,60,57,94.5,Cần đẩy nhanh
+KHTN_HP0148,45,43,95.3,Đúng hạn
+KHTN_HP0149,30,29,97.4,Đúng hạn
+KHTN_HP0150,60,56,92.5,Cần đẩy nhanh
+KHTN_HP0151,30,28,91.9,Cần đẩy nhanh
+KHTN_HP0152,45,40,89.2,Cần đẩy nhanh
+KHTN_HP0153,45,45,99.0,Đúng hạn
+KHTN_HP0154,60,55,91.8,Cần đẩy nhanh
+KHTN_HP0155,30,29,96.3,Đúng hạn
+KHTN_HP0156,45,43,94.6,Cần đẩy nhanh
+KHTN_HP0157,45,43,94.8,Cần đẩy nhanh
+KHTN_HP0158,45,43,96.3,Đúng hạn
+KHTN_HP0159,60,58,96.5,Đúng hạn
+KHTN_HP0160,45,43,95.2,Đúng hạn
+KHTN_HP0161,45,41,92.0,Cần đẩy nhanh
+KHTN_HP0162,60,55,92.3,Cần đẩy nhanh
+KHTN_HP0163,45,42,93.1,Cần đẩy nhanh
+KHTN_HP0164,45,44,98.6,Đúng hạn
+KHTN_HP0165,30,28,93.7,Cần đẩy nhanh
+KHTN_HP0166,30,28,94.7,Cần đẩy nhanh
+KHTN_HP0167,60,59,97.8,Đúng hạn
+KHTN_HP0168,45,42,92.9,Cần đẩy nhanh
+KHTN_HP0169,60,56,93.3,Cần đẩy nhanh
+KHTN_HP0170,60,56,93.8,Cần đẩy nhanh
+KHTN_HP0171,45,40,89.1,Cần đẩy nhanh
+KHTN_HP0172,30,29,97.2,Đúng hạn
+KHTN_HP0173,45,41,90.4,Cần đẩy nhanh
+KHTN_HP0174,60,56,93.0,Cần đẩy nhanh
+KHTN_HP0175,60,57,95.3,Đúng hạn
+KHTN_HP0176,45,41,91.2,Cần đẩy nhanh
+KHTN_HP0177,45,41,91.2,Cần đẩy nhanh
+KHTN_HP0178,30,29,95.1,Đúng hạn
+KHTN_HP0179,45,43,95.6,Đúng hạn
+KHTN_HP0180,60,57,94.4,Cần đẩy nhanh
+KHTN_HP0181,45,44,97.8,Đúng hạn
+KHTN_HP0182,60,56,93.4,Cần đẩy nhanh
+KHTN_HP0183,45,42,93.5,Cần đẩy nhanh
+KHTN_HP0184,45,42,94.4,Cần đẩy nhanh
+KHTN_HP0185,60,57,95.1,Đúng hạn
+KHTN_HP0186,30,27,90.2,Cần đẩy nhanh
+KHTN_HP0187,30,29,96.0,Đúng hạn
+KHTN_HP0188,45,44,96.8,Đúng hạn
+KHTN_HP0189,45,43,95.2,Đúng hạn
+KHTN_HP0190,30,28,93.3,Cần đẩy nhanh
+KHTN_HP0191,45,41,91.6,Cần đẩy nhanh
+KHTN_HP0192,60,53,89.1,Cần đẩy nhanh
+KHTN_HP0193,60,56,94.0,Cần đẩy nhanh
+KHTN_HP0194,30,27,90.1,Cần đẩy nhanh
+KHTN_HP0195,45,43,95.9,Đúng hạn
+KHTN_HP0196,30,29,95.3,Đúng hạn
+KHTN_HP0197,60,58,97.1,Đúng hạn
+KHTN_HP0198,45,42,92.3,Cần đẩy nhanh
+KHTN_HP0199,45,43,96.6,Đúng hạn
+KHTN_HP0200,45,42,93.3,Cần đẩy nhanh
+KHTN_HP0201,45,41,92.1,Cần đẩy nhanh
+KHTN_HP0202,30,28,94.9,Cần đẩy nhanh
+KHTN_HP0203,60,57,94.2,Cần đẩy nhanh
+KHTN_HP0204,45,40,89.5,Cần đẩy nhanh
+KHTN_HP0205,30,28,94.2,Cần đẩy nhanh
+KHTN_HP0206,60,54,89.9,Cần đẩy nhanh
+KHTN_HP0207,60,58,97.4,Đúng hạn
+KHTN_HP0208,30,29,95.7,Đúng hạn
+KHTN_HP0209,45,44,97.1,Đúng hạn
+KHTN_HP0210,45,43,96.3,Đúng hạn
+KHTN_HP0211,60,54,90.3,Cần đẩy nhanh
+KHTN_HP0212,60,54,89.9,Cần đẩy nhanh
+KHTN_HP0213,30,28,92.8,Cần đẩy nhanh
+KHTN_HP0214,30,30,99.8,Đúng hạn
+KHTN_HP0215,60,57,94.6,Cần đẩy nhanh
+KHTN_HP0216,30,29,97.3,Đúng hạn
+KHTN_HP0217,45,43,94.8,Cần đẩy nhanh
+KHTN_HP0218,45,43,95.4,Đúng hạn
+KHTN_HP0219,45,43,95.0,Đúng hạn
+KHTN_HP0220,45,41,91.7,Cần đẩy nhanh
+KHTN_HP0221,60,56,92.5,Cần đẩy nhanh
+KHTN_HP0222,45,42,93.4,Cần đẩy nhanh
+KHTN_HP0223,30,28,91.9,Cần đẩy nhanh
+KHTN_HP0224,45,40,89.8,Cần đẩy nhanh
+KHTN_HP0225,45,42,93.4,Cần đẩy nhanh
+KHTN_HP0226,45,45,99.0,Đúng hạn
+KHTN_HP0227,30,26,88.2,Cần đẩy nhanh
+KHTN_HP0228,30,27,89.0,Cần đẩy nhanh
+KHTN_HP0229,60,55,91.1,Cần đẩy nhanh
+KHTN_HP0230,45,43,94.5,Cần đẩy nhanh
+KHTN_HP0231,30,29,96.5,Đúng hạn
+KHTN_HP0232,45,42,92.3,Cần đẩy nhanh
+KHTN_HP0233,45,41,91.5,Cần đẩy nhanh
+KHTN_HP0234,45,43,96.5,Đúng hạn
+KHTN_HP0235,45,42,94.4,Cần đẩy nhanh
+KHTN_HP0236,60,57,95.4,Đúng hạn
+KHTN_HP0237,45,42,94.3,Cần đẩy nhanh
+KHTN_HP0238,45,40,88.0,Cần đẩy nhanh
+KHTN_HP0239,45,44,97.5,Đúng hạn
+KHTN_HP0240,45,41,90.1,Cần đẩy nhanh
+KHTN_HP0241,45,44,98.6,Đúng hạn
+KHTN_HP0242,45,43,95.5,Đúng hạn
+KHTN_HP0243,60,56,92.6,Cần đẩy nhanh
+KHTN_HP0244,30,29,95.3,Đúng hạn
+KHTN_HP0245,45,41,90.6,Cần đẩy nhanh
+KHTN_HP0246,45,42,92.8,Cần đẩy nhanh
+KHTN_HP0247,45,41,91.8,Cần đẩy nhanh
+KHTN_HP0248,30,29,96.5,Đúng hạn
+KHTN_HP0249,45,41,92.0,Cần đẩy nhanh
+KHTN_HP0250,60,52,87.2,Cần đẩy nhanh
+KHTN_HP0251,45,42,93.4,Cần đẩy nhanh
+KHTN_HP0252,45,41,91.6,Cần đẩy nhanh
+KHTN_HP0253,30,30,99.0,Đúng hạn
+KHTN_HP0254,60,56,92.7,Cần đẩy nhanh
+KHTN_HP0255,45,44,97.9,Đúng hạn
+KHTN_HP0256,45,41,90.5,Cần đẩy nhanh
+KHTN_HP0257,30,30,99.8,Đúng hạn
+KHTN_HP0258,60,54,90.4,Cần đẩy nhanh
+KHTN_HP0259,30,29,96.4,Đúng hạn
+KHTN_HP0260,60,58,96.2,Đúng hạn
+KHTN_HP0261,60,56,93.3,Cần đẩy nhanh
+KHTN_HP0262,45,43,94.9,Cần đẩy nhanh
+KHTN_HP0263,45,43,95.5,Đúng hạn
+KHTN_HP0264,45,43,95.1,Đúng hạn
+KHTN_HP0265,45,41,90.9,Cần đẩy nhanh
+KHTN_HP0266,45,43,95.7,Đúng hạn
+KHTN_HP0267,60,59,99.1,Đúng hạn
+KHTN_HP0268,60,56,93.5,Cần đẩy nhanh
+KHTN_HP0269,45,41,91.8,Cần đẩy nhanh
+KHTN_HP0270,60,53,88.9,Cần đẩy nhanh
+KHTN_HP0271,60,57,94.7,Cần đẩy nhanh
+KHTN_HP0272,30,26,87.7,Cần đẩy nhanh
+KHTN_HP0273,60,54,89.5,Cần đẩy nhanh
+KHTN_HP0274,60,57,95.7,Đúng hạn
+KHTN_HP0275,60,54,90.8,Cần đẩy nhanh
+KHTN_HP0276,45,41,90.3,Cần đẩy nhanh
+KHTN_HP0277,45,42,92.9,Cần đẩy nhanh
+KHTN_HP0278,45,44,97.1,Đúng hạn
+KHTN_HP0279,60,57,95.7,Đúng hạn
+KHTN_HP0280,45,42,93.9,Cần đẩy nhanh
+KHTN_HP0281,45,44,97.7,Đúng hạn
+KHTN_HP0282,45,42,93.1,Cần đẩy nhanh
+KHTN_HP0283,45,44,98.0,Đúng hạn
+KHTN_HP0284,60,58,96.4,Đúng hạn
+KHTN_HP0285,45,43,96.3,Đúng hạn
+KHTN_HP0286,45,41,92.2,Cần đẩy nhanh
+KHTN_HP0287,30,28,92.3,Cần đẩy nhanh
+KHTN_HP0288,30,28,92.4,Cần đẩy nhanh
+KHTN_HP0289,60,57,95.4,Đúng hạn
+KHTN_HP0290,45,42,93.5,Cần đẩy nhanh
+KHTN_HP0291,45,42,92.5,Cần đẩy nhanh
+KHTN_HP0292,45,40,89.5,Cần đẩy nhanh
+KHTN_HP0293,45,42,93.7,Cần đẩy nhanh
+KHTN_HP0294,45,43,96.6,Đúng hạn
+KHTN_HP0295,45,41,90.8,Cần đẩy nhanh
+KHTN_HP0296,30,28,94.0,Cần đẩy nhanh
+KHTN_HP0297,45,40,88.3,Cần đẩy nhanh
+KHTN_HP0298,60,56,93.9,Cần đẩy nhanh
+KHTN_HP0299,45,41,92.0,Cần đẩy nhanh
+KHTN_HP0300,45,42,94.2,Cần đẩy nhanh
+KHTN_HP0301,60,56,93.1,Cần đẩy nhanh
+KHTN_HP0302,30,28,93.6,Cần đẩy nhanh
+KHTN_HP0303,45,42,93.9,Cần đẩy nhanh
+KHTN_HP0304,30,27,89.7,Cần đẩy nhanh
+KHTN_HP0305,30,28,94.5,Cần đẩy nhanh
+KHTN_HP0306,45,43,96.6,Đúng hạn
+KHTN_HP0307,30,29,96.2,Đúng hạn
+KHTN_HP0308,30,28,92.7,Cần đẩy nhanh
+KHTN_HP0309,60,53,88.7,Cần đẩy nhanh
+KHTN_HP0310,30,27,90.6,Cần đẩy nhanh
+KHTN_HP0311,45,43,95.1,Đúng hạn
+KHTN_HP0312,30,29,95.3,Đúng hạn
+KHTN_HP0313,30,27,90.4,Cần đẩy nhanh
+KHTN_HP0314,30,26,85.5,Cần đẩy nhanh
+KHTN_HP0315,45,41,90.7,Cần đẩy nhanh
+KHTN_HP0316,45,42,93.2,Cần đẩy nhanh
+KHTN_HP0317,30,29,97.3,Đúng hạn
+KHTN_HP0318,60,58,96.2,Đúng hạn
+KHTN_HP0319,60,53,89.0,Cần đẩy nhanh
+KHTN_HP0320,60,56,92.6,Cần đẩy nhanh
+KHTN_HP0321,45,44,97.3,Đúng hạn
+KHTN_HP0322,45,44,96.8,Đúng hạn
+KHTN_HP0323,45,43,95.8,Đúng hạn
+KHTN_HP0324,60,58,96.8,Đúng hạn
+KHTN_HP0325,30,27,90.7,Cần đẩy nhanh
+KHTN_HP0326,45,40,89.7,Cần đẩy nhanh
+KHTN_HP0327,45,43,96.1,Đúng hạn
+KHTN_HP0328,45,44,97.2,Đúng hạn
+KHTN_HP0329,60,54,90.8,Cần đẩy nhanh
+KHTN_HP0330,45,45,99.4,Đúng hạn
+KHTN_HP0331,60,59,99.0,Đúng hạn
+KHTN_HP0332,45,42,92.3,Cần đẩy nhanh
+KHTN_HP0333,60,57,94.2,Cần đẩy nhanh
+KHTN_HP0334,45,39,86.4,Cần đẩy nhanh
+KHTN_HP0335,60,55,92.2,Cần đẩy nhanh
+KHTN_HP0336,30,29,95.1,Đúng hạn
+KHTN_HP0337,45,45,99.3,Đúng hạn
+KHTN_HP0338,60,59,97.6,Đúng hạn
+KHTN_HP0339,45,42,93.6,Cần đẩy nhanh
+KHTN_HP0340,30,28,93.1,Cần đẩy nhanh
+KHTN_HP0341,45,42,93.3,Cần đẩy nhanh
+KHTN_HP0342,60,54,90.3,Cần đẩy nhanh
+KHTN_HP0343,30,29,95.9,Đúng hạn
+KHTN_HP0344,45,40,88.5,Cần đẩy nhanh
+KHTN_HP0345,30,29,95.2,Đúng hạn
+KHTN_HP0346,45,44,97.4,Đúng hạn
+KHTN_HP0347,45,43,96.3,Đúng hạn
+KHTN_HP0348,45,39,87.4,Cần đẩy nhanh
+KHTN_HP0349,45,43,95.6,Đúng hạn
+KHTN_HP0350,45,42,92.6,Cần đẩy nhanh
+KHTN_HP0351,30,29,95.5,Đúng hạn
+KHTN_HP0352,60,56,92.8,Cần đẩy nhanh
+KHTN_HP0353,45,44,98.4,Đúng hạn
+KHTN_HP0354,45,44,98.4,Đúng hạn
+KHTN_HP0355,45,44,98.6,Đúng hạn
+KHTN_HP0356,45,41,92.2,Cần đẩy nhanh
+KHTN_HP0357,30,30,100.0,Đúng hạn
+KHTN_HP0358,30,27,90.1,Cần đẩy nhanh
+KHTN_HP0359,45,44,97.4,Đúng hạn
+KHTN_HP0360,60,57,94.6,Cần đẩy nhanh
+KHTN_HP0361,60,55,91.2,Cần đẩy nhanh
+KHTN_HP0362,60,57,95.8,Đúng hạn
+KHTN_HP0363,30,27,91.6,Cần đẩy nhanh
+KHTN_HP0364,30,28,92.9,Cần đẩy nhanh
+KHTN_HP0365,45,44,97.0,Đúng hạn
+KHTN_HP0366,45,41,91.8,Cần đẩy nhanh
+KHTN_HP0367,45,42,92.3,Cần đẩy nhanh
+KHTN_HP0368,60,54,90.5,Cần đẩy nhanh
+KHTN_HP0369,45,45,99.7,Đúng hạn
+KHTN_HP0370,60,58,96.6,Đúng hạn
+KHTN_HP0371,30,28,93.1,Cần đẩy nhanh
+KHTN_HP0372,30,28,94.1,Cần đẩy nhanh
+KHTN_HP0373,60,56,93.1,Cần đẩy nhanh
+KHTN_HP0374,60,57,94.9,Cần đẩy nhanh
+KHTN_HP0375,45,42,94.3,Cần đẩy nhanh
+KHTN_HP0376,30,29,97.5,Đúng hạn
+KHTN_HP0377,45,45,99.8,Đúng hạn
+KHTN_HP0378,45,45,100.0,Đúng hạn
+KHTN_HP0379,45,43,95.6,Đúng hạn
+KHTN_HP0380,45,43,94.5,Cần đẩy nhanh
+KHTN_HP0381,45,40,88.1,Cần đẩy nhanh
+KHTN_HP0382,60,53,88.2,Cần đẩy nhanh
+KHTN_HP0383,45,43,94.7,Cần đẩy nhanh
+KHTN_HP0384,60,58,96.1,Đúng hạn
+KHTN_HP0385,45,43,95.2,Đúng hạn
+KHTN_HP0386,45,41,92.0,Cần đẩy nhanh
+KHTN_HP0387,45,43,94.7,Cần đẩy nhanh
+KHTN_HP0388,45,44,97.4,Đúng hạn
+KHTN_HP0389,60,52,87.4,Cần đẩy nhanh
+KHTN_HP0390,45,41,92.0,Cần đẩy nhanh
+KHTN_HP0391,30,30,98.5,Đúng hạn
+KHTN_HP0392,45,45,99.8,Đúng hạn
+KHTN_HP0393,30,28,93.0,Cần đẩy nhanh
+KHTN_HP0394,60,56,93.7,Cần đẩy nhanh
+KHTN_HP0395,60,57,95.0,Đúng hạn
+KHTN_HP0396,60,55,91.9,Cần đẩy nhanh
+KHTN_HP0397,30,27,90.0,Cần đẩy nhanh
+KHTN_HP0398,60,56,93.7,Cần đẩy nhanh
+KHTN_HP0399,45,43,96.5,Đúng hạn
+KHTN_HP0400,60,57,95.4,Đúng hạn
+KHTN_HP0401,45,43,95.4,Đúng hạn
+KHTN_HP0402,45,39,87.1,Cần đẩy nhanh
+KHTN_HP0403,45,43,96.5,Đúng hạn
+KHTN_HP0404,30,27,88.7,Cần đẩy nhanh
+KHTN_HP0405,45,42,93.2,Cần đẩy nhanh
+KHTN_HP0406,60,56,94.0,Cần đẩy nhanh
+KHTN_HP0407,45,39,87.3,Cần đẩy nhanh
+KHTN_HP0408,45,40,88.5,Cần đẩy nhanh
+KHTN_HP0409,30,29,96.3,Đúng hạn
+KHTN_HP0410,45,44,97.1,Đúng hạn
+KHTN_HP0411,45,42,94.0,Cần đẩy nhanh
+KHTN_HP0412,60,57,94.8,Cần đẩy nhanh
+KHTN_HP0413,45,43,96.6,Đúng hạn
+KHTN_HP0414,30,29,97.0,Đúng hạn
+KHTN_HP0415,45,42,92.5,Cần đẩy nhanh
+KHTN_HP0416,45,41,91.5,Cần đẩy nhanh
+KHTN_HP0417,45,40,88.3,Cần đẩy nhanh
+KHTN_HP0418,60,56,93.4,Cần đẩy nhanh
+KHTN_HP0419,45,44,97.3,Đúng hạn
+KHTN_HP0420,30,27,91.0,Cần đẩy nhanh
+KHTN_HP0421,45,41,91.8,Cần đẩy nhanh
+KHTN_HP0422,30,28,92.4,Cần đẩy nhanh
+KHTN_HP0423,30,29,95.6,Đúng hạn
+KHTN_HP0424,45,45,99.0,Đúng hạn
+KHTN_HP0425,45,41,90.4,Cần đẩy nhanh
+KHTN_HP0426,45,44,98.6,Đúng hạn
+KT_HP0001,45,45,98.9,Đúng hạn
+KT_HP0002,45,45,99.5,Đúng hạn
+KT_HP0003,60,57,94.2,Cần đẩy nhanh
+KT_HP0004,60,56,93.5,Cần đẩy nhanh
+KT_HP0005,45,44,97.8,Đúng hạn
+KT_HP0006,60,59,98.4,Đúng hạn
+KT_HP0007,45,44,97.6,Đúng hạn
+KT_HP0008,60,58,97.0,Đúng hạn
+KT_HP0009,30,29,97.8,Đúng hạn
+KT_HP0010,30,28,93.5,Cần đẩy nhanh
+KT_HP0011,45,45,99.1,Đúng hạn
+KT_HP0012,45,43,96.2,Đúng hạn
+KT_HP0013,45,45,99.6,Đúng hạn
+KT_HP0014,60,58,96.3,Đúng hạn
+KT_HP0015,45,41,90.8,Cần đẩy nhanh
+KT_HP0016,60,56,93.3,Cần đẩy nhanh
+KT_HP0017,30,29,96.6,Đúng hạn
+KT_HP0018,60,57,94.9,Cần đẩy nhanh
+KT_HP0019,60,56,93.6,Cần đẩy nhanh
+KT_HP0020,45,42,93.3,Cần đẩy nhanh
+KT_HP0021,45,43,94.7,Cần đẩy nhanh
+KT_HP0022,45,43,96.0,Đúng hạn
+KT_HP0023,45,41,91.1,Cần đẩy nhanh
+KT_HP0024,30,29,95.8,Đúng hạn
+KT_HP0025,45,43,94.6,Cần đẩy nhanh
+KT_HP0026,60,57,95.1,Đúng hạn
+KT_HP0027,60,57,95.2,Đúng hạn
+KT_HP0028,60,58,97.3,Đúng hạn
+KT_HP0029,60,54,90.5,Cần đẩy nhanh
+KT_HP0030,45,42,93.6,Cần đẩy nhanh
+KT_HP0031,45,43,95.5,Đúng hạn
+KT_HP0032,45,43,94.7,Cần đẩy nhanh
+KT_HP0033,30,27,91.6,Cần đẩy nhanh
+KT_HP0034,30,28,91.9,Cần đẩy nhanh
+KT_HP0035,45,43,94.7,Cần đẩy nhanh
+KT_HP0036,45,42,94.4,Cần đẩy nhanh
+KT_HP0037,30,28,94.5,Cần đẩy nhanh
+KT_HP0038,45,42,93.9,Cần đẩy nhanh
+KT_HP0039,45,43,95.5,Đúng hạn
+KT_HP0040,45,40,89.0,Cần đẩy nhanh
+KT_HP0041,45,43,95.3,Đúng hạn
+KT_HP0042,30,28,92.2,Cần đẩy nhanh
+KT_HP0043,60,56,93.8,Cần đẩy nhanh
+KT_HP0044,45,42,92.3,Cần đẩy nhanh
+KT_HP0045,45,40,89.5,Cần đẩy nhanh
+KT_HP0046,45,40,89.6,Cần đẩy nhanh
+KT_HP0047,45,44,98.1,Đúng hạn
+KT_HP0048,30,28,95.0,Đúng hạn
+KT_HP0049,60,56,94.0,Cần đẩy nhanh
+KT_HP0050,60,55,92.3,Cần đẩy nhanh
+KT_HP0051,45,43,96.1,Đúng hạn
+KT_HP0052,45,44,98.8,Đúng hạn
+KT_HP0053,60,57,95.5,Đúng hạn
+KT_HP0054,45,43,95.7,Đúng hạn
+KT_HP0055,30,29,96.4,Đúng hạn
+KT_HP0056,30,28,94.7,Cần đẩy nhanh
+KT_HP0057,45,43,96.3,Đúng hạn
+KT_HP0058,30,30,99.9,Đúng hạn
+KT_HP0059,30,29,95.9,Đúng hạn
+KT_HP0060,30,29,96.4,Đúng hạn
+KT_HP0061,30,30,99.5,Đúng hạn
+KT_HP0062,45,44,96.7,Đúng hạn
+KT_HP0063,60,56,92.5,Cần đẩy nhanh
+KT_HP0064,30,28,92.5,Cần đẩy nhanh
+KT_HP0065,30,28,92.9,Cần đẩy nhanh
+KT_HP0066,45,42,93.8,Cần đẩy nhanh
+KT_HP0067,30,29,97.4,Đúng hạn
+KT_HP0068,45,40,88.9,Cần đẩy nhanh
+KT_HP0069,45,43,95.9,Đúng hạn
+KT_HP0070,45,43,95.9,Đúng hạn
+KT_HP0071,45,41,91.0,Cần đẩy nhanh
+KT_HP0072,45,42,94.1,Cần đẩy nhanh
+KT_HP0073,45,43,95.6,Đúng hạn
+KT_HP0074,30,30,99.2,Đúng hạn
+KT_HP0075,45,43,95.6,Đúng hạn
+KT_HP0076,45,42,94.1,Cần đẩy nhanh
+KT_HP0077,60,59,98.6,Đúng hạn
+KT_HP0078,45,44,97.7,Đúng hạn
+KT_HP0079,45,45,99.0,Đúng hạn
+KT_HP0080,45,42,93.8,Cần đẩy nhanh
+KT_HP0081,45,45,99.4,Đúng hạn
+KT_HP0082,45,44,98.7,Đúng hạn
+KT_HP0083,60,58,96.1,Đúng hạn
+KT_HP0084,45,43,96.5,Đúng hạn
+KT_HP0085,45,43,95.7,Đúng hạn
+KT_HP0086,45,43,94.6,Cần đẩy nhanh
+KT_HP0087,60,59,99.0,Đúng hạn
+KT_HP0088,45,43,95.4,Đúng hạn
+KT_HP0089,30,29,97.6,Đúng hạn
+KT_HP0090,60,57,95.5,Đúng hạn
+KT_HP0091,60,55,91.1,Cần đẩy nhanh
+KT_HP0092,45,43,95.3,Đúng hạn
+KT_HP0093,30,30,99.3,Đúng hạn
+KT_HP0094,45,43,96.5,Đúng hạn
+KT_HP0095,60,57,95.7,Đúng hạn
+KT_HP0096,45,41,91.3,Cần đẩy nhanh
+KT_HP0097,30,29,95.7,Đúng hạn
+KT_HP0098,45,41,91.6,Cần đẩy nhanh
+KT_HP0099,60,59,98.0,Đúng hạn
+KT_HP0100,45,44,97.6,Đúng hạn
+KT_HP0101,60,58,96.4,Đúng hạn
+KT_HP0102,30,28,93.1,Cần đẩy nhanh
+KT_HP0103,60,54,90.2,Cần đẩy nhanh
+KT_HP0104,30,30,98.5,Đúng hạn
+KT_HP0105,30,28,92.2,Cần đẩy nhanh
+KT_HP0106,45,44,97.2,Đúng hạn
+KT_HP0107,30,28,93.0,Cần đẩy nhanh
+KT_HP0108,60,55,92.1,Cần đẩy nhanh
+KT_HP0109,30,29,96.4,Đúng hạn
+KT_HP0110,45,43,95.4,Đúng hạn
+KT_HP0111,30,29,96.5,Đúng hạn
+KT_HP0112,30,28,94.6,Cần đẩy nhanh
+KT_HP0113,30,27,89.9,Cần đẩy nhanh
+KT_HP0114,45,45,99.0,Đúng hạn
+KT_HP0115,45,40,88.8,Cần đẩy nhanh
+KT_HP0116,30,30,99.2,Đúng hạn
+KT_HP0117,45,43,96.3,Đúng hạn
+KT_HP0118,60,59,97.8,Đúng hạn
+KT_HP0119,30,28,94.5,Cần đẩy nhanh
+KT_HP0120,45,42,92.5,Cần đẩy nhanh
+KT_HP0121,45,45,99.0,Đúng hạn
+KT_HP0122,45,41,92.1,Cần đẩy nhanh
+KT_HP0123,60,57,94.3,Cần đẩy nhanh
+KT_HP0124,60,58,96.4,Đúng hạn
+KT_HP0125,45,43,95.7,Đúng hạn
+KT_HP0126,45,44,96.7,Đúng hạn
+KT_HP0127,45,44,97.9,Đúng hạn
+KT_HP0128,45,43,94.9,Cần đẩy nhanh
+KT_HP0129,60,58,96.5,Đúng hạn
+KT_HP0130,60,57,94.8,Cần đẩy nhanh
+KT_HP0131,30,29,96.6,Đúng hạn
+KT_HP0132,60,55,91.2,Cần đẩy nhanh
+KT_HP0133,45,44,97.1,Đúng hạn
+KT_HP0134,30,29,96.6,Đúng hạn
+KT_HP0135,45,41,91.1,Cần đẩy nhanh
+KT_HP0136,45,44,98.1,Đúng hạn
+KT_HP0137,45,40,89.6,Cần đẩy nhanh
+KT_HP0138,30,29,96.6,Đúng hạn
+KT_HP0139,30,27,90.5,Cần đẩy nhanh
+KT_HP0140,45,45,100.0,Đúng hạn
+KT_HP0141,45,42,93.7,Cần đẩy nhanh
+KT_HP0142,45,42,92.6,Cần đẩy nhanh
+KT_HP0143,60,58,97.2,Đúng hạn
+KT_HP0144,45,42,93.5,Cần đẩy nhanh
+KT_HP0145,30,26,86.6,Cần đẩy nhanh
+KT_HP0146,45,43,95.5,Đúng hạn
+KT_HP0147,30,28,94.7,Cần đẩy nhanh
+KT_HP0148,60,59,98.8,Đúng hạn
+KT_HP0149,45,44,97.3,Đúng hạn
+KT_HP0150,45,44,97.5,Đúng hạn
+KT_HP0151,45,43,95.6,Đúng hạn
+KT_HP0152,30,29,98.1,Đúng hạn
+KT_HP0153,30,29,97.9,Đúng hạn
+KT_HP0154,45,42,92.7,Cần đẩy nhanh
+KT_HP0155,45,43,95.3,Đúng hạn
+KT_HP0156,45,43,94.5,Cần đẩy nhanh
+KT_HP0157,30,29,98.3,Đúng hạn
+KT_HP0158,30,29,95.9,Đúng hạn
+KT_HP0159,45,42,94.3,Cần đẩy nhanh
+KT_HP0160,30,30,99.5,Đúng hạn
+KT_HP0161,45,42,94.0,Cần đẩy nhanh
+KT_HP0162,60,59,97.7,Đúng hạn
+KT_HP0163,45,44,96.9,Đúng hạn
+KT_HP0164,45,43,95.4,Đúng hạn
+KT_HP0165,45,45,99.7,Đúng hạn
+KT_HP0166,45,43,96.6,Đúng hạn
+KT_HP0167,45,41,90.9,Cần đẩy nhanh
+KT_HP0168,30,29,96.5,Đúng hạn
+KT_HP0169,60,59,97.9,Đúng hạn
+KT_HP0170,30,28,94.4,Cần đẩy nhanh
+KT_HP0171,45,42,94.1,Cần đẩy nhanh
+KT_HP0172,30,28,94.9,Cần đẩy nhanh
+KT_HP0173,30,29,96.0,Đúng hạn
+KT_HP0174,60,58,97.3,Đúng hạn
+KT_HP0175,30,29,97.9,Đúng hạn
+KT_HP0176,60,56,93.1,Cần đẩy nhanh
+KT_HP0177,60,59,98.9,Đúng hạn
+KT_HP0178,30,28,93.5,Cần đẩy nhanh
+KT_HP0179,45,42,94.3,Cần đẩy nhanh
+KT_HP0180,30,26,88.1,Cần đẩy nhanh
+KT_HP0181,60,58,95.9,Đúng hạn
+KT_HP0182,60,58,97.1,Đúng hạn
+KT_HP0183,45,41,92.2,Cần đẩy nhanh
+KT_HP0184,60,57,95.3,Đúng hạn
+KT_HP0185,45,44,98.1,Đúng hạn
+KT_HP0186,30,29,98.3,Đúng hạn
+KT_HP0187,30,29,95.7,Đúng hạn
+KT_HP0188,30,27,88.4,Cần đẩy nhanh
+KT_HP0189,60,53,88.9,Cần đẩy nhanh
+KT_HP0190,45,42,93.3,Cần đẩy nhanh
+KT_HP0191,30,28,92.3,Cần đẩy nhanh
+KT_HP0192,60,55,91.0,Cần đẩy nhanh
+KT_HP0193,30,29,96.9,Đúng hạn
+KT_HP0194,30,27,90.5,Cần đẩy nhanh
+KT_HP0195,45,41,91.9,Cần đẩy nhanh
+KT_HP0196,45,42,92.9,Cần đẩy nhanh
+KT_HP0197,45,44,98.7,Đúng hạn
+KT_HP0198,45,44,97.3,Đúng hạn
+KT_HP0199,45,44,98.6,Đúng hạn
+KT_HP0200,60,58,95.9,Đúng hạn
+KT_HP0201,60,52,87.5,Cần đẩy nhanh
+KT_HP0202,30,29,97.1,Đúng hạn
+KT_HP0203,45,42,94.0,Cần đẩy nhanh
+KT_HP0204,45,41,91.9,Cần đẩy nhanh
+KT_HP0205,45,43,96.4,Đúng hạn
+KT_HP0206,60,58,95.9,Đúng hạn
+KT_HP0207,30,29,97.8,Đúng hạn
+KT_HP0208,45,44,98.5,Đúng hạn
+KT_HP0209,45,44,98.5,Đúng hạn
+KT_HP0210,45,43,95.2,Đúng hạn
+KT_HP0211,60,58,96.1,Đúng hạn
+KT_HP0212,30,28,93.1,Cần đẩy nhanh
+KT_HP0213,45,44,98.3,Đúng hạn
+KT_HP0214,45,43,96.5,Đúng hạn
+KT_HP0215,45,44,98.3,Đúng hạn
+KT_HP0216,30,28,91.8,Cần đẩy nhanh
+KT_HP0217,45,43,95.7,Đúng hạn
+KT_HP0218,30,28,94.0,Cần đẩy nhanh
+KT_HP0219,45,43,96.0,Đúng hạn
+KT_HP0220,45,41,92.2,Cần đẩy nhanh
+KT_HP0221,45,45,99.1,Đúng hạn
+KT_HP0222,60,54,90.8,Cần đẩy nhanh
+KT_HP0223,45,43,95.9,Đúng hạn
+KT_HP0224,60,58,96.0,Đúng hạn
+KT_HP0225,45,43,96.2,Đúng hạn
+KT_HP0226,45,41,91.4,Cần đẩy nhanh
+KT_HP0227,45,44,98.3,Đúng hạn
+KT_HP0228,45,43,96.3,Đúng hạn
+KT_HP0229,45,42,93.1,Cần đẩy nhanh
+KT_HP0230,30,28,94.7,Cần đẩy nhanh
+KT_HP0231,45,42,93.9,Cần đẩy nhanh
+KT_HP0232,45,44,97.3,Đúng hạn
+KT_HP0233,45,41,90.6,Cần đẩy nhanh
+KT_HP0234,30,30,99.2,Đúng hạn
+KT_HP0235,45,44,97.4,Đúng hạn
+KT_HP0236,45,45,99.1,Đúng hạn
+KT_HP0237,45,44,97.4,Đúng hạn
+KT_HP0238,60,59,98.1,Đúng hạn
+KT_HP0239,60,57,95.7,Đúng hạn
+KT_HP0240,60,56,93.5,Cần đẩy nhanh
+KT_HP0241,45,44,98.2,Đúng hạn
+KT_HP0242,45,42,94.4,Cần đẩy nhanh
+KT_HP0243,60,58,96.2,Đúng hạn
+KT_HP0244,60,53,89.0,Cần đẩy nhanh
+KT_HP0245,45,43,96.2,Đúng hạn
+KT_HP0246,45,44,96.8,Đúng hạn
+KT_HP0247,45,42,93.8,Cần đẩy nhanh
+KT_HP0248,60,54,90.6,Cần đẩy nhanh
+KT_HP0249,30,29,98.1,Đúng hạn
+KT_HP0250,60,57,94.6,Cần đẩy nhanh
+KT_HP0251,45,42,93.6,Cần đẩy nhanh
+KT_HP0252,30,29,96.2,Đúng hạn
+KT_HP0253,60,56,92.6,Cần đẩy nhanh
+KT_HP0254,60,60,99.2,Đúng hạn
+KT_HP0255,45,42,92.9,Cần đẩy nhanh
+KT_HP0256,60,58,96.1,Đúng hạn
+KT_HP0257,45,44,97.8,Đúng hạn
+KT_HP0258,45,45,99.5,Đúng hạn
+KT_HP0259,45,43,95.8,Đúng hạn
+KT_HP0260,30,28,94.9,Cần đẩy nhanh
+KT_HP0261,30,29,96.7,Đúng hạn
+KT_HP0262,60,57,94.7,Cần đẩy nhanh
+KT_HP0263,60,56,93.1,Cần đẩy nhanh
+KT_HP0264,45,43,96.4,Đúng hạn
+KT_HP0265,45,42,94.2,Cần đẩy nhanh
+KT_HP0266,60,58,95.9,Đúng hạn
+KT_HP0267,45,41,91.5,Cần đẩy nhanh
+KT_HP0268,45,45,99.1,Đúng hạn
+KT_HP0269,60,58,96.2,Đúng hạn
+KT_HP0270,45,44,98.8,Đúng hạn
+KT_HP0271,30,29,97.3,Đúng hạn
+KT_HP0272,45,42,93.4,Cần đẩy nhanh
+KT_HP0273,30,28,94.7,Cần đẩy nhanh
+KT_HP0274,45,42,93.2,Cần đẩy nhanh
+KT_HP0275,30,28,94.1,Cần đẩy nhanh
+KT_HP0276,45,43,95.3,Đúng hạn
+KT_HP0277,60,59,98.9,Đúng hạn
+KT_HP0278,60,60,99.9,Đúng hạn
+KT_HP0279,60,59,98.0,Đúng hạn
+KT_HP0280,30,29,97.4,Đúng hạn
+KT_HP0281,45,45,99.3,Đúng hạn
+KT_HP0282,45,41,92.1,Cần đẩy nhanh
+KT_HP0283,30,28,94.6,Cần đẩy nhanh
+KT_HP0284,45,44,96.7,Đúng hạn
+KT_HP0285,60,60,99.5,Đúng hạn
+KT_HP0286,45,43,96.6,Đúng hạn
+KT_HP0287,30,29,98.3,Đúng hạn
+KT_HP0288,30,27,90.3,Cần đẩy nhanh
+KT_HP0289,60,60,100.0,Đúng hạn
+KT_HP0290,45,43,96.1,Đúng hạn
+KT_HP0291,45,43,96.1,Đúng hạn
+KT_HP0292,45,41,91.3,Cần đẩy nhanh
+KT_HP0293,30,27,90.9,Cần đẩy nhanh
+KT_HP0294,45,41,92.0,Cần đẩy nhanh
+KT_HP0295,30,27,91.3,Cần đẩy nhanh
+KT_HP0296,45,40,89.7,Cần đẩy nhanh
+KT_HP0297,45,43,94.8,Cần đẩy nhanh
+KT_HP0298,45,44,98.1,Đúng hạn
+KT_HP0299,30,28,92.8,Cần đẩy nhanh
+KT_HP0300,30,30,98.9,Đúng hạn
+KT_HP0301,45,42,93.3,Cần đẩy nhanh
+KT_HP0302,45,43,94.6,Cần đẩy nhanh
+KT_HP0303,45,41,91.5,Cần đẩy nhanh
+KT_HP0304,60,59,98.4,Đúng hạn
+KT_HP0305,45,45,99.8,Đúng hạn
+KT_HP0306,60,58,96.0,Đúng hạn
+KT_HP0307,45,44,97.4,Đúng hạn
+KT_HP0308,60,59,98.1,Đúng hạn
+KT_HP0309,45,44,98.1,Đúng hạn
+KT_HP0310,30,29,96.8,Đúng hạn
+KT_HP0311,45,44,96.7,Đúng hạn
+KT_HP0312,30,28,92.3,Cần đẩy nhanh
+KT_HP0313,30,25,82.7,Cần đẩy nhanh
+KT_HP0314,45,42,92.6,Cần đẩy nhanh
+KT_HP0315,45,45,99.8,Đúng hạn
+KT_HP0316,45,42,93.1,Cần đẩy nhanh
+KT_HP0317,45,44,97.2,Đúng hạn
+KT_HP0318,60,53,89.1,Cần đẩy nhanh
+KT_HP0319,60,60,99.8,Đúng hạn
+KT_HP0320,30,30,98.8,Đúng hạn
+KT_HP0321,45,45,99.2,Đúng hạn
+KT_HP0322,45,41,91.4,Cần đẩy nhanh
+KT_HP0323,60,56,92.6,Cần đẩy nhanh
+KT_HP0324,30,29,98.1,Đúng hạn
+KT_HP0325,60,57,95.8,Đúng hạn
+KT_HP0326,30,29,95.1,Đúng hạn
+KT_HP0327,45,44,97.2,Đúng hạn
+KT_HP0328,45,44,96.8,Đúng hạn
+KT_HP0329,45,43,95.0,Đúng hạn
+KT_HP0330,45,42,93.7,Cần đẩy nhanh
+KT_HP0331,30,30,98.8,Đúng hạn
+KT_HP0332,30,30,98.6,Đúng hạn
+KT_HP0333,45,40,89.3,Cần đẩy nhanh
+KT_HP0334,30,28,94.5,Cần đẩy nhanh
+KT_HP0335,45,42,92.7,Cần đẩy nhanh
+KT_HP0336,45,44,98.1,Đúng hạn
+KT_HP0337,45,44,97.7,Đúng hạn
+KT_HP0338,45,40,89.2,Cần đẩy nhanh
+KT_HP0339,45,43,94.8,Cần đẩy nhanh
+KT_HP0340,30,28,92.4,Cần đẩy nhanh
+KT_HP0341,60,56,92.9,Cần đẩy nhanh
+KT_HP0342,45,45,99.1,Đúng hạn
+KT_HP0343,45,44,98.7,Đúng hạn
+KT_HP0344,45,44,96.7,Đúng hạn
+KT_HP0345,45,44,98.8,Đúng hạn
+KT_HP0346,45,43,95.4,Đúng hạn
+KT_HP0347,60,57,95.8,Đúng hạn
+KT_HP0348,60,56,93.6,Cần đẩy nhanh
+KT_HP0349,60,59,97.7,Đúng hạn
+KT_HP0350,30,28,95.0,Đúng hạn
+KT_HP0351,60,58,97.3,Đúng hạn
+KT_HP0352,60,58,97.5,Đúng hạn
+KT_HP0353,30,30,99.2,Đúng hạn
+KT_HP0354,30,29,97.6,Đúng hạn
+KT_HP0355,45,41,92.0,Cần đẩy nhanh
+KT_HP0356,45,44,97.6,Đúng hạn
+KT_HP0357,60,59,98.8,Đúng hạn
+KT_HP0358,45,43,96.6,Đúng hạn
+KT_HP0359,60,58,97.3,Đúng hạn
+KT_HP0360,45,44,98.8,Đúng hạn
+KT_HP0361,60,56,93.2,Cần đẩy nhanh
+KT_HP0362,60,59,98.9,Đúng hạn
+KT_HP0363,45,44,98.4,Đúng hạn
+KT_HP0364,30,28,92.5,Cần đẩy nhanh
+KT_HP0365,30,28,93.6,Cần đẩy nhanh
+KT_HP0366,45,44,98.0,Đúng hạn
+KT_HP0367,30,26,85.6,Cần đẩy nhanh
+KT_HP0368,30,29,95.5,Đúng hạn
+KT_HP0369,45,43,96.1,Đúng hạn
+KT_HP0370,30,29,96.0,Đúng hạn
+KT_HP0371,60,60,99.3,Đúng hạn
+KT_HP0372,45,41,90.2,Cần đẩy nhanh
+KT_HP0373,30,27,90.0,Cần đẩy nhanh
+KT_HP0374,45,41,90.2,Cần đẩy nhanh
+KT_HP0375,45,42,94.0,Cần đẩy nhanh
+KT_HP0376,30,29,97.7,Đúng hạn
+KT_HP0377,45,44,98.6,Đúng hạn
+KT_HP0378,60,57,95.3,Đúng hạn
+KT_HP0379,60,59,98.9,Đúng hạn
+KT_HP0380,45,42,92.4,Cần đẩy nhanh
+KT_HP0381,60,59,97.8,Đúng hạn
+KT_HP0382,45,43,95.7,Đúng hạn
+KT_HP0383,45,44,96.9,Đúng hạn
+KT_HP0384,30,29,96.1,Đúng hạn
+KT_HP0385,45,44,97.6,Đúng hạn
+KT_HP0386,30,30,99.5,Đúng hạn
+KT_HP0387,45,43,95.8,Đúng hạn
+KT_HP0388,60,59,97.9,Đúng hạn
+KT_HP0389,45,44,96.7,Đúng hạn
+KT_HP0390,45,42,94.0,Cần đẩy nhanh
+KT_HP0391,30,29,97.2,Đúng hạn
+KT_HP0392,60,58,97.2,Đúng hạn
+KT_HP0393,45,41,91.5,Cần đẩy nhanh
+KT_HP0394,60,56,92.5,Cần đẩy nhanh
+KT_HP0395,45,44,98.2,Đúng hạn
+KT_HP0396,45,42,92.5,Cần đẩy nhanh
+KT_HP0397,30,29,96.6,Đúng hạn
+KT_HP0398,45,41,92.0,Cần đẩy nhanh
+KT_HP0399,30,28,93.3,Cần đẩy nhanh
+KT_HP0400,30,28,91.9,Cần đẩy nhanh
+KT_HP0401,45,44,97.3,Đúng hạn
+KT_HP0402,45,44,97.6,Đúng hạn
+KT_HP0403,45,44,97.2,Đúng hạn
+KT_HP0404,45,45,99.7,Đúng hạn
+KT_HP0405,45,44,98.8,Đúng hạn
+KT_HP0406,30,29,97.6,Đúng hạn
+KT_HP0407,45,41,91.4,Cần đẩy nhanh
+KT_HP0408,30,28,93.2,Cần đẩy nhanh
+KT_HP0409,45,45,100.0,Đúng hạn
+KT_HP0410,60,57,95.7,Đúng hạn
+KT_HP0411,45,43,95.3,Đúng hạn
+KT_HP0412,45,44,97.2,Đúng hạn
+KT_HP0413,45,40,89.1,Cần đẩy nhanh
+KT_HP0414,45,43,95.2,Đúng hạn
+KT_HP0415,45,43,96.0,Đúng hạn
+KT_HP0416,60,57,94.8,Cần đẩy nhanh
+KT_HP0417,45,45,99.4,Đúng hạn
+KT_HP0418,45,42,92.4,Cần đẩy nhanh
+KT_HP0419,45,44,98.2,Đúng hạn
+KT_HP0420,45,43,96.0,Đúng hạn
+KT_HP0421,45,44,97.4,Đúng hạn
+KT_HP0422,45,42,93.6,Cần đẩy nhanh
+KT_HP0423,30,30,99.2,Đúng hạn
+KT_HP0424,45,43,95.2,Đúng hạn
+KT_HP0425,45,43,94.6,Cần đẩy nhanh
+KT_HP0426,45,41,91.5,Cần đẩy nhanh
+KT_HP0427,60,56,93.8,Cần đẩy nhanh
+KT_HP0428,45,42,92.5,Cần đẩy nhanh
+KT_HP0429,45,42,93.2,Cần đẩy nhanh
+KT_HP0430,45,43,95.8,Đúng hạn
+KT_HP0431,60,58,96.8,Đúng hạn
+KT_HP0432,30,28,94.6,Cần đẩy nhanh
+KT_HP0433,60,57,94.6,Cần đẩy nhanh
+KT_HP0434,45,43,96.5,Đúng hạn
+KT_HP0435,60,58,97.4,Đúng hạn
+KT_HP0436,60,56,92.5,Cần đẩy nhanh
+KT_HP0437,60,57,95.1,Đúng hạn
+KT_HP0438,45,43,95.1,Đúng hạn
+KT_HP0439,45,44,97.5,Đúng hạn
+KT_HP0440,60,57,95.0,Đúng hạn
+KT_HP0441,45,44,97.3,Đúng hạn
+KT_HP0442,60,58,97.1,Đúng hạn
+KT_HP0443,45,43,95.1,Đúng hạn
+KT_HP0444,45,43,95.9,Đúng hạn
+KT_HP0445,45,44,97.7,Đúng hạn
+KT_HP0446,30,27,91.2,Cần đẩy nhanh
+KT_HP0447,45,43,96.6,Đúng hạn
+KT_HP0448,30,27,90.2,Cần đẩy nhanh
+KT_HP0449,60,56,93.0,Cần đẩy nhanh
+KT_HP0450,30,28,93.3,Cần đẩy nhanh
+KT_HP0451,45,41,91.3,Cần đẩy nhanh
+KT_HP0452,45,41,90.8,Cần đẩy nhanh
+KT_HP0453,45,41,91.2,Cần đẩy nhanh
+KT_HP0454,45,42,93.1,Cần đẩy nhanh
+KT_HP0455,60,56,92.6,Cần đẩy nhanh
+KT_HP0456,30,29,98.0,Đúng hạn
+KT_HP0457,45,42,94.3,Cần đẩy nhanh
+KT_HP0458,45,41,92.1,Cần đẩy nhanh
+KT_HP0459,45,45,99.8,Đúng hạn
+KT_HP0460,45,43,95.5,Đúng hạn
+KT_HP0461,45,44,96.9,Đúng hạn
+KT_HP0462,45,43,95.4,Đúng hạn
+KT_HP0463,60,57,94.8,Cần đẩy nhanh
+KT_HP0464,45,44,98.8,Đúng hạn
+KT_HP0465,30,29,95.7,Đúng hạn
+KT_HP0466,45,44,97.2,Đúng hạn
+KT_HP0467,30,28,92.2,Cần đẩy nhanh
+KT_HP0468,45,42,92.6,Cần đẩy nhanh
+KT_HP0469,60,54,90.6,Cần đẩy nhanh
+KT_HP0470,45,42,94.2,Cần đẩy nhanh
+KT_HP0471,60,58,97.3,Đúng hạn
+KT_HP0472,45,44,98.2,Đúng hạn
+KT_HP0473,45,43,95.6,Đúng hạn
+KT_HP0474,45,42,94.2,Cần đẩy nhanh
+KT_HP0475,30,29,95.4,Đúng hạn
+KT_HP0476,60,56,94.1,Cần đẩy nhanh
+KT_HP0477,60,59,98.0,Đúng hạn
+KT_HP0478,45,41,91.6,Cần đẩy nhanh
+KT_HP0479,30,29,95.1,Đúng hạn
+KT_HP0480,45,39,86.9,Cần đẩy nhanh
+KT_HP0481,45,42,94.4,Cần đẩy nhanh
+KT_HP0482,60,52,87.5,Cần đẩy nhanh
+KT_HP0483,45,43,95.2,Đúng hạn
+KT_HP0484,60,58,96.6,Đúng hạn
+KT_HP0485,30,29,96.2,Đúng hạn
+KT_HP0486,45,44,98.6,Đúng hạn
+KT_HP0487,60,59,97.8,Đúng hạn
+KT_HP0488,30,30,98.5,Đúng hạn
+KT_HP0489,45,41,92.1,Cần đẩy nhanh
+KT_HP0490,45,43,96.6,Đúng hạn
+KT_HP0491,45,43,96.0,Đúng hạn
+KT_HP0492,60,57,94.6,Cần đẩy nhanh
+KT_HP0493,45,42,93.4,Cần đẩy nhanh
+KT_HP0494,30,28,94.1,Cần đẩy nhanh
+KT_HP0495,45,41,91.0,Cần đẩy nhanh
+KT_HP0496,60,56,92.8,Cần đẩy nhanh
+KT_HP0497,60,56,93.7,Cần đẩy nhanh
+KT_HP0498,30,29,96.5,Đúng hạn
+KT_HP0499,60,58,96.0,Đúng hạn
+KT_HP0500,45,44,98.8,Đúng hạn
+KT_HP0501,30,30,98.5,Đúng hạn
+KT_HP0502,45,43,95.7,Đúng hạn
+KT_HP0503,45,43,96.6,Đúng hạn
+KT_HP0504,30,29,97.9,Đúng hạn
+KT_HP0505,30,29,98.1,Đúng hạn
+KT_HP0506,60,56,93.0,Cần đẩy nhanh
+KT_HP0507,45,43,94.7,Cần đẩy nhanh
+KT_HP0508,60,59,99.1,Đúng hạn
+KT_HP0509,45,45,99.3,Đúng hạn
+KT_HP0510,45,42,93.6,Cần đẩy nhanh
+KT_HP0511,60,57,95.0,Đúng hạn
+KT_HP0512,45,42,94.3,Cần đẩy nhanh
+KT_HP0513,30,30,98.8,Đúng hạn
+KT_HP0514,30,28,93.9,Cần đẩy nhanh
+KT_HP0515,45,43,96.5,Đúng hạn
+KT_HP0516,45,45,99.3,Đúng hạn
+KT_HP0517,60,55,91.0,Cần đẩy nhanh
+KT_HP0518,45,41,91.6,Cần đẩy nhanh
+KT_HP0519,45,42,94.3,Cần đẩy nhanh
+KT_HP0520,60,58,96.1,Đúng hạn
+KT_HP0521,45,43,96.5,Đúng hạn
+KT_HP0522,45,43,94.8,Cần đẩy nhanh
+KT_HP0523,60,55,90.9,Cần đẩy nhanh
+KT_HP0524,30,30,98.7,Đúng hạn
+KT_HP0525,60,54,90.2,Cần đẩy nhanh
+KT_HP0526,45,44,96.9,Đúng hạn
+KT_HP0527,45,41,91.8,Cần đẩy nhanh
+KT_HP0528,45,43,95.5,Đúng hạn
+KT_HP0529,45,42,94.1,Cần đẩy nhanh
+KT_HP0530,30,29,97.8,Đúng hạn
+KT_HP0531,60,57,95.1,Đúng hạn
+KT_HP0532,45,41,92.2,Cần đẩy nhanh
+KT_HP0533,30,27,90.6,Cần đẩy nhanh
+KT_HP0534,60,57,95.6,Đúng hạn
+KT_HP0535,60,57,94.5,Cần đẩy nhanh
+KT_HP0536,45,43,96.4,Đúng hạn
+KT_HP0537,45,41,92.1,Cần đẩy nhanh
+KT_HP0538,45,43,94.9,Cần đẩy nhanh
+KT_HP0539,45,43,96.2,Đúng hạn
+KT_HP0540,30,30,98.4,Đúng hạn
+KT_HP0541,30,28,92.4,Cần đẩy nhanh
+KT_HP0542,30,30,99.1,Đúng hạn
+KT_HP0543,60,55,91.9,Cần đẩy nhanh
+KT_HP0544,60,57,95.5,Đúng hạn
+KT_HP0545,45,43,95.7,Đúng hạn
+KT_HP0546,30,28,94.8,Cần đẩy nhanh
+KT_HP0547,30,28,94.5,Cần đẩy nhanh
+KT_HP0548,30,27,91.4,Cần đẩy nhanh
+KT_HP0549,60,58,96.6,Đúng hạn
+KT_HP0550,60,56,93.1,Cần đẩy nhanh
+KT_HP0551,60,56,94.1,Cần đẩy nhanh
+KT_HP0552,45,42,94.4,Cần đẩy nhanh
+KT_HP0553,30,29,97.3,Đúng hạn
+KT_HP0554,30,29,95.9,Đúng hạn
+KT_HP0555,60,58,97.0,Đúng hạn
+KT_HP0556,45,42,93.7,Cần đẩy nhanh
+KT_HP0557,60,55,92.0,Cần đẩy nhanh
+KT_HP0558,60,58,97.5,Đúng hạn
+KT_HP0559,45,43,96.5,Đúng hạn
+KT_HP0560,45,44,96.7,Đúng hạn
+KT_HP0561,60,53,88.0,Cần đẩy nhanh
+KT_HP0562,45,42,94.1,Cần đẩy nhanh
+KT_HP0563,45,42,94.1,Cần đẩy nhanh
+KT_HP0564,60,59,99.0,Đúng hạn
+KT_HP0565,60,56,93.8,Cần đẩy nhanh
+KT_HP0566,30,28,92.8,Cần đẩy nhanh
+KT_HP0567,45,44,97.3,Đúng hạn
+KT_HP0568,45,42,92.5,Cần đẩy nhanh
+KT_HP0569,60,60,99.9,Đúng hạn
+KT_HP0570,30,28,93.7,Cần đẩy nhanh
+KT_HP0571,30,28,94.6,Cần đẩy nhanh
+KT_HP0572,30,30,100.0,Đúng hạn
+KT_HP0573,30,28,94.1,Cần đẩy nhanh
+KT_HP0574,45,41,91.3,Cần đẩy nhanh
+KT_HP0575,45,43,94.8,Cần đẩy nhanh
+KT_HP0576,30,28,93.3,Cần đẩy nhanh
+KT_HP0577,30,28,93.7,Cần đẩy nhanh
+KT_HP0578,30,29,95.9,Đúng hạn
+KT_HP0579,45,42,92.5,Cần đẩy nhanh
+KT_HP0580,45,44,98.7,Đúng hạn
+KT_HP0581,45,41,91.9,Cần đẩy nhanh
+KT_HP0582,45,43,96.2,Đúng hạn
+KT_HP0583,60,57,95.6,Đúng hạn
+KT_HP0584,60,57,95.5,Đúng hạn
+KT_HP0585,45,42,92.3,Cần đẩy nhanh
+KT_HP0586,30,30,98.7,Đúng hạn
+KT_HP0587,45,41,91.3,Cần đẩy nhanh
+KT_HP0588,45,42,92.7,Cần đẩy nhanh
+KT_HP0589,45,42,93.2,Cần đẩy nhanh
+KT_HP0590,60,58,96.9,Đúng hạn
+KT_HP0591,30,27,88.6,Cần đẩy nhanh
+KT_HP0592,30,30,99.1,Đúng hạn
+KT_HP0593,60,53,88.4,Cần đẩy nhanh
+KT_HP0594,60,58,97.3,Đúng hạn
+KT_HP0595,60,56,92.5,Cần đẩy nhanh
+KT_HP0596,60,58,96.4,Đúng hạn
+KT_HP0597,45,42,92.3,Cần đẩy nhanh
+KT_HP0598,45,43,95.9,Đúng hạn
+KT_HP0599,60,57,95.2,Đúng hạn
+KT_HP0600,45,44,98.5,Đúng hạn
+KT_HP0601,45,44,97.2,Đúng hạn
+KT_HP0602,45,43,94.9,Cần đẩy nhanh
+KT_HP0603,60,58,97.2,Đúng hạn
+KT_HP0604,45,45,99.6,Đúng hạn
+KT_HP0605,45,44,98.4,Đúng hạn
+KT_HP0606,45,42,94.4,Cần đẩy nhanh
+KT_HP0607,45,42,92.3,Cần đẩy nhanh
+KT_HP0608,45,43,95.1,Đúng hạn
+KT_HP0609,45,43,96.4,Đúng hạn
+KT_HP0610,45,42,93.2,Cần đẩy nhanh
+KT_HP0611,30,29,95.6,Đúng hạn
+KT_HP0612,45,43,94.8,Cần đẩy nhanh
+KT_HP0613,30,28,94.9,Cần đẩy nhanh
+KT_HP0614,60,53,89.1,Cần đẩy nhanh
+KT_HP0615,60,59,98.6,Đúng hạn
+KT_HP0616,30,30,99.4,Đúng hạn
+KT_HP0617,60,55,92.0,Cần đẩy nhanh
+KT_HP0618,30,27,91.5,Cần đẩy nhanh
+KT_HP0619,45,43,96.2,Đúng hạn
+KT_HP0620,45,45,99.3,Đúng hạn
+KT_HP0621,45,42,93.5,Cần đẩy nhanh
+KT_HP0622,45,45,99.3,Đúng hạn
+KT_HP0623,45,43,94.5,Cần đẩy nhanh
+KT_HP0624,60,59,98.0,Đúng hạn
+KT_HP0625,45,44,96.7,Đúng hạn
+KT_HP0626,60,57,95.1,Đúng hạn
+KT_HP0627,45,43,95.2,Đúng hạn
+KT_HP0628,45,42,93.0,Cần đẩy nhanh
+KT_HP0629,60,60,100.0,Đúng hạn
+KT_HP0630,60,57,95.3,Đúng hạn
+KT_HP0631,30,28,94.9,Cần đẩy nhanh
+KT_HP0632,45,41,91.0,Cần đẩy nhanh
+KT_HP0633,60,56,92.5,Cần đẩy nhanh
+KT_HP0634,30,28,92.2,Cần đẩy nhanh
+KT_HP0635,45,43,94.6,Cần đẩy nhanh
+KT_HP0636,45,44,97.0,Đúng hạn
+KT_HP0637,60,56,93.7,Cần đẩy nhanh
+KT_HP0638,30,30,99.4,Đúng hạn
+KT_HP0639,45,44,98.3,Đúng hạn
+KT_HP0640,45,42,94.3,Cần đẩy nhanh
+KT_HP0641,60,58,97.5,Đúng hạn
+KT_HP0642,45,43,96.5,Đúng hạn
+KT_HP0643,45,44,98.0,Đúng hạn
+KT_HP0644,45,44,97.3,Đúng hạn
+KT_HP0645,45,40,88.5,Cần đẩy nhanh
+KT_HP0646,45,43,96.4,Đúng hạn
+KT_HP0647,45,44,96.8,Đúng hạn
+KT_HP0648,45,44,98.5,Đúng hạn
+KT_HP0649,60,57,95.5,Đúng hạn
+KT_HP0650,30,28,94.1,Cần đẩy nhanh
+KT_HP0651,45,44,96.9,Đúng hạn
+KT_HP0652,45,45,99.8,Đúng hạn
+KT_HP0653,45,40,89.6,Cần đẩy nhanh
+KT_HP0654,45,43,95.0,Đúng hạn
+KT_HP0655,45,43,94.9,Cần đẩy nhanh
+KT_HP0656,45,44,98.5,Đúng hạn
+KT_HP0657,45,43,96.5,Đúng hạn
+KT_HP0658,45,41,91.4,Cần đẩy nhanh
+KT_HP0659,30,28,94.9,Cần đẩy nhanh
+KT_HP0660,45,42,94.1,Cần đẩy nhanh
+KT_HP0661,30,28,91.8,Cần đẩy nhanh
+KT_HP0662,60,56,93.9,Cần đẩy nhanh
+KT_HP0663,60,57,95.8,Đúng hạn
+KT_HP0664,30,29,96.2,Đúng hạn
+KT_HP0665,30,28,94.4,Cần đẩy nhanh
+KT_HP0666,45,41,91.2,Cần đẩy nhanh
+KT_HP0667,45,45,100.0,Đúng hạn
+KT_HP0668,45,43,96.0,Đúng hạn
+KT_HP0669,60,58,96.9,Đúng hạn
+KT_HP0670,60,59,97.8,Đúng hạn
+KT_HP0671,45,42,94.1,Cần đẩy nhanh
+KT_HP0672,60,57,94.9,Cần đẩy nhanh
+KT_HP0673,45,42,94.1,Cần đẩy nhanh
+KT_HP0674,45,43,94.8,Cần đẩy nhanh
+KT_HP0675,45,43,96.1,Đúng hạn
+KT_HP0676,30,26,87.7,Cần đẩy nhanh
+KT_HP0677,60,57,95.2,Đúng hạn
+KT_HP0678,45,45,98.9,Đúng hạn
+KT_HP0679,45,42,93.7,Cần đẩy nhanh
+KT_HP0680,60,59,98.7,Đúng hạn
+KT_HP0681,60,57,95.8,Đúng hạn
+KT_HP0682,30,30,99.4,Đúng hạn
+KT_HP0683,30,28,92.6,Cần đẩy nhanh
+KT_HP0684,60,58,96.0,Đúng hạn
+KT_HP0685,30,28,93.6,Cần đẩy nhanh
+KT_HP0686,60,56,93.3,Cần đẩy nhanh
+KT_HP0687,30,28,93.5,Cần đẩy nhanh
+KT_HP0688,45,45,99.6,Đúng hạn
+KT_HP0689,30,27,91.5,Cần đẩy nhanh
+KT_HP0690,45,42,93.7,Cần đẩy nhanh
+KT_HP0691,60,58,96.6,Đúng hạn
+KT_HP0692,45,42,92.4,Cần đẩy nhanh
+KT_HP0693,45,43,94.6,Cần đẩy nhanh
+KT_HP0694,45,42,93.5,Cần đẩy nhanh
+KT_HP0695,60,57,95.0,Đúng hạn
+KT_HP0696,45,41,92.0,Cần đẩy nhanh
+KT_HP0697,30,28,93.1,Cần đẩy nhanh
+KT_HP0698,30,28,91.9,Cần đẩy nhanh
+KT_HP0699,60,59,98.4,Đúng hạn
+KT_HP0700,30,29,96.3,Đúng hạn
+KT_HP0701,45,42,92.8,Cần đẩy nhanh
+KT_HP0702,45,41,91.0,Cần đẩy nhanh
+KT_HP0703,60,56,93.2,Cần đẩy nhanh
+KT_HP0704,45,44,97.9,Đúng hạn
+KT_HP0705,60,59,98.8,Đúng hạn
+KT_HP0706,45,43,95.9,Đúng hạn
+KT_HP0707,30,28,94.8,Cần đẩy nhanh
+KT_HP0708,60,59,98.7,Đúng hạn
+KT_HP0709,45,40,89.7,Cần đẩy nhanh
+KT_HP0710,45,45,99.7,Đúng hạn
+KT_HP0711,45,41,92.0,Cần đẩy nhanh
+KT_HP0712,30,28,92.1,Cần đẩy nhanh
+CNTT_HP0001,30,29,98.0,Đúng hạn
+CNTT_HP0002,30,27,90.2,Cần đẩy nhanh
+CNTT_HP0003,45,45,99.4,Đúng hạn
+CNTT_HP0004,60,59,98.5,Đúng hạn
+CNTT_HP0005,45,44,97.3,Đúng hạn
+CNTT_HP0006,30,29,95.5,Đúng hạn
+CNTT_HP0007,45,44,98.2,Đúng hạn
+CNTT_HP0008,30,29,97.9,Đúng hạn
+CNTT_HP0009,30,29,98.2,Đúng hạn
+CNTT_HP0010,45,42,92.4,Cần đẩy nhanh
+CNTT_HP0011,30,29,95.2,Đúng hạn
+CNTT_HP0012,45,44,97.3,Đúng hạn
+CNTT_HP0013,30,30,99.1,Đúng hạn
+CNTT_HP0014,30,29,97.5,Đúng hạn
+CNTT_HP0015,45,43,94.9,Cần đẩy nhanh
+CNTT_HP0016,30,30,99.1,Đúng hạn
+CNTT_HP0017,60,59,98.7,Đúng hạn
+CNTT_HP0018,45,45,99.1,Đúng hạn
+CNTT_HP0019,45,43,96.3,Đúng hạn
+CNTT_HP0020,45,44,96.8,Đúng hạn
+CNTT_HP0021,60,57,95.5,Đúng hạn
+CNTT_HP0022,45,43,96.4,Đúng hạn
+CNTT_HP0023,45,39,87.0,Cần đẩy nhanh
+CNTT_HP0024,60,57,94.2,Cần đẩy nhanh
+CNTT_HP0025,45,42,92.7,Cần đẩy nhanh
+CNTT_HP0026,60,58,96.3,Đúng hạn
+CNTT_HP0027,45,41,90.3,Cần đẩy nhanh
+CNTT_HP0028,60,55,91.0,Cần đẩy nhanh
+CNTT_HP0029,30,28,94.6,Cần đẩy nhanh
+CNTT_HP0030,30,29,95.1,Đúng hạn
+CNTT_HP0031,45,43,96.0,Đúng hạn
+CNTT_HP0032,45,43,96.5,Đúng hạn
+CNTT_HP0033,45,43,95.8,Đúng hạn
+CNTT_HP0034,30,29,96.3,Đúng hạn
+CNTT_HP0035,30,29,97.6,Đúng hạn
+CNTT_HP0036,45,44,98.2,Đúng hạn
+CNTT_HP0037,45,41,91.9,Cần đẩy nhanh
+CNTT_HP0038,30,29,96.9,Đúng hạn
+CNTT_HP0039,45,43,95.2,Đúng hạn
+CNTT_HP0040,30,29,97.4,Đúng hạn
+CNTT_HP0041,60,59,97.6,Đúng hạn
+CNTT_HP0042,60,56,93.4,Cần đẩy nhanh
+CNTT_HP0043,60,58,96.2,Đúng hạn
+CNTT_HP0044,45,44,97.0,Đúng hạn
+CNTT_HP0045,30,29,95.7,Đúng hạn
+CNTT_HP0046,45,43,96.6,Đúng hạn
+CNTT_HP0047,45,44,98.4,Đúng hạn
+CNTT_HP0048,45,45,99.5,Đúng hạn
+CNTT_HP0049,45,44,97.7,Đúng hạn
+CNTT_HP0050,60,55,91.0,Cần đẩy nhanh
+CNTT_HP0051,60,60,99.4,Đúng hạn
+CNTT_HP0052,30,29,97.1,Đúng hạn
+CNTT_HP0053,45,44,98.6,Đúng hạn
+CNTT_HP0054,60,57,95.0,Đúng hạn
+CNTT_HP0055,30,29,97.1,Đúng hạn
+CNTT_HP0056,30,29,95.6,Đúng hạn
+CNTT_HP0057,30,29,95.2,Đúng hạn
+CNTT_HP0058,45,44,98.8,Đúng hạn
+CNTT_HP0059,45,44,98.7,Đúng hạn
+CNTT_HP0060,30,30,98.6,Đúng hạn
+CNTT_HP0061,30,29,97.6,Đúng hạn
+CNTT_HP0062,45,43,96.1,Đúng hạn
+CNTT_HP0063,30,30,98.9,Đúng hạn
+CNTT_HP0064,30,28,91.9,Cần đẩy nhanh
+CNTT_HP0065,30,29,95.3,Đúng hạn
+CNTT_HP0066,60,58,96.3,Đúng hạn
+CNTT_HP0067,45,43,96.4,Đúng hạn
+CNTT_HP0068,45,45,98.9,Đúng hạn
+CNTT_HP0069,60,56,93.7,Cần đẩy nhanh
+CNTT_HP0070,45,43,96.2,Đúng hạn
+CNTT_HP0071,45,41,91.8,Cần đẩy nhanh
+CNTT_HP0072,45,44,97.1,Đúng hạn
+CNTT_HP0073,45,44,97.8,Đúng hạn
+CNTT_HP0074,45,43,95.5,Đúng hạn
+CNTT_HP0075,45,44,96.8,Đúng hạn
+CNTT_HP0076,45,45,99.5,Đúng hạn
+CNTT_HP0077,45,45,100.0,Đúng hạn
+CNTT_HP0078,45,43,96.0,Đúng hạn
+CNTT_HP0079,45,45,99.7,Đúng hạn
+CNTT_HP0080,45,44,96.9,Đúng hạn
+CNTT_HP0081,45,42,94.2,Cần đẩy nhanh
+CNTT_HP0082,45,44,96.7,Đúng hạn
+CNTT_HP0083,45,45,99.1,Đúng hạn
+CNTT_HP0084,60,57,95.8,Đúng hạn
+CNTT_HP0085,30,29,96.9,Đúng hạn
+CNTT_HP0086,30,29,96.9,Đúng hạn
+CNTT_HP0087,60,54,89.7,Cần đẩy nhanh
+CNTT_HP0088,30,30,99.7,Đúng hạn
+CNTT_HP0089,45,41,91.4,Cần đẩy nhanh
+CNTT_HP0090,45,44,98.6,Đúng hạn
+CNTT_HP0091,30,28,92.7,Cần đẩy nhanh
+CNTT_HP0092,45,45,99.4,Đúng hạn
+CNTT_HP0093,30,28,93.5,Cần đẩy nhanh
+CNTT_HP0094,45,43,96.4,Đúng hạn
+CNTT_HP0095,45,45,99.2,Đúng hạn
+CNTT_HP0096,30,28,93.6,Cần đẩy nhanh
+CNTT_HP0097,45,43,94.5,Cần đẩy nhanh
+CNTT_HP0098,60,58,96.8,Đúng hạn
+CNTT_HP0099,45,43,96.0,Đúng hạn
+CNTT_HP0100,45,42,92.9,Cần đẩy nhanh
+CNTT_HP0101,45,45,99.4,Đúng hạn
+CNTT_HP0102,30,28,94.5,Cần đẩy nhanh
+CNTT_HP0103,45,42,93.8,Cần đẩy nhanh
+CNTT_HP0104,45,44,98.7,Đúng hạn
+CNTT_HP0105,45,41,92.0,Cần đẩy nhanh
+CNTT_HP0106,60,56,93.5,Cần đẩy nhanh
+CNTT_HP0107,45,40,90.0,Cần đẩy nhanh
+CNTT_HP0108,45,45,99.8,Đúng hạn
+CNTT_HP0109,30,29,97.9,Đúng hạn
+CNTT_HP0110,45,44,97.3,Đúng hạn
+CNTT_HP0111,45,41,91.2,Cần đẩy nhanh
+CNTT_HP0112,60,60,99.4,Đúng hạn
+CNTT_HP0113,60,59,97.8,Đúng hạn
+CNTT_HP0114,45,45,99.3,Đúng hạn
+CNTT_HP0115,45,44,98.3,Đúng hạn
+CNTT_HP0116,45,43,95.6,Đúng hạn
+CNTT_HP0117,30,29,96.2,Đúng hạn
+CNTT_HP0118,30,28,92.1,Cần đẩy nhanh
+CNTT_HP0119,60,55,92.4,Cần đẩy nhanh
+CNTT_HP0120,45,43,95.7,Đúng hạn
+CNTT_HP0121,45,43,96.2,Đúng hạn
+CNTT_HP0122,30,29,98.2,Đúng hạn
+CNTT_HP0123,30,28,94.9,Cần đẩy nhanh
+CNTT_HP0124,45,45,99.3,Đúng hạn
+CNTT_HP0125,45,42,94.4,Cần đẩy nhanh
+CNTT_HP0126,30,29,96.1,Đúng hạn
+CNTT_HP0127,45,41,92.0,Cần đẩy nhanh
+CNTT_HP0128,60,59,98.8,Đúng hạn
+CNTT_HP0129,45,44,97.7,Đúng hạn
+CNTT_HP0130,30,29,98.2,Đúng hạn
+CNTT_HP0131,60,57,95.8,Đúng hạn
+CNTT_HP0132,60,59,97.9,Đúng hạn
+CNTT_HP0133,30,29,97.4,Đúng hạn
+CNTT_HP0134,30,29,95.2,Đúng hạn
+CNTT_HP0135,60,59,98.4,Đúng hạn
+CNTT_HP0136,45,45,99.8,Đúng hạn
+CNTT_HP0137,60,58,96.2,Đúng hạn
+CNTT_HP0138,45,45,99.5,Đúng hạn
+CNTT_HP0139,45,43,95.7,Đúng hạn
+CNTT_HP0140,30,28,94.3,Cần đẩy nhanh
+CNTT_HP0141,30,26,88.3,Cần đẩy nhanh
+CNTT_HP0142,60,59,98.4,Đúng hạn
+CNTT_HP0143,30,30,99.2,Đúng hạn
+CNTT_HP0144,30,30,99.4,Đúng hạn
+CNTT_HP0145,30,28,94.0,Cần đẩy nhanh
+CNTT_HP0146,45,42,93.8,Cần đẩy nhanh
+CNTT_HP0147,60,58,97.3,Đúng hạn
+CNTT_HP0148,30,30,98.6,Đúng hạn
+CNTT_HP0149,30,28,93.1,Cần đẩy nhanh
+CNTT_HP0150,45,41,91.5,Cần đẩy nhanh
+CNTT_HP0151,45,44,97.6,Đúng hạn
+CNTT_HP0152,60,57,95.6,Đúng hạn
+CNTT_HP0153,45,43,95.2,Đúng hạn
+CNTT_HP0154,30,29,96.7,Đúng hạn
+CNTT_HP0155,60,56,94.0,Cần đẩy nhanh
+CNTT_HP0156,30,28,93.2,Cần đẩy nhanh
+CNTT_HP0157,45,44,97.1,Đúng hạn
+CNTT_HP0158,30,30,99.1,Đúng hạn
+CNTT_HP0159,45,41,91.2,Cần đẩy nhanh
+CNTT_HP0160,45,43,95.1,Đúng hạn
+CNTT_HP0161,30,28,93.4,Cần đẩy nhanh
+CNTT_HP0162,45,43,95.0,Đúng hạn
+CNTT_HP0163,45,43,95.0,Đúng hạn
+CNTT_HP0164,30,29,95.3,Đúng hạn
+CNTT_HP0165,45,44,97.4,Đúng hạn
+CNTT_HP0166,45,44,96.8,Đúng hạn
+CNTT_HP0167,45,42,94.2,Cần đẩy nhanh
+CNTT_HP0168,45,45,99.3,Đúng hạn
+CNTT_HP0169,45,41,91.8,Cần đẩy nhanh
+CNTT_HP0170,45,41,91.9,Cần đẩy nhanh
+CNTT_HP0171,30,28,93.1,Cần đẩy nhanh
+CNTT_HP0172,60,53,88.1,Cần đẩy nhanh
+CNTT_HP0173,60,56,93.2,Cần đẩy nhanh
+CNTT_HP0174,60,59,97.8,Đúng hạn
+CNTT_HP0175,30,30,98.8,Đúng hạn
+CNTT_HP0176,45,42,93.0,Cần đẩy nhanh
+CNTT_HP0177,45,43,95.3,Đúng hạn
+CNTT_HP0178,60,55,91.8,Cần đẩy nhanh
+CNTT_HP0179,45,42,94.2,Cần đẩy nhanh
+CNTT_HP0180,45,43,95.3,Đúng hạn
+CNTT_HP0181,45,44,97.1,Đúng hạn
+CNTT_HP0182,30,28,94.3,Cần đẩy nhanh
+CNTT_HP0183,60,59,97.8,Đúng hạn
+CNTT_HP0184,45,43,96.2,Đúng hạn
+CNTT_HP0185,60,57,95.2,Đúng hạn
+CNTT_HP0186,60,57,95.5,Đúng hạn
+CNTT_HP0187,30,29,98.2,Đúng hạn
+CNTT_HP0188,30,30,99.4,Đúng hạn
+CNTT_HP0189,60,57,95.3,Đúng hạn
+CNTT_HP0190,45,44,97.8,Đúng hạn
+CNTT_HP0191,45,43,96.2,Đúng hạn
+CNTT_HP0192,30,30,98.4,Đúng hạn
+CNTT_HP0193,30,28,94.0,Cần đẩy nhanh
+CNTT_HP0194,45,41,90.9,Cần đẩy nhanh
+CNTT_HP0195,45,40,88.9,Cần đẩy nhanh
+CNTT_HP0196,45,43,96.0,Đúng hạn
+CNTT_HP0197,45,45,99.6,Đúng hạn
+CNTT_HP0198,60,58,95.9,Đúng hạn
+CNTT_HP0199,45,44,98.4,Đúng hạn
+CNTT_HP0200,45,42,92.9,Cần đẩy nhanh
+CNTT_HP0201,30,30,98.5,Đúng hạn
+CNTT_HP0202,60,58,97.5,Đúng hạn
+CNTT_HP0203,60,59,99.1,Đúng hạn
+CNTT_HP0204,45,43,95.1,Đúng hạn
+CNTT_HP0205,60,57,95.6,Đúng hạn
+CNTT_HP0206,45,43,94.9,Cần đẩy nhanh
+CNTT_HP0207,30,29,95.8,Đúng hạn
+CNTT_HP0208,30,29,98.3,Đúng hạn
+CNTT_HP0209,30,30,99.7,Đúng hạn
+CNTT_HP0210,45,43,95.4,Đúng hạn
+CNTT_HP0211,60,56,92.9,Cần đẩy nhanh
+CNTT_HP0212,45,45,99.9,Đúng hạn
+CNTT_HP0213,45,43,96.1,Đúng hạn
+CNTT_HP0214,45,44,98.8,Đúng hạn
+CNTT_HP0215,60,59,98.5,Đúng hạn
+CNTT_HP0216,60,58,97.4,Đúng hạn
+CNTT_HP0217,45,44,98.2,Đúng hạn
+CNTT_HP0218,45,44,98.3,Đúng hạn
+CNTT_HP0219,45,41,91.6,Cần đẩy nhanh
+CNTT_HP0220,60,56,93.3,Cần đẩy nhanh
+CNTT_HP0221,60,57,94.3,Cần đẩy nhanh
+CNTT_HP0222,45,43,94.5,Cần đẩy nhanh
+CNTT_HP0223,30,29,97.3,Đúng hạn
+CNTT_HP0224,60,58,95.9,Đúng hạn
+CNTT_HP0225,45,43,94.9,Cần đẩy nhanh
+CNTT_HP0226,45,45,99.8,Đúng hạn
+CNTT_HP0227,45,40,89.3,Cần đẩy nhanh
+CNTT_HP0228,45,41,91.8,Cần đẩy nhanh
+CNTT_HP0229,60,60,100.0,Đúng hạn
+CNTT_HP0230,45,43,94.6,Cần đẩy nhanh
+CNTT_HP0231,30,29,95.3,Đúng hạn
+CNTT_HP0232,60,58,96.9,Đúng hạn
+CNTT_HP0233,30,30,99.7,Đúng hạn
+CNTT_HP0234,45,43,96.2,Đúng hạn
+CNTT_HP0235,45,43,94.9,Cần đẩy nhanh
+CNTT_HP0236,30,30,99.6,Đúng hạn
+CNTT_HP0237,60,57,95.3,Đúng hạn
+CNTT_HP0238,45,43,95.1,Đúng hạn
+CNTT_HP0239,45,43,95.7,Đúng hạn
+CNTT_HP0240,60,55,91.0,Cần đẩy nhanh
+CNTT_HP0241,45,42,94.1,Cần đẩy nhanh
+CNTT_HP0242,60,60,99.3,Đúng hạn
+CNTT_HP0243,30,28,93.4,Cần đẩy nhanh
+CNTT_HP0244,45,43,94.6,Cần đẩy nhanh
+CNTT_HP0245,45,44,98.6,Đúng hạn
+CNTT_HP0246,45,40,88.9,Cần đẩy nhanh
+CNTT_HP0247,45,44,98.6,Đúng hạn
+CNTT_HP0248,30,30,98.5,Đúng hạn
+CNTT_HP0249,45,44,96.8,Đúng hạn
+CNTT_HP0250,60,58,96.2,Đúng hạn
+CNTT_HP0251,30,29,97.2,Đúng hạn
+CNTT_HP0252,30,28,93.8,Cần đẩy nhanh
+CNTT_HP0253,60,56,93.1,Cần đẩy nhanh
+CNTT_HP0254,45,43,96.4,Đúng hạn
+CNTT_HP0255,45,44,98.7,Đúng hạn
+CNTT_HP0256,45,43,95.6,Đúng hạn
+CNTT_HP0257,45,40,89.7,Cần đẩy nhanh
+CNTT_HP0258,60,58,96.9,Đúng hạn
+CNTT_HP0259,60,57,95.8,Đúng hạn
+CNTT_HP0260,60,57,95.8,Đúng hạn
+CNTT_HP0261,45,45,99.9,Đúng hạn
+CNTT_HP0262,45,44,97.9,Đúng hạn
+CNTT_HP0263,60,54,89.8,Cần đẩy nhanh
+CNTT_HP0264,30,29,96.4,Đúng hạn
+CNTT_HP0265,45,42,93.3,Cần đẩy nhanh
+CNTT_HP0266,30,30,99.5,Đúng hạn
+CNTT_HP0267,30,29,96.8,Đúng hạn
+CNTT_HP0268,45,43,94.7,Cần đẩy nhanh
+CNTT_HP0269,45,43,94.7,Cần đẩy nhanh
+CNTT_HP0270,60,60,99.8,Đúng hạn
+CNTT_HP0271,45,45,100.0,Đúng hạn
+CNTT_HP0272,60,57,95.8,Đúng hạn
+CNTT_HP0273,30,29,97.1,Đúng hạn
+CNTT_HP0274,45,42,92.6,Cần đẩy nhanh
+CNTT_HP0275,45,42,93.8,Cần đẩy nhanh
+CNTT_HP0276,60,56,93.3,Cần đẩy nhanh
+CNTT_HP0277,45,44,98.7,Đúng hạn
+CNTT_HP0278,30,29,95.2,Đúng hạn
+CNTT_HP0279,30,28,93.4,Cần đẩy nhanh
+CNTT_HP0280,30,28,92.2,Cần đẩy nhanh
+CNTT_HP0281,45,44,98.0,Đúng hạn
+CNTT_HP0282,30,29,95.1,Đúng hạn
+CNTT_HP0283,45,42,92.7,Cần đẩy nhanh
+CNTT_HP0284,60,57,94.6,Cần đẩy nhanh
+CNTT_HP0285,30,29,95.7,Đúng hạn
+CNTT_HP0286,30,30,99.5,Đúng hạn
+CNTT_HP0287,30,28,94.2,Cần đẩy nhanh
+CNTT_HP0288,45,45,99.7,Đúng hạn
+CNTT_HP0289,45,43,95.0,Đúng hạn
+CNTT_HP0290,45,42,93.4,Cần đẩy nhanh
+CNTT_HP0291,60,60,99.6,Đúng hạn
+CNTT_HP0292,60,55,91.6,Cần đẩy nhanh
+CNTT_HP0293,60,59,97.8,Đúng hạn
+CNTT_HP0294,30,30,98.8,Đúng hạn
+CNTT_HP0295,60,57,95.2,Đúng hạn
+CNTT_HP0296,45,43,96.6,Đúng hạn
+CNTT_HP0297,60,60,99.9,Đúng hạn
+CNTT_HP0298,45,43,95.4,Đúng hạn
+CNTT_HP0299,30,29,95.7,Đúng hạn
+CNTT_HP0300,30,29,95.2,Đúng hạn
+CNTT_HP0301,45,42,93.5,Cần đẩy nhanh
+CNTT_HP0302,60,56,93.3,Cần đẩy nhanh
+CNTT_HP0303,45,43,96.5,Đúng hạn
+CNTT_HP0304,45,41,90.7,Cần đẩy nhanh
+CNTT_HP0305,60,57,95.2,Đúng hạn
+CNTT_HP0306,60,59,99.0,Đúng hạn
+CNTT_HP0307,45,44,97.6,Đúng hạn
+CNTT_HP0308,60,58,96.4,Đúng hạn
+CNTT_HP0309,45,43,94.7,Cần đẩy nhanh
+CNTT_HP0310,60,57,95.6,Đúng hạn
+CNTT_HP0311,45,44,98.1,Đúng hạn
+CNTT_HP0312,45,43,94.8,Cần đẩy nhanh
+CNTT_HP0313,45,45,99.6,Đúng hạn
+CNTT_HP0314,45,44,98.1,Đúng hạn
+CNTT_HP0315,45,44,98.5,Đúng hạn
+CNTT_HP0316,60,59,99.1,Đúng hạn
+CNTT_HP0317,30,29,98.0,Đúng hạn
+CNTT_HP0318,45,42,94.0,Cần đẩy nhanh
+CNTT_HP0319,45,44,97.0,Đúng hạn
+CNTT_HP0320,30,30,98.8,Đúng hạn
+CNTT_HP0321,45,44,98.6,Đúng hạn
+CNTT_HP0322,45,44,97.1,Đúng hạn
+CNTT_HP0323,60,57,95.0,Đúng hạn
+CNTT_HP0324,60,60,99.9,Đúng hạn
+CNTT_HP0325,45,42,93.9,Cần đẩy nhanh
+CNTT_HP0326,30,29,97.7,Đúng hạn
+CNTT_HP0327,60,58,96.8,Đúng hạn
+CNTT_HP0328,45,42,94.4,Cần đẩy nhanh
+CNTT_HP0329,30,29,98.1,Đúng hạn
+CNTT_HP0330,30,29,95.8,Đúng hạn
+CNTT_HP0331,60,60,100.0,Đúng hạn
+CNTT_HP0332,45,44,97.9,Đúng hạn
+CNTT_HP0333,30,29,96.7,Đúng hạn
+CNTT_HP0334,30,29,95.6,Đúng hạn
+CNTT_HP0335,45,43,94.6,Cần đẩy nhanh
+CNTT_HP0336,45,43,95.0,Đúng hạn
+CNTT_HP0337,30,29,97.0,Đúng hạn
+CNTT_HP0338,30,30,99.9,Đúng hạn
+CNTT_HP0339,30,29,96.1,Đúng hạn
+CNTT_HP0340,45,42,94.0,Cần đẩy nhanh
+CNTT_HP0341,60,59,98.8,Đúng hạn
+CNTT_HP0342,45,45,99.2,Đúng hạn
+CNTT_HP0343,45,42,92.6,Cần đẩy nhanh
+CNTT_HP0344,45,44,97.4,Đúng hạn
+CNTT_HP0345,45,44,97.8,Đúng hạn
+CNTT_HP0346,45,43,96.2,Đúng hạn
+CNTT_HP0347,45,43,96.4,Đúng hạn
+CNTT_HP0348,60,57,94.2,Cần đẩy nhanh
+CNTT_HP0349,60,58,96.0,Đúng hạn
+CNTT_HP0350,45,45,99.9,Đúng hạn
+CNTT_HP0351,30,28,94.3,Cần đẩy nhanh
+CNTT_HP0352,45,42,94.3,Cần đẩy nhanh
+CNTT_HP0353,60,56,92.8,Cần đẩy nhanh
+CNTT_HP0354,60,59,98.4,Đúng hạn
+CNTT_HP0355,45,45,99.8,Đúng hạn
+CNTT_HP0356,45,42,92.3,Cần đẩy nhanh
+CNTT_HP0357,30,29,96.9,Đúng hạn
+CNTT_HP0358,30,30,98.5,Đúng hạn
+CNTT_HP0359,60,59,98.3,Đúng hạn
+CNTT_HP0360,30,29,97.9,Đúng hạn
+CNTT_HP0361,45,43,96.0,Đúng hạn
+CNTT_HP0362,45,44,98.4,Đúng hạn
+CNTT_HP0363,45,44,98.4,Đúng hạn
+CNTT_HP0364,45,44,97.9,Đúng hạn
+CNTT_HP0365,45,44,96.9,Đúng hạn
+CNTT_HP0366,45,45,99.1,Đúng hạn
+CNTT_HP0367,60,59,98.5,Đúng hạn
+CNTT_HP0368,30,27,90.3,Cần đẩy nhanh
+CNTT_HP0369,45,40,89.9,Cần đẩy nhanh
+CNTT_HP0370,45,42,94.0,Cần đẩy nhanh
+CNTT_HP0371,45,45,99.6,Đúng hạn
+CNTT_HP0372,60,54,89.6,Cần đẩy nhanh
+CNTT_HP0373,60,55,91.9,Cần đẩy nhanh
+CNTT_HP0374,30,29,96.7,Đúng hạn
+CNTT_HP0375,30,29,96.7,Đúng hạn
+CNTT_HP0376,45,42,94.1,Cần đẩy nhanh
+CNTT_HP0377,30,30,99.4,Đúng hạn
+CNTT_HP0378,60,60,99.2,Đúng hạn
+CNTT_HP0379,45,42,92.8,Cần đẩy nhanh
+CNTT_HP0380,60,56,93.9,Cần đẩy nhanh
+CNTT_HP0381,45,45,99.7,Đúng hạn
+CNTT_HP0382,60,58,96.0,Đúng hạn
+CNTT_HP0383,30,30,99.7,Đúng hạn
+CNTT_HP0384,45,43,95.7,Đúng hạn
+CNTT_HP0385,30,29,97.1,Đúng hạn
+CNTT_HP0386,45,42,92.7,Cần đẩy nhanh
+CNTT_HP0387,30,29,96.0,Đúng hạn
+CNTT_HP0388,60,55,91.5,Cần đẩy nhanh
+CNTT_HP0389,45,43,95.7,Đúng hạn
+CNTT_HP0390,30,29,95.1,Đúng hạn
+CNTT_HP0391,45,43,95.7,Đúng hạn
+CNTT_HP0392,60,54,90.6,Cần đẩy nhanh
+CNTT_HP0393,45,44,98.2,Đúng hạn
+CNTT_HP0394,45,41,91.6,Cần đẩy nhanh
+CNTT_HP0395,45,45,99.2,Đúng hạn
+CNTT_HP0396,60,57,95.5,Đúng hạn
+CNTT_HP0397,45,43,95.8,Đúng hạn
+CNTT_HP0398,60,59,97.8,Đúng hạn
+CNTT_HP0399,60,58,96.9,Đúng hạn
+CNTT_HP0400,45,42,94.2,Cần đẩy nhanh
+CNTT_HP0401,30,28,94.5,Cần đẩy nhanh
+CNTT_HP0402,60,55,91.8,Cần đẩy nhanh
+CNTT_HP0403,30,28,93.5,Cần đẩy nhanh
+CNTT_HP0404,30,28,95.0,Đúng hạn
+CNTT_HP0405,60,60,99.6,Đúng hạn
+CNTT_HP0406,45,44,97.5,Đúng hạn
+CNTT_HP0407,45,42,93.7,Cần đẩy nhanh
+CNTT_HP0408,30,30,98.5,Đúng hạn
+CNTT_HP0409,60,59,98.2,Đúng hạn
+CNTT_HP0410,45,41,91.7,Cần đẩy nhanh
+CNTT_HP0411,45,45,99.2,Đúng hạn
+CNTT_HP0412,60,58,96.8,Đúng hạn
+CNTT_HP0413,30,29,95.6,Đúng hạn
+CNTT_HP0414,45,45,99.8,Đúng hạn
+CNTT_HP0415,30,27,90.2,Cần đẩy nhanh
+CNTT_HP0416,45,45,99.1,Đúng hạn
+CNTT_HP0417,60,60,100.0,Đúng hạn
+CNTT_HP0418,30,29,97.5,Đúng hạn
+CNTT_HP0419,60,57,94.9,Cần đẩy nhanh
+CNTT_HP0420,45,40,89.6,Cần đẩy nhanh
+CNTT_HP0421,45,44,98.7,Đúng hạn
+CNTT_HP0422,60,57,95.0,Đúng hạn
+CNTT_HP0423,45,45,99.6,Đúng hạn
+CNTT_HP0424,30,29,98.2,Đúng hạn
+CNTT_HP0425,45,44,98.3,Đúng hạn
+CNTT_HP0426,30,28,94.6,Cần đẩy nhanh
+CNTT_HP0427,30,30,99.7,Đúng hạn
+CNTT_HP0428,45,41,91.6,Cần đẩy nhanh
+CNTT_HP0429,30,28,94.8,Cần đẩy nhanh
+CNTT_HP0430,45,44,97.1,Đúng hạn
+CNTT_HP0431,60,59,98.2,Đúng hạn
+CNTT_HP0432,60,59,99.0,Đúng hạn
+CNTT_HP0433,30,29,97.6,Đúng hạn
+CNTT_HP0434,45,44,98.8,Đúng hạn
+CNTT_HP0435,45,41,91.1,Cần đẩy nhanh
+CNTT_HP0436,30,29,95.4,Đúng hạn
+CNTT_HP0437,60,58,97.1,Đúng hạn
+CNTT_HP0438,45,44,96.7,Đúng hạn
+CNTT_HP0439,45,44,98.6,Đúng hạn
+CNTT_HP0440,30,29,97.0,Đúng hạn
+CNTT_HP0441,45,44,98.2,Đúng hạn
+CNTT_HP0442,45,44,98.3,Đúng hạn
+CNTT_HP0443,60,56,93.0,Cần đẩy nhanh
+CNTT_HP0444,45,42,93.0,Cần đẩy nhanh
+CNTT_HP0445,60,57,95.6,Đúng hạn
+CNTT_HP0446,45,44,98.8,Đúng hạn
+CNTT_HP0447,45,44,98.1,Đúng hạn
+CNTT_HP0448,60,58,96.9,Đúng hạn
+CNTT_HP0449,30,30,99.0,Đúng hạn
+CNTT_HP0450,45,43,96.2,Đúng hạn
+CNTT_HP0451,60,56,93.1,Cần đẩy nhanh
+CNTT_HP0452,45,45,99.7,Đúng hạn
+CNTT_HP0453,45,45,100.0,Đúng hạn
+CNTT_HP0454,30,29,98.2,Đúng hạn
+CNTT_HP0455,45,45,99.5,Đúng hạn
+CNTT_HP0456,60,60,99.5,Đúng hạn
+CNTT_HP0457,45,41,90.9,Cần đẩy nhanh
+CNTT_HP0458,45,41,90.5,Cần đẩy nhanh
+CNTT_HP0459,30,29,97.6,Đúng hạn
+CNTT_HP0460,45,44,97.0,Đúng hạn
+CNTT_HP0461,45,43,95.3,Đúng hạn
+CNTT_HP0462,60,57,94.8,Cần đẩy nhanh
+CNTT_HP0463,45,43,95.2,Đúng hạn
+CNTT_HP0464,60,58,96.9,Đúng hạn
+CNTT_HP0465,30,30,99.1,Đúng hạn
+CNTT_HP0466,45,44,98.0,Đúng hạn
+CNTT_HP0467,30,29,96.5,Đúng hạn
+CNTT_HP0468,45,42,94.4,Cần đẩy nhanh
+CNTT_HP0469,60,58,97.1,Đúng hạn
+CNTT_HP0470,45,45,100.0,Đúng hạn
+CNTT_HP0471,45,42,93.5,Cần đẩy nhanh
+CNTT_HP0472,45,43,96.1,Đúng hạn
+CNTT_HP0473,45,42,94.4,Cần đẩy nhanh
+CNTT_HP0474,30,30,99.0,Đúng hạn
+CNTT_HP0475,45,44,96.9,Đúng hạn
+CNTT_HP0476,30,28,94.8,Cần đẩy nhanh
+CNTT_HP0477,60,58,96.2,Đúng hạn
+CNTT_HP0478,45,45,99.0,Đúng hạn
+CNTT_HP0479,30,28,94.2,Cần đẩy nhanh
+CNTT_HP0480,45,45,99.4,Đúng hạn
+CNTT_HP0481,30,29,96.8,Đúng hạn
+CNTT_HP0482,30,30,98.4,Đúng hạn
+CNTT_HP0483,60,54,90.1,Cần đẩy nhanh
+CNTT_HP0484,30,28,94.8,Cần đẩy nhanh
+CNTT_HP0485,60,57,95.5,Đúng hạn
+CNTT_HP0486,45,44,97.2,Đúng hạn
+CNTT_HP0487,30,29,97.8,Đúng hạn
+CNTT_HP0488,45,43,94.9,Cần đẩy nhanh
+CNTT_HP0489,45,44,98.7,Đúng hạn
+CNTT_HP0490,45,42,93.6,Cần đẩy nhanh
+CNTT_HP0491,45,43,95.1,Đúng hạn
+CNTT_HP0492,30,29,98.3,Đúng hạn
+CNTT_HP0493,45,44,97.0,Đúng hạn
+CNTT_HP0494,60,60,99.2,Đúng hạn
+CNTT_HP0495,45,42,92.3,Cần đẩy nhanh
+CNTT_HP0496,60,59,99.1,Đúng hạn
+CNTT_HP0497,45,44,98.8,Đúng hạn
+CNTT_HP0498,30,29,96.2,Đúng hạn
+NN_HP0001,60,56,93.3,Cần đẩy nhanh
+NN_HP0002,30,30,99.4,Đúng hạn
+NN_HP0003,60,57,95.8,Đúng hạn
+NN_HP0004,60,57,94.2,Cần đẩy nhanh
+NN_HP0005,60,57,94.4,Cần đẩy nhanh
+NN_HP0006,60,60,99.5,Đúng hạn
+NN_HP0007,45,45,99.0,Đúng hạn
+NN_HP0008,60,57,95.0,Đúng hạn
+NN_HP0009,30,29,97.9,Đúng hạn
+NN_HP0010,45,45,100.0,Đúng hạn
+NN_HP0011,60,58,96.1,Đúng hạn
+NN_HP0012,45,45,99.5,Đúng hạn
+NN_HP0013,45,45,98.9,Đúng hạn
+NN_HP0014,60,56,92.7,Cần đẩy nhanh
+NN_HP0015,60,60,99.2,Đúng hạn
+NN_HP0016,45,40,89.7,Cần đẩy nhanh
+NN_HP0017,30,29,97.5,Đúng hạn
+NN_HP0018,45,42,94.3,Cần đẩy nhanh
+NN_HP0019,45,44,98.3,Đúng hạn
+NN_HP0020,45,44,97.7,Đúng hạn
+NN_HP0021,45,44,96.8,Đúng hạn
+NN_HP0022,45,45,99.4,Đúng hạn
+NN_HP0023,30,29,95.3,Đúng hạn
+NN_HP0024,45,40,88.0,Cần đẩy nhanh
+NN_HP0025,45,43,94.9,Cần đẩy nhanh
+NN_HP0026,60,54,90.2,Cần đẩy nhanh
+NN_HP0027,45,44,98.4,Đúng hạn
+NN_HP0028,60,59,99.1,Đúng hạn
+NN_HP0029,45,42,93.5,Cần đẩy nhanh
+NN_HP0030,45,42,92.4,Cần đẩy nhanh
+NN_HP0031,45,44,96.9,Đúng hạn
+NN_HP0032,60,60,99.4,Đúng hạn
+NN_HP0033,45,43,95.0,Đúng hạn
+NN_HP0034,45,43,95.8,Đúng hạn
+NN_HP0035,45,44,97.9,Đúng hạn
+NN_HP0036,60,59,97.7,Đúng hạn
+NN_HP0037,60,58,97.1,Đúng hạn
+NN_HP0038,60,56,92.9,Cần đẩy nhanh
+NN_HP0039,45,44,97.6,Đúng hạn
+NN_HP0040,45,45,99.1,Đúng hạn
+NN_HP0041,60,58,95.9,Đúng hạn
+NN_HP0042,45,42,93.0,Cần đẩy nhanh
+NN_HP0043,30,29,98.1,Đúng hạn
+NN_HP0044,45,45,99.5,Đúng hạn
+NN_HP0045,45,43,95.3,Đúng hạn
+NN_HP0046,45,42,93.1,Cần đẩy nhanh
+NN_HP0047,30,30,99.1,Đúng hạn
+NN_HP0048,45,44,98.4,Đúng hạn
+NN_HP0049,60,58,95.9,Đúng hạn
+NN_HP0050,60,59,97.7,Đúng hạn
+NN_HP0051,30,28,93.7,Cần đẩy nhanh
+NN_HP0052,60,59,97.6,Đúng hạn
+NN_HP0053,45,43,94.8,Cần đẩy nhanh
+NN_HP0054,30,28,93.9,Cần đẩy nhanh
+NN_HP0055,45,42,93.7,Cần đẩy nhanh
+NN_HP0056,30,30,98.7,Đúng hạn
+NN_HP0057,45,42,92.9,Cần đẩy nhanh
+NN_HP0058,30,30,99.2,Đúng hạn
+NN_HP0059,30,28,94.6,Cần đẩy nhanh
+NN_HP0060,45,43,96.2,Đúng hạn
+NN_HP0061,30,28,94.7,Cần đẩy nhanh
+NN_HP0062,45,42,94.4,Cần đẩy nhanh
+NN_HP0063,45,45,99.2,Đúng hạn
+NN_HP0064,45,44,98.0,Đúng hạn
+NN_HP0065,30,27,90.4,Cần đẩy nhanh
+NN_HP0066,45,45,100.0,Đúng hạn
+NN_HP0067,30,29,96.9,Đúng hạn
+NN_HP0068,60,59,98.5,Đúng hạn
+NN_HP0069,45,43,96.4,Đúng hạn
+NN_HP0070,30,30,99.8,Đúng hạn
+NN_HP0071,60,58,96.5,Đúng hạn
+NN_HP0072,45,43,95.5,Đúng hạn
+NN_HP0073,30,30,98.9,Đúng hạn
+NN_HP0074,60,58,96.5,Đúng hạn
+NN_HP0075,30,29,96.1,Đúng hạn
+NN_HP0076,30,28,92.1,Cần đẩy nhanh
+NN_HP0077,60,59,97.8,Đúng hạn
+NN_HP0078,60,58,96.5,Đúng hạn
+NN_HP0079,30,29,95.9,Đúng hạn
+NN_HP0080,45,44,98.1,Đúng hạn
+NN_HP0081,60,58,96.9,Đúng hạn
+NN_HP0082,45,41,90.9,Cần đẩy nhanh
+NN_HP0083,45,43,96.2,Đúng hạn
+NN_HP0084,45,45,99.2,Đúng hạn
+NN_HP0085,30,30,98.4,Đúng hạn
+NN_HP0086,45,44,98.2,Đúng hạn
+NN_HP0087,45,44,98.1,Đúng hạn
+NN_HP0088,45,44,98.8,Đúng hạn
+NN_HP0089,30,30,99.4,Đúng hạn
+NN_HP0090,45,44,97.2,Đúng hạn
+NN_HP0091,45,43,94.9,Cần đẩy nhanh
+NN_HP0092,60,56,93.1,Cần đẩy nhanh
+NN_HP0093,60,58,96.8,Đúng hạn
+NN_HP0094,30,30,99.4,Đúng hạn
+NN_HP0095,30,28,95.0,Đúng hạn
+NN_HP0096,60,60,99.3,Đúng hạn
+NN_HP0097,60,59,98.3,Đúng hạn
+NN_HP0098,45,43,96.2,Đúng hạn
+NN_HP0099,60,60,99.3,Đúng hạn
+NN_HP0100,45,42,93.6,Cần đẩy nhanh
+NN_HP0101,30,28,94.0,Cần đẩy nhanh
+NN_HP0102,60,60,99.6,Đúng hạn
+NN_HP0103,45,44,97.7,Đúng hạn
+NN_HP0104,45,44,96.9,Đúng hạn
+NN_HP0105,45,45,99.6,Đúng hạn
+NN_HP0106,45,44,97.8,Đúng hạn
+NN_HP0107,60,57,95.7,Đúng hạn
+NN_HP0108,30,30,98.9,Đúng hạn
+NN_HP0109,30,30,99.9,Đúng hạn
+NN_HP0110,45,45,98.9,Đúng hạn
+NN_HP0111,30,28,94.9,Cần đẩy nhanh
+NN_HP0112,45,44,97.3,Đúng hạn
+NN_HP0113,60,58,97.2,Đúng hạn
+NN_HP0114,30,29,96.1,Đúng hạn
+NN_HP0115,30,29,96.8,Đúng hạn
+NN_HP0116,45,43,96.1,Đúng hạn
+NN_HP0117,60,58,97.3,Đúng hạn
+NN_HP0118,45,43,95.3,Đúng hạn
+NN_HP0119,45,43,95.1,Đúng hạn
+NN_HP0120,30,29,96.9,Đúng hạn
+NN_HP0121,45,45,99.2,Đúng hạn
+NN_HP0122,45,45,100.0,Đúng hạn
+NN_HP0123,60,58,97.1,Đúng hạn
+NN_HP0124,30,29,97.5,Đúng hạn
+NN_HP0125,45,44,97.5,Đúng hạn
+NN_HP0126,45,44,98.5,Đúng hạn
+NN_HP0127,45,43,95.1,Đúng hạn
+NN_HP0128,30,30,99.6,Đúng hạn
+NN_HP0129,45,42,93.2,Cần đẩy nhanh
+NN_HP0130,45,43,96.6,Đúng hạn
+NN_HP0131,60,56,93.7,Cần đẩy nhanh
+NN_HP0132,60,60,99.4,Đúng hạn
+NN_HP0133,45,41,90.2,Cần đẩy nhanh
+NN_HP0134,45,44,98.4,Đúng hạn
+NN_HP0135,45,42,92.5,Cần đẩy nhanh
+NN_HP0136,45,42,94.3,Cần đẩy nhanh
+NN_HP0137,45,42,92.5,Cần đẩy nhanh
+NN_HP0138,45,41,91.4,Cần đẩy nhanh
+NN_HP0139,45,44,97.4,Đúng hạn
+NN_HP0140,30,29,98.0,Đúng hạn
+NN_HP0141,45,45,99.1,Đúng hạn
+NN_HP0142,60,59,98.3,Đúng hạn
+NN_HP0143,60,58,97.4,Đúng hạn
+NN_HP0144,30,29,96.3,Đúng hạn
+NN_HP0145,60,59,98.2,Đúng hạn
+NN_HP0146,60,59,97.8,Đúng hạn
+NN_HP0147,45,42,93.5,Cần đẩy nhanh
+NN_HP0148,45,44,98.5,Đúng hạn
+NN_HP0149,45,44,96.8,Đúng hạn
+NN_HP0150,60,58,97.1,Đúng hạn
+NN_HP0151,30,30,99.6,Đúng hạn
+NN_HP0152,45,41,91.2,Cần đẩy nhanh
+NN_HP0153,45,43,94.8,Cần đẩy nhanh
+NN_HP0154,30,29,96.8,Đúng hạn
+NN_HP0155,45,44,98.4,Đúng hạn
+NN_HP0156,60,59,98.0,Đúng hạn
+NN_HP0157,30,29,97.7,Đúng hạn
+NN_HP0158,60,59,98.7,Đúng hạn
+NN_HP0159,30,30,99.1,Đúng hạn
+NN_HP0160,45,43,95.3,Đúng hạn
+NN_HP0161,45,43,95.7,Đúng hạn
+NN_HP0162,30,29,96.4,Đúng hạn
+NN_HP0163,60,57,95.8,Đúng hạn
+NN_HP0164,30,29,97.3,Đúng hạn
+NN_HP0165,30,28,92.1,Cần đẩy nhanh
+NN_HP0166,30,30,99.9,Đúng hạn
+NN_HP0167,60,56,93.0,Cần đẩy nhanh
+NN_HP0168,45,45,99.2,Đúng hạn
+NN_HP0169,60,60,99.2,Đúng hạn
+NN_HP0170,45,43,96.3,Đúng hạn
+NN_HP0171,45,42,93.1,Cần đẩy nhanh
+NN_HP0172,45,45,100.0,Đúng hạn
+NN_HP0173,45,43,94.9,Cần đẩy nhanh
+NN_HP0174,60,60,99.6,Đúng hạn
+NN_HP0175,45,44,97.6,Đúng hạn
+NN_HP0176,45,44,98.1,Đúng hạn
+NN_HP0177,60,60,99.4,Đúng hạn
+NN_HP0178,30,29,97.4,Đúng hạn
+NN_HP0179,60,59,98.9,Đúng hạn
+NN_HP0180,45,45,99.7,Đúng hạn
+NN_HP0181,45,45,99.8,Đúng hạn
+NN_HP0182,30,30,99.5,Đúng hạn
+NN_HP0183,45,44,98.2,Đúng hạn
+NN_HP0184,30,27,91.1,Cần đẩy nhanh
+NN_HP0185,45,43,96.2,Đúng hạn
+NN_HP0186,30,29,97.4,Đúng hạn
+NN_HP0187,45,42,93.1,Cần đẩy nhanh
+NN_HP0188,30,28,94.1,Cần đẩy nhanh
+NN_HP0189,45,45,99.0,Đúng hạn
+NN_HP0190,30,30,99.5,Đúng hạn
+NN_HP0191,45,43,95.0,Đúng hạn
+NN_HP0192,45,45,98.9,Đúng hạn
+NN_HP0193,30,29,98.1,Đúng hạn
+NN_HP0194,45,45,100.0,Đúng hạn
+NN_HP0195,45,44,98.0,Đúng hạn
+NN_HP0196,45,43,94.7,Cần đẩy nhanh
+NN_HP0197,30,28,94.4,Cần đẩy nhanh
+NN_HP0198,60,59,97.6,Đúng hạn
+NN_HP0199,45,44,98.6,Đúng hạn
+NN_HP0200,45,44,97.2,Đúng hạn
+NN_HP0201,45,44,98.0,Đúng hạn
+NN_HP0202,45,44,96.9,Đúng hạn
+NN_HP0203,45,44,97.3,Đúng hạn
+NN_HP0204,45,42,93.8,Cần đẩy nhanh
+NN_HP0205,45,44,98.7,Đúng hạn
+NN_HP0206,60,60,99.3,Đúng hạn
+NN_HP0207,30,30,99.9,Đúng hạn
+NN_HP0208,30,29,98.2,Đúng hạn
+NN_HP0209,30,28,92.6,Cần đẩy nhanh
+NN_HP0210,30,29,97.3,Đúng hạn
+NN_HP0211,45,44,97.3,Đúng hạn
+NN_HP0212,60,57,94.5,Cần đẩy nhanh
+NN_HP0213,60,57,94.2,Cần đẩy nhanh
+NN_HP0214,30,29,96.8,Đúng hạn
+NN_HP0215,45,45,99.4,Đúng hạn
+NN_HP0216,45,42,93.8,Cần đẩy nhanh
+NN_HP0217,45,44,98.1,Đúng hạn
+NN_HP0218,45,44,98.3,Đúng hạn
+NN_HP0219,60,60,99.9,Đúng hạn
+NN_HP0220,45,44,98.2,Đúng hạn
+NN_HP0221,60,57,94.5,Cần đẩy nhanh
+NN_HP0222,60,59,98.8,Đúng hạn
+NN_HP0223,30,29,96.6,Đúng hạn
+NN_HP0224,45,45,99.9,Đúng hạn
+NN_HP0225,30,29,95.9,Đúng hạn
+NN_HP0226,60,60,99.7,Đúng hạn
+NN_HP0227,45,42,93.5,Cần đẩy nhanh
+NN_HP0228,45,44,97.2,Đúng hạn
+NN_HP0229,45,45,99.2,Đúng hạn
+NN_HP0230,30,28,94.6,Cần đẩy nhanh
+NN_HP0231,60,59,97.8,Đúng hạn
+NN_HP0232,45,45,99.0,Đúng hạn
+NN_HP0233,45,44,98.5,Đúng hạn
+NN_HP0234,45,43,94.7,Cần đẩy nhanh
+NN_HP0235,45,43,96.6,Đúng hạn
+NN_HP0236,60,57,95.8,Đúng hạn
+NN_HP0237,45,42,92.3,Cần đẩy nhanh
+NN_HP0238,30,29,96.6,Đúng hạn
+NN_HP0239,45,42,93.9,Cần đẩy nhanh
+NN_HP0240,45,45,100.0,Đúng hạn
+NN_HP0241,45,43,96.2,Đúng hạn
+NN_HP0242,60,59,97.6,Đúng hạn
+NN_HP0243,45,44,97.9,Đúng hạn
+NN_HP0244,45,44,97.2,Đúng hạn
+NN_HP0245,30,30,99.6,Đúng hạn
+NN_HP0246,60,58,97.1,Đúng hạn
+NN_HP0247,60,58,96.1,Đúng hạn
+NN_HP0248,45,44,97.3,Đúng hạn
+NN_HP0249,45,45,98.9,Đúng hạn
+NN_HP0250,30,30,99.3,Đúng hạn
+NN_HP0251,30,30,99.3,Đúng hạn
+NN_HP0252,45,41,91.9,Cần đẩy nhanh
+NN_HP0253,45,42,93.1,Cần đẩy nhanh
+NN_HP0254,45,43,96.0,Đúng hạn
+NN_HP0255,30,29,97.3,Đúng hạn
+NN_HP0256,45,41,90.5,Cần đẩy nhanh
+NN_HP0257,60,60,99.5,Đúng hạn
+NN_HP0258,30,28,94.1,Cần đẩy nhanh
+NN_HP0259,45,45,99.1,Đúng hạn
+NN_HP0260,30,28,94.0,Cần đẩy nhanh
+NN_HP0261,45,43,96.2,Đúng hạn
+NN_HP0262,60,60,99.4,Đúng hạn
+NN_HP0263,60,58,96.2,Đúng hạn
+NN_HP0264,60,60,99.9,Đúng hạn
+NN_HP0265,45,44,98.3,Đúng hạn
+NN_HP0266,45,44,97.4,Đúng hạn
+NN_HP0267,60,56,94.0,Cần đẩy nhanh
+NN_HP0268,30,29,97.7,Đúng hạn
+NN_HP0269,60,59,98.4,Đúng hạn
+NN_HP0270,45,43,95.5,Đúng hạn
+NN_HP0271,45,44,98.4,Đúng hạn
+NN_HP0272,60,58,97.4,Đúng hạn
+NN_HP0273,30,30,98.7,Đúng hạn
+NN_HP0274,45,43,96.6,Đúng hạn
+NN_HP0275,45,42,93.7,Cần đẩy nhanh
+NN_HP0276,45,44,97.9,Đúng hạn
+NN_HP0277,45,43,96.1,Đúng hạn
+NN_HP0278,30,28,95.0,Đúng hạn
+NN_HP0279,45,43,95.6,Đúng hạn
+NN_HP0280,45,42,92.5,Cần đẩy nhanh
+NN_HP0281,45,43,95.8,Đúng hạn
+NN_HP0282,60,58,96.7,Đúng hạn
+NN_HP0283,60,58,97.1,Đúng hạn
+NN_HP0284,45,45,99.1,Đúng hạn
+NN_HP0285,30,29,98.1,Đúng hạn
+NN_HP0286,45,45,100.0,Đúng hạn
+NN_HP0287,30,30,98.4,Đúng hạn
+NN_HP0288,30,29,96.4,Đúng hạn
+NN_HP0289,45,43,96.1,Đúng hạn
+NN_HP0290,30,29,98.1,Đúng hạn
+NN_HP0291,30,29,97.8,Đúng hạn
+NN_HP0292,45,44,97.8,Đúng hạn
+NN_HP0293,60,57,95.8,Đúng hạn
+NN_HP0294,30,29,97.2,Đúng hạn
+NN_HP0295,30,29,97.9,Đúng hạn
+NN_HP0296,60,56,93.0,Cần đẩy nhanh
+NN_HP0297,45,44,98.5,Đúng hạn
+NN_HP0298,45,44,98.5,Đúng hạn
+NN_HP0299,45,43,96.3,Đúng hạn
+NN_HP0300,45,44,98.7,Đúng hạn
+NN_HP0301,60,58,96.3,Đúng hạn
+NN_HP0302,45,41,91.5,Cần đẩy nhanh
+NN_HP0303,30,29,97.1,Đúng hạn
+NN_HP0304,30,29,97.1,Đúng hạn
+NN_HP0305,45,43,94.8,Cần đẩy nhanh
+NN_HP0306,45,44,97.2,Đúng hạn
+NN_HP0307,60,60,99.7,Đúng hạn
+NN_HP0308,45,43,94.6,Cần đẩy nhanh
+NN_HP0309,45,43,95.0,Đúng hạn
+NN_HP0310,45,44,98.4,Đúng hạn
+NN_HP0311,60,57,94.8,Cần đẩy nhanh
+NN_HP0312,30,30,99.9,Đúng hạn
+NN_HP0313,30,29,95.5,Đúng hạn
+NN_HP0314,45,45,99.0,Đúng hạn
+NN_HP0315,45,43,96.1,Đúng hạn
+NN_HP0316,45,45,100.0,Đúng hạn
+NN_HP0317,60,60,99.7,Đúng hạn
+NN_HP0318,30,30,100.0,Đúng hạn
+NN_HP0319,30,28,94.1,Cần đẩy nhanh
+NN_HP0320,45,43,96.4,Đúng hạn
+NN_HP0321,45,43,94.8,Cần đẩy nhanh
+NN_HP0322,45,44,98.8,Đúng hạn
+NN_HP0323,45,43,96.1,Đúng hạn
+NN_HP0324,45,44,97.7,Đúng hạn
+NN_HP0325,45,44,98.1,Đúng hạn
+NN_HP0326,30,29,97.2,Đúng hạn
+NN_HP0327,30,29,97.3,Đúng hạn
+NN_HP0328,60,58,96.3,Đúng hạn
+NN_HP0329,60,60,99.9,Đúng hạn
+NN_HP0330,30,29,97.0,Đúng hạn
+NN_HP0331,60,60,99.5,Đúng hạn
+NN_HP0332,30,30,99.3,Đúng hạn
+NN_HP0333,60,59,98.7,Đúng hạn
+NN_HP0334,60,59,97.8,Đúng hạn
+NN_HP0335,45,44,98.1,Đúng hạn
+NN_HP0336,45,44,97.4,Đúng hạn
+NN_HP0337,45,41,90.5,Cần đẩy nhanh
+NN_HP0338,45,43,96.5,Đúng hạn
+NN_HP0339,45,43,95.2,Đúng hạn
+NN_HP0340,60,58,97.4,Đúng hạn
+NN_HP0341,60,57,95.1,Đúng hạn
+NN_HP0342,30,28,94.6,Cần đẩy nhanh
+NN_HP0343,60,58,97.5,Đúng hạn
+NN_HP0344,30,30,99.6,Đúng hạn
+NN_HP0345,60,57,95.1,Đúng hạn
+NN_HP0346,45,43,96.0,Đúng hạn
+NN_HP0347,45,44,97.7,Đúng hạn
+NN_HP0348,60,59,98.5,Đúng hạn
+NN_HP0349,45,45,99.8,Đúng hạn
+NN_HP0350,45,43,96.4,Đúng hạn
+NN_HP0351,60,59,97.7,Đúng hạn
+NN_HP0352,45,45,99.3,Đúng hạn
+NN_HP0353,60,60,100.0,Đúng hạn
+NN_HP0354,60,60,99.5,Đúng hạn
+NN_HP0355,60,58,97.2,Đúng hạn
+NN_HP0356,60,57,95.2,Đúng hạn
+NN_HP0357,45,45,99.8,Đúng hạn
+NN_HP0358,45,44,97.4,Đúng hạn
+NN_HP0359,45,45,99.3,Đúng hạn
+NN_HP0360,60,59,98.0,Đúng hạn
+NN_HP0361,30,28,94.2,Cần đẩy nhanh
+NN_HP0362,60,58,97.1,Đúng hạn
+NN_HP0363,45,44,97.9,Đúng hạn
+NN_HP0364,45,43,95.5,Đúng hạn
+NN_HP0365,45,43,95.8,Đúng hạn
+NN_HP0366,60,57,95.6,Đúng hạn
+NN_HP0367,30,28,92.0,Cần đẩy nhanh
+NN_HP0368,45,45,99.8,Đúng hạn
+NN_HP0369,60,59,99.0,Đúng hạn
+NN_HP0370,45,42,93.3,Cần đẩy nhanh
+NN_HP0371,30,29,95.7,Đúng hạn
+NN_HP0372,30,29,96.2,Đúng hạn
+NN_HP0373,60,60,99.2,Đúng hạn
+NN_HP0374,30,30,98.5,Đúng hạn
+NN_HP0375,45,45,99.2,Đúng hạn
+NN_HP0376,45,43,94.6,Cần đẩy nhanh
+NN_HP0377,45,44,98.6,Đúng hạn
+NN_HP0378,45,45,99.9,Đúng hạn
+NN_HP0379,45,44,98.5,Đúng hạn
+NN_HP0380,60,59,99.1,Đúng hạn
+NN_HP0381,60,58,96.6,Đúng hạn
+NN_HP0382,60,59,98.4,Đúng hạn
+NN_HP0383,60,59,98.8,Đúng hạn
+NN_HP0384,30,30,98.7,Đúng hạn
+NN_HP0385,45,42,92.5,Cần đẩy nhanh
+NN_HP0386,45,43,95.4,Đúng hạn
+NN_HP0387,60,60,99.8,Đúng hạn
+NN_HP0388,60,58,96.9,Đúng hạn
+NN_HP0389,60,57,95.2,Đúng hạn
+NN_HP0390,45,42,94.3,Cần đẩy nhanh
+NN_HP0391,45,43,96.1,Đúng hạn
+NN_HP0392,30,30,100.0,Đúng hạn
+NN_HP0393,45,43,95.1,Đúng hạn
+NN_HP0394,30,29,98.1,Đúng hạn
+NN_HP0395,30,27,90.9,Cần đẩy nhanh
+NN_HP0396,45,43,95.6,Đúng hạn
+NN_HP0397,45,44,96.9,Đúng hạn
+NN_HP0398,60,60,100.0,Đúng hạn
+NN_HP0399,45,43,95.3,Đúng hạn
+NN_HP0400,45,43,96.6,Đúng hạn
+NN_HP0401,30,30,99.6,Đúng hạn
+NN_HP0402,45,42,93.8,Cần đẩy nhanh
+NN_HP0403,45,42,94.1,Cần đẩy nhanh
+NN_HP0404,45,44,98.0,Đúng hạn
+NN_HP0405,45,44,97.0,Đúng hạn
+NN_HP0406,30,30,98.6,Đúng hạn
+NN_HP0407,60,56,93.4,Cần đẩy nhanh
+NN_HP0408,45,44,96.8,Đúng hạn
+NN_HP0409,45,42,94.4,Cần đẩy nhanh
+NN_HP0410,30,30,99.3,Đúng hạn
+NN_HP0411,45,43,95.4,Đúng hạn
+NN_HP0412,45,44,98.4,Đúng hạn
+NN_HP0413,45,45,99.8,Đúng hạn
+NN_HP0414,45,45,99.2,Đúng hạn
+NN_HP0415,60,56,93.1,Cần đẩy nhanh
+NN_HP0416,60,57,95.7,Đúng hạn
+NN_HP0417,45,45,99.5,Đúng hạn
+NN_HP0418,45,43,95.7,Đúng hạn
+NN_HP0419,60,55,91.7,Cần đẩy nhanh
+NN_HP0420,30,30,98.5,Đúng hạn
+NN_HP0421,60,60,99.7,Đúng hạn
+NN_HP0422,30,29,96.4,Đúng hạn
+NN_HP0423,45,41,91.9,Cần đẩy nhanh
+NN_HP0424,30,29,97.6,Đúng hạn
+NN_HP0425,45,43,96.2,Đúng hạn
+NN_HP0426,30,30,99.7,Đúng hạn
+NN_HP0427,30,29,96.7,Đúng hạn
+NN_HP0428,60,58,96.0,Đúng hạn
+NN_HP0429,30,26,88.2,Cần đẩy nhanh
+NN_HP0430,45,45,99.0,Đúng hạn
+NN_HP0431,30,30,98.7,Đúng hạn
+NN_HP0432,60,60,99.3,Đúng hạn
+NN_HP0433,45,45,99.8,Đúng hạn
+NN_HP0434,30,29,95.8,Đúng hạn
+NN_HP0435,45,43,96.3,Đúng hạn
+NN_HP0436,45,44,98.7,Đúng hạn
+NN_HP0437,45,45,99.5,Đúng hạn
+NN_HP0438,45,45,99.7,Đúng hạn
+NN_HP0439,60,58,97.1,Đúng hạn
+NN_HP0440,30,29,97.5,Đúng hạn
+NN_HP0441,30,30,98.8,Đúng hạn
+NN_HP0442,45,45,99.1,Đúng hạn
+NN_HP0443,45,43,94.7,Cần đẩy nhanh
+NN_HP0444,60,59,97.7,Đúng hạn
+NN_HP0445,30,29,98.2,Đúng hạn
+NN_HP0446,45,43,96.6,Đúng hạn
+NN_HP0447,45,44,96.9,Đúng hạn
+NN_HP0448,30,29,95.5,Đúng hạn
+NN_HP0449,60,58,96.5,Đúng hạn
+NN_HP0450,45,44,98.4,Đúng hạn
+NN_HP0451,60,57,94.3,Cần đẩy nhanh
+NN_HP0452,45,42,93.7,Cần đẩy nhanh
+NN_HP0453,45,43,96.4,Đúng hạn
+NN_HP0454,60,57,94.8,Cần đẩy nhanh
+NN_HP0455,30,30,99.0,Đúng hạn
+NN_HP0456,60,57,95.3,Đúng hạn
+NN_HP0457,45,42,93.3,Cần đẩy nhanh
+NN_HP0458,30,27,89.6,Cần đẩy nhanh
+NN_HP0459,30,30,99.2,Đúng hạn
+NN_HP0460,45,43,96.1,Đúng hạn
+NN_HP0461,60,58,96.2,Đúng hạn
+NN_HP0462,45,44,98.7,Đúng hạn
+NN_HP0463,60,56,94.1,Cần đẩy nhanh
+NN_HP0464,30,29,97.2,Đúng hạn
+NN_HP0465,30,29,95.3,Đúng hạn
+NN_HP0466,60,58,96.8,Đúng hạn
+NN_HP0467,30,29,98.1,Đúng hạn
+NN_HP0468,45,45,98.9,Đúng hạn
+NN_HP0469,60,59,98.3,Đúng hạn
+NN_HP0470,60,59,98.6,Đúng hạn
+NN_HP0471,60,59,98.4,Đúng hạn
+NN_HP0472,45,43,95.4,Đúng hạn
+NN_HP0473,45,42,93.3,Cần đẩy nhanh
+NN_HP0474,45,44,98.1,Đúng hạn
+NN_HP0475,60,59,98.5,Đúng hạn
+NN_HP0476,45,44,97.6,Đúng hạn
+NN_HP0477,60,58,96.6,Đúng hạn
+NN_HP0478,60,59,98.0,Đúng hạn
+NN_HP0479,45,45,99.1,Đúng hạn
+NN_HP0480,60,59,97.6,Đúng hạn
+NN_HP0481,60,58,96.0,Đúng hạn
+NN_HP0482,45,44,98.6,Đúng hạn
+NN_HP0483,45,44,98.6,Đúng hạn
+NN_HP0484,30,28,94.8,Cần đẩy nhanh
+NN_HP0485,45,45,99.3,Đúng hạn
+NN_HP0486,45,42,92.9,Cần đẩy nhanh
+NN_HP0487,45,43,95.3,Đúng hạn
+NN_HP0488,30,30,99.4,Đúng hạn
+NN_HP0489,45,43,96.5,Đúng hạn
+NN_HP0490,45,44,97.8,Đúng hạn
+NN_HP0491,45,43,96.2,Đúng hạn
+NN_HP0492,30,27,89.9,Cần đẩy nhanh
+NN_HP0493,45,44,98.7,Đúng hạn
+NN_HP0494,60,58,97.3,Đúng hạn
+NN_HP0495,45,42,93.4,Cần đẩy nhanh
+NN_HP0496,45,44,97.8,Đúng hạn
+NN_HP0497,30,29,97.4,Đúng hạn
+NN_HP0498,30,28,94.5,Cần đẩy nhanh
+NN_HP0499,30,29,95.8,Đúng hạn
+NN_HP0500,60,59,98.7,Đúng hạn
+NN_HP0501,45,43,95.2,Đúng hạn
+NN_HP0502,60,59,97.8,Đúng hạn
+NN_HP0503,45,43,94.6,Cần đẩy nhanh
+NN_HP0504,60,58,96.9,Đúng hạn
+NN_HP0505,45,44,96.8,Đúng hạn
+NN_HP0506,45,42,93.0,Cần đẩy nhanh
+NN_HP0507,45,44,97.2,Đúng hạn
+NN_HP0508,60,56,93.7,Cần đẩy nhanh
+NN_HP0509,30,28,94.5,Cần đẩy nhanh
+NN_HP0510,45,44,97.8,Đúng hạn
+NN_HP0511,60,58,96.3,Đúng hạn
+NN_HP0512,30,30,98.5,Đúng hạn
+NN_HP0513,45,44,97.6,Đúng hạn
+NN_HP0514,45,45,99.6,Đúng hạn
+NN_HP0515,60,59,97.7,Đúng hạn
+NN_HP0516,30,29,97.6,Đúng hạn
+SP_HP0001,30,30,99.5,Đúng hạn
+SP_HP0002,30,29,97.3,Đúng hạn
+SP_HP0003,45,44,98.8,Đúng hạn
+SP_HP0004,60,59,98.0,Đúng hạn
+SP_HP0005,45,43,95.3,Đúng hạn
+SP_HP0006,45,44,97.6,Đúng hạn
+SP_HP0007,30,29,97.8,Đúng hạn
+SP_HP0008,60,57,95.6,Đúng hạn
+SP_HP0009,60,59,97.6,Đúng hạn
+SP_HP0010,30,30,98.6,Đúng hạn
+SP_HP0011,45,44,97.2,Đúng hạn
+SP_HP0012,60,58,96.0,Đúng hạn
+SP_HP0013,30,30,99.8,Đúng hạn
+SP_HP0014,60,60,100.0,Đúng hạn
+SP_HP0015,60,57,95.0,Đúng hạn
+SP_HP0016,60,60,99.7,Đúng hạn
+SP_HP0017,60,59,98.2,Đúng hạn
+SP_HP0018,45,41,91.6,Cần đẩy nhanh
+SP_HP0019,30,28,93.3,Cần đẩy nhanh
+SP_HP0020,60,59,99.0,Đúng hạn
+SP_HP0021,30,28,92.5,Cần đẩy nhanh
+SP_HP0022,45,45,99.2,Đúng hạn
+SP_HP0023,60,59,99.1,Đúng hạn
+SP_HP0024,60,57,95.8,Đúng hạn
+SP_HP0025,45,43,96.4,Đúng hạn
+SP_HP0026,30,30,98.7,Đúng hạn
+SP_HP0027,45,43,95.8,Đúng hạn
+SP_HP0028,30,29,95.4,Đúng hạn
+SP_HP0029,45,44,98.5,Đúng hạn
+SP_HP0030,45,44,98.4,Đúng hạn
+SP_HP0031,45,44,98.7,Đúng hạn
+SP_HP0032,30,29,96.2,Đúng hạn
+SP_HP0033,45,42,93.4,Cần đẩy nhanh
+SP_HP0034,45,44,96.9,Đúng hạn
+SP_HP0035,60,57,94.7,Cần đẩy nhanh
+SP_HP0036,45,44,97.5,Đúng hạn
+SP_HP0037,30,30,98.4,Đúng hạn
+SP_HP0038,60,60,99.8,Đúng hạn
+SP_HP0039,30,29,97.1,Đúng hạn
+SP_HP0040,45,45,99.4,Đúng hạn
+SP_HP0041,60,60,99.6,Đúng hạn
+SP_HP0042,30,29,98.2,Đúng hạn
+SP_HP0043,45,44,96.8,Đúng hạn
+SP_HP0044,30,30,99.1,Đúng hạn
+SP_HP0045,45,44,97.8,Đúng hạn
+SP_HP0046,30,29,97.4,Đúng hạn
+SP_HP0047,30,30,99.3,Đúng hạn
+SP_HP0048,30,30,99.2,Đúng hạn
+SP_HP0049,60,58,96.8,Đúng hạn
+SP_HP0050,30,28,92.2,Cần đẩy nhanh
+SP_HP0051,45,43,96.4,Đúng hạn
+SP_HP0052,45,45,99.9,Đúng hạn
+SP_HP0053,30,29,97.0,Đúng hạn
+SP_HP0054,30,30,99.2,Đúng hạn
+SP_HP0055,30,30,98.5,Đúng hạn
+SP_HP0056,45,44,97.7,Đúng hạn
+SP_HP0057,45,41,90.9,Cần đẩy nhanh
+SP_HP0058,30,30,98.4,Đúng hạn
+SP_HP0059,45,44,97.3,Đúng hạn
+SP_HP0060,45,44,98.2,Đúng hạn
+SP_HP0061,45,43,95.9,Đúng hạn
+SP_HP0062,45,42,93.8,Cần đẩy nhanh
+SP_HP0063,45,45,99.5,Đúng hạn
+SP_HP0064,60,59,98.4,Đúng hạn
+SP_HP0065,45,44,96.9,Đúng hạn
+SP_HP0066,45,44,97.7,Đúng hạn
+SP_HP0067,45,45,99.0,Đúng hạn
+SP_HP0068,45,42,93.3,Cần đẩy nhanh
+SP_HP0069,45,44,98.1,Đúng hạn
+SP_HP0070,30,29,97.5,Đúng hạn
+SP_HP0071,30,30,99.0,Đúng hạn
+SP_HP0072,60,60,100.0,Đúng hạn
+SP_HP0073,45,43,96.1,Đúng hạn
+SP_HP0074,45,43,96.6,Đúng hạn
+SP_HP0075,45,45,99.1,Đúng hạn
+SP_HP0076,45,44,98.2,Đúng hạn
+SP_HP0077,60,57,94.9,Cần đẩy nhanh
+SP_HP0078,60,58,96.6,Đúng hạn
+SP_HP0079,45,45,99.6,Đúng hạn
+SP_HP0080,45,45,100.0,Đúng hạn
+SP_HP0081,45,45,99.5,Đúng hạn
+SP_HP0082,45,43,96.4,Đúng hạn
+SP_HP0083,45,43,94.8,Cần đẩy nhanh
+SP_HP0084,45,45,99.9,Đúng hạn
+SP_HP0085,45,44,98.4,Đúng hạn
+SP_HP0086,30,29,96.7,Đúng hạn
+SP_HP0087,60,60,99.8,Đúng hạn
+SP_HP0088,45,42,92.3,Cần đẩy nhanh
+SP_HP0089,45,45,99.7,Đúng hạn
+SP_HP0090,45,43,96.6,Đúng hạn
+SP_HP0091,30,29,97.6,Đúng hạn
+SP_HP0092,45,44,97.5,Đúng hạn
+SP_HP0093,45,43,96.4,Đúng hạn
+SP_HP0094,60,60,99.8,Đúng hạn
+SP_HP0095,60,60,99.9,Đúng hạn
+SP_HP0096,45,45,99.6,Đúng hạn
+SP_HP0097,30,29,96.6,Đúng hạn
+SP_HP0098,45,44,96.7,Đúng hạn
+SP_HP0099,60,60,99.9,Đúng hạn
+SP_HP0100,60,60,99.8,Đúng hạn
+SP_HP0101,45,45,99.8,Đúng hạn
+SP_HP0102,45,44,98.8,Đúng hạn
+SP_HP0103,45,43,95.4,Đúng hạn
+SP_HP0104,60,59,98.4,Đúng hạn
+SP_HP0105,45,43,94.8,Cần đẩy nhanh
+SP_HP0106,45,43,95.7,Đúng hạn
+SP_HP0107,60,59,98.1,Đúng hạn
+SP_HP0108,45,44,97.9,Đúng hạn
+SP_HP0109,45,44,97.6,Đúng hạn
+SP_HP0110,30,29,96.3,Đúng hạn
+SP_HP0111,45,44,98.0,Đúng hạn
+SP_HP0112,45,42,94.3,Cần đẩy nhanh
+SP_HP0113,60,60,99.7,Đúng hạn
+SP_HP0114,45,44,97.7,Đúng hạn
+SP_HP0115,30,30,98.4,Đúng hạn
+SP_HP0116,45,44,98.3,Đúng hạn
+SP_HP0117,45,44,98.7,Đúng hạn
+SP_HP0118,45,44,97.1,Đúng hạn
+SP_HP0119,45,43,94.5,Cần đẩy nhanh
+SP_HP0120,45,44,97.9,Đúng hạn
+SP_HP0121,60,60,99.9,Đúng hạn
+SP_HP0122,45,43,95.3,Đúng hạn
+SP_HP0123,45,44,98.3,Đúng hạn
+SP_HP0124,45,44,97.6,Đúng hạn
+SP_HP0125,60,58,96.3,Đúng hạn
+SP_HP0126,30,29,98.3,Đúng hạn
+SP_HP0127,45,42,92.5,Cần đẩy nhanh
+SP_HP0128,30,30,99.0,Đúng hạn
+SP_HP0129,45,44,98.4,Đúng hạn
+SP_HP0130,60,59,98.7,Đúng hạn
+SP_HP0131,60,57,95.0,Đúng hạn
+SP_HP0132,30,30,100.0,Đúng hạn
+SP_HP0133,60,59,98.4,Đúng hạn
+SP_HP0134,45,43,94.5,Cần đẩy nhanh
+SP_HP0135,45,42,93.4,Cần đẩy nhanh
+SP_HP0136,45,44,97.5,Đúng hạn
+SP_HP0137,30,29,97.1,Đúng hạn
+SP_HP0138,45,44,96.7,Đúng hạn
+SP_HP0139,30,30,99.2,Đúng hạn
+SP_HP0140,60,60,99.2,Đúng hạn
+SP_HP0141,45,44,96.8,Đúng hạn
+SP_HP0142,30,29,96.2,Đúng hạn
+SP_HP0143,45,44,96.9,Đúng hạn
+SP_HP0144,60,60,99.5,Đúng hạn
+SP_HP0145,30,30,98.5,Đúng hạn
+SP_HP0146,45,43,95.4,Đúng hạn
+SP_HP0147,45,42,93.2,Cần đẩy nhanh
+SP_HP0148,45,43,96.4,Đúng hạn
+SP_HP0149,30,30,99.7,Đúng hạn
+SP_HP0150,45,44,98.1,Đúng hạn
+SP_HP0151,45,45,99.2,Đúng hạn
+SP_HP0152,45,44,98.8,Đúng hạn
+SP_HP0153,45,44,97.3,Đúng hạn
+SP_HP0154,45,44,98.8,Đúng hạn
+SP_HP0155,60,59,98.5,Đúng hạn
+SP_HP0156,45,42,93.7,Cần đẩy nhanh
+SP_HP0157,60,56,93.4,Cần đẩy nhanh
+SP_HP0158,45,43,96.5,Đúng hạn
+SP_HP0159,45,43,94.9,Cần đẩy nhanh
+SP_HP0160,60,60,99.6,Đúng hạn
+SP_HP0161,45,44,96.8,Đúng hạn
+SP_HP0162,60,60,99.7,Đúng hạn
+SP_HP0163,60,59,97.9,Đúng hạn
+SP_HP0164,30,30,99.8,Đúng hạn
+SP_HP0165,45,43,96.0,Đúng hạn
+SP_HP0166,45,43,96.0,Đúng hạn
+SP_HP0167,45,45,99.9,Đúng hạn
+SP_HP0168,30,29,98.1,Đúng hạn
+SP_HP0169,30,29,97.1,Đúng hạn
+SP_HP0170,45,43,95.1,Đúng hạn
+SP_HP0171,60,58,97.2,Đúng hạn
+SP_HP0172,60,60,99.9,Đúng hạn
+SP_HP0173,45,43,95.1,Đúng hạn
+SP_HP0174,30,30,99.4,Đúng hạn
+SP_HP0175,45,44,97.8,Đúng hạn
+SP_HP0176,45,42,92.7,Cần đẩy nhanh
+SP_HP0177,45,44,98.4,Đúng hạn
+SP_HP0178,60,56,93.1,Cần đẩy nhanh
+SP_HP0179,30,28,93.5,Cần đẩy nhanh
+SP_HP0180,45,45,99.3,Đúng hạn
+SP_HP0181,60,60,99.2,Đúng hạn
+SP_HP0182,30,29,97.5,Đúng hạn
+SP_HP0183,45,43,96.0,Đúng hạn
+SP_HP0184,30,30,98.7,Đúng hạn
+SP_HP0185,45,45,99.4,Đúng hạn
+SP_HP0186,45,44,98.3,Đúng hạn
+SP_HP0187,45,44,98.5,Đúng hạn
+SP_HP0188,45,44,97.1,Đúng hạn
+SP_HP0189,45,44,97.1,Đúng hạn
+SP_HP0190,30,29,97.0,Đúng hạn
+SP_HP0191,60,58,96.6,Đúng hạn
+SP_HP0192,60,59,98.7,Đúng hạn
+SP_HP0193,30,29,97.2,Đúng hạn
+SP_HP0194,45,45,99.0,Đúng hạn
+SP_HP0195,60,60,99.4,Đúng hạn
+SP_HP0196,45,43,95.7,Đúng hạn
+SP_HP0197,60,58,96.3,Đúng hạn
+SP_HP0198,45,44,97.5,Đúng hạn
+SP_HP0199,30,29,96.6,Đúng hạn
+SP_HP0200,60,59,98.0,Đúng hạn
+SP_HP0201,45,45,99.3,Đúng hạn
+SP_HP0202,45,44,97.3,Đúng hạn
+SP_HP0203,30,29,96.7,Đúng hạn
+SP_HP0204,45,43,95.0,Đúng hạn
+SP_HP0205,45,44,97.7,Đúng hạn
+SP_HP0206,45,44,98.5,Đúng hạn
+SP_HP0207,30,29,97.4,Đúng hạn
+SP_HP0208,45,44,97.5,Đúng hạn
+SP_HP0209,60,59,98.5,Đúng hạn
+SP_HP0210,30,30,98.4,Đúng hạn
+SP_HP0211,60,60,99.5,Đúng hạn
+SP_HP0212,60,57,95.0,Đúng hạn
+SP_HP0213,60,58,96.1,Đúng hạn
+SP_HP0214,45,44,98.8,Đúng hạn
+SP_HP0215,45,44,96.9,Đúng hạn
+SP_HP0216,45,43,95.4,Đúng hạn
+SP_HP0217,45,44,96.7,Đúng hạn
+SP_HP0218,45,44,98.3,Đúng hạn
+SP_HP0219,30,29,98.0,Đúng hạn
+SP_HP0220,45,44,98.1,Đúng hạn
+SP_HP0221,30,29,97.6,Đúng hạn
+SP_HP0222,30,28,91.9,Cần đẩy nhanh
+SP_HP0223,30,30,99.7,Đúng hạn
+SP_HP0224,45,42,93.1,Cần đẩy nhanh
+SP_HP0225,60,59,97.8,Đúng hạn
+SP_HP0226,60,58,96.0,Đúng hạn
+SP_HP0227,60,57,94.7,Cần đẩy nhanh
+SP_HP0228,45,45,99.8,Đúng hạn
+SP_HP0229,45,43,95.5,Đúng hạn
+SP_HP0230,45,43,96.5,Đúng hạn
+SP_HP0231,60,59,98.8,Đúng hạn
+SP_HP0232,60,58,96.7,Đúng hạn
+SP_HP0233,45,42,93.4,Cần đẩy nhanh
+SP_HP0234,45,44,97.7,Đúng hạn
+SP_HP0235,45,45,99.8,Đúng hạn
+SP_HP0236,60,57,94.7,Cần đẩy nhanh
+SP_HP0237,45,43,95.8,Đúng hạn
+SP_HP0238,60,60,99.3,Đúng hạn
+SP_HP0239,60,60,99.4,Đúng hạn
+SP_HP0240,45,45,99.1,Đúng hạn
+SP_HP0241,60,58,96.1,Đúng hạn
+SP_HP0242,30,30,99.2,Đúng hạn
+SP_HP0243,30,30,99.1,Đúng hạn
+SP_HP0244,60,59,99.1,Đúng hạn
+SP_HP0245,45,45,99.1,Đúng hạn
+SP_HP0246,45,41,91.0,Cần đẩy nhanh
+SP_HP0247,45,43,95.0,Đúng hạn
+SP_HP0248,30,29,98.2,Đúng hạn
+SP_HP0249,60,59,97.9,Đúng hạn
+SP_HP0250,30,30,99.6,Đúng hạn
+SP_HP0251,60,60,99.9,Đúng hạn
+SP_HP0252,60,59,97.9,Đúng hạn
+SP_HP0253,45,45,99.0,Đúng hạn
+SP_HP0254,45,43,95.0,Đúng hạn
+SP_HP0255,45,45,99.0,Đúng hạn
+SP_HP0256,30,29,95.8,Đúng hạn
+SP_HP0257,45,43,96.1,Đúng hạn
+SP_HP0258,30,29,96.2,Đúng hạn
+SP_HP0259,45,44,98.3,Đúng hạn
+SP_HP0260,45,44,96.9,Đúng hạn
+SP_HP0261,45,44,97.0,Đúng hạn
+SP_HP0262,45,42,94.2,Cần đẩy nhanh
+SP_HP0263,45,44,98.4,Đúng hạn
+SP_HP0264,45,45,99.6,Đúng hạn
+SP_HP0265,60,60,99.5,Đúng hạn
+SP_HP0266,30,29,97.3,Đúng hạn
+SP_HP0267,45,44,98.0,Đúng hạn
+SP_HP0268,30,29,97.2,Đúng hạn
+SP_HP0269,45,45,99.9,Đúng hạn
+SP_HP0270,45,44,98.0,Đúng hạn
+SP_HP0271,45,44,98.8,Đúng hạn
+SP_HP0272,30,29,95.3,Đúng hạn
+SP_HP0273,30,30,99.4,Đúng hạn
+SP_HP0274,45,44,97.5,Đúng hạn
+SP_HP0275,60,59,99.1,Đúng hạn
+SP_HP0276,45,45,99.6,Đúng hạn
+SP_HP0277,45,43,96.4,Đúng hạn
+SP_HP0278,60,60,99.6,Đúng hạn
+SP_HP0279,45,44,98.0,Đúng hạn
+SP_HP0280,60,59,98.3,Đúng hạn
+SP_HP0281,45,44,97.2,Đúng hạn
+SP_HP0282,60,60,99.8,Đúng hạn
+SP_HP0283,30,29,97.4,Đúng hạn
+SP_HP0284,45,44,97.7,Đúng hạn
+SP_HP0285,60,58,97.5,Đúng hạn
+SP_HP0286,45,43,96.2,Đúng hạn
+SP_HP0287,45,44,98.7,Đúng hạn
+SP_HP0288,45,41,91.3,Cần đẩy nhanh
+SP_HP0289,45,44,97.5,Đúng hạn
+SP_HP0290,60,59,98.5,Đúng hạn
+SP_HP0291,60,58,96.4,Đúng hạn
+SP_HP0292,45,44,97.5,Đúng hạn
+SP_HP0293,30,29,96.6,Đúng hạn
+SP_HP0294,30,30,99.2,Đúng hạn
+SP_HP0295,45,44,98.5,Đúng hạn
+SP_HP0296,45,44,98.6,Đúng hạn
+SP_HP0297,30,29,97.4,Đúng hạn
+SP_HP0298,60,58,96.0,Đúng hạn
+SP_HP0299,60,54,90.5,Cần đẩy nhanh
+SP_HP0300,45,43,95.7,Đúng hạn
+SP_HP0301,45,43,94.8,Cần đẩy nhanh
+SP_HP0302,45,44,97.1,Đúng hạn
+SP_HP0303,45,42,92.8,Cần đẩy nhanh
+SP_HP0304,45,41,91.6,Cần đẩy nhanh
+SP_HP0305,30,29,96.9,Đúng hạn
+SP_HP0306,45,44,98.1,Đúng hạn
+SP_HP0307,30,28,94.3,Cần đẩy nhanh
+SP_HP0308,60,59,98.8,Đúng hạn
+SP_HP0309,45,44,96.9,Đúng hạn
+SP_HP0310,30,29,97.2,Đúng hạn
+SP_HP0311,45,44,97.8,Đúng hạn
+SP_HP0312,45,45,99.4,Đúng hạn
+SP_HP0313,45,43,96.2,Đúng hạn
+SP_HP0314,30,29,97.8,Đúng hạn
+SP_HP0315,45,45,98.9,Đúng hạn
+SP_HP0316,30,28,93.5,Cần đẩy nhanh
+SP_HP0317,45,45,99.8,Đúng hạn
+SP_HP0318,60,58,96.4,Đúng hạn
+SP_HP0319,45,44,97.7,Đúng hạn
+SP_HP0320,45,45,99.1,Đúng hạn
+SP_HP0321,60,57,95.6,Đúng hạn
+SP_HP0322,30,29,98.0,Đúng hạn
+SP_HP0323,45,43,94.7,Cần đẩy nhanh
+SP_HP0324,45,44,97.6,Đúng hạn
+SP_HP0325,45,45,99.7,Đúng hạn
+SP_HP0326,45,43,96.3,Đúng hạn
+SP_HP0327,45,44,97.2,Đúng hạn
+SP_HP0328,30,29,95.6,Đúng hạn
+SP_HP0329,60,60,99.3,Đúng hạn
+SP_HP0330,60,57,95.6,Đúng hạn
+SP_HP0331,45,45,99.7,Đúng hạn
+SP_HP0332,60,60,100.0,Đúng hạn
+SP_HP0333,60,57,94.4,Cần đẩy nhanh
+SP_HP0334,60,58,96.5,Đúng hạn
+SP_HP0335,60,59,98.4,Đúng hạn
+SP_HP0336,45,45,99.0,Đúng hạn
+SP_HP0337,30,29,97.8,Đúng hạn
+SP_HP0338,45,44,96.8,Đúng hạn
+SP_HP0339,60,57,95.7,Đúng hạn
+SP_HP0340,45,44,98.5,Đúng hạn
+SP_HP0341,30,28,94.3,Cần đẩy nhanh
+SP_HP0342,30,30,98.8,Đúng hạn
+SP_HP0343,45,45,99.7,Đúng hạn
+SP_HP0344,30,30,99.8,Đúng hạn
+SP_HP0345,60,57,94.8,Cần đẩy nhanh
+SP_HP0346,30,29,97.8,Đúng hạn
+SP_HP0347,45,44,98.8,Đúng hạn
+SP_HP0348,45,44,97.6,Đúng hạn
+SP_HP0349,45,44,98.4,Đúng hạn
+SP_HP0350,30,30,98.9,Đúng hạn
+SP_HP0351,45,43,96.4,Đúng hạn
+SP_HP0352,45,44,97.7,Đúng hạn
+SP_HP0353,30,28,94.8,Cần đẩy nhanh
+SP_HP0354,30,30,99.6,Đúng hạn
+SP_HP0355,45,44,98.2,Đúng hạn
+SP_HP0356,45,45,99.3,Đúng hạn
+SP_HP0357,30,30,98.6,Đúng hạn
+SP_HP0358,45,45,99.7,Đúng hạn
+SP_HP0359,45,42,93.4,Cần đẩy nhanh
+SP_HP0360,30,30,99.8,Đúng hạn
+SP_HP0361,60,56,93.7,Cần đẩy nhanh
+SP_HP0362,60,59,98.8,Đúng hạn
+SP_HP0363,60,56,93.8,Cần đẩy nhanh
+SP_HP0364,30,29,96.4,Đúng hạn
+SP_HP0365,60,59,98.0,Đúng hạn
+SP_HP0366,45,45,100.0,Đúng hạn
+SP_HP0367,45,44,96.9,Đúng hạn
+SP_HP0368,45,42,94.1,Cần đẩy nhanh
+SP_HP0369,60,60,100.0,Đúng hạn
+SP_HP0370,45,45,99.8,Đúng hạn
+SP_HP0371,45,44,98.7,Đúng hạn
+SP_HP0372,45,44,97.4,Đúng hạn
+SP_HP0373,30,29,97.0,Đúng hạn
+SP_HP0374,30,29,96.8,Đúng hạn
+SP_HP0375,30,29,97.4,Đúng hạn
+SP_HP0376,45,42,92.8,Cần đẩy nhanh
+SP_HP0377,45,44,98.0,Đúng hạn
+SP_HP0378,45,43,96.0,Đúng hạn
+SP_HP0379,45,43,96.5,Đúng hạn
+SP_HP0380,60,58,97.3,Đúng hạn
+SP_HP0381,30,29,95.7,Đúng hạn
+SP_HP0382,45,44,98.6,Đúng hạn
+SP_HP0383,30,29,96.5,Đúng hạn
+SP_HP0384,45,44,97.0,Đúng hạn
+SP_HP0385,45,45,99.6,Đúng hạn
+SP_HP0386,45,44,96.8,Đúng hạn
+SP_HP0387,45,41,91.0,Cần đẩy nhanh
+SP_HP0388,45,44,98.0,Đúng hạn
+SP_HP0389,45,44,97.5,Đúng hạn
+SP_HP0390,60,60,99.4,Đúng hạn
+SP_HP0391,45,45,99.7,Đúng hạn
+SP_HP0392,30,29,96.4,Đúng hạn
+SP_HP0393,30,29,97.5,Đúng hạn
+SP_HP0394,60,58,97.3,Đúng hạn
+SP_HP0395,30,29,96.6,Đúng hạn
+SP_HP0396,45,45,99.1,Đúng hạn
+SP_HP0397,60,57,95.8,Đúng hạn
+SP_HP0398,30,28,93.2,Cần đẩy nhanh
+SP_HP0399,60,59,98.7,Đúng hạn
+SP_HP0400,30,29,96.4,Đúng hạn
+SP_HP0401,45,44,96.9,Đúng hạn
+SP_HP0402,60,59,98.1,Đúng hạn
+SP_HP0403,60,60,99.3,Đúng hạn
+SP_HP0404,45,45,99.7,Đúng hạn
+SP_HP0405,45,42,93.8,Cần đẩy nhanh
+SP_HP0406,45,44,98.0,Đúng hạn
+SP_HP0407,60,59,98.0,Đúng hạn
+SP_HP0408,45,45,100.0,Đúng hạn
+SP_HP0409,45,45,99.9,Đúng hạn
+SP_HP0410,30,28,94.7,Cần đẩy nhanh
+SP_HP0411,45,45,99.3,Đúng hạn
+SP_HP0412,60,60,99.2,Đúng hạn
+SP_HP0413,30,30,99.9,Đúng hạn
+SP_HP0414,45,44,97.9,Đúng hạn
+SP_HP0415,45,45,99.4,Đúng hạn
+SP_HP0416,45,45,99.8,Đúng hạn
+SP_HP0417,30,30,99.8,Đúng hạn
+SP_HP0418,30,30,99.2,Đúng hạn
+SP_HP0419,30,29,97.2,Đúng hạn
+SP_HP0420,45,44,97.9,Đúng hạn
+SP_HP0421,45,41,92.2,Cần đẩy nhanh
+SP_HP0422,60,58,97.2,Đúng hạn
+SP_HP0423,60,59,97.8,Đúng hạn
+SP_HP0424,45,45,99.6,Đúng hạn
+SP_HP0425,45,45,99.3,Đúng hạn
+SP_HP0426,45,44,97.0,Đúng hạn
+SP_HP0427,60,60,99.7,Đúng hạn
+SP_HP0428,30,29,97.4,Đúng hạn
+SP_HP0429,30,30,98.6,Đúng hạn
+SP_HP0430,60,56,94.0,Cần đẩy nhanh
+SP_HP0431,45,44,98.5,Đúng hạn
+SP_HP0432,30,30,99.0,Đúng hạn
+SP_HP0433,60,60,99.9,Đúng hạn
+SP_HP0434,45,44,97.3,Đúng hạn
+SP_HP0435,60,60,99.2,Đúng hạn
+SP_HP0436,60,60,100.0,Đúng hạn
+SP_HP0437,60,60,99.9,Đúng hạn
+SP_HP0438,45,44,97.9,Đúng hạn
+TS_HP0001,60,60,100.0,Đúng hạn
+TS_HP0002,60,59,98.3,Đúng hạn
+TS_HP0003,45,45,99.9,Đúng hạn
+TS_HP0004,45,45,98.9,Đúng hạn
+TS_HP0005,45,45,99.8,Đúng hạn
+TS_HP0006,45,45,99.4,Đúng hạn
+TS_HP0007,60,60,99.6,Đúng hạn
+TS_HP0008,45,44,97.5,Đúng hạn
+TS_HP0009,30,30,99.0,Đúng hạn
+TS_HP0010,45,44,98.6,Đúng hạn
+TS_HP0011,30,30,99.8,Đúng hạn
+TS_HP0012,30,30,99.7,Đúng hạn
+TS_HP0013,30,30,98.7,Đúng hạn
+TS_HP0014,45,45,99.9,Đúng hạn
+TS_HP0015,45,44,98.4,Đúng hạn
+TS_HP0016,60,59,99.1,Đúng hạn
+TS_HP0017,60,56,92.9,Cần đẩy nhanh
+TS_HP0018,45,43,96.5,Đúng hạn
+TS_HP0019,30,30,98.4,Đúng hạn
+TS_HP0020,45,45,99.8,Đúng hạn
+TS_HP0021,30,29,96.7,Đúng hạn
+TS_HP0022,30,29,98.0,Đúng hạn
+TS_HP0023,30,28,93.4,Cần đẩy nhanh
+TS_HP0024,45,45,98.9,Đúng hạn
+TS_HP0025,45,45,100.0,Đúng hạn
+TS_HP0026,60,58,96.7,Đúng hạn
+TS_HP0027,45,44,98.4,Đúng hạn
+TS_HP0028,60,59,98.4,Đúng hạn
+TS_HP0029,30,30,99.2,Đúng hạn
+TS_HP0030,30,29,95.5,Đúng hạn
+TS_HP0031,30,29,97.3,Đúng hạn
+TS_HP0032,45,43,94.8,Cần đẩy nhanh
+TS_HP0033,45,43,96.4,Đúng hạn
+TS_HP0034,45,45,99.8,Đúng hạn
+TS_HP0035,60,59,98.6,Đúng hạn
+TS_HP0036,45,44,97.0,Đúng hạn
+TS_HP0037,30,30,100.0,Đúng hạn
+TS_HP0038,45,44,98.2,Đúng hạn
+TS_HP0039,45,44,97.3,Đúng hạn
+TS_HP0040,60,57,94.7,Cần đẩy nhanh
+TS_HP0041,45,44,98.1,Đúng hạn
+TS_HP0042,30,30,99.7,Đúng hạn
+TS_HP0043,30,28,92.6,Cần đẩy nhanh
+TS_HP0044,60,58,96.3,Đúng hạn
+TS_HP0045,60,60,99.3,Đúng hạn
+TS_HP0046,60,59,98.3,Đúng hạn
+TS_HP0047,45,45,99.2,Đúng hạn
+TS_HP0048,60,59,98.1,Đúng hạn
+TS_HP0049,45,43,96.0,Đúng hạn
+TS_HP0050,45,44,98.1,Đúng hạn
+TS_HP0051,45,44,98.5,Đúng hạn
+TS_HP0052,45,43,94.8,Cần đẩy nhanh
+TS_HP0053,60,58,96.8,Đúng hạn
+TS_HP0054,60,60,99.6,Đúng hạn
+TS_HP0055,45,44,97.3,Đúng hạn
+TS_HP0056,30,29,98.2,Đúng hạn
+TS_HP0057,60,56,92.9,Cần đẩy nhanh
+TS_HP0058,60,56,92.8,Cần đẩy nhanh
+TS_HP0059,30,30,99.9,Đúng hạn
+TS_HP0060,45,45,98.9,Đúng hạn
+TS_HP0061,60,59,98.7,Đúng hạn
+TS_HP0062,30,29,96.9,Đúng hạn
+TS_HP0063,30,28,93.1,Cần đẩy nhanh
+TS_HP0064,45,44,97.6,Đúng hạn
+TS_HP0065,45,45,99.0,Đúng hạn
+TS_HP0066,45,42,92.8,Cần đẩy nhanh
+TS_HP0067,45,45,99.2,Đúng hạn
+TS_HP0068,30,30,99.8,Đúng hạn
+TS_HP0069,30,30,99.9,Đúng hạn
+TS_HP0070,45,44,98.4,Đúng hạn
+TS_HP0071,45,45,99.4,Đúng hạn
+TS_HP0072,45,44,98.2,Đúng hạn
+TS_HP0073,45,45,99.2,Đúng hạn
+TS_HP0074,60,60,99.2,Đúng hạn
+TS_HP0075,30,30,98.6,Đúng hạn
+TS_HP0076,45,45,99.5,Đúng hạn
+TS_HP0077,30,28,94.6,Cần đẩy nhanh
+TS_HP0078,30,29,97.5,Đúng hạn
+TS_HP0079,45,44,98.6,Đúng hạn
+TS_HP0080,60,60,99.9,Đúng hạn
+TS_HP0081,45,43,95.3,Đúng hạn
+TS_HP0082,45,45,99.5,Đúng hạn
+TS_HP0083,45,45,99.3,Đúng hạn
+TS_HP0084,45,44,98.6,Đúng hạn
+TS_HP0085,45,44,97.9,Đúng hạn
+TS_HP0086,30,29,98.2,Đúng hạn
+TS_HP0087,45,43,95.9,Đúng hạn
+TS_HP0088,45,45,99.6,Đúng hạn
+TS_HP0089,45,43,96.1,Đúng hạn
+TS_HP0090,60,60,99.7,Đúng hạn
+TS_HP0091,60,59,98.5,Đúng hạn
+TS_HP0092,60,58,96.0,Đúng hạn
+TS_HP0093,60,59,98.0,Đúng hạn
+TS_HP0094,30,29,98.1,Đúng hạn
+TS_HP0095,45,45,99.4,Đúng hạn
+TS_HP0096,30,30,99.5,Đúng hạn
+TS_HP0097,60,58,97.4,Đúng hạn
+TS_HP0098,45,44,98.1,Đúng hạn
+TS_HP0099,45,43,96.5,Đúng hạn
+TS_HP0100,60,59,98.5,Đúng hạn
+TS_HP0101,45,44,97.2,Đúng hạn
+TS_HP0102,45,42,94.0,Cần đẩy nhanh
+TS_HP0103,60,60,99.9,Đúng hạn
+TS_HP0104,45,44,97.8,Đúng hạn
+TS_HP0105,30,29,97.8,Đúng hạn
+TS_HP0106,45,45,99.4,Đúng hạn
+TS_HP0107,45,44,97.7,Đúng hạn
+TS_HP0108,45,45,99.0,Đúng hạn
+TS_HP0109,60,57,94.9,Cần đẩy nhanh
+TS_HP0110,45,44,98.0,Đúng hạn
+TS_HP0111,45,44,96.9,Đúng hạn
+TS_HP0112,45,45,99.1,Đúng hạn
+TS_HP0113,45,44,97.1,Đúng hạn
+TS_HP0114,45,45,100.0,Đúng hạn
+TS_HP0115,60,59,97.7,Đúng hạn
+TS_HP0116,45,43,96.6,Đúng hạn
+TS_HP0117,45,45,99.1,Đúng hạn
+TS_HP0118,45,44,98.3,Đúng hạn
+TS_HP0119,60,58,97.0,Đúng hạn
+TS_HP0120,45,44,97.8,Đúng hạn
+TS_HP0121,45,43,96.6,Đúng hạn
+TS_HP0122,45,45,99.8,Đúng hạn
+TS_HP0123,30,29,95.1,Đúng hạn
+TS_HP0124,45,43,96.1,Đúng hạn
+TS_HP0125,45,45,99.5,Đúng hạn
+TS_HP0126,45,44,96.7,Đúng hạn
+TS_HP0127,60,60,99.9,Đúng hạn
+TS_HP0128,30,29,96.5,Đúng hạn
+TS_HP0129,30,29,97.9,Đúng hạn
+TS_HP0130,30,29,95.4,Đúng hạn
+TS_HP0131,45,43,95.8,Đúng hạn
+TS_HP0132,45,44,98.8,Đúng hạn
+TS_HP0133,30,29,97.4,Đúng hạn
+TS_HP0134,45,42,94.1,Cần đẩy nhanh
+TS_HP0135,30,30,99.9,Đúng hạn
+TS_HP0136,60,58,97.5,Đúng hạn
+TS_HP0137,45,42,92.5,Cần đẩy nhanh
+TS_HP0138,30,29,96.7,Đúng hạn
+TS_HP0139,60,59,97.6,Đúng hạn
+TS_HP0140,60,59,98.1,Đúng hạn
+TS_HP0141,45,44,98.6,Đúng hạn
+TS_HP0142,45,42,93.8,Cần đẩy nhanh
+TS_HP0143,60,60,99.8,Đúng hạn
+TS_HP0144,60,59,97.6,Đúng hạn
+TS_HP0145,45,45,99.8,Đúng hạn
+TS_HP0146,30,30,99.0,Đúng hạn
+TS_HP0147,30,29,96.4,Đúng hạn
+TS_HP0148,30,30,98.9,Đúng hạn
+TS_HP0149,30,30,99.5,Đúng hạn
+TS_HP0150,60,59,98.1,Đúng hạn
+TS_HP0151,30,30,99.9,Đúng hạn
+TS_HP0152,30,29,98.1,Đúng hạn
+TS_HP0153,30,28,94.5,Cần đẩy nhanh
+TS_HP0154,30,28,94.8,Cần đẩy nhanh
+TS_HP0155,30,30,99.3,Đúng hạn
+TS_HP0156,60,59,98.9,Đúng hạn
+TS_HP0157,30,29,96.7,Đúng hạn
+TS_HP0158,45,43,95.9,Đúng hạn
+TS_HP0159,45,44,97.1,Đúng hạn
+TS_HP0160,45,43,95.9,Đúng hạn
+TS_HP0161,45,45,99.2,Đúng hạn
+TS_HP0162,60,59,98.2,Đúng hạn
+TS_HP0163,30,30,99.4,Đúng hạn
+TS_HP0164,30,29,96.5,Đúng hạn
+TS_HP0165,30,28,92.2,Cần đẩy nhanh
+TS_HP0166,45,44,97.0,Đúng hạn
+TS_HP0167,45,45,99.4,Đúng hạn
+TS_HP0168,30,29,97.8,Đúng hạn
+TS_HP0169,30,30,98.5,Đúng hạn
+TS_HP0170,45,43,96.2,Đúng hạn
+TS_HP0171,45,43,95.6,Đúng hạn
+TS_HP0172,60,57,94.4,Cần đẩy nhanh
+TS_HP0173,45,45,98.9,Đúng hạn
+TS_HP0174,45,44,98.4,Đúng hạn
+TS_HP0175,30,30,99.3,Đúng hạn
+TS_HP0176,45,45,99.2,Đúng hạn
+TS_HP0177,45,44,98.4,Đúng hạn
+TS_HP0178,60,59,98.9,Đúng hạn
+TS_HP0179,60,58,97.2,Đúng hạn
+TS_HP0180,30,28,94.1,Cần đẩy nhanh
+TS_HP0181,60,57,95.0,Đúng hạn
+TS_HP0182,60,59,98.4,Đúng hạn
+TS_HP0183,30,30,99.1,Đúng hạn
+TS_HP0184,60,60,99.6,Đúng hạn
+TS_HP0185,45,44,98.7,Đúng hạn
+TS_HP0186,45,44,97.7,Đúng hạn
+TS_HP0187,45,45,99.8,Đúng hạn
+TS_HP0188,30,29,97.0,Đúng hạn
+TS_HP0189,30,30,100.0,Đúng hạn
+TS_HP0190,60,60,99.4,Đúng hạn
+TS_HP0191,45,43,95.7,Đúng hạn
+TS_HP0192,45,44,98.6,Đúng hạn
+TS_HP0193,45,45,99.5,Đúng hạn
+TS_HP0194,45,45,99.4,Đúng hạn
+TS_HP0195,45,44,96.7,Đúng hạn
+TS_HP0196,60,58,96.7,Đúng hạn
+TS_HP0197,45,45,98.9,Đúng hạn
+TS_HP0198,45,45,99.5,Đúng hạn
+TS_HP0199,60,56,93.9,Cần đẩy nhanh
+TS_HP0200,45,45,99.2,Đúng hạn
+TS_HP0201,45,45,99.9,Đúng hạn
+TS_HP0202,30,28,94.3,Cần đẩy nhanh
+TS_HP0203,60,60,99.4,Đúng hạn
+TS_HP0204,30,30,99.6,Đúng hạn
+TS_HP0205,60,59,97.7,Đúng hạn
+TS_HP0206,45,45,98.9,Đúng hạn
+TS_HP0207,45,44,97.1,Đúng hạn
+TS_HP0208,45,45,99.0,Đúng hạn
+TS_HP0209,45,45,99.8,Đúng hạn
+TS_HP0210,60,60,99.9,Đúng hạn
+TS_HP0211,45,43,94.6,Cần đẩy nhanh
+TS_HP0212,45,42,93.0,Cần đẩy nhanh
+TS_HP0213,45,45,100.0,Đúng hạn
+TS_HP0214,60,59,98.4,Đúng hạn
+TS_HP0215,30,30,99.7,Đúng hạn
+TS_HP0216,30,29,98.1,Đúng hạn
+TS_HP0217,60,58,97.2,Đúng hạn
+TS_HP0218,60,60,99.4,Đúng hạn
+TS_HP0219,30,29,98.2,Đúng hạn
+TS_HP0220,30,30,99.4,Đúng hạn
+TS_HP0221,60,59,98.5,Đúng hạn
+TS_HP0222,45,45,99.4,Đúng hạn
+TS_HP0223,30,30,100.0,Đúng hạn
+TS_HP0224,60,60,99.3,Đúng hạn
+TS_HP0225,30,29,97.1,Đúng hạn
+TS_HP0226,45,44,98.8,Đúng hạn
+TS_HP0227,60,60,99.2,Đúng hạn
+TS_HP0228,45,43,95.7,Đúng hạn
+TS_HP0229,30,30,99.7,Đúng hạn
+TS_HP0230,45,45,99.0,Đúng hạn
+TS_HP0231,30,30,98.6,Đúng hạn
+TS_HP0232,45,44,98.4,Đúng hạn
+TS_HP0233,45,44,98.4,Đúng hạn
+TS_HP0234,45,45,99.0,Đúng hạn
+TS_HP0235,45,44,97.9,Đúng hạn
+TS_HP0236,30,29,97.5,Đúng hạn
+TS_HP0237,45,44,97.9,Đúng hạn
+TS_HP0238,45,44,98.7,Đúng hạn
+TS_HP0239,30,28,93.1,Cần đẩy nhanh
+TS_HP0240,60,59,98.2,Đúng hạn
+TS_HP0241,45,45,99.4,Đúng hạn
+TS_HP0242,30,29,97.8,Đúng hạn
+TS_HP0243,60,60,99.8,Đúng hạn
+TS_HP0244,30,29,97.3,Đúng hạn
+TS_HP0245,45,42,93.0,Cần đẩy nhanh
+TS_HP0246,45,44,97.8,Đúng hạn
+TS_HP0247,60,58,95.9,Đúng hạn
+TS_HP0248,45,43,96.5,Đúng hạn
+TS_HP0249,45,45,99.7,Đúng hạn
+TS_HP0250,60,56,93.7,Cần đẩy nhanh
+TS_HP0251,30,30,98.4,Đúng hạn
+TS_HP0252,60,59,97.8,Đúng hạn
+TS_HP0253,30,29,96.9,Đúng hạn
+TS_HP0254,45,42,92.9,Cần đẩy nhanh
+TS_HP0255,45,44,98.3,Đúng hạn
+TS_HP0256,60,57,94.2,Cần đẩy nhanh
+TS_HP0257,60,58,96.5,Đúng hạn
+TS_HP0258,45,44,98.8,Đúng hạn
+TS_HP0259,45,44,97.8,Đúng hạn
+TS_HP0260,60,60,100.0,Đúng hạn
+TS_HP0261,60,59,98.8,Đúng hạn
+TS_HP0262,45,44,98.7,Đúng hạn
+TS_HP0263,30,29,96.1,Đúng hạn
+TS_HP0264,60,60,99.5,Đúng hạn
+TS_HP0265,45,45,99.8,Đúng hạn
+TS_HP0266,45,43,96.4,Đúng hạn
+TS_HP0267,45,44,98.2,Đúng hạn
+TS_HP0268,45,45,99.6,Đúng hạn
+TS_HP0269,45,44,98.2,Đúng hạn
+TS_HP0270,60,58,97.4,Đúng hạn
+TS_HP0271,45,44,98.0,Đúng hạn
+TS_HP0272,60,58,97.4,Đúng hạn
+TS_HP0273,60,60,99.7,Đúng hạn
+TS_HP0274,30,30,99.7,Đúng hạn
+TS_HP0275,30,29,96.4,Đúng hạn
+TS_HP0276,45,45,99.1,Đúng hạn
+TS_HP0277,30,30,99.1,Đúng hạn
+TS_HP0278,45,44,97.0,Đúng hạn
+TS_HP0279,60,55,91.2,Cần đẩy nhanh
+TS_HP0280,45,43,96.2,Đúng hạn
+TS_HP0281,30,29,97.1,Đúng hạn
+TS_HP0282,60,60,99.8,Đúng hạn
+TS_HP0283,30,30,99.4,Đúng hạn
+TS_HP0284,45,44,96.9,Đúng hạn
+TS_HP0285,60,60,99.7,Đúng hạn
+TS_HP0286,45,42,92.9,Cần đẩy nhanh
+TS_HP0287,45,45,99.1,Đúng hạn
+TS_HP0288,60,59,98.2,Đúng hạn
+TS_HP0289,60,59,98.6,Đúng hạn
+TS_HP0290,45,44,98.8,Đúng hạn
+TS_HP0291,30,30,99.2,Đúng hạn
+TS_HP0292,30,30,100.0,Đúng hạn
+TS_HP0293,45,44,96.8,Đúng hạn
+TS_HP0294,45,44,97.5,Đúng hạn
+TS_HP0295,60,59,98.4,Đúng hạn
+TS_HP0296,60,59,98.9,Đúng hạn
+TS_HP0297,45,45,98.9,Đúng hạn
+TS_HP0298,60,57,94.8,Cần đẩy nhanh
+TS_HP0299,30,29,96.4,Đúng hạn
+TS_HP0300,45,44,98.5,Đúng hạn
+TS_HP0301,30,30,99.2,Đúng hạn
+TS_HP0302,60,59,99.0,Đúng hạn
+TS_HP0303,45,44,98.2,Đúng hạn
+TS_HP0304,45,45,99.4,Đúng hạn
+TS_HP0305,45,45,98.9,Đúng hạn
+TS_HP0306,60,57,94.7,Cần đẩy nhanh
+NNGU_HP0001,60,60,99.8,Đúng hạn
+NNGU_HP0002,45,43,95.4,Đúng hạn
+NNGU_HP0003,30,30,99.9,Đúng hạn
+NNGU_HP0004,60,60,99.7,Đúng hạn
+NNGU_HP0005,30,30,100.0,Đúng hạn
+NNGU_HP0006,60,59,97.7,Đúng hạn
+NNGU_HP0007,45,45,99.2,Đúng hạn
+NNGU_HP0008,60,58,97.3,Đúng hạn
+NNGU_HP0009,60,60,99.6,Đúng hạn
+NNGU_HP0010,45,45,100.0,Đúng hạn
+NNGU_HP0011,45,45,99.8,Đúng hạn
+NNGU_HP0012,45,44,98.3,Đúng hạn
+NNGU_HP0013,60,59,97.9,Đúng hạn
+NNGU_HP0014,60,59,98.0,Đúng hạn
+NNGU_HP0015,30,29,98.0,Đúng hạn
+NNGU_HP0016,45,44,97.4,Đúng hạn
+NNGU_HP0017,30,30,99.3,Đúng hạn
+NNGU_HP0018,60,59,98.6,Đúng hạn
+NNGU_HP0019,45,45,99.4,Đúng hạn
+NNGU_HP0020,60,60,99.2,Đúng hạn
+NNGU_HP0021,30,30,99.1,Đúng hạn
+NNGU_HP0022,30,30,99.9,Đúng hạn
+NNGU_HP0023,60,58,97.2,Đúng hạn
+NNGU_HP0024,60,60,99.3,Đúng hạn
+NNGU_HP0025,60,59,98.9,Đúng hạn
+NNGU_HP0026,45,44,98.0,Đúng hạn
+NNGU_HP0027,30,29,96.7,Đúng hạn
+NNGU_HP0028,30,30,98.6,Đúng hạn
+NNGU_HP0029,60,58,95.9,Đúng hạn
+NNGU_HP0030,45,43,95.6,Đúng hạn
+NNGU_HP0031,30,30,99.4,Đúng hạn
+NNGU_HP0032,30,30,99.7,Đúng hạn
+NNGU_HP0033,30,29,96.7,Đúng hạn
+NNGU_HP0034,45,43,96.1,Đúng hạn
+NNGU_HP0035,60,59,98.6,Đúng hạn
+NNGU_HP0036,30,30,98.5,Đúng hạn
+NNGU_HP0037,30,29,95.5,Đúng hạn
+NNGU_HP0038,60,57,95.5,Đúng hạn
+NNGU_HP0039,60,59,98.6,Đúng hạn
+NNGU_HP0040,60,59,97.9,Đúng hạn
+NNGU_HP0041,60,60,99.8,Đúng hạn
+NNGU_HP0042,45,45,99.3,Đúng hạn
+NNGU_HP0043,30,30,99.3,Đúng hạn
+NNGU_HP0044,45,44,98.7,Đúng hạn
+NNGU_HP0045,45,44,98.7,Đúng hạn
+NNGU_HP0046,45,45,99.7,Đúng hạn
+NNGU_HP0047,30,30,99.0,Đúng hạn
+NNGU_HP0048,45,45,100.0,Đúng hạn
+NNGU_HP0049,60,57,95.6,Đúng hạn
+NNGU_HP0050,60,59,97.6,Đúng hạn
+NNGU_HP0051,45,44,97.1,Đúng hạn
+NNGU_HP0052,30,28,94.3,Cần đẩy nhanh
+NNGU_HP0053,60,59,99.0,Đúng hạn
+NNGU_HP0054,30,29,95.5,Đúng hạn
+NNGU_HP0055,45,44,98.5,Đúng hạn
+NNGU_HP0056,60,60,99.2,Đúng hạn
+NNGU_HP0057,30,29,96.4,Đúng hạn
+NNGU_HP0058,45,43,95.5,Đúng hạn
+NNGU_HP0059,45,44,98.4,Đúng hạn
+NNGU_HP0060,30,30,99.4,Đúng hạn
+NNGU_HP0061,60,59,98.9,Đúng hạn
+NNGU_HP0062,30,30,99.7,Đúng hạn
+NNGU_HP0063,60,60,99.3,Đúng hạn
+NNGU_HP0064,45,43,95.1,Đúng hạn
+NNGU_HP0065,45,45,99.4,Đúng hạn
+NNGU_HP0066,30,30,99.0,Đúng hạn
+NNGU_HP0067,45,45,99.5,Đúng hạn
+NNGU_HP0068,30,29,97.7,Đúng hạn
+NNGU_HP0069,45,44,97.9,Đúng hạn
+NNGU_HP0070,30,30,99.2,Đúng hạn
+NNGU_HP0071,60,56,92.8,Cần đẩy nhanh
+NNGU_HP0072,30,29,97.1,Đúng hạn
+NNGU_HP0073,30,29,96.5,Đúng hạn
+NNGU_HP0074,45,45,99.6,Đúng hạn
+NNGU_HP0075,45,45,99.2,Đúng hạn
+NNGU_HP0076,30,30,98.4,Đúng hạn
+NNGU_HP0077,60,60,99.8,Đúng hạn
+NNGU_HP0078,30,29,96.1,Đúng hạn
+NNGU_HP0079,30,29,96.5,Đúng hạn
+NNGU_HP0080,60,58,96.3,Đúng hạn
+NNGU_HP0081,45,44,98.6,Đúng hạn
+NNGU_HP0082,45,44,98.2,Đúng hạn
+NNGU_HP0083,45,44,98.7,Đúng hạn
+NNGU_HP0084,45,43,96.1,Đúng hạn
+NNGU_HP0085,45,45,99.7,Đúng hạn
+NNGU_HP0086,60,56,93.1,Cần đẩy nhanh
+NNGU_HP0087,30,30,98.9,Đúng hạn
+NNGU_HP0088,60,57,95.2,Đúng hạn
+NNGU_HP0089,45,44,97.8,Đúng hạn
+NNGU_HP0090,45,44,98.4,Đúng hạn
+NNGU_HP0091,45,45,100.0,Đúng hạn
+NNGU_HP0092,30,30,99.2,Đúng hạn
+NNGU_HP0093,30,30,99.1,Đúng hạn
+NNGU_HP0094,30,29,95.4,Đúng hạn
+NNGU_HP0095,30,29,96.7,Đúng hạn
+NNGU_HP0096,45,45,99.4,Đúng hạn
+NNGU_HP0097,60,60,99.7,Đúng hạn
+NNGU_HP0098,45,43,95.9,Đúng hạn
+NNGU_HP0099,45,43,95.2,Đúng hạn
+NNGU_HP0100,30,30,98.5,Đúng hạn
+NNGU_HP0101,45,45,99.5,Đúng hạn
+NNGU_HP0102,45,45,99.8,Đúng hạn
+NNGU_HP0103,30,30,99.6,Đúng hạn
+NNGU_HP0104,60,59,99.0,Đúng hạn
+NNGU_HP0105,45,45,99.9,Đúng hạn
+NNGU_HP0106,30,30,98.5,Đúng hạn
+NNGU_HP0107,30,29,97.0,Đúng hạn
+NNGU_HP0108,30,30,99.3,Đúng hạn
+NNGU_HP0109,60,57,94.2,Cần đẩy nhanh
+NNGU_HP0110,45,44,98.2,Đúng hạn
+NNGU_HP0111,30,30,98.8,Đúng hạn
+NNGU_HP0112,45,45,99.9,Đúng hạn
+NNGU_HP0113,30,30,98.6,Đúng hạn
+NNGU_HP0114,45,44,98.8,Đúng hạn
+NNGU_HP0115,45,45,99.6,Đúng hạn
+NNGU_HP0116,30,30,98.6,Đúng hạn
+NNGU_HP0117,30,30,99.8,Đúng hạn
+NNGU_HP0118,30,28,94.3,Cần đẩy nhanh
+NNGU_HP0119,45,44,98.5,Đúng hạn
+NNGU_HP0120,30,30,99.8,Đúng hạn
+NNGU_HP0121,30,29,97.8,Đúng hạn
+NNGU_HP0122,30,30,99.2,Đúng hạn
+NNGU_HP0123,30,30,99.7,Đúng hạn
+NNGU_HP0124,60,58,96.8,Đúng hạn
+NNGU_HP0125,45,45,99.6,Đúng hạn
+NNGU_HP0126,45,45,99.5,Đúng hạn
+NNGU_HP0127,45,43,96.4,Đúng hạn
+NNGU_HP0128,30,30,99.7,Đúng hạn
+NNGU_HP0129,60,60,99.8,Đúng hạn
+NNGU_HP0130,45,44,97.5,Đúng hạn
+NNGU_HP0131,30,29,95.6,Đúng hạn
+NNGU_HP0132,60,60,99.9,Đúng hạn
+NNGU_HP0133,60,60,99.9,Đúng hạn
+NNGU_HP0134,60,58,97.1,Đúng hạn
+NNGU_HP0135,60,59,98.6,Đúng hạn
+NNGU_HP0136,30,29,96.7,Đúng hạn
+NNGU_HP0137,30,30,98.5,Đúng hạn
+NNGU_HP0138,45,45,99.8,Đúng hạn
+NNGU_HP0139,45,45,100.0,Đúng hạn
+NNGU_HP0140,60,60,99.6,Đúng hạn
+NNGU_HP0141,45,44,97.0,Đúng hạn
+NNGU_HP0142,60,60,99.9,Đúng hạn
+NNGU_HP0143,45,43,96.0,Đúng hạn
+NNGU_HP0144,45,45,100.0,Đúng hạn
+NNGU_HP0145,45,43,96.5,Đúng hạn
+NNGU_HP0146,30,30,99.4,Đúng hạn
+NNGU_HP0147,45,45,99.1,Đúng hạn
+NNGU_HP0148,30,30,99.7,Đúng hạn
+NNGU_HP0149,45,43,94.5,Cần đẩy nhanh
+NNGU_HP0150,45,43,95.2,Đúng hạn
+NNGU_HP0151,45,44,97.6,Đúng hạn
+NNGU_HP0152,60,58,96.9,Đúng hạn
+NNGU_HP0153,45,41,91.9,Cần đẩy nhanh
+NNGU_HP0154,45,45,99.6,Đúng hạn
+NNGU_HP0155,60,58,96.6,Đúng hạn
+NNGU_HP0156,30,30,98.4,Đúng hạn
+NNGU_HP0157,45,45,100.0,Đúng hạn
+NNGU_HP0158,30,30,99.1,Đúng hạn
+NNGU_HP0159,45,44,98.2,Đúng hạn
+NNGU_HP0160,60,59,98.4,Đúng hạn
+NNGU_HP0161,45,44,98.7,Đúng hạn
+NNGU_HP0162,30,30,99.2,Đúng hạn
+NNGU_HP0163,30,30,99.1,Đúng hạn
+NNGU_HP0164,60,58,96.6,Đúng hạn
+NNGU_HP0165,30,30,98.7,Đúng hạn
+NNGU_HP0166,45,44,97.7,Đúng hạn
+NNGU_HP0167,60,60,99.3,Đúng hạn
+NNGU_HP0168,45,43,95.7,Đúng hạn
+NNGU_HP0169,30,29,96.6,Đúng hạn
+NNGU_HP0170,45,44,98.0,Đúng hạn
+NNGU_HP0171,30,28,94.3,Cần đẩy nhanh
+NNGU_HP0172,60,59,99.0,Đúng hạn
+NNGU_HP0173,45,45,99.5,Đúng hạn
+NNGU_HP0174,45,41,92.0,Cần đẩy nhanh
+NNGU_HP0175,45,44,97.2,Đúng hạn
+NNGU_HP0176,30,30,98.9,Đúng hạn
+NNGU_HP0177,30,29,98.1,Đúng hạn
+NNGU_HP0178,45,45,99.9,Đúng hạn
+NNGU_HP0179,45,43,96.3,Đúng hạn
+NNGU_HP0180,60,57,95.1,Đúng hạn
+NNGU_HP0181,60,59,99.1,Đúng hạn
+NNGU_HP0182,45,45,99.2,Đúng hạn
+NNGU_HP0183,45,41,91.9,Cần đẩy nhanh
+NNGU_HP0184,45,43,95.0,Đúng hạn
+NNGU_HP0185,60,60,99.9,Đúng hạn
+NNGU_HP0186,60,60,100.0,Đúng hạn
+NNGU_HP0187,45,42,93.1,Cần đẩy nhanh
+NNGU_HP0188,45,45,99.7,Đúng hạn
+NNGU_HP0189,45,44,98.2,Đúng hạn
+NNGU_HP0190,60,58,96.3,Đúng hạn
+NNGU_HP0191,45,44,97.5,Đúng hạn
+NNGU_HP0192,60,58,97.3,Đúng hạn
+NNGU_HP0193,30,30,98.7,Đúng hạn
+NNGU_HP0194,30,30,98.9,Đúng hạn
+NNGU_HP0195,45,45,99.7,Đúng hạn
+NNGU_HP0196,45,44,97.8,Đúng hạn
+NNGU_HP0197,45,44,96.9,Đúng hạn
+NNGU_HP0198,45,44,98.1,Đúng hạn
+NNGU_HP0199,60,56,93.4,Cần đẩy nhanh
+NNGU_HP0200,30,29,97.8,Đúng hạn
+NNGU_HP0201,60,59,97.6,Đúng hạn
+NNGU_HP0202,60,59,98.1,Đúng hạn
+NNGU_HP0203,60,59,98.1,Đúng hạn
+NNGU_HP0204,30,30,99.7,Đúng hạn
+NNGU_HP0205,60,57,95.0,Đúng hạn
+NNGU_HP0206,45,45,99.9,Đúng hạn
+NNGU_HP0207,45,45,99.8,Đúng hạn
+NNGU_HP0208,60,58,96.5,Đúng hạn
+NNGU_HP0209,60,59,98.7,Đúng hạn
+NNGU_HP0210,30,30,98.4,Đúng hạn
+NNGU_HP0211,45,44,98.0,Đúng hạn
+NNGU_HP0212,30,30,99.0,Đúng hạn
+NNGU_HP0213,45,44,98.8,Đúng hạn
+NNGU_HP0214,60,59,97.8,Đúng hạn
+NNGU_HP0215,30,29,95.8,Đúng hạn
+NNGU_HP0216,60,59,98.4,Đúng hạn
+NNGU_HP0217,60,56,93.3,Cần đẩy nhanh
+NNGU_HP0218,45,45,100.0,Đúng hạn
+NNGU_HP0219,30,30,98.9,Đúng hạn
+NNGU_HP0220,30,30,99.3,Đúng hạn
+NNGU_HP0221,45,44,97.1,Đúng hạn
+NNGU_HP0222,45,45,99.8,Đúng hạn
+NNGU_HP0223,45,42,94.0,Cần đẩy nhanh
+NNGU_HP0224,45,45,99.0,Đúng hạn
+NNGU_HP0225,45,45,100.0,Đúng hạn
+NNGU_HP0226,30,30,99.5,Đúng hạn
+NNGU_HP0227,60,59,97.9,Đúng hạn
+NNGU_HP0228,45,43,95.8,Đúng hạn
+NNGU_HP0229,60,60,99.5,Đúng hạn
+NNGU_HP0230,45,44,98.6,Đúng hạn
+NNGU_HP0231,30,30,99.8,Đúng hạn
+NNGU_HP0232,30,30,99.4,Đúng hạn
+NNGU_HP0233,45,44,98.0,Đúng hạn
+NNGU_HP0234,45,45,98.9,Đúng hạn
+NNGU_HP0235,30,30,98.5,Đúng hạn
+NNGU_HP0236,30,29,97.4,Đúng hạn
+NNGU_HP0237,45,43,96.3,Đúng hạn
+NNGU_HP0238,45,44,97.3,Đúng hạn
+NNGU_HP0239,60,58,97.2,Đúng hạn
+NNGU_HP0240,60,59,99.0,Đúng hạn
+NNGU_HP0241,60,57,95.4,Đúng hạn
+NNGU_HP0242,30,30,100.0,Đúng hạn
+NNGU_HP0243,30,29,97.8,Đúng hạn
+NNGU_HP0244,45,45,99.5,Đúng hạn
+NNGU_HP0245,60,59,98.6,Đúng hạn
+NNGU_HP0246,60,59,98.3,Đúng hạn
+NNGU_HP0247,45,44,98.1,Đúng hạn
+NNGU_HP0248,45,45,99.7,Đúng hạn
+NNGU_HP0249,30,29,96.5,Đúng hạn
+NNGU_HP0250,45,44,97.1,Đúng hạn
+NNGU_HP0251,45,43,94.5,Cần đẩy nhanh
+NNGU_HP0252,45,44,97.2,Đúng hạn
+NNGU_HP0253,30,30,99.7,Đúng hạn
+NNGU_HP0254,45,43,96.6,Đúng hạn
+NNGU_HP0255,45,44,98.2,Đúng hạn
+NNGU_HP0256,30,30,98.4,Đúng hạn
+NNGU_HP0257,60,58,96.2,Đúng hạn
+NNGU_HP0258,60,60,99.6,Đúng hạn
+NNGU_HP0259,45,45,99.5,Đúng hạn
+NNGU_HP0260,45,45,99.6,Đúng hạn
+NNGU_HP0261,45,42,93.7,Cần đẩy nhanh
+NNGU_HP0262,30,29,97.1,Đúng hạn
+NNGU_HP0263,45,45,98.9,Đúng hạn
+NNGU_HP0264,30,30,100.0,Đúng hạn
+NNGU_HP0265,45,44,97.2,Đúng hạn
+NNGU_HP0266,45,45,99.2,Đúng hạn
+NNGU_HP0267,30,30,99.6,Đúng hạn
+NNGU_HP0268,45,44,98.6,Đúng hạn
+NNGU_HP0269,60,58,96.9,Đúng hạn
+NNGU_HP0270,45,45,100.0,Đúng hạn
+NNGU_HP0271,60,60,99.5,Đúng hạn
+NNGU_HP0272,45,45,99.3,Đúng hạn
+NNGU_HP0273,60,57,94.9,Cần đẩy nhanh
+NNGU_HP0274,30,28,94.4,Cần đẩy nhanh
+NNGU_HP0275,45,44,98.2,Đúng hạn
+NNGU_HP0276,30,30,99.6,Đúng hạn
+NNGU_HP0277,60,59,99.1,Đúng hạn
+NNGU_HP0278,45,45,99.9,Đúng hạn
+NNGU_HP0279,45,45,99.8,Đúng hạn
+NNGU_HP0280,45,45,99.6,Đúng hạn
+NNGU_HP0281,45,44,98.2,Đúng hạn
+NNGU_HP0282,60,60,99.8,Đúng hạn
+NNGU_HP0283,45,45,100.0,Đúng hạn
+NNGU_HP0284,45,45,99.6,Đúng hạn
+NNGU_HP0285,60,57,94.5,Cần đẩy nhanh
+NNGU_HP0286,60,60,99.4,Đúng hạn
+NNGU_HP0287,45,44,98.0,Đúng hạn
+NNGU_HP0288,30,29,97.5,Đúng hạn
+NNGU_HP0289,45,44,98.1,Đúng hạn
+NNGU_HP0290,30,30,99.3,Đúng hạn
+NNGU_HP0291,45,45,99.3,Đúng hạn
+NNGU_HP0292,45,44,98.6,Đúng hạn
+NNGU_HP0293,45,44,98.3,Đúng hạn
+NNGU_HP0294,45,44,97.5,Đúng hạn
+NNGU_HP0295,60,59,98.4,Đúng hạn
+NNGU_HP0296,60,60,99.6,Đúng hạn
+NNGU_HP0297,45,42,94.1,Cần đẩy nhanh
+NNGU_HP0298,45,45,99.3,Đúng hạn
+NNGU_HP0299,60,58,96.1,Đúng hạn
+NNGU_HP0300,30,30,98.5,Đúng hạn
+NNGU_HP0301,60,58,97.0,Đúng hạn
+NNGU_HP0302,60,58,96.3,Đúng hạn
+NNGU_HP0303,30,29,98.0,Đúng hạn
+NNGU_HP0304,60,58,97.0,Đúng hạn
+NNGU_HP0305,45,44,98.5,Đúng hạn
+NNGU_HP0306,45,45,99.5,Đúng hạn
+NNGU_HP0307,45,43,94.8,Cần đẩy nhanh
+NNGU_HP0308,45,44,98.0,Đúng hạn
+NNGU_HP0309,60,60,99.9,Đúng hạn
+NNGU_HP0310,60,60,99.2,Đúng hạn
+NNGU_HP0311,45,44,97.3,Đúng hạn
+NNGU_HP0312,60,60,99.7,Đúng hạn
+NNGU_HP0313,60,59,98.6,Đúng hạn
+NNGU_HP0314,45,44,98.2,Đúng hạn
+NNGU_HP0315,30,30,99.1,Đúng hạn
+NNGU_HP0316,45,45,99.7,Đúng hạn
+NNGU_HP0317,30,30,99.8,Đúng hạn
+NNGU_HP0318,45,45,98.9,Đúng hạn
+NNGU_HP0319,60,60,99.7,Đúng hạn
+NNGU_HP0320,45,43,96.4,Đúng hạn
+NNGU_HP0321,60,60,99.3,Đúng hạn
+NNGU_HP0322,45,44,97.7,Đúng hạn
+NNGU_HP0323,60,60,100.0,Đúng hạn
+NNGU_HP0324,30,30,99.3,Đúng hạn
+NNGU_HP0325,45,44,98.6,Đúng hạn
+NNGU_HP0326,45,45,99.7,Đúng hạn
+NNGU_HP0327,45,45,99.8,Đúng hạn
+NNGU_HP0328,45,44,98.7,Đúng hạn
+NNGU_HP0329,60,59,98.4,Đúng hạn
+NNGU_HP0330,60,60,99.4,Đúng hạn
+NNGU_HP0331,30,30,98.6,Đúng hạn
+NNGU_HP0332,30,30,99.3,Đúng hạn
+NNGU_HP0333,45,45,99.1,Đúng hạn
+NNGU_HP0334,45,44,97.9,Đúng hạn
+NNGU_HP0335,60,58,96.1,Đúng hạn
+NNGU_HP0336,60,60,99.5,Đúng hạn
+NNGU_HP0337,30,30,99.3,Đúng hạn
+NNGU_HP0338,60,60,99.6,Đúng hạn
+NNGU_HP0339,30,30,99.0,Đúng hạn
+NNGU_HP0340,45,45,99.8,Đúng hạn
+NNGU_HP0341,30,30,99.9,Đúng hạn
+NNGU_HP0342,60,59,98.4,Đúng hạn
+NNGU_HP0343,30,29,96.8,Đúng hạn
+NNGU_HP0344,60,58,97.0,Đúng hạn
+NNGU_HP0345,30,30,100.0,Đúng hạn
+NNGU_HP0346,45,42,93.2,Cần đẩy nhanh
+NNGU_HP0347,30,29,97.4,Đúng hạn
+NNGU_HP0348,60,59,98.4,Đúng hạn
+KHXHNV_HP0001,60,59,98.8,Đúng hạn
+KHXHNV_HP0002,45,45,99.5,Đúng hạn
+KHXHNV_HP0003,45,44,97.0,Đúng hạn
+KHXHNV_HP0004,45,44,98.5,Đúng hạn
+KHXHNV_HP0005,30,30,98.4,Đúng hạn
+KHXHNV_HP0006,45,44,97.6,Đúng hạn
+KHXHNV_HP0007,45,45,99.6,Đúng hạn
+KHXHNV_HP0008,45,45,99.2,Đúng hạn
+KHXHNV_HP0009,60,58,97.1,Đúng hạn
+KHXHNV_HP0010,30,30,99.9,Đúng hạn
+KHXHNV_HP0011,30,30,99.9,Đúng hạn
+KHXHNV_HP0012,45,44,98.2,Đúng hạn
+KHXHNV_HP0013,45,45,99.6,Đúng hạn
+KHXHNV_HP0014,45,44,98.7,Đúng hạn
+KHXHNV_HP0015,60,60,99.2,Đúng hạn
+KHXHNV_HP0016,45,41,91.1,Cần đẩy nhanh
+KHXHNV_HP0017,45,44,98.0,Đúng hạn
+KHXHNV_HP0018,60,59,98.8,Đúng hạn
+KHXHNV_HP0019,30,29,96.4,Đúng hạn
+KHXHNV_HP0020,30,30,99.8,Đúng hạn
+KHXHNV_HP0021,45,45,100.0,Đúng hạn
+KHXHNV_HP0022,45,45,99.3,Đúng hạn
+KHXHNV_HP0023,30,29,95.2,Đúng hạn
+KHXHNV_HP0024,30,30,99.6,Đúng hạn
+KHXHNV_HP0025,45,45,99.0,Đúng hạn
+KHXHNV_HP0026,45,44,97.5,Đúng hạn
+KHXHNV_HP0027,45,44,98.1,Đúng hạn
+KHXHNV_HP0028,45,44,97.9,Đúng hạn
+KHXHNV_HP0029,45,45,99.2,Đúng hạn
+KHXHNV_HP0030,45,44,98.4,Đúng hạn
+KHXHNV_HP0031,30,29,98.3,Đúng hạn
+KHXHNV_HP0032,45,45,99.2,Đúng hạn
+KHXHNV_HP0033,30,28,94.8,Cần đẩy nhanh
+KHXHNV_HP0034,30,30,99.6,Đúng hạn
+KHXHNV_HP0035,30,30,100.0,Đúng hạn
+KHXHNV_HP0036,60,60,99.7,Đúng hạn
+KHXHNV_HP0037,60,60,99.5,Đúng hạn
+KHXHNV_HP0038,45,45,99.7,Đúng hạn
+KHXHNV_HP0039,30,29,98.3,Đúng hạn
+KHXHNV_HP0040,45,44,98.4,Đúng hạn
+KHXHNV_HP0041,45,45,100.0,Đúng hạn
+KHXHNV_HP0042,45,45,99.1,Đúng hạn
+KHXHNV_HP0043,45,44,98.1,Đúng hạn
+KHXHNV_HP0044,30,29,96.6,Đúng hạn
+KHXHNV_HP0045,60,60,99.3,Đúng hạn
+KHXHNV_HP0046,45,45,99.8,Đúng hạn
+KHXHNV_HP0047,60,60,99.4,Đúng hạn
+KHXHNV_HP0048,30,30,98.4,Đúng hạn
+KHXHNV_HP0049,30,29,96.7,Đúng hạn
+KHXHNV_HP0050,45,44,97.6,Đúng hạn
+KHXHNV_HP0051,30,30,99.8,Đúng hạn
+KHXHNV_HP0052,60,60,99.3,Đúng hạn
+KHXHNV_HP0053,60,60,99.2,Đúng hạn
+KHXHNV_HP0054,30,30,99.3,Đúng hạn
+KHXHNV_HP0055,45,44,96.9,Đúng hạn
+KHXHNV_HP0056,60,59,97.7,Đúng hạn
+KHXHNV_HP0057,60,57,95.3,Đúng hạn
+KHXHNV_HP0058,45,45,99.8,Đúng hạn
+KHXHNV_HP0059,45,43,96.3,Đúng hạn
+KHXHNV_HP0060,45,43,95.5,Đúng hạn
+KHXHNV_HP0061,30,29,98.0,Đúng hạn
+KHXHNV_HP0062,45,44,96.8,Đúng hạn
+KHXHNV_HP0063,45,43,96.3,Đúng hạn
+KHXHNV_HP0064,60,55,91.4,Cần đẩy nhanh
+KHXHNV_HP0065,45,44,97.6,Đúng hạn
+KHXHNV_HP0066,45,45,99.5,Đúng hạn
+KHXHNV_HP0067,45,44,97.6,Đúng hạn
+KHXHNV_HP0068,30,30,99.0,Đúng hạn
+KHXHNV_HP0069,30,30,98.9,Đúng hạn
+KHXHNV_HP0070,45,44,98.2,Đúng hạn
+KHXHNV_HP0071,45,45,99.1,Đúng hạn
+KHXHNV_HP0072,30,29,96.5,Đúng hạn
+KHXHNV_HP0073,45,44,97.9,Đúng hạn
+KHXHNV_HP0074,45,45,99.2,Đúng hạn
+KHXHNV_HP0075,30,30,98.5,Đúng hạn
+KHXHNV_HP0076,45,45,99.7,Đúng hạn
+KHXHNV_HP0077,30,30,99.9,Đúng hạn
+KHXHNV_HP0078,60,59,97.7,Đúng hạn
+KHXHNV_HP0079,60,59,98.5,Đúng hạn
+KHXHNV_HP0080,30,30,99.6,Đúng hạn
+KHXHNV_HP0081,45,45,99.7,Đúng hạn
+KHXHNV_HP0082,45,44,98.0,Đúng hạn
+KHXHNV_HP0083,60,59,97.7,Đúng hạn
+KHXHNV_HP0084,45,45,99.8,Đúng hạn
+KHXHNV_HP0085,30,29,98.3,Đúng hạn
+KHXHNV_HP0086,60,58,97.0,Đúng hạn
+KHXHNV_HP0087,45,44,97.8,Đúng hạn
+KHXHNV_HP0088,45,44,96.9,Đúng hạn
+KHXHNV_HP0089,45,44,97.9,Đúng hạn
+KHXHNV_HP0090,60,58,96.4,Đúng hạn
+KHXHNV_HP0091,30,30,99.0,Đúng hạn
+KHXHNV_HP0092,30,30,99.6,Đúng hạn
+KHXHNV_HP0093,30,30,98.6,Đúng hạn
+KHXHNV_HP0094,30,30,99.8,Đúng hạn
+KHXHNV_HP0095,45,45,99.9,Đúng hạn
+KHXHNV_HP0096,60,60,100.0,Đúng hạn
+KHXHNV_HP0097,45,45,99.5,Đúng hạn
+KHXHNV_HP0098,45,45,99.5,Đúng hạn
+KHXHNV_HP0099,45,45,99.5,Đúng hạn
+KHXHNV_HP0100,45,45,99.5,Đúng hạn
+KHXHNV_HP0101,60,60,99.5,Đúng hạn
+KHXHNV_HP0102,45,45,100.0,Đúng hạn
+KHXHNV_HP0103,45,44,97.3,Đúng hạn
+KHXHNV_HP0104,45,43,95.3,Đúng hạn
+KHXHNV_HP0105,45,44,97.5,Đúng hạn
+KHXHNV_HP0106,30,30,98.6,Đúng hạn
+KHXHNV_HP0107,60,60,99.5,Đúng hạn
+KHXHNV_HP0108,45,44,97.2,Đúng hạn
+KHXHNV_HP0109,60,60,99.9,Đúng hạn
+KHXHNV_HP0110,45,45,98.9,Đúng hạn
+KHXHNV_HP0111,60,60,99.7,Đúng hạn
+KHXHNV_HP0112,30,29,97.1,Đúng hạn
+KHXHNV_HP0113,45,45,99.6,Đúng hạn
+KHXHNV_HP0114,30,29,96.9,Đúng hạn
+KHXHNV_HP0115,45,44,98.6,Đúng hạn
+KHXHNV_HP0116,45,44,98.5,Đúng hạn
+KHXHNV_HP0117,45,44,98.8,Đúng hạn
+KHXHNV_HP0118,45,45,99.0,Đúng hạn
+KHXHNV_HP0119,60,59,98.5,Đúng hạn
+KHXHNV_HP0120,45,45,99.9,Đúng hạn
+KHXHNV_HP0121,30,30,99.9,Đúng hạn
+KHXHNV_HP0122,60,60,100.0,Đúng hạn
+KHXHNV_HP0123,45,44,98.5,Đúng hạn
+KHXHNV_HP0124,30,30,98.7,Đúng hạn
+KHXHNV_HP0125,60,60,99.6,Đúng hạn
+KHXHNV_HP0126,30,30,98.8,Đúng hạn
+KHXHNV_HP0127,45,45,100.0,Đúng hạn
+KHXHNV_HP0128,60,58,96.5,Đúng hạn
+KHXHNV_HP0129,45,45,99.5,Đúng hạn
+KHXHNV_HP0130,30,30,99.1,Đúng hạn
+KHXHNV_HP0131,45,44,97.9,Đúng hạn
+KHXHNV_HP0132,30,30,99.5,Đúng hạn
+KHXHNV_HP0133,30,30,98.9,Đúng hạn
+KHXHNV_HP0134,60,56,93.7,Cần đẩy nhanh
+KHXHNV_HP0135,45,44,98.5,Đúng hạn
+KHXHNV_HP0136,30,29,97.0,Đúng hạn
+KHXHNV_HP0137,45,45,99.6,Đúng hạn
+KHXHNV_HP0138,30,30,99.7,Đúng hạn
+KHXHNV_HP0139,30,29,96.7,Đúng hạn
+KHXHNV_HP0140,45,42,94.2,Cần đẩy nhanh
+KHXHNV_HP0141,45,43,94.9,Cần đẩy nhanh
+KHXHNV_HP0142,45,45,98.9,Đúng hạn
+KHXHNV_HP0143,30,29,95.7,Đúng hạn
+KHXHNV_HP0144,30,30,99.0,Đúng hạn
+KHXHNV_HP0145,45,45,99.8,Đúng hạn
+KHXHNV_HP0146,30,30,99.1,Đúng hạn
+KHXHNV_HP0147,30,29,96.6,Đúng hạn
+KHXHNV_HP0148,60,58,96.7,Đúng hạn
+KHXHNV_HP0149,60,58,97.5,Đúng hạn
+KHXHNV_HP0150,45,45,99.2,Đúng hạn
+KHXHNV_HP0151,30,29,97.3,Đúng hạn
+KHXHNV_HP0152,30,30,98.5,Đúng hạn
+KHXHNV_HP0153,30,29,96.9,Đúng hạn
+KHXHNV_HP0154,45,45,99.4,Đúng hạn
+KHXHNV_HP0155,60,58,96.4,Đúng hạn
+KHXHNV_HP0156,45,44,98.0,Đúng hạn
+KHXHNV_HP0157,45,45,99.5,Đúng hạn
+KHXHNV_HP0158,45,45,99.6,Đúng hạn
+KHXHNV_HP0159,45,42,93.0,Cần đẩy nhanh
+KHXHNV_HP0160,30,30,99.8,Đúng hạn
+KHXHNV_HP0161,30,29,98.2,Đúng hạn
+KHXHNV_HP0162,60,60,99.6,Đúng hạn
+KHXHNV_HP0163,45,44,97.2,Đúng hạn
+KHXHNV_HP0164,45,45,100.0,Đúng hạn
+KHXHNV_HP0165,60,60,99.3,Đúng hạn
+KHXHNV_HP0166,60,59,99.0,Đúng hạn
+KHXHNV_HP0167,45,45,99.3,Đúng hạn
+KHXHNV_HP0168,45,44,98.8,Đúng hạn
+KHXHNV_HP0169,60,58,96.9,Đúng hạn
+KHXHNV_HP0170,60,60,100.0,Đúng hạn
+KHXHNV_HP0171,30,28,94.8,Cần đẩy nhanh
+KHXHNV_HP0172,30,30,98.4,Đúng hạn
+KHXHNV_HP0173,45,45,99.7,Đúng hạn
+KHXHNV_HP0174,45,45,98.9,Đúng hạn
+KHXHNV_HP0175,45,44,97.9,Đúng hạn
+KHXHNV_HP0176,45,45,99.4,Đúng hạn
+KHXHNV_HP0177,45,45,99.8,Đúng hạn
+KHXHNV_HP0178,45,45,99.2,Đúng hạn
+KHXHNV_HP0179,30,30,98.4,Đúng hạn
+KHXHNV_HP0180,30,30,99.6,Đúng hạn
+KHXHNV_HP0181,30,30,99.8,Đúng hạn
+KHXHNV_HP0182,45,45,99.1,Đúng hạn
+KHXHNV_HP0183,30,30,99.8,Đúng hạn
+KHXHNV_HP0184,30,30,99.8,Đúng hạn
+KHXHNV_HP0185,45,41,91.6,Cần đẩy nhanh
+KHXHNV_HP0186,60,58,96.8,Đúng hạn
+KHXHNV_HP0187,60,56,93.0,Cần đẩy nhanh
+KHXHNV_HP0188,45,45,99.3,Đúng hạn
+KHXHNV_HP0189,60,59,98.5,Đúng hạn
+KHXHNV_HP0190,60,57,95.5,Đúng hạn
+KHXHNV_HP0191,60,59,99.1,Đúng hạn
+KHXHNV_HP0192,30,28,94.3,Cần đẩy nhanh
+KHXHNV_HP0193,45,45,100.0,Đúng hạn
+KHXHNV_HP0194,60,59,99.0,Đúng hạn
+KHXHNV_HP0195,60,58,96.8,Đúng hạn
+KHXHNV_HP0196,60,60,99.4,Đúng hạn
+KHXHNV_HP0197,45,45,99.0,Đúng hạn
+KHXHNV_HP0198,45,45,99.9,Đúng hạn
+KHXHNV_HP0199,45,44,98.1,Đúng hạn
+KHXHNV_HP0200,60,58,96.9,Đúng hạn
+KHXHNV_HP0201,45,45,99.0,Đúng hạn
+KHXHNV_HP0202,60,59,98.8,Đúng hạn
+KHXHNV_HP0203,45,44,98.8,Đúng hạn
+KHXHNV_HP0204,60,59,98.0,Đúng hạn
+KHXHNV_HP0205,30,30,99.1,Đúng hạn
+KHXHNV_HP0206,45,45,99.7,Đúng hạn
+KHXHNV_HP0207,45,45,99.7,Đúng hạn
+KHXHNV_HP0208,45,44,98.2,Đúng hạn
+KHXHNV_HP0209,60,59,98.6,Đúng hạn
+KHXHNV_HP0210,45,45,99.9,Đúng hạn
+KHXHNV_HP0211,45,45,100.0,Đúng hạn
+KHXHNV_HP0212,30,29,98.0,Đúng hạn
+KHXHNV_HP0213,60,60,100.0,Đúng hạn
+KHXHNV_HP0214,60,60,99.7,Đúng hạn
+KHXHNV_HP0215,60,59,98.6,Đúng hạn
+KHXHNV_HP0216,45,45,98.9,Đúng hạn
+KHXHNV_HP0217,30,29,97.0,Đúng hạn
+KHXHNV_HP0218,60,59,98.4,Đúng hạn
+KHXHNV_HP0219,45,44,98.1,Đúng hạn
+KHXHNV_HP0220,45,45,99.1,Đúng hạn
+KHXHNV_HP0221,45,45,99.1,Đúng hạn
+KHXHNV_HP0222,30,30,98.5,Đúng hạn
+KHXHNV_HP0223,45,45,99.3,Đúng hạn
+KHXHNV_HP0224,60,60,100.0,Đúng hạn
+KHXHNV_HP0225,30,30,99.4,Đúng hạn
+KHXHNV_HP0226,45,45,99.8,Đúng hạn
+KHXHNV_HP0227,45,45,99.8,Đúng hạn
+KHXHNV_HP0228,45,44,98.8,Đúng hạn
+KHXHNV_HP0229,30,30,99.2,Đúng hạn
+KHXHNV_HP0230,60,59,98.4,Đúng hạn
+KHXHNV_HP0231,30,29,98.0,Đúng hạn
+KHXHNV_HP0232,60,60,99.9,Đúng hạn
+KHXHNV_HP0233,45,45,99.9,Đúng hạn
+KHXHNV_HP0234,45,44,97.2,Đúng hạn
+KHXHNV_HP0235,60,60,99.7,Đúng hạn
+KHXHNV_HP0236,45,45,100.0,Đúng hạn
+KHXHNV_HP0237,45,45,99.3,Đúng hạn
+KHXHNV_HP0238,30,29,97.9,Đúng hạn
+KHXHNV_HP0239,60,59,98.1,Đúng hạn
+KHXHNV_HP0240,30,29,98.2,Đúng hạn
+KHXHNV_HP0241,60,59,99.1,Đúng hạn
+KHXHNV_HP0242,45,45,99.4,Đúng hạn
+KHXHNV_HP0243,60,57,95.1,Đúng hạn
+KHXHNV_HP0244,60,60,99.5,Đúng hạn
+KHXHNV_HP0245,60,58,97.0,Đúng hạn
+KHXHNV_HP0246,60,57,94.7,Cần đẩy nhanh
+KHXHNV_HP0247,60,58,97.0,Đúng hạn
+KHXHNV_HP0248,45,45,99.2,Đúng hạn
+KHXHNV_HP0249,45,44,98.8,Đúng hạn
+KHXHNV_HP0250,45,45,99.6,Đúng hạn
+KHXHNV_HP0251,45,45,99.5,Đúng hạn
+KHXHNV_HP0252,45,45,99.7,Đúng hạn
+KHXHNV_HP0253,30,30,100.0,Đúng hạn
+KHXHNV_HP0254,45,45,100.0,Đúng hạn
+KHXHNV_HP0255,45,43,96.1,Đúng hạn
+KHXHNV_HP0256,60,59,98.9,Đúng hạn
+KHXHNV_HP0257,45,44,98.0,Đúng hạn
+KHXHNV_HP0258,30,30,99.4,Đúng hạn
+KHXHNV_HP0259,45,44,98.6,Đúng hạn
+KHXHNV_HP0260,30,29,96.3,Đúng hạn
+KHXHNV_HP0261,60,59,99.0,Đúng hạn
+KHXHNV_HP0262,45,45,99.4,Đúng hạn
+KHXHNV_HP0263,45,43,96.0,Đúng hạn
+KHXHNV_HP0264,45,45,99.1,Đúng hạn
+KHXHNV_HP0265,45,44,98.5,Đúng hạn
+KHXHNV_HP0266,45,44,98.0,Đúng hạn
+KHXHNV_HP0267,30,30,98.8,Đúng hạn
+KHXHNV_HP0268,30,30,98.7,Đúng hạn
+KHXHNV_HP0269,30,29,98.3,Đúng hạn
+KHXHNV_HP0270,45,45,99.3,Đúng hạn
+KHXHNV_HP0271,30,30,99.9,Đúng hạn
+KHXHNV_HP0272,60,59,98.8,Đúng hạn
+KHXHNV_HP0273,60,58,96.8,Đúng hạn
+KHXHNV_HP0274,45,45,99.1,Đúng hạn
+CNSHTP_HP0001,30,29,97.7,Đúng hạn
+CNSHTP_HP0002,45,44,97.9,Đúng hạn
+CNSHTP_HP0003,60,59,97.8,Đúng hạn
+CNSHTP_HP0004,45,45,99.7,Đúng hạn
+CNSHTP_HP0005,45,45,99.7,Đúng hạn
+CNSHTP_HP0006,60,60,99.5,Đúng hạn
+CNSHTP_HP0007,45,44,98.6,Đúng hạn
+CNSHTP_HP0008,60,59,99.0,Đúng hạn
+CNSHTP_HP0009,45,44,98.7,Đúng hạn
+CNSHTP_HP0010,45,45,99.8,Đúng hạn
+CNSHTP_HP0011,30,30,98.6,Đúng hạn
+CNSHTP_HP0012,45,45,99.2,Đúng hạn
+CNSHTP_HP0013,45,45,99.9,Đúng hạn
+CNSHTP_HP0014,60,59,97.8,Đúng hạn
+CNSHTP_HP0015,45,45,99.8,Đúng hạn
+CNSHTP_HP0016,45,45,99.0,Đúng hạn
+CNSHTP_HP0017,45,45,99.6,Đúng hạn
+CNSHTP_HP0018,60,60,100.0,Đúng hạn
+CNSHTP_HP0019,60,58,96.4,Đúng hạn
+CNSHTP_HP0020,45,45,99.9,Đúng hạn
+CNSHTP_HP0021,45,45,99.7,Đúng hạn
+CNSHTP_HP0022,30,29,95.5,Đúng hạn
+CNSHTP_HP0023,45,45,99.8,Đúng hạn
+CNSHTP_HP0024,45,45,98.9,Đúng hạn
+CNSHTP_HP0025,45,45,99.6,Đúng hạn
+CNSHTP_HP0026,45,45,99.4,Đúng hạn
+CNSHTP_HP0027,45,45,98.9,Đúng hạn
+CNSHTP_HP0028,30,30,99.7,Đúng hạn
+CNSHTP_HP0029,45,44,98.8,Đúng hạn
+CNSHTP_HP0030,30,30,99.0,Đúng hạn
+CNSHTP_HP0031,30,30,100.0,Đúng hạn
+CNSHTP_HP0032,45,43,95.5,Đúng hạn
+CNSHTP_HP0033,45,45,99.7,Đúng hạn
+CNSHTP_HP0034,60,59,98.7,Đúng hạn
+CNSHTP_HP0035,30,29,97.8,Đúng hạn
+CNSHTP_HP0036,45,44,98.7,Đúng hạn
+CNSHTP_HP0037,60,59,98.2,Đúng hạn
+CNSHTP_HP0038,45,45,99.9,Đúng hạn
+CNSHTP_HP0039,30,30,99.7,Đúng hạn
+CNSHTP_HP0040,30,29,98.3,Đúng hạn
+CNSHTP_HP0041,45,45,99.1,Đúng hạn
+CNSHTP_HP0042,45,45,99.9,Đúng hạn
+CNSHTP_HP0043,30,30,98.4,Đúng hạn
+CNSHTP_HP0044,30,30,99.5,Đúng hạn
+CNSHTP_HP0045,45,45,99.5,Đúng hạn
+CNSHTP_HP0046,45,45,99.8,Đúng hạn
+CNSHTP_HP0047,30,30,98.6,Đúng hạn
+CNSHTP_HP0048,60,59,98.8,Đúng hạn
+CNSHTP_HP0049,45,44,98.6,Đúng hạn
+CNSHTP_HP0050,30,30,99.2,Đúng hạn
+CNSHTP_HP0051,45,43,96.5,Đúng hạn
+CNSHTP_HP0052,60,57,95.8,Đúng hạn
+CNSHTP_HP0053,45,45,99.8,Đúng hạn
+CNSHTP_HP0054,45,45,100.0,Đúng hạn
+CNSHTP_HP0055,45,45,99.5,Đúng hạn
+CNSHTP_HP0056,30,29,95.7,Đúng hạn
+CNSHTP_HP0057,60,59,99.1,Đúng hạn
+CNSHTP_HP0058,30,30,99.8,Đúng hạn
+CNSHTP_HP0059,30,30,99.8,Đúng hạn
+CNSHTP_HP0060,30,29,97.9,Đúng hạn
+CNSHTP_HP0061,30,30,99.9,Đúng hạn
+CNSHTP_HP0062,60,59,98.7,Đúng hạn
+CNSHTP_HP0063,45,45,99.6,Đúng hạn
+CNSHTP_HP0064,45,45,99.8,Đúng hạn
+CNSHTP_HP0065,30,30,99.6,Đúng hạn
+CNSHTP_HP0066,30,30,99.8,Đúng hạn
+CNSHTP_HP0067,45,43,95.2,Đúng hạn
+CNSHTP_HP0068,45,43,95.5,Đúng hạn
+CNSHTP_HP0069,30,30,99.4,Đúng hạn
+CNSHTP_HP0070,30,30,99.9,Đúng hạn
+CNSHTP_HP0071,45,44,96.9,Đúng hạn
+CNSHTP_HP0072,45,44,98.3,Đúng hạn
+CNSHTP_HP0073,30,30,100.0,Đúng hạn
+CNSHTP_HP0074,45,45,99.1,Đúng hạn
+CNSHTP_HP0075,45,45,100.0,Đúng hạn
+CNSHTP_HP0076,30,28,93.9,Cần đẩy nhanh
+CNSHTP_HP0077,60,59,98.3,Đúng hạn
+CNSHTP_HP0078,45,45,99.9,Đúng hạn
+CNSHTP_HP0079,45,45,99.9,Đúng hạn
+CNSHTP_HP0080,30,30,99.4,Đúng hạn
+CNSHTP_HP0081,45,45,99.4,Đúng hạn
+CNSHTP_HP0082,45,44,98.6,Đúng hạn
+CNSHTP_HP0083,30,30,99.4,Đúng hạn
+CNSHTP_HP0084,60,60,99.3,Đúng hạn
+CNSHTP_HP0085,60,58,97.3,Đúng hạn
+CNSHTP_HP0086,60,60,99.7,Đúng hạn
+CNSHTP_HP0087,30,30,99.8,Đúng hạn
+CNSHTP_HP0088,45,44,98.8,Đúng hạn
+CNSHTP_HP0089,30,30,99.6,Đúng hạn
+CNSHTP_HP0090,45,45,99.7,Đúng hạn
+CNSHTP_HP0091,45,45,99.1,Đúng hạn
+CNSHTP_HP0092,60,59,99.1,Đúng hạn
+CNSHTP_HP0093,30,30,98.5,Đúng hạn
+CNSHTP_HP0094,45,45,99.2,Đúng hạn
+CNSHTP_HP0095,45,45,98.9,Đúng hạn
+CNSHTP_HP0096,60,59,97.6,Đúng hạn
+CNSHTP_HP0097,30,29,97.3,Đúng hạn
+CNSHTP_HP0098,30,30,98.5,Đúng hạn
+CNSHTP_HP0099,45,43,95.9,Đúng hạn
+CNSHTP_HP0100,60,60,99.9,Đúng hạn
+CNSHTP_HP0101,45,44,98.5,Đúng hạn
+CNSHTP_HP0102,45,45,99.5,Đúng hạn
+CNSHTP_HP0103,45,44,98.7,Đúng hạn
+CNSHTP_HP0104,45,44,98.3,Đúng hạn
+CNSHTP_HP0105,30,30,99.7,Đúng hạn
+CNSHTP_HP0106,45,45,99.1,Đúng hạn
+CNSHTP_HP0107,45,45,99.4,Đúng hạn
+CNSHTP_HP0108,45,45,100.0,Đúng hạn
+CNSHTP_HP0109,45,44,97.2,Đúng hạn
+CNSHTP_HP0110,30,29,97.9,Đúng hạn
+CNSHTP_HP0111,30,30,98.8,Đúng hạn
+CNSHTP_HP0112,45,44,98.7,Đúng hạn
+CNSHTP_HP0113,45,45,99.4,Đúng hạn
+CNSHTP_HP0114,30,30,99.4,Đúng hạn
+CNSHTP_HP0115,60,60,100.0,Đúng hạn
+CNSHTP_HP0116,30,30,99.7,Đúng hạn
+CNSHTP_HP0117,45,43,96.2,Đúng hạn
+CNSHTP_HP0118,45,45,99.6,Đúng hạn
+CNSHTP_HP0119,45,45,100.0,Đúng hạn
+CNSHTP_HP0120,45,44,98.6,Đúng hạn
+CNSHTP_HP0121,45,45,99.5,Đúng hạn
+CNSHTP_HP0122,45,45,99.2,Đúng hạn
+CNSHTP_HP0123,45,44,98.0,Đúng hạn
+CNSHTP_HP0124,60,60,99.2,Đúng hạn
+CNSHTP_HP0125,60,59,98.0,Đúng hạn
+CNSHTP_HP0126,45,45,99.6,Đúng hạn
+CNSHTP_HP0127,45,45,99.8,Đúng hạn
+CNSHTP_HP0128,45,45,100.0,Đúng hạn
+CNSHTP_HP0129,45,45,99.4,Đúng hạn
+CNSHTP_HP0130,45,44,98.6,Đúng hạn
+CNSHTP_HP0131,30,30,98.5,Đúng hạn
+CNSHTP_HP0132,30,30,99.9,Đúng hạn
+CNSHTP_HP0133,60,58,96.1,Đúng hạn
+CNSHTP_HP0134,45,45,99.5,Đúng hạn
+CNSHTP_HP0135,45,44,96.7,Đúng hạn
+CNSHTP_HP0136,45,44,98.2,Đúng hạn
+CNSHTP_HP0137,30,30,99.6,Đúng hạn
+CNSHTP_HP0138,60,60,99.6,Đúng hạn
+CNSHTP_HP0139,45,45,99.3,Đúng hạn
+CNSHTP_HP0140,45,45,100.0,Đúng hạn
+CNSHTP_HP0141,30,30,98.7,Đúng hạn
+CNSHTP_HP0142,30,30,100.0,Đúng hạn
+CNSHTP_HP0143,60,60,99.4,Đúng hạn
+CNSHTP_HP0144,60,60,99.7,Đúng hạn
+CNSHTP_HP0145,30,30,99.7,Đúng hạn
+CNSHTP_HP0146,60,60,99.3,Đúng hạn
+CNSHTP_HP0147,30,30,98.5,Đúng hạn
+CNSHTP_HP0148,30,30,99.8,Đúng hạn
+CNSHTP_HP0149,60,60,99.7,Đúng hạn
+CNSHTP_HP0150,45,44,98.4,Đúng hạn
+CNSHTP_HP0151,60,59,98.6,Đúng hạn
+CNSHTP_HP0152,45,45,99.0,Đúng hạn
+CNSHTP_HP0153,45,45,99.8,Đúng hạn
+CNSHTP_HP0154,45,45,98.9,Đúng hạn
+CNSHTP_HP0155,45,44,97.6,Đúng hạn
+CNSHTP_HP0156,60,60,99.5,Đúng hạn
+CNSHTP_HP0157,45,45,99.2,Đúng hạn
+CNSHTP_HP0158,45,45,100.0,Đúng hạn
+CNSHTP_HP0159,60,60,100.0,Đúng hạn
+CNSHTP_HP0160,45,45,99.6,Đúng hạn
+CNSHTP_HP0161,30,29,98.0,Đúng hạn
+CNSHTP_HP0162,30,30,100.0,Đúng hạn
+CNSHTP_HP0163,60,60,99.9,Đúng hạn
+CNSHTP_HP0164,45,45,99.1,Đúng hạn
+CNSHTP_HP0165,60,60,99.6,Đúng hạn
+CNSHTP_HP0166,60,60,100.0,Đúng hạn
+CNSHTP_HP0167,45,45,99.4,Đúng hạn
+CNSHTP_HP0168,30,30,99.7,Đúng hạn
+CNSHTP_HP0169,45,45,99.2,Đúng hạn
+CNSHTP_HP0170,45,44,98.7,Đúng hạn
+CNSHTP_HP0171,60,59,98.5,Đúng hạn
+CNSHTP_HP0172,45,45,99.7,Đúng hạn
+CNSHTP_HP0173,30,30,98.8,Đúng hạn
+CNSHTP_HP0174,45,45,99.6,Đúng hạn
+CNSHTP_HP0175,60,60,99.2,Đúng hạn
+CNSHTP_HP0176,30,30,99.5,Đúng hạn
+CNSHTP_HP0177,45,44,98.7,Đúng hạn
+CNSHTP_HP0178,60,59,99.1,Đúng hạn
+CNSHTP_HP0179,30,30,98.7,Đúng hạn
+CNSHTP_HP0180,45,44,98.0,Đúng hạn
+CNSHTP_HP0181,30,29,97.7,Đúng hạn
+CNSHTP_HP0182,60,60,99.2,Đúng hạn
+CNSHTP_HP0183,60,59,98.5,Đúng hạn
+CNSHTP_HP0184,45,44,97.6,Đúng hạn

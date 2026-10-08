@@ -39,7 +39,7 @@ export default function UserTopNavigation() {
               <span className="text-[11px] font-extrabold tracking-tight text-slate-900 sm:text-sm">CUSC ANALYSIS PLATFORM</span>
               <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-semibold text-blue-700">USER PORTAL</span>
             </div>
-            <p className="mt-1 hidden text-[10px] text-slate-500 sm:block">Trung tâm Công nghệ Thông tin - Đại học Cần Thơ</p>
+            <p className="mt-1 hidden text-[10px] text-slate-500 sm:block">Trung tâm Công nghệ Phần mềm - Đại học Cần Thơ</p>
           </div>
         </NavLink>
 

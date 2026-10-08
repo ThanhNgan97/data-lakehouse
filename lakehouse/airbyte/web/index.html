@@ -224,7 +224,7 @@
                   <span>Check Trùng Tên</span>
                 </button>
                 <div class="text-[11px] text-indigo-800 bg-white border border-indigo-200 px-3 py-2 rounded-lg flex items-center whitespace-nowrap font-mono shadow-2xs">
-                  📁 Thư mục MinIO: <code id="lbl-minio-step1" class="ml-1 font-bold text-indigo-900">bronze_archive/postgresqltest/</code>
+                  📁 Thư mục MinIO: <code id="lbl-minio-step1" class="ml-1 font-bold text-indigo-900">staging/postgresqltest/</code>
                 </div>
               </div>
               <div id="tenant-check-box" class="mt-2.5"></div>
@@ -485,11 +485,11 @@
           </div>
           <div>
             <label class="block text-[11px] font-semibold text-[#334155] mb-1">Đường dẫn thư mục MinIO (Path Prefix)</label>
-            <input id="plan-minio-path" type="text" value="bronze_archive/postgresqltest" oninput="updateMinioPathPreview()" class="w-full bg-white border border-[#E2E8F0] focus:border-[#0F172A] rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#0F172A] outline-none transition-colors">
+            <input id="plan-minio-path" type="text" value="staging/postgresqltest" oninput="updateMinioPathPreview()" class="w-full bg-white border border-[#E2E8F0] focus:border-[#0F172A] rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#0F172A] outline-none transition-colors">
           </div>
           <div class="sm:col-span-2 text-[11px] font-mono text-slate-500 flex flex-wrap items-center justify-between gap-2 bg-white p-2.5 rounded-lg border border-[#E2E8F0]">
             <span>📁 Vị trí lưu Parquet thực tế trên MinIO:</span>
-            <span class="bg-indigo-50 text-indigo-900 border border-indigo-200 px-2 py-0.5 rounded font-bold" id="plan-minio-preview">university-lakehouse/bronze_archive/postgresqltest/${STREAM_NAME}/part_*.parquet</span>
+            <span class="bg-indigo-50 text-indigo-900 border border-indigo-200 px-2 py-0.5 rounded font-bold" id="plan-minio-preview">university-lakehouse/staging/postgresqltest/${STREAM_NAME}/part_*.parquet</span>
           </div>
         </div>
       </div>
@@ -708,7 +708,7 @@
               <span class="text-xs font-mono font-medium bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-200">SCD Type 2 Timeline</span>
             </h2>
             <p class="text-[13px] text-[#64748B] mt-0.5">
-              Đọc trực tiếp các file Parquet từ MinIO Bronze Archive Layer và khôi phục toàn bộ lịch sử thay đổi từng dòng dữ liệu (INSERT / UPDATE / DELETE).
+              Đọc trực tiếp các file Parquet từ MinIO Staging Layer và khôi phục toàn bộ lịch sử thay đổi từng dòng dữ liệu (INSERT / UPDATE / DELETE).
             </p>
           </div>
           <button onclick="loadExplorerStreams()" class="self-start sm:self-auto bg-white border border-[#E2E8F0] hover:bg-slate-50 text-xs font-medium px-3 py-2 rounded-lg text-[#334155] shadow-xs flex items-center space-x-1.5 transition cursor-pointer">
@@ -1123,12 +1123,12 @@
       if (planTenant && planTenant.value !== safeVal) planTenant.value = safeVal;
 
       const minioPathInput = document.getElementById('plan-minio-path');
-      if (minioPathInput && (minioPathInput.value.startsWith('bronze_archive/') || minioPathInput.value.startsWith('bronze/') || minioPathInput.value === '')) {
-        minioPathInput.value = `bronze_archive/${safeVal}`;
+      if (minioPathInput && (minioPathInput.value.startsWith('staging/') || minioPathInput.value.startsWith('bronze_archive/') || minioPathInput.value.startsWith('bronze/') || minioPathInput.value === '')) {
+        minioPathInput.value = `staging/${safeVal}`;
       }
 
       const lblMinio1 = document.getElementById('lbl-minio-step1');
-      if (lblMinio1) lblMinio1.innerText = `bronze_archive/${safeVal}/`;
+      if (lblMinio1) lblMinio1.innerText = `staging/${safeVal}/`;
 
       updateMinioPathPreview();
 
@@ -1172,7 +1172,7 @@
         if (data.is_duplicate) {
           let detailsHtml = '';
           if (data.minio && data.minio.exists) {
-            detailsHtml += `<div class="mt-1">📁 <strong>MinIO:</strong> Đã có thư mục lưu trữ <code class="bg-amber-100 px-1 py-0.5 rounded text-amber-900 font-mono">${data.minio.path || 'bronze_archive/' + tenantVal + '/'}</code> (Chứa ${data.minio.files_count} file Parquet: ${data.minio.tables.join(', ') || 'dữ liệu'})</div>`;
+            detailsHtml += `<div class="mt-1">📁 <strong>MinIO:</strong> Đã có thư mục lưu trữ <code class="bg-amber-100 px-1 py-0.5 rounded text-amber-900 font-mono">${data.minio.path || 'staging/' + tenantVal + '/'}</code> (Chứa ${data.minio.files_count} file Parquet: ${data.minio.tables.join(', ') || 'dữ liệu'})</div>`;
           }
           if (data.airbyte && data.airbyte.exists) {
             const abItems = [...(data.airbyte.connection_names || []), ...(data.airbyte.sources || [])];
@@ -1222,7 +1222,7 @@
 
     function updateMinioPathPreview() {
       const bucket = document.getElementById('plan-minio-bucket')?.value || 'university-lakehouse';
-      const path = document.getElementById('plan-minio-path')?.value || 'bronze_archive';
+      const path = document.getElementById('plan-minio-path')?.value || 'staging';
       const cleanPath = path.replace(/^\/+|\/+$/g, '');
       const previewEl = document.getElementById('plan-minio-preview');
       if (previewEl) {
@@ -1554,7 +1554,7 @@
       const tenantId = (document.getElementById('conn-tenant')?.value || document.getElementById('plan-tenant')?.value || 'tenant_01').trim();
       const schemaOrPub = document.getElementById('plan-schema')?.value || (selectedSyncStrategy === 'CDC' ? `airbyte_pub_${tenantId}` : 'airbyte_vault');
       const bucket = document.getElementById('plan-minio-bucket')?.value || 'university-lakehouse';
-      const pathPrefix = document.getElementById('plan-minio-path')?.value || `bronze_archive/${tenantId}`;
+      const pathPrefix = document.getElementById('plan-minio-path')?.value || `staging/${tenantId}`;
 
       generatedPlan = {
         tenant_id: tenantId,
@@ -1671,7 +1671,7 @@
         document.getElementById('res-schema').innerText = (selectedSyncStrategy === 'CDC') ? `${currentConfig.schema} (Publication: ${generatedPlan.publication_name})` : generatedPlan.integration_schema;
         document.getElementById('res-user').innerText = generatedPlan.reader_username;
         document.getElementById('res-pass').innerText = generatedPlan.reader_password;
-        document.getElementById('res-minio-path').innerText = generatedPlan.minio_path ? (generatedPlan.minio_path.endsWith('/') ? `${generatedPlan.minio_path}table=\${STREAM_NAME}/` : `${generatedPlan.minio_path}/table=\${STREAM_NAME}/`) : `bronze_archive/${generatedPlan.tenant_id}/table=\${STREAM_NAME}/`;
+        document.getElementById('res-minio-path').innerText = generatedPlan.minio_path ? (generatedPlan.minio_path.endsWith('/') ? `${generatedPlan.minio_path}table=\${STREAM_NAME}/` : `${generatedPlan.minio_path}/table=\${STREAM_NAME}/`) : `staging/${generatedPlan.tenant_id}/table=\${STREAM_NAME}/`;
 
         const btnNext6 = document.getElementById('btn-next-step6');
         if (btnNext6) {

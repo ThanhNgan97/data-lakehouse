@@ -81,7 +81,7 @@ func GenerateBundle(cfg model.DBConfig, plan model.ProvisionPlan, outputDir stri
 	}
 	minioPath := plan.MinIOPath
 	if minioPath == "" {
-		minioPath = fmt.Sprintf("bronze_archive/%s/table=${STREAM_NAME}/", tenantID)
+		minioPath = fmt.Sprintf("staging/%s/table=${STREAM_NAME}/", tenantID)
 	}
 
 	bundle := &model.AirbyteConnectionBundle{

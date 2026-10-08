@@ -18,6 +18,7 @@ type BridgeStatus struct {
 	AirbyteConnectionID string            `json:"airbyte_connection_id,omitempty"`
 	AirbyteJobID        int64             `json:"airbyte_job_id,omitempty"`
 	JobStatus           string            `json:"job_status,omitempty"`
+	AirflowStatus       string            `json:"airflow_status,omitempty"`
 	DiscoveredResources []ResourceSummary `json:"discovered_resources,omitempty"`
 	UpdatedAt           string            `json:"updated_at"`
 }
@@ -73,6 +74,20 @@ func (h *bridgeStatusHub) setJobStatus(jobID int64, status string, message strin
 		next.Status = "ERROR"
 	default:
 		next.Status = "SYNCING"
+	}
+	h.update(next)
+}
+
+func (h *bridgeStatusHub) setAirflowStatus(jobID int64, status string, message string) {
+	h.mu.RLock()
+	next := h.state
+	h.mu.RUnlock()
+	if next.AirbyteJobID != jobID {
+		return
+	}
+	next.AirflowStatus = status
+	if message != "" {
+		next.Message = message
 	}
 	h.update(next)
 }

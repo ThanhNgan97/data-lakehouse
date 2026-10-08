@@ -43,6 +43,7 @@ const StatusPill = ({ status, children }) => {
     success: "border-emerald-200 bg-emerald-50 text-emerald-700",
     checking: "border-amber-200 bg-amber-50 text-amber-700",
     running: "border-blue-200 bg-blue-50 text-blue-700",
+    outdated: "border-amber-200 bg-amber-50 text-amber-700",
     offline: "border-slate-200 bg-slate-50 text-slate-600",
     failed: "border-rose-200 bg-rose-50 text-rose-700",
   };
@@ -100,7 +101,7 @@ export default function UserDatabase() {
 
     const connectToolSocket = () => {
       if (disposed) return;
-      setToolStatus("checking");
+      setToolStatus((current) => current === "outdated" ? current : "checking");
       toolSocket = new WebSocket(socketUrl(TOOL_URL, "/api/portal-events"));
       toolSocket.onopen = () => setToolStatus("online");
       toolSocket.onmessage = (event) => {
@@ -113,7 +114,14 @@ export default function UserDatabase() {
       toolSocket.onerror = () => toolSocket.close();
       toolSocket.onclose = () => {
         if (disposed) return;
-        setToolStatus("offline");
+        fetch(`${TOOL_URL.replace(/\/$/, "")}/api/portal-state`, {
+          mode: "no-cors",
+          signal: AbortSignal.timeout(1800),
+        }).then(() => {
+          if (!disposed) setToolStatus("outdated");
+        }).catch(() => {
+          if (!disposed) setToolStatus("offline");
+        });
         toolRetry = window.setTimeout(connectToolSocket, 4000);
       };
     };
@@ -272,7 +280,7 @@ export default function UserDatabase() {
               <article className="group flex min-h-48 flex-col rounded-xl border border-slate-200 p-5 transition duration-300 hover:-translate-y-1 hover:border-cyan-200 hover:shadow-elevated">
                 <div className="flex items-center justify-between"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-50 text-cyan-700"><UploadCloud size={20} /></span><span className="font-data text-[11px] font-bold text-slate-400">03</span></div>
                 <h3 className="mt-4 font-bold text-slate-900">Kết nối Airbyte</h3><p className="mt-2 flex-1 text-xs leading-5 text-slate-500">Portal tự nhận kết nối từ tool và cập nhật sync job theo thời gian thực.</p>
-                <div className={`mt-4 flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-xs font-bold ${toolStatus === "online" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>{toolStatus === "checking" ? <Loader2 size={15} className="animate-spin" /> : toolStatus === "online" ? <CheckCircle2 size={15} /> : <Activity size={15} />}{toolStatus === "online" ? "Đang nhận realtime" : toolStatus === "checking" ? "Đang tìm db-provisioner" : "Chờ mở db-provisioner"}</div>
+                <div className={`mt-4 flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-xs font-bold ${toolStatus === "online" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>{toolStatus === "checking" ? <Loader2 size={15} className="animate-spin" /> : toolStatus === "online" ? <CheckCircle2 size={15} /> : <Activity size={15} />}{toolStatus === "online" ? "Đang nhận realtime" : toolStatus === "checking" ? "Đang tìm db-provisioner" : toolStatus === "outdated" ? "Tool đang mở · cần cập nhật" : "Chờ mở db-provisioner"}</div>
               </article>
             </div>
 
@@ -296,11 +304,11 @@ export default function UserDatabase() {
             <div className="flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-wider text-slate-400">Trạng thái hệ thống</p><h2 className="mt-1 font-display text-lg font-extrabold text-slate-950">Kết nối hiện tại</h2></div><button onClick={checkBridge} disabled={bridgeStatus === "checking"} title="Kiểm tra lại" className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50 hover:text-blue-700"><RefreshCw size={16} className={bridgeStatus === "checking" ? "animate-spin" : ""} /></button></div>
             <div className="mt-5 space-y-3">
               {[
-                [Server, "DB Provisioner", toolStatus === "online" ? "WebSocket · realtime" : TOOL_URL, toolStatus],
+                [Server, "DB Provisioner", toolStatus === "online" ? "WebSocket · realtime" : toolStatus === "outdated" ? "Đã mở · phiên bản chưa hỗ trợ realtime" : TOOL_URL, toolStatus],
                 [Server, "Airbyte bridge", BRIDGE_URL, bridgeStatus],
                 [Network, "Airbyte connection", session?.airbyte_connection_id ? `ID ${session.airbyte_connection_id}` : "Chưa khởi tạo", session?.airbyte_connection_id ? "online" : "offline"],
                 [Activity, "Sync job", session?.airbyte_job_id ? `Job #${session.airbyte_job_id} · ${session.job_status || "RUNNING"}` : "Chưa có job", session?.airbyte_job_id ? (["FAILED", "CANCELLED", "INCOMPLETE"].includes(session.job_status) ? "failed" : session.job_status === "SUCCEEDED" ? "success" : "running") : "offline"],
-              ].map(([RowIcon, label, value, status]) => <div key={label} className="flex items-center gap-3 rounded-xl border border-slate-100 p-3 transition hover:border-slate-200 hover:bg-slate-50"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600"><RowIcon size={17} /></span><div className="min-w-0 flex-1"><p className="text-sm font-bold text-slate-800">{label}</p><p className="mt-1 truncate font-data text-xs leading-5 text-slate-500">{value}</p></div><StatusPill status={status}>{status === "online" || status === "success" ? "Sẵn sàng" : status === "running" ? "Đang chạy" : status === "checking" ? "Kiểm tra" : status === "failed" ? "Có lỗi" : "Chờ"}</StatusPill></div>)}
+              ].map(([RowIcon, label, value, status]) => <div key={label} className="flex items-center gap-3 rounded-xl border border-slate-100 p-3 transition hover:border-slate-200 hover:bg-slate-50"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600"><RowIcon size={17} /></span><div className="min-w-0 flex-1"><p className="text-sm font-bold text-slate-800">{label}</p><p className="mt-1 truncate font-data text-xs leading-5 text-slate-500">{value}</p></div><StatusPill status={status}>{status === "online" || status === "success" ? "Sẵn sàng" : status === "running" ? "Đang chạy" : status === "checking" ? "Kiểm tra" : status === "outdated" ? "Cập nhật" : status === "failed" ? "Có lỗi" : "Chờ"}</StatusPill></div>)}
             </div>
             <div className="mt-5 rounded-xl bg-blue-50 p-4"><div className="flex gap-2 text-sm font-bold text-blue-900"><Info size={16} className="mt-0.5 shrink-0" />Lệnh khởi chạy bridge</div><code className="mt-3 block overflow-x-auto rounded-lg bg-slate-950 px-3 py-2.5 font-data text-xs leading-5 text-cyan-200">db-provisioner.exe bridge --port 9090</code></div>
           </aside>

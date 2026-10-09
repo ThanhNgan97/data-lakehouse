@@ -32,7 +32,7 @@ from api_ingestion import (
 )
 from checkpoint_store import (
     CheckpointState,
-    PostgresCheckpointStore,
+    MinioCheckpointStore,
 )
 from pagination import PaginationStrategy
 from watermark_strategy import resolve_watermark_strategy
@@ -139,7 +139,7 @@ def fetch_incremental_payload(
     store = (
         checkpoint_store
         if checkpoint_store is not None
-        else PostgresCheckpointStore()
+        else MinioCheckpointStore()
     )
 
     checkpoint_before = store.load(
@@ -225,7 +225,7 @@ def run_incremental_ingestion(
     store = (
         checkpoint_store
         if checkpoint_store is not None
-        else PostgresCheckpointStore()
+        else MinioCheckpointStore()
     )
 
     fetched = fetch_incremental_payload(

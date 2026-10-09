@@ -19,7 +19,9 @@ try:
     from dotenv import load_dotenv
     for _env_path in _ENV_FILE_CANDIDATES:
         if _env_path.exists():
-            load_dotenv(_env_path, override=True)
+            # Runtime/container variables are authoritative. The local .env
+            # file should only provide values that are not already configured.
+            load_dotenv(_env_path, override=False)
             break
 except ImportError:
     pass  # Không có dotenv vẫn OK nếu biến đã set qua os.environ / setx

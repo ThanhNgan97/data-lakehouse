@@ -351,7 +351,7 @@ def test_downstream_resolves_committed_batch():
 
     with patch.object(
         orchestration,
-        "PostgresCheckpointStore",
+        "MinioCheckpointStore",
         return_value=store,
     ):
         actual = (

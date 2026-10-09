@@ -41,6 +41,7 @@ const normalizeSource = (source) => ({
     ? `Cập nhật: ${new Date(source.updated_at).toLocaleString("vi-VN")}`
     : source.dataset_id,
   status: source.status === "READY" ? "Đã kết nối" : source.status,
+  authType: source.auth_type || "none",
   dashboardSlug: source.dashboard_slug,
 });
 
@@ -137,6 +138,7 @@ export default function ApiConnection() {
 
   function selectSource(source) {
     setSelectedId(source.id);
+    setAuthType(source.authType || "none");
     setForm((current) => ({
       ...current,
       name: source.name,
@@ -222,11 +224,18 @@ export default function ApiConnection() {
       setPipeline({ runId: "", state: "failed", tasks: [], error: "Nguồn này chưa được đăng ký với API Dataset Pipeline." });
       return;
     }
+    if (authType === "bearer" && !form.token.trim()) {
+      setPipeline({ runId: "", state: "failed", tasks: [], error: "Vui lòng nhập Bearer Token trước khi chạy pipeline." });
+      return;
+    }
     setPipeline({ runId: "", state: "starting", tasks: [], error: "" });
     try {
       const response = await axios.post(
         `${API_URL}/api-sources/${encodeURIComponent(selectedSource.datasetId)}/runs`,
-        { source_url: selectedSource.endpoint },
+        {
+          source_url: selectedSource.endpoint,
+          bearer_token: authType === "bearer" ? form.token.trim() || null : null,
+        },
         { headers: authHeader() },
       );
       setPipeline({

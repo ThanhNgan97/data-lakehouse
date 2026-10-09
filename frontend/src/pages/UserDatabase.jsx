@@ -16,7 +16,8 @@ const socketUrl = (base, path) => `${base.replace(/^http/, "ws").replace(/\/$/, 
 const SUPERSET_ORIGIN = new URL(import.meta.env.VITE_SUPERSET_URL || "http://localhost:8088").origin;
 const STORAGE_KEY = "database-onboarding-session";
 const authHeader = () => ({ Authorization: `Bearer ${localStorage.getItem("token")}` });
-
+const TOOL_DOWNLOAD_URL =
+  import.meta.env.VITE_DB_PROVISIONER_DOWNLOAD_URL?.trim();
 const stages = [
   { id: "connect", label: "Kết nối nguồn", detail: "Airbyte đọc schema", icon: Network, taskIds: [] },
   { id: "ingest", label: "Đồng bộ dữ liệu", detail: "Database → Bronze", icon: CloudCog, taskIds: ["ai_semantic_profiler"] },
@@ -187,17 +188,44 @@ export default function UserDatabase() {
   };
 
   const downloadTool = async () => {
-    setDownloading(true); setError("");
-    try {
-      const response = await axios.get(`${API_URL}/database/tool/windows`, { headers: authHeader(), responseType: "blob" });
-      const url = URL.createObjectURL(response.data);
+  setDownloading(true);
+  setError("");
+
+  try {
+    if (TOOL_DOWNLOAD_URL) {
       const anchor = document.createElement("a");
-      anchor.href = url; anchor.download = "db-provisioner.exe"; anchor.click();
-      URL.revokeObjectURL(url);
-    } catch (requestError) {
-      setError(requestError.response?.data?.detail || "Không thể tải db-provisioner lúc này.");
-    } finally { setDownloading(false); }
-  };
+      anchor.href = TOOL_DOWNLOAD_URL;
+      anchor.rel = "noopener noreferrer";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      return;
+    }
+
+    // Fallback cũ: backend phục vụ binary cục bộ.
+    const response = await axios.get(
+      `${API_URL}/database/tool/windows`,
+      {
+        headers: authHeader(),
+        responseType: "blob",
+      },
+    );
+
+    const url = URL.createObjectURL(response.data);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "db-provisioner-windows.exe";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  } catch (requestError) {
+    setError(
+      requestError.response?.data?.detail ||
+      "Không thể tải db-provisioner lúc này.",
+    );
+  } finally {
+    setDownloading(false);
+  }
+};
 
   const connect = async () => {
     if (!bundle) return;

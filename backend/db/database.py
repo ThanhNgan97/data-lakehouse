@@ -49,6 +49,10 @@ def init_db():
             ))
             connection.execute(text(
                 "ALTER TABLE api_sources "
+                "ADD COLUMN IF NOT EXISTS auth_config JSONB"
+            ))
+            connection.execute(text(
+                "ALTER TABLE api_sources "
                 "ADD COLUMN IF NOT EXISTS credential_ciphertext TEXT"
             ))
     

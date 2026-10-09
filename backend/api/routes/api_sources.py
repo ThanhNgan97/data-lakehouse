@@ -1,5 +1,5 @@
 import uuid
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlparse
 
 import requests
@@ -43,6 +43,7 @@ DEMO_SCENARIOS = {
 
 class InspectApiSourceRequest(BaseModel):
     url: str
+    source_id: int | None = None
     bearer_token: str | None = None
     limit: int = 3
 
@@ -58,8 +59,26 @@ class SaveApiSourceRequest(BaseModel):
     url: str
     description: str | None = None
     auth_type: str = "none"
+    auth_config: dict[str, Any] | None = None
     bearer_token: str | None = None
     metadata_info: dict[str, Any] | None = None
+
+
+class LoginAuthenticationRequest(BaseModel):
+    login_url: str
+    username: str
+    password: str
+    token_field: str = "access_token"
+    username_field: str = "username"
+    password_field: str = "password"
+    request_format: Literal["json", "form"] = "json"
+
+
+class ConfigureApiCredentialRequest(BaseModel):
+    auth_type: Literal["none", "bearer", "login"]
+    bearer_token: str | None = None
+    login: LoginAuthenticationRequest | None = None
+    auth_config: dict[str, Any] | None = None
 
 def _airflow_auth():
     if not AIRFLOW_API_PASSWORD:
@@ -112,6 +131,67 @@ def _persisted_metadata(request: SaveApiSourceRequest) -> dict[str, Any]:
     }
 
 
+def _safe_auth_config(config: dict[str, Any] | None) -> dict[str, Any]:
+    config = config or {}
+    return {
+        key: config.get(key)
+        for key in (
+            "login_url", "username", "token_field", "username_field",
+            "password_field", "request_format",
+        )
+        if config.get(key) not in (None, "")
+    }
+
+
+def _extract_token(payload: Any, field_path: str) -> str | None:
+    value = payload
+    for part in field_path.split("."):
+        if not isinstance(value, dict):
+            return None
+        value = value.get(part)
+    return value.strip() if isinstance(value, str) and value.strip() else None
+
+
+def _login_for_token(request: LoginAuthenticationRequest) -> str:
+    parsed = urlparse(request.login_url.strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.username or parsed.password:
+        raise HTTPException(status_code=422, detail="URL đăng nhập không hợp lệ.")
+    if not request.username.strip() or not request.password:
+        raise HTTPException(status_code=422, detail="Tên đăng nhập và mật khẩu là bắt buộc.")
+
+    credentials = {
+        request.username_field: request.username.strip(),
+        request.password_field: request.password,
+    }
+    try:
+        if request.request_format == "form":
+            response = requests.post(request.login_url.strip(), data=credentials, timeout=20)
+        else:
+            response = requests.post(request.login_url.strip(), json=credentials, timeout=20)
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=503, detail=f"Không thể kết nối API đăng nhập: {exc}") from exc
+
+    if response.status_code not in (200, 201):
+        raise HTTPException(status_code=401, detail=f"API đăng nhập từ chối xác thực (HTTP {response.status_code}).")
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="API đăng nhập không trả về JSON hợp lệ.") from exc
+    token = _extract_token(payload, request.token_field)
+    if not token:
+        raise HTTPException(status_code=422, detail=f"Không tìm thấy token tại trường '{request.token_field}'.")
+    return token
+
+
+def _stored_bearer_token(source: ApiSource) -> str:
+    if not source.credential_ciphertext:
+        return ""
+    try:
+        return decrypt_secret(source.credential_ciphertext)
+    except ValueError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 @router.get("/api-sources")
 def list_api_sources(
     current_user=Depends(get_current_user),
@@ -142,7 +222,7 @@ def save_api_source(
         raise HTTPException(status_code=422, detail="URL API không hợp lệ.")
     if not request.name.strip():
         raise HTTPException(status_code=422, detail="Tên nguồn dữ liệu không được để trống.")
-    if request.auth_type not in {"none", "bearer"}:
+    if request.auth_type not in {"none", "bearer", "login"}:
         raise HTTPException(status_code=422, detail="Kiểu xác thực không được hỗ trợ.")
 
     user_id = _user_id(current_user)
@@ -161,6 +241,8 @@ def save_api_source(
     source.dataset_id = request.dataset_id
     source.description = (request.description or "").strip() or None
     source.auth_type = request.auth_type
+    if request.auth_config is not None or is_new:
+        source.auth_config = _safe_auth_config(request.auth_config)
     source.metadata_info = _persisted_metadata(request)
     source.dashboard_slug = scenario["dashboard_slug"]
     source.status = "READY"
@@ -173,7 +255,7 @@ def save_api_source(
     elif bearer_token:
         source.credential_ciphertext = encrypt_secret(bearer_token)
     elif is_new:
-        raise HTTPException(status_code=422, detail="Bearer Token là bắt buộc cho nguồn xác thực Bearer.")
+        raise HTTPException(status_code=422, detail="Credential là bắt buộc cho phương thức xác thực đã chọn.")
 
     try:
         db.commit()
@@ -190,10 +272,77 @@ def save_api_source(
     return source.to_dict()
 
 
+@router.post("/api-sources/authenticate")
+def authenticate_api_source(
+    request: LoginAuthenticationRequest,
+    current_user=Depends(get_current_user),
+):
+    return {"access_token": _login_for_token(request)}
+
+
+@router.put("/api-sources/{source_id}/credentials")
+def configure_api_source_credentials(
+    source_id: int,
+    request: ConfigureApiCredentialRequest,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    source = (
+        db.query(ApiSource)
+        .filter(ApiSource.id == source_id, ApiSource.user_id == _user_id(current_user))
+        .first()
+    )
+    if not source:
+        raise HTTPException(status_code=404, detail="Không tìm thấy profile nguồn API.")
+
+    token = (request.bearer_token or "").strip()
+    auth_config = request.auth_config
+    if request.auth_type == "login":
+        if not request.login:
+            raise HTTPException(status_code=422, detail="Thiếu cấu hình đăng nhập API.")
+        token = _login_for_token(request.login)
+        auth_config = request.login.model_dump(exclude={"password"})
+    elif request.auth_type == "bearer" and not token:
+        raise HTTPException(status_code=422, detail="Bearer Token là bắt buộc.")
+
+    source.auth_type = request.auth_type
+    source.auth_config = _safe_auth_config(auth_config)
+    source.credential_ciphertext = encrypt_secret(token) if token else None
+    try:
+        db.commit()
+        db.refresh(source)
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Không thể cập nhật xác thực cho profile API.") from exc
+    return source.to_dict()
+
+
+@router.delete("/api-sources/{source_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_api_source(
+    source_id: int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    source = (
+        db.query(ApiSource)
+        .filter(ApiSource.id == source_id, ApiSource.user_id == _user_id(current_user))
+        .first()
+    )
+    if not source:
+        raise HTTPException(status_code=404, detail="Không tìm thấy profile nguồn API.")
+    try:
+        db.delete(source)
+        db.commit()
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Không thể xóa profile nguồn API.") from exc
+
+
 @router.post("/api-sources/inspect")
 def inspect_api_source(
     request: InspectApiSourceRequest,
     current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     parsed = urlparse(request.url.strip())
     if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.username or parsed.password:
@@ -202,7 +351,20 @@ def inspect_api_source(
     headers = {}
     if request.bearer_token:
         headers["Authorization"] = f"Bearer {request.bearer_token}"
-    elif _is_configured_mock_url(request.url) and MOCK_API_KEY:
+    elif request.source_id:
+        source = (
+            db.query(ApiSource)
+            .filter(ApiSource.id == request.source_id, ApiSource.user_id == _user_id(current_user))
+            .first()
+        )
+        if not source:
+            raise HTTPException(status_code=404, detail="Không tìm thấy profile nguồn API.")
+        stored_token = _stored_bearer_token(source)
+        if source.auth_type in {"bearer", "login"} and not stored_token:
+            raise HTTPException(status_code=401, detail="Profile cần được xác thực lại.")
+        if stored_token:
+            headers["Authorization"] = f"Bearer {stored_token}"
+    if not headers and _is_configured_mock_url(request.url) and MOCK_API_KEY:
         # The local demo secret stays server-side. Portal users should not
         # need to know infrastructure credentials just to run the demo.
         headers.update(_mock_headers())
@@ -339,14 +501,9 @@ def trigger_api_dataset_pipeline(
     if not source:
         raise HTTPException(status_code=404, detail="Nguồn API chưa được lưu hoặc không thuộc người dùng hiện tại.")
 
-    bearer_token = (request.bearer_token or "").strip()
-    if not bearer_token and source.credential_ciphertext:
-        try:
-            bearer_token = decrypt_secret(source.credential_ciphertext)
-        except ValueError as exc:
-            raise HTTPException(status_code=500, detail=str(exc)) from exc
-    if source.auth_type == "bearer" and not bearer_token:
-        raise HTTPException(status_code=422, detail="Nguồn API chưa có Bearer Token đã lưu.")
+    bearer_token = (request.bearer_token or "").strip() or _stored_bearer_token(source)
+    if source.auth_type in {"bearer", "login"} and not bearer_token:
+        raise HTTPException(status_code=401, detail="Profile nguồn API cần được xác thực lại.")
 
     dag_run_id = f"portal_api__{dataset_id.rsplit('.', 1)[-1]}__{uuid.uuid4().hex[:12]}"
     airflow_url = (
@@ -387,6 +544,27 @@ def trigger_api_dataset_pipeline(
         "state": payload.get("state", "queued"),
         "dashboard_slug": DEMO_SCENARIOS.get(dataset_id, {}).get("dashboard_slug"),
     }
+
+
+@router.post("/api-sources/{source_id}/sync", status_code=status.HTTP_201_CREATED)
+def sync_api_source_profile(
+    source_id: int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    source = (
+        db.query(ApiSource)
+        .filter(ApiSource.id == source_id, ApiSource.user_id == _user_id(current_user))
+        .first()
+    )
+    if not source:
+        raise HTTPException(status_code=404, detail="Không tìm thấy profile nguồn API.")
+    return trigger_api_dataset_pipeline(
+        dataset_id=source.dataset_id,
+        request=TriggerApiPipelineRequest(source_url=source.url),
+        current_user=current_user,
+        db=db,
+    )
 
 
 @router.get("/api-sources/runs/{dag_run_id}")

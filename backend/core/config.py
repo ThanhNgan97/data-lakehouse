@@ -16,6 +16,7 @@ except ImportError:
     pass  # python-dotenv chưa cài — biến hệ thống vẫn được đọc qua os.getenv
 
 SECRET_KEY = os.getenv("SECRET_KEY", "nhuquynh_data_lakehouse_secret_key")
+API_SOURCE_CREDENTIAL_KEY = os.getenv("API_SOURCE_CREDENTIAL_KEY", "")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 12
 

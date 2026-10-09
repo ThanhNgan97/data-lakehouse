@@ -42,6 +42,8 @@ const normalizeSource = (source) => ({
     : source.dataset_id,
   status: source.status === "READY" ? "Đã kết nối" : source.status,
   authType: source.auth_type || "none",
+  metadataInfo: source.metadata_info || {},
+  credentialConfigured: Boolean(source.credential_configured),
   dashboardSlug: source.dashboard_slug,
 });
 
@@ -147,8 +149,22 @@ export default function ApiConnection() {
       description: source.description || "",
       token: "",
     }));
+    setPreview({
+      loading: false,
+      data: [],
+      metadata: source.metadataInfo?.dataset_id ? source.metadataInfo : null,
+      error: "",
+    });
+    setPipeline({ runId: "", state: "idle", tasks: [], error: "" });
+  }
+
+  function startNewSource() {
+    setSelectedId("");
+    setAuthType("bearer");
+    setForm({ name: "", datasetId: "", url: "", description: "", token: "" });
     setPreview({ loading: false, data: [], metadata: null, error: "" });
     setPipeline({ runId: "", state: "idle", tasks: [], error: "" });
+    setSaveState({ loading: false, message: "", error: "" });
   }
 
   async function loadPreview() {
@@ -207,6 +223,13 @@ export default function ApiConnection() {
           url: form.url.trim(),
           description: form.description.trim() || null,
           auth_type: authType,
+          bearer_token: authType === "bearer" ? form.token.trim() || null : null,
+          metadata_info: {
+            schema_version: preview.metadata?.schema_version ?? null,
+            source_system: preview.metadata?.source_system ?? null,
+            data_as_of: preview.metadata?.data_as_of ?? null,
+            pagination: preview.metadata?.pagination || {},
+          },
         },
         { headers: authHeader() },
       );
@@ -224,8 +247,8 @@ export default function ApiConnection() {
       setPipeline({ runId: "", state: "failed", tasks: [], error: "Nguồn này chưa được đăng ký với API Dataset Pipeline." });
       return;
     }
-    if (authType === "bearer" && !form.token.trim()) {
-      setPipeline({ runId: "", state: "failed", tasks: [], error: "Vui lòng nhập Bearer Token trước khi chạy pipeline." });
+    if (authType === "bearer" && !form.token.trim() && !selectedSource.credentialConfigured) {
+      setPipeline({ runId: "", state: "failed", tasks: [], error: "Nguồn API chưa có Bearer Token đã lưu." });
       return;
     }
     setPipeline({ runId: "", state: "starting", tasks: [], error: "" });
@@ -367,7 +390,7 @@ export default function ApiConnection() {
           <SectionCard className="order-2 min-w-0 self-start border-t-4 border-t-cyan-500 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
             <div className="flex items-center justify-between gap-3 border-b border-slate-100 p-4 sm:p-6">
               <div className="flex items-center gap-3"><Database size={20} className="text-cyan-600" /><h2 className="font-bold">Nguồn API </h2></div>
-              <button type="button" className="inline-flex items-center gap-1 rounded-lg bg-cyan-50 px-3 py-2 text-xs font-bold text-cyan-700 hover:bg-cyan-100"><Plus size={14} />Thêm mới</button>
+              <button type="button" onClick={startNewSource} className="inline-flex items-center gap-1 rounded-lg bg-cyan-50 px-3 py-2 text-xs font-bold text-cyan-700 hover:bg-cyan-100"><Plus size={14} />Thêm mới</button>
             </div>
             <div className="space-y-4 p-4 sm:p-6">
               <div className="relative"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm theo tên nguồn..." className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100" /></div>

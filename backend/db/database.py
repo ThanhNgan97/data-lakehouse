@@ -2,7 +2,7 @@ import os
 import logging
 from pathlib import Path
 from urllib.parse import quote_plus
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 from core.security import get_password_hash
 
@@ -39,6 +39,18 @@ def init_db():
     try:
         from db.models import User, UploadHistory
         Base.metadata.create_all(bind=engine)
+
+        # `create_all` does not add columns to an existing table. Keep this
+        # additive migration here until the project adopts a migration tool.
+        with engine.begin() as connection:
+            connection.execute(text(
+                "ALTER TABLE api_sources "
+                "ADD COLUMN IF NOT EXISTS metadata_info JSONB"
+            ))
+            connection.execute(text(
+                "ALTER TABLE api_sources "
+                "ADD COLUMN IF NOT EXISTS credential_ciphertext TEXT"
+            ))
     
 
         db = SessionLocal()
@@ -69,7 +81,8 @@ def init_db():
         finally:
             db.close()
     except Exception as e:
-        logging.warning(f"Database initialization warning (PostgreSQL offline or connecting issue): {e}")
+        logging.exception("Database initialization failed")
+        raise RuntimeError("Không thể khởi tạo schema PostgreSQL cho backend.") from e
 
 def get_user(username: str, db):
     """Lấy thông tin user từ database.

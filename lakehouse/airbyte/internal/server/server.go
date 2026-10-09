@@ -19,12 +19,14 @@ import (
 	"github.com/datalakehouse/airbyte-config-tool/internal/lakehouse"
 	"github.com/datalakehouse/airbyte-config-tool/internal/model"
 	"github.com/datalakehouse/airbyte-config-tool/web"
+	"golang.org/x/net/websocket"
 )
 
 type Server struct {
-	port     int
-	lhClient *lakehouse.Client
-	abClient *airbyte.AirbyteClient
+	port      int
+	lhClient  *lakehouse.Client
+	abClient  *airbyte.AirbyteClient
+	portalHub *portalStateHub
 }
 
 func NewServer(port int) *Server {
@@ -41,9 +43,10 @@ func NewServer(port int) *Server {
 	abClient := airbyte.NewAirbyteClient(airbyte.ResolveAirbyteURL(""), "cfcfc672-c3ad-4a59-bf48-abc9bc1efb26", "TyYQbcYAFigm1mrK7H8z50kHCcCVZA3g")
 
 	return &Server{
-		port:     port,
-		lhClient: lhClient,
-		abClient: abClient,
+		port:      port,
+		lhClient:  lhClient,
+		abClient:  abClient,
+		portalHub: newPortalStateHub(),
 	}
 }
 
@@ -68,6 +71,11 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/lakehouse/streams", s.handleLakehouseStreams)
 	mux.HandleFunc("/api/lakehouse/version-history", s.handleLakehouseVersionHistory)
 	mux.HandleFunc("/api/check-tenant", s.handleCheckTenant)
+	mux.Handle("/api/portal-events", websocket.Handler(s.handlePortalEvents))
+	mux.HandleFunc("/api/portal-state", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		writeJSON(w, http.StatusOK, s.portalHub.snapshot())
+	})
 
 	addr := fmt.Sprintf(":%d", s.port)
 	url := fmt.Sprintf("http://localhost:%d", s.port)
@@ -154,6 +162,18 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, fmt.Sprintf("Table discovery failed: %v", err))
 		return
 	}
+	tableNames := make([]string, 0, len(tables))
+	for _, table := range tables {
+		tableNames = append(tableNames, table.Name)
+	}
+	s.portalHub.update(PortalState{
+		Status:         "DATABASE_CONNECTED",
+		DatabaseEngine: cfg.Engine,
+		DatabaseName:   cfg.Database,
+		TableCount:     len(tables),
+		Tables:         tableNames,
+		Message:        "Database connected and tables discovered.",
+	})
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"info":   info,
@@ -282,6 +302,19 @@ func (s *Server) handleApply(w http.ResponseWriter, r *http.Request) {
 		testOutput += fmt.Sprintf("\n⚠️ Warning: Bundle export encountered an error: %v", err)
 	} else {
 		testOutput += fmt.Sprintf("\n📁 Handover bundle exported to: %s", bundlePath)
+		tableNames := make([]string, 0, len(bundle.ExposedViews))
+		for _, view := range bundle.ExposedViews {
+			tableNames = append(tableNames, view.SourceTable)
+		}
+		s.portalHub.update(PortalState{
+			Status:         "BUNDLE_READY",
+			DatabaseEngine: bundle.DatabaseEngine,
+			DatabaseName:   bundle.Connection.Database,
+			TenantID:       bundle.TenantID,
+			TableCount:     len(bundle.ExposedViews),
+			Tables:         tableNames,
+			Message:        "Provisioning completed; bundle is ready for automatic sync.",
+		})
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -315,7 +348,7 @@ func (s *Server) handleDownloadAuditSQL(w http.ResponseWriter, r *http.Request) 
 }
 
 type SyncToAirbyteRequest struct {
-	CoordinatorURL string                       `json:"coordinator_url"`
+	CoordinatorURL string                        `json:"coordinator_url"`
 	Bundle         model.AirbyteConnectionBundle `json:"bundle"`
 }
 
@@ -353,6 +386,22 @@ func (s *Server) handleSyncToAirbyte(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
+	var onboard airbyte.OnboardResponse
+	if json.Unmarshal(body, &onboard) == nil && onboard.AirbyteJobID > 0 {
+		tableNames := make([]string, 0, len(onboard.DiscoveredResources))
+		for _, resource := range onboard.DiscoveredResources {
+			tableNames = append(tableNames, resource.ResourceName)
+		}
+		s.portalHub.update(PortalState{
+			Status:         "AIRBYTE_SYNCING",
+			DatabaseEngine: req.Bundle.DatabaseEngine,
+			DatabaseName:   req.Bundle.Connection.Database,
+			TenantID:       onboard.TenantID,
+			TableCount:     len(tableNames),
+			Tables:         tableNames,
+			Message:        onboard.Message,
+		})
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(resp.StatusCode)
 	_, _ = w.Write(body)
@@ -529,4 +578,3 @@ func (s *Server) handleCheckTenant(w http.ResponseWriter, r *http.Request) {
 		Message:       message,
 	})
 }
-

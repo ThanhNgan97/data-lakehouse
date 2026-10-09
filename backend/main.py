@@ -37,6 +37,9 @@ app.include_router(url_import.router, prefix="/api", tags=["URL Import"])
 
 from api.routes import api_sources
 app.include_router(api_sources.router, prefix="/api", tags=["API Sources"])
+# Database source onboarding + db-provisioner distribution
+from api.routes import database
+app.include_router(database.router, prefix="/api", tags=["Database Sources"])
 
 # Catalog (Nessie history / references)
 from api.routes import catalog

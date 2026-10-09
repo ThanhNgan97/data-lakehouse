@@ -43,6 +43,8 @@ from nessie_catalog_utils import (
     delete_nessie_orphaned_key,
 )
 from generic_silver_classifier import classify_against_target
+from generic_silver_conflict import split_equal_timestamp_conflicts
+from generic_silver_dedup import deterministic_deduplicate
 from generic_silver_merge import merge_into_silver
 from generic_silver_quarantine import write_quarantine_rows
 from ai_dataset_router import RoutingDecision, to_snake_case
@@ -252,6 +254,43 @@ def process_generic_dataset(
         F.sha2(F.concat_ws("||", *[F.coalesce(F.col(c).cast("string"), F.lit("<NULL>")) for c in value_cols]), 256)
     )
 
+    # A single target row must never match multiple source rows in one MERGE.
+    # Preserve conflicting variants in quarantine and collapse exact/repeated
+    # versions of the same business key deterministically before classification.
+    source_candidates = clean_df.count()
+    source_mergeable, source_conflicts = split_equal_timestamp_conflicts(
+        clean_df,
+        business_key=business_keys,
+        source_updated_field=updated_field,
+        checksum_field=checksum_field,
+    )
+    source_conflicts = source_conflicts.localCheckpoint(eager=True)
+    clean_df = deterministic_deduplicate(
+        source_mergeable,
+        business_key=business_keys,
+        source_updated_field=updated_field,
+        ingested_at_field=updated_field,
+        batch_id_field=updated_field,
+        checksum_field=checksum_field,
+        record_id_field=checksum_field,
+    ).localCheckpoint(eager=True)
+
+    source_conflict_count = source_conflicts.count()
+    deduplicated_count = clean_df.count()
+    repeated_source_count = (
+        source_candidates - source_conflict_count - deduplicated_count
+    )
+    if source_conflict_count:
+        print(
+            f"⚠️ [Source Conflict] Cách ly {source_conflict_count} bản ghi có "
+            "cùng business key/thời gian nhưng khác nội dung."
+        )
+    if repeated_source_count:
+        print(
+            f"♻️ [Source Dedup] Loại {repeated_source_count} bản ghi lặp "
+            "trong cùng batch trước khi MERGE."
+        )
+
     # 4. Quản lý nhánh Nessie (Git-like Data Branch)
     clean_run_id = "".join(c if c.isalnum() else "_" for c in run_id)[:16]
     branch_name = make_branch_name(f"dyn_{clean_run_id}")
@@ -264,6 +303,7 @@ def process_generic_dataset(
     try:
         # 5. Xử lý tầng Silver
         target_exists = table_exists(spark, target_table)
+        quarantine = source_conflicts
 
         if not target_exists:
             print(f"📦 [Silver] Bảng '{target_table}' chưa tồn tại. Tạo mới bảng Iceberg...")
@@ -279,7 +319,7 @@ def process_generic_dataset(
             apply_iceberg_schema_evolution(spark, target_table, evolution_df)
 
             # Phân loại bản ghi: mergeable vs quarantine vs duplicate/stale
-            mergeable, quarantine, stale, duplicate = classify_against_target(
+            mergeable, target_quarantine, stale, duplicate = classify_against_target(
                 spark,
                 clean_df,
                 target_table=target_table,
@@ -289,16 +329,10 @@ def process_generic_dataset(
                 delete_field=None,
                 source_columns=clean_df.columns,
             )
-
-            # Xử lý cách ly nếu có lỗi xung đột
-            quarantine_count = quarantine.count()
-            if quarantine_count > 0:
-                print(f"⚠️ [Quarantine] Phát hiện {quarantine_count} bản ghi xung đột. Ghi vào '{quarantine_table}'...")
-                if not table_exists(spark, quarantine_table):
-                    quarantine.withColumn("rejected_at", F.current_timestamp()).writeTo(quarantine_table).using("iceberg").create()
-                else:
-                    apply_iceberg_schema_evolution(spark, quarantine_table, quarantine)
-                    quarantine.withColumn("rejected_at", F.current_timestamp()).writeTo(quarantine_table).append()
+            quarantine = source_conflicts.unionByName(
+                target_quarantine,
+                allowMissingColumns=True,
+            )
 
             # MERGE INTO các bản ghi hợp lệ
             mergeable_count = mergeable.count()
@@ -318,6 +352,24 @@ def process_generic_dataset(
                 print(f"✅ [Silver] Hoàn tất MERGE INTO {records_processed} bản ghi.")
             else:
                 print("ℹ️ [Silver] Không có bản ghi mới cần merge (đều là duplicate hoặc stale).")
+
+        # Ghi cả xung đột trong batch và xung đột với target vào quarantine.
+        quarantine_count = quarantine.count()
+        if quarantine_count > 0:
+            print(f"⚠️ [Quarantine] Phát hiện {quarantine_count} bản ghi xung đột. Ghi vào '{quarantine_table}'...")
+            quarantine_output = quarantine.withColumn(
+                "rejected_at",
+                F.current_timestamp(),
+            )
+            if not table_exists(spark, quarantine_table):
+                quarantine_output.writeTo(quarantine_table).using("iceberg").create()
+            else:
+                apply_iceberg_schema_evolution(
+                    spark,
+                    quarantine_table,
+                    quarantine_output,
+                )
+                quarantine_output.writeTo(quarantine_table).append()
 
         # 6. Tự động sinh tầng Gold (Data Mart Aggregate)
         print(f"\n📊 [Gold] Bắt đầu tổng hợp số liệu cho bảng Gold '{gold_table}'...")

@@ -16,6 +16,7 @@ from pyspark.sql.types import (
 )
 
 import generic_silver_dedup as dedup
+import generic_silver_conflict as conflict
 
 
 class GenericSilverDedupTest(unittest.TestCase):
@@ -167,6 +168,30 @@ class GenericSilverDedupTest(unittest.TestCase):
         self.assertEqual(
             {row["key_a"] for row in result.collect()},
             {"K1", "K2"},
+        )
+
+    def test_conflicts_are_quarantined_before_exact_duplicates_are_collapsed(self):
+        source = self.frame(
+            self.base_row(key_a="K1", checksum="same", record_id="R1"),
+            self.base_row(key_a="K1", checksum="same", record_id="R1"),
+            self.base_row(key_a="K2", checksum="a", record_id="R2"),
+            self.base_row(key_a="K2", checksum="b", record_id="R3"),
+        )
+
+        mergeable, conflicts = conflict.split_equal_timestamp_conflicts(
+            source,
+            business_key=("key_a",),
+            source_updated_field="source_updated",
+            checksum_field="checksum",
+        )
+        result = self.run_dedup(mergeable)
+
+        self.assertEqual(result.count(), 1)
+        self.assertEqual(result.first()["key_a"], "K1")
+        self.assertEqual(conflicts.count(), 2)
+        self.assertEqual(
+            {row["key_a"] for row in conflicts.collect()},
+            {"K2"},
         )
 
     def test_generic_module_contains_no_learning_outcomes_literals(self):

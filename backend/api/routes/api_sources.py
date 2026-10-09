@@ -1,13 +1,15 @@
 import uuid
+from typing import Any
 from urllib.parse import urlparse
 
 import requests
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from api.dependencies import get_current_user
+from core.security import decrypt_secret, encrypt_secret
 from db.database import get_db
 from db.models import ApiSource
 from core.config import (
@@ -56,6 +58,8 @@ class SaveApiSourceRequest(BaseModel):
     url: str
     description: str | None = None
     auth_type: str = "none"
+    bearer_token: str | None = None
+    metadata_info: dict[str, Any] | None = None
 
 def _airflow_auth():
     if not AIRFLOW_API_PASSWORD:
@@ -91,7 +95,21 @@ def _airflow_source_url(source_url: str) -> str:
 
 
 def _user_id(current_user):
-    return current_user.id if hasattr(current_user, "id") else current_user.get("id")
+    user_id = getattr(current_user, "id", None)
+    if user_id is None:
+        raise HTTPException(status_code=503, detail="Không xác định được người dùng trong cơ sở dữ liệu.")
+    return user_id
+
+
+def _persisted_metadata(request: SaveApiSourceRequest) -> dict[str, Any]:
+    metadata = request.metadata_info or {}
+    return {
+        "dataset_id": request.dataset_id,
+        "schema_version": metadata.get("schema_version"),
+        "source_system": metadata.get("source_system"),
+        "data_as_of": metadata.get("data_as_of"),
+        "pagination": metadata.get("pagination") or {},
+    }
 
 
 @router.get("/api-sources")
@@ -108,9 +126,10 @@ def list_api_sources(
     ]
 
 
-@router.post("/api-sources", status_code=201)
+@router.post("/api-sources", status_code=status.HTTP_201_CREATED)
 def save_api_source(
     request: SaveApiSourceRequest,
+    response: Response,
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -126,23 +145,48 @@ def save_api_source(
     if request.auth_type not in {"none", "bearer"}:
         raise HTTPException(status_code=422, detail="Kiểu xác thực không được hỗ trợ.")
 
-    source = ApiSource(
-        user_id=_user_id(current_user),
-        name=request.name.strip(),
-        dataset_id=request.dataset_id,
-        url=request.url.strip(),
-        description=(request.description or "").strip() or None,
-        auth_type=request.auth_type,
-        dashboard_slug=scenario["dashboard_slug"],
-        status="READY",
+    user_id = _user_id(current_user)
+    source_url = request.url.strip()
+    source = (
+        db.query(ApiSource)
+        .filter(ApiSource.user_id == user_id, ApiSource.url == source_url)
+        .first()
     )
-    db.add(source)
+    is_new = source is None
+    if is_new:
+        source = ApiSource(user_id=user_id, url=source_url)
+        db.add(source)
+
+    source.name = request.name.strip()
+    source.dataset_id = request.dataset_id
+    source.description = (request.description or "").strip() or None
+    source.auth_type = request.auth_type
+    source.metadata_info = _persisted_metadata(request)
+    source.dashboard_slug = scenario["dashboard_slug"]
+    source.status = "READY"
+
+    bearer_token = (request.bearer_token or "").strip()
+    if not bearer_token and _is_configured_mock_url(source_url) and MOCK_API_KEY:
+        bearer_token = MOCK_API_KEY
+    if request.auth_type == "none":
+        source.credential_ciphertext = None
+    elif bearer_token:
+        source.credential_ciphertext = encrypt_secret(bearer_token)
+    elif is_new:
+        raise HTTPException(status_code=422, detail="Bearer Token là bắt buộc cho nguồn xác thực Bearer.")
+
     try:
         db.commit()
         db.refresh(source)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=409, detail="Nguồn API này đã được lưu.") from exc
+        raise HTTPException(status_code=409, detail="Metadata nguồn API xung đột với dữ liệu hiện có.") from exc
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Không thể lưu metadata nguồn API vào PostgreSQL.") from exc
+
+    if not is_new:
+        response.status_code = status.HTTP_200_OK
     return source.to_dict()
 
 
@@ -277,10 +321,32 @@ def trigger_api_dataset_pipeline(
     dataset_id: str,
     request: TriggerApiPipelineRequest,
     current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     parsed = urlparse(request.source_url.strip())
     if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.username or parsed.password:
         raise HTTPException(status_code=422, detail="URL API nguồn không hợp lệ.")
+
+    source = (
+        db.query(ApiSource)
+        .filter(
+            ApiSource.user_id == _user_id(current_user),
+            ApiSource.dataset_id == dataset_id,
+            ApiSource.url == request.source_url.strip(),
+        )
+        .first()
+    )
+    if not source:
+        raise HTTPException(status_code=404, detail="Nguồn API chưa được lưu hoặc không thuộc người dùng hiện tại.")
+
+    bearer_token = (request.bearer_token or "").strip()
+    if not bearer_token and source.credential_ciphertext:
+        try:
+            bearer_token = decrypt_secret(source.credential_ciphertext)
+        except ValueError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+    if source.auth_type == "bearer" and not bearer_token:
+        raise HTTPException(status_code=422, detail="Nguồn API chưa có Bearer Token đã lưu.")
 
     dag_run_id = f"portal_api__{dataset_id.rsplit('.', 1)[-1]}__{uuid.uuid4().hex[:12]}"
     airflow_url = (
@@ -294,8 +360,8 @@ def trigger_api_dataset_pipeline(
                 "dag_run_id": dag_run_id,
                 "conf": {
                     "dataset_id": dataset_id,
-                    "source_api_url": _airflow_source_url(request.source_url.strip()),
-                    "source_api_key": (request.bearer_token or "").strip(),
+                    "source_api_url": _airflow_source_url(source.url),
+                    "source_api_key": bearer_token,
                 },
             },
             auth=_airflow_auth(),

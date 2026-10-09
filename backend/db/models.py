@@ -76,6 +76,8 @@ class ApiSource(Base):
     url = Column(Text, nullable=False)
     description = Column(Text, nullable=True)
     auth_type = Column(String(30), nullable=False, default="none")
+    metadata_info = Column(JSONB, nullable=True)
+    credential_ciphertext = Column(Text, nullable=True)
     dashboard_slug = Column(String(255), nullable=True)
     status = Column(String(30), nullable=False, default="READY")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -89,6 +91,8 @@ class ApiSource(Base):
             "url": self.url,
             "description": self.description,
             "auth_type": self.auth_type,
+            "metadata_info": self.metadata_info or {},
+            "credential_configured": bool(self.credential_ciphertext),
             "dashboard_slug": self.dashboard_slug,
             "status": self.status,
             "created_at": self.created_at.isoformat() if self.created_at else None,

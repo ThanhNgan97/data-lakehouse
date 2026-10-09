@@ -33,6 +33,10 @@ COMMON_ENV = {
         "if dag_run else '' }}"
     ),
     "AIRFLOW_RUN_ID": "{{ run_id }}",
+    "SOURCE_API_URL": (
+        "{{ dag_run.conf.get('source_api_url', '') "
+        "if dag_run else '' }}"
+    ),
 }
 
 

@@ -63,6 +63,39 @@ class UploadHistory(Base):
         }
 
 
+class ApiSource(Base):
+    __tablename__ = "api_sources"
+    __table_args__ = (
+        UniqueConstraint("user_id", "url", name="uq_api_source_user_url"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    dataset_id = Column(String(255), nullable=False, index=True)
+    url = Column(Text, nullable=False)
+    description = Column(Text, nullable=True)
+    auth_type = Column(String(30), nullable=False, default="none")
+    dashboard_slug = Column(String(255), nullable=True)
+    status = Column(String(30), nullable=False, default="READY")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "dataset_id": self.dataset_id,
+            "url": self.url,
+            "description": self.description,
+            "auth_type": self.auth_type,
+            "dashboard_slug": self.dashboard_slug,
+            "status": self.status,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
 class ScanManifest(Base):
     __tablename__ = "scan_manifests"
 

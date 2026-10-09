@@ -71,6 +71,7 @@ export default function ApiConnection() {
   const [showToken, setShowToken] = useState(false);
   const [paginationOpen, setPaginationOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("history");
+  const [dashboardRevision, setDashboardRevision] = useState(0);
   const [pipeline, setPipeline] = useState({ runId: "", state: "idle", tasks: [], error: "" });
   const [preview, setPreview] = useState({ loading: false, data: [], metadata: null, error: "" });
   const [saveState, setSaveState] = useState({ loading: false, message: "", error: "" });
@@ -126,6 +127,16 @@ export default function ApiConnection() {
     }, 3000);
 
     return () => window.clearInterval(timer);
+  }, [pipeline.runId, pipeline.state]);
+
+  useEffect(() => {
+    if (!pipeline.runId || pipeline.state !== "success") return;
+
+    // The iframe is already mounted while Airflow provisions/updates the
+    // dashboard. Remount it after a successful run so Superset is requested
+    // again instead of leaving the pre-pipeline response visible.
+    setDashboardRevision((current) => current + 1);
+    setActiveTab("report");
   }, [pipeline.runId, pipeline.state]);
 
   function updateForm(key, value) {
@@ -470,7 +481,7 @@ export default function ApiConnection() {
               })}
             </div>
             <div className="mt-6 border-b border-slate-200"><div className="flex gap-5 overflow-x-auto">{[{ id: "history", label: "Lịch sử cập nhật", icon: History }, { id: "report", label: "Báo cáo liên quan", icon: Table2 }].map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => setActiveTab(id)} className={`flex shrink-0 items-center gap-2 border-b-2 px-1 pb-3 text-sm font-semibold ${activeTab === id ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500"}`}><Icon size={16} />{label}</button>)}</div></div>
-            {activeTab === "history" ? <div className="mt-4 grid min-h-28 place-items-center rounded-xl border border-dashed border-slate-200 text-center"><div><Clock3 size={22} className="mx-auto text-slate-400" /><p className="mt-2 text-sm font-semibold text-slate-600">Chưa có thông tin lịch sử cập nhật</p></div></div> : <div className="mt-4 flex flex-col gap-3 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-bold">CTU IOC – Kết quả học tập</p><p className="mt-1 text-xs text-slate-500">Báo cáo mở theo phân quyền tài khoản của bạn.</p></div><button type="button" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold text-blue-700">Mở báo cáo</button></div>}
+            {activeTab === "history" ? <div className="mt-4 grid min-h-28 place-items-center rounded-xl border border-dashed border-slate-200 text-center"><div><Clock3 size={22} className="mx-auto text-slate-400" /><p className="mt-2 text-sm font-semibold text-slate-600">Chưa có thông tin lịch sử cập nhật</p></div></div> : <div className="mt-4 flex flex-col gap-3 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-bold">Dashboard – {selectedSource.name}</p><p className="mt-1 text-xs text-slate-500">Báo cáo mở theo phân quyền tài khoản của bạn.</p></div><a href={`${SUPERSET_ORIGIN}/superset/dashboard/${encodeURIComponent(selectedSource.dashboardSlug)}/`} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold text-blue-700">Mở báo cáo</a></div>}
           </div>
         </SectionCard>}
 
@@ -483,7 +494,7 @@ export default function ApiConnection() {
             {pipeline.state === "success" ? "Dữ liệu Dashboard đã được đồng bộ thành công." : "Dashboard đang hiển thị dữ liệu hiện có. Nhấn “Cập nhật dữ liệu” để chạy pipeline và đồng bộ dữ liệu mới nhất."}
           </div>
           <div className="p-2 sm:p-4">
-            <iframe title={`Dashboard ${selectedSource.name}`} src={`${SUPERSET_ORIGIN}/superset/dashboard/${encodeURIComponent(selectedSource.dashboardSlug)}/?standalone=3`} className="h-[560px] w-full rounded-xl border border-slate-200 bg-white sm:h-[720px]" />
+            <iframe key={`${selectedSource.id}-${dashboardRevision}`} title={`Dashboard ${selectedSource.name}`} src={`${SUPERSET_ORIGIN}/superset/dashboard/${encodeURIComponent(selectedSource.dashboardSlug)}/?standalone=3&_refresh=${dashboardRevision}`} className="h-[560px] w-full rounded-xl border border-slate-200 bg-white sm:h-[720px]" />
           </div>
         </SectionCard>}
       </main>

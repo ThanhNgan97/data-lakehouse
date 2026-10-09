@@ -6,7 +6,16 @@ from fastapi import Response
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 
-from api.routes.api_sources import SaveApiSourceRequest, _persisted_metadata, save_api_source
+from api.routes import api_sources
+from api.routes.api_sources import (
+    ConfigureApiCredentialRequest,
+    LoginAuthenticationRequest,
+    SaveApiSourceRequest,
+    _extract_token,
+    _persisted_metadata,
+    configure_api_source_credentials,
+    save_api_source,
+)
 from core.security import decrypt_secret, encrypt_secret
 from db.models import ApiSource
 
@@ -121,4 +130,42 @@ def test_saving_the_same_url_updates_metadata_and_preserves_stored_credential():
     assert source.metadata_info["schema_version"] == "2.0"
     assert source.credential_ciphertext == ciphertext
     assert result["credential_configured"] is True
+
+
+def test_nested_token_field_is_supported():
+    assert _extract_token({"data": {"access_token": " token-value "}}, "data.access_token") == "token-value"
+    assert _extract_token({"access_token": "token-value"}, "data.access_token") is None
+
+
+def test_login_reauthentication_stores_token_but_never_password(monkeypatch):
+    source = ApiSource(
+        id=8,
+        user_id=7,
+        name="Teaching Progress",
+        dataset_id="education.teaching_progress",
+        url="https://example.test/api",
+        auth_type="login",
+    )
+    db = _FakeSession(existing=source)
+    login = LoginAuthenticationRequest(
+        login_url="https://example.test/auth/login",
+        username="api-user",
+        password="never-store-this",
+        token_field="data.token",
+    )
+    request = ConfigureApiCredentialRequest(auth_type="login", login=login)
+    monkeypatch.setattr(api_sources, "_login_for_token", lambda value: "fresh-token")
+
+    result = configure_api_source_credentials(
+        source_id=8,
+        request=request,
+        current_user=SimpleNamespace(id=7),
+        db=db,
+    )
+
+    assert db.committed is True
+    assert decrypt_secret(source.credential_ciphertext) == "fresh-token"
+    assert source.auth_config["username"] == "api-user"
+    assert "password" not in source.auth_config
+    assert "never-store-this" not in str(result)
 

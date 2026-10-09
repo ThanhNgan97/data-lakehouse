@@ -30,7 +30,7 @@ from incremental_ingestion import (
     run_incremental_ingestion,
 )
 from bronze_writer import read_parquet_object
-from checkpoint_store import PostgresCheckpointStore
+from checkpoint_store import MinioCheckpointStore
 from nessie_catalog_utils import use_main
 from spark_bronze_to_silver import get_spark_session
 
@@ -91,7 +91,8 @@ def source_api_url(
 
 def _api_key() -> str | None:
     return (
-        os.getenv("CTU_IOC_API_KEY")
+        os.getenv("SOURCE_API_KEY")
+        or os.getenv("CTU_IOC_API_KEY")
         or os.getenv("MOCK_API_KEY")
         or None
     )
@@ -168,7 +169,7 @@ def _checkpoint_payload(state) -> str:
 def _latest_committed_batch_id(
     dataset_id: str,
 ) -> str:
-    state = PostgresCheckpointStore().load(
+    state = MinioCheckpointStore().load(
         dataset_id
     )
 

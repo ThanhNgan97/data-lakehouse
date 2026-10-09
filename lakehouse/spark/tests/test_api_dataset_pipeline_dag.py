@@ -175,6 +175,20 @@ class ApiDatasetPipelineDagTest(
                 task.env["DATASET_ID"],
             )
 
+    def test_source_url_and_key_are_templated_from_run_config(self):
+        for task in self.dag.tasks:
+            self.assertIn(
+                "dag_run.conf.get('source_api_url'",
+                task.env["SOURCE_API_URL"],
+            )
+            self.assertIn(
+                "dag_run.conf.get('source_api_key'",
+                task.env["SOURCE_API_KEY"],
+            )
+
+    def test_checkpoint_updates_are_serialized(self):
+        self.assertEqual(self.dag.max_active_runs, 1)
+
     def test_trigger_ui_param_is_registry_driven(
         self,
     ):

@@ -1,14 +1,45 @@
 import json
+from io import BytesIO
 from unittest.mock import Mock
 
 import pytest
+from botocore.exceptions import ClientError
 
 from checkpoint_store import (
     CheckpointConflictError,
     CheckpointState,
     CheckpointStoreError,
+    MinioCheckpointStore,
     PostgresCheckpointStore,
 )
+
+
+class FakeMinioClient:
+    def __init__(self):
+        self.objects = {}
+
+    def get_object(self, *, Bucket, Key):
+        object_id = (Bucket, Key)
+        if object_id not in self.objects:
+            raise ClientError(
+                {"Error": {"Code": "NoSuchKey"}},
+                "GetObject",
+            )
+        return {"Body": BytesIO(self.objects[object_id])}
+
+    def put_object(self, *, Bucket, Key, Body, ContentType):
+        assert ContentType == "application/json"
+        self.objects[(Bucket, Key)] = Body
+        return {"ETag": '"test-etag"'}
+
+
+def _minio_store():
+    client = FakeMinioClient()
+    store = MinioCheckpointStore(
+        s3_client_factory=lambda: client,
+        bucket="test-bucket",
+    )
+    return store, client
 
 
 def _store_with_row(row):
@@ -258,3 +289,59 @@ def test_non_object_payload_fails_before_connection():
         )
 
     factory.assert_not_called()
+
+
+def test_minio_load_missing_checkpoint_returns_none():
+    store, _ = _minio_store()
+
+    assert store.load("education.teaching_progress") is None
+
+
+def test_minio_compare_and_set_persists_and_advances_version():
+    store, client = _minio_store()
+
+    first = store.compare_and_set(
+        dataset_id="education.teaching_progress",
+        strategy_type="timestamp",
+        expected_version=None,
+        checkpoint_payload={"value": "2026-10-09T01:00:00Z"},
+        batch_id="batch-1",
+    )
+    second = store.compare_and_set(
+        dataset_id="education.teaching_progress",
+        strategy_type="timestamp",
+        expected_version=1,
+        checkpoint_payload={"value": "2026-10-09T02:00:00Z"},
+        batch_id="batch-2",
+    )
+
+    assert first.version == 1
+    assert second.version == 2
+    assert store.load("education.teaching_progress") == second
+    assert (
+        "test-bucket",
+        "metadata/api_ingestion_checkpoints/education.teaching_progress.json",
+    ) in client.objects
+
+
+def test_minio_compare_and_set_rejects_stale_version():
+    store, _ = _minio_store()
+    store.compare_and_set(
+        dataset_id="education.teaching_progress",
+        strategy_type="timestamp",
+        expected_version=None,
+        checkpoint_payload={"value": "2026-10-09T01:00:00Z"},
+        batch_id="batch-1",
+    )
+
+    with pytest.raises(
+        CheckpointConflictError,
+        match="compare-and-set conflict",
+    ):
+        store.compare_and_set(
+            dataset_id="education.teaching_progress",
+            strategy_type="timestamp",
+            expected_version=None,
+            checkpoint_payload={"value": "2026-10-09T02:00:00Z"},
+            batch_id="batch-2",
+        )

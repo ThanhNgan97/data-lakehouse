@@ -47,6 +47,7 @@ class InspectApiSourceRequest(BaseModel):
 
 class TriggerApiPipelineRequest(BaseModel):
     source_url: str
+    bearer_token: str | None = None
 
 
 class SaveApiSourceRequest(BaseModel):
@@ -294,6 +295,7 @@ def trigger_api_dataset_pipeline(
                 "conf": {
                     "dataset_id": dataset_id,
                     "source_api_url": _airflow_source_url(request.source_url.strip()),
+                    "source_api_key": (request.bearer_token or "").strip(),
                 },
             },
             auth=_airflow_auth(),

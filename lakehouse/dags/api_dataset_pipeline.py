@@ -37,6 +37,10 @@ COMMON_ENV = {
         "{{ dag_run.conf.get('source_api_url', '') "
         "if dag_run else '' }}"
     ),
+    "SOURCE_API_KEY": (
+        "{{ dag_run.conf.get('source_api_key', '') "
+        "if dag_run else '' }}"
+    ),
 }
 
 
@@ -60,6 +64,7 @@ with DAG(
     schedule_interval=None,
     start_date=datetime(2026, 1, 1),
     catchup=False,
+    max_active_runs=1,
     tags=[
         "lakehouse",
         "api",

@@ -509,9 +509,9 @@ const UserUpload = () => {
 
       <main className="mx-auto w-full max-w-[1920px] flex-1 space-y-5 px-3 py-5 sm:px-5 sm:py-7 md:px-6 lg:space-y-7 lg:px-7 xl:px-8 2xl:px-10">
         <div>
-          <p className="mb-1 text-xs font-semibold text-blue-700">Workspace nguồn dữ liệu</p>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Tải file</h1>
-          <p className="mt-2 text-sm text-slate-500">Tải file từ máy tính hoặc nhập từ URL, theo dõi tiến trình xử lý và xem báo cáo.</p>
+          {/* <p className="mb-1 text-xs font-semibold text-blue-700">Workspace nguồn dữ liệu</p> */}
+          {/* <h1 className="text-2xl font-bold tracking-tight text-slate-900">Tải file</h1> */}
+          {/* <p className="mt-2 text-sm text-slate-500">Tải file từ máy tính hoặc nhập từ URL, theo dõi tiến trình xử lý và xem báo cáo.</p> */}
         </div>
         {/* ROW 1 — Upload + History */}
         <section className="grid grid-cols-1 items-stretch gap-5 xl:grid-cols-[7fr_13fr] xl:gap-6 2xl:gap-7">

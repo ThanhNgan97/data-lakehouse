@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { Home, UploadCloud, Code2, Database, Zap, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 
 const items = [
-  ["/user", "Trang chủ", Home],
-  ["/user/file", "Tải file", UploadCloud],
-  ["/user/api", "API", Code2],
-  ["/user/database", "Database", Database],
-  ["/user/iot", "IoT", Zap],
+  ["/user", "Trang chủ"],
+  ["/user/file", "Tải file"],
+  ["/user/api", "API"],
+  ["/user/database", "Database"],
+  ["/user/iot", "IoT"],
 ];
 
 export default function UserTopNavigation() {
@@ -44,9 +44,9 @@ export default function UserTopNavigation() {
         </NavLink>
 
         <nav aria-label="Điều hướng User Portal" className="order-3 flex w-full gap-1 overflow-x-auto xl:order-none xl:w-auto">
-          {items.map(([to, label, Icon]) => (
-            <NavLink key={to} to={to} end={to === "/user"} className={({ isActive }) => `relative flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 ${isActive ? "bg-blue-50 text-blue-700 after:absolute after:bottom-0 after:left-3 after:right-3 after:h-0.5 after:bg-blue-700" : "text-slate-600 hover:bg-slate-50 hover:text-blue-700"}`}>
-              <Icon size={16} strokeWidth={2} aria-hidden="true" />{label}
+          {items.map(([to, label]) => (
+            <NavLink key={to} to={to} end={to === "/user"} className={({ isActive }) => `relative flex shrink-0 items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 ${isActive ? "bg-blue-50 text-blue-700 after:absolute after:bottom-0 after:left-3 after:right-3 after:h-0.5 after:bg-blue-700" : "text-slate-600 hover:bg-slate-50 hover:text-blue-700"}`}>
+              {label}
             </NavLink>
           ))}
         </nav>

@@ -47,7 +47,7 @@ const normalizeSource = (source) => ({
 
 function SectionCard({ children, className = "" }) {
   return (
-    <section className={`overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.06)] ${className}`}>
+    <section className={`overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card ${className}`}>
       {children}
     </section>
   );
@@ -55,7 +55,7 @@ function SectionCard({ children, className = "" }) {
 
 function FieldLabel({ children, required = false }) {
   return (
-    <label className="mb-2 block text-sm font-semibold text-slate-700">
+    <label className="mb-2 block text-sm font-bold text-slate-700">
       {children}{required && <span className="ml-1 text-rose-500">*</span>}
     </label>
   );
@@ -269,34 +269,35 @@ export default function ApiConnection() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f6f8fc] text-slate-900">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       <UserTopNavigation />
 
-      <main className="mx-auto w-full max-w-[1480px] px-3 py-5 sm:px-6 sm:py-7 lg:px-8">
+      <main className="mx-auto w-full max-w-[1680px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         {/* <Link to="/user" className="mb-5 inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-white hover:text-blue-700">
           <ArrowLeft size={17} /> Về trang chủ
         </Link> */}
 
-        <div className="mb-6 border-l-4 border-blue-600 pl-4">
-          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Kết nối API</h1>
-          {/* <p className="mt-1 text-sm text-slate-500 sm:text-base">Thêm nguồn dữ liệu từ API, kiểm tra kết nối và theo dõi các lần cập nhật.</p> */}
+        <div className="relative mb-5 overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-white via-blue-50/60 to-indigo-50 p-5 shadow-card sm:p-7 lg:p-8">
+          <span className="relative mb-3 inline-flex rounded-full bg-blue-700 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.16em] text-white">API ingestion</span>
+          <h1 className="relative font-display text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl lg:text-4xl">Kết nối API</h1>
+          <p className="relative mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">Kết nối linh hoạt các nguồn dữ liệu RESTful, kiểm tra phản hồi và theo dõi toàn bộ hành trình dữ liệu đến dashboard phân tích.</p>
         </div>
 
-        <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(340px,.85fr)]">
-          <SectionCard className="order-1 min-w-0 border-t-4 border-t-blue-600">
+        <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,.55fr)]">
+          <SectionCard className="order-1 min-w-0">
             <form onSubmit={saveSource}>
-              <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+              <div className="flex flex-col gap-3 border-b border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
                 <div className="flex items-center gap-3">
-                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-50 text-blue-600"><Code2 size={20} /></span>
-                  <div><h2 className="font-bold">Thêm kết nối API mới</h2><p className="text-xs text-slate-500">Khai báo thông số dịch vụ dữ liệu RESTful</p></div>
+                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-50 text-blue-700"><Code2 size={20} /></span>
+                  <div><h2 className="font-display text-lg font-extrabold text-slate-950">Thêm kết nối API mới</h2><p className="mt-1 text-xs text-slate-500">Khai báo thông số dịch vụ dữ liệu RESTful</p></div>
                 </div>
-                <span className="w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">Thêm mới</span>
+                <span className="w-fit rounded-full bg-blue-700 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.16em] text-white">Thêm mới</span>
               </div>
 
-              <div className="space-y-5 p-4 sm:p-6">
+              <div className="space-y-5 p-5 sm:p-6">
                 <div>
                   <FieldLabel required>Tên nguồn dữ liệu</FieldLabel>
-                  <input value={form.name} onChange={(event) => updateForm("name", event.target.value)} placeholder="Nhập tên nguồn dữ liệu" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100" />
+                  <input value={form.name} onChange={(event) => updateForm("name", event.target.value)} placeholder="Nhập tên nguồn dữ liệu" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100/70" />
                   <p className="mt-1.5 text-xs text-slate-400">Tên dễ hiểu giúp bạn nhận diện nguồn trong hệ thống.</p>
                 </div>
 
@@ -308,7 +309,7 @@ export default function ApiConnection() {
 
                 <div>
                   <FieldLabel required>Địa chỉ API (URL)</FieldLabel>
-                  <div className="flex overflow-hidden rounded-xl border border-slate-200 bg-white focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-100">
+                  <div className="flex overflow-hidden rounded-xl border border-slate-200 bg-white transition focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-100/70">
                     <span className="grid min-w-16 place-items-center border-r border-slate-200 bg-slate-50 text-xs font-bold text-blue-700">GET</span>
                     <input type="url" value={form.url} onChange={(event) => updateForm("url", event.target.value)} placeholder="https://..." className="min-w-0 flex-1 px-4 py-3 text-sm outline-none" />
                   </div>
@@ -317,14 +318,14 @@ export default function ApiConnection() {
 
                 <div>
                   <FieldLabel>Mô tả <span className="float-right font-normal text-slate-400">Không bắt buộc</span></FieldLabel>
-                  <textarea rows="3" value={form.description} onChange={(event) => updateForm("description", event.target.value)} placeholder="Nhập mô tả nguồn dữ liệu" className="w-full resize-none rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100" />
+                  <textarea rows="3" value={form.description} onChange={(event) => updateForm("description", event.target.value)} placeholder="Nhập mô tả nguồn dữ liệu" className="w-full resize-none rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100/70" />
                 </div>
 
                 <div>
                   <FieldLabel>Xác thực truy cập</FieldLabel>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {[{ value: "none", label: "Không yêu cầu", icon: ShieldCheck }, { value: "bearer", label: "Bearer Token", icon: KeyRound }].map(({ value, label, icon: Icon }) => (
-                      <button key={value} type="button" onClick={() => setAuthType(value)} className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition ${authType === value ? "border-blue-600 bg-blue-50 text-blue-700 ring-2 ring-blue-100" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
+                      <button key={value} type="button" onClick={() => setAuthType(value)} className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold transition ${authType === value ? "border-blue-600 bg-blue-50 text-blue-700 shadow-sm ring-2 ring-blue-100" : "border-slate-200 text-slate-600 hover:border-blue-200 hover:bg-slate-50"}`}>
                         <Icon size={17} />{label}
                       </button>
                     ))}
@@ -334,14 +335,14 @@ export default function ApiConnection() {
                 {authType === "bearer" && <div>
                   <FieldLabel required>Mã xác thực Bearer Token</FieldLabel>
                   <div className="relative">
-                    <input type={showToken ? "text" : "password"} value={form.token} onChange={(event) => updateForm("token", event.target.value)} className="w-full rounded-xl border border-slate-200 px-4 py-3 pr-12 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100" />
+                    <input type={showToken ? "text" : "password"} value={form.token} onChange={(event) => updateForm("token", event.target.value)} className="w-full rounded-xl border border-slate-200 px-4 py-3 pr-12 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100/70" />
                     <button type="button" onClick={() => setShowToken((current) => !current)} aria-label={showToken ? "Ẩn token" : "Hiện token"} className="absolute inset-y-0 right-0 px-4 text-slate-400 hover:text-blue-600">{showToken ? <EyeOff size={18} /> : <Eye size={18} />}</button>
                   </div>
                   <p className="mt-1.5 text-xs text-slate-400">Hệ thống gửi kèm theo định dạng Authorization: Bearer [token].</p>
                 </div>}
 
-                <div className="overflow-hidden rounded-xl border border-slate-200">
-                  <button type="button" onClick={() => setPaginationOpen((current) => !current)} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold hover:bg-slate-50">
+                <div className="overflow-hidden rounded-xl border border-slate-200 transition hover:border-blue-200">
+                  <button type="button" onClick={() => setPaginationOpen((current) => !current)} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-bold transition hover:bg-slate-50">
                     <span className="flex items-center gap-2"><Settings2 size={17} className="text-blue-600" />Cách lấy dữ liệu &amp; Phân trang</span>
                     <ChevronDown size={17} className={`transition ${paginationOpen ? "rotate-180" : ""}`} />
                   </button>
@@ -351,11 +352,11 @@ export default function ApiConnection() {
                 {saveState.error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700">{saveState.error}</p>}
                 {saveState.message && <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">{saveState.message}</p>}
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <button type="button" onClick={loadPreview} disabled={!form.url.trim() || preview.loading} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-bold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50">
+                  <button type="button" onClick={loadPreview} disabled={!form.url.trim() || preview.loading} className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-700 hover:shadow-md disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50">
                     {preview.loading ? <LoaderCircle size={17} className="animate-spin" /> : <TestTube2 size={17} />}
                     {preview.loading ? "Đang kiểm tra" : "Kiểm tra nguồn API"}
                   </button>
-                  <button type="submit" disabled={saveState.loading || !preview.metadata} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                  <button type="submit" disabled={saveState.loading || !preview.metadata} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-blue-800 hover:shadow-lg disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40">
                     {saveState.loading ? <LoaderCircle size={17} className="animate-spin" /> : <Save size={17} />}
                     {saveState.loading ? "Đang lưu" : "Lưu nguồn API"}
                   </button>
@@ -364,16 +365,16 @@ export default function ApiConnection() {
             </form>
           </SectionCard>
 
-          <SectionCard className="order-2 min-w-0 self-start border-t-4 border-t-cyan-500 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
-            <div className="flex items-center justify-between gap-3 border-b border-slate-100 p-4 sm:p-6">
-              <div className="flex items-center gap-3"><Database size={20} className="text-cyan-600" /><h2 className="font-bold">Nguồn API </h2></div>
-              <button type="button" className="inline-flex items-center gap-1 rounded-lg bg-cyan-50 px-3 py-2 text-xs font-bold text-cyan-700 hover:bg-cyan-100"><Plus size={14} />Thêm mới</button>
+          <SectionCard className="order-2 min-w-0 self-start">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200 p-5 sm:p-6">
+              <div className="flex items-center gap-3"><Database size={20} className="text-blue-700" /><h2 className="font-display text-lg font-extrabold text-slate-950">Nguồn API </h2></div>
+              <button type="button" className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-100"><Plus size={14} />Thêm mới</button>
             </div>
             <div className="space-y-4 p-4 sm:p-6">
-              <div className="relative"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm theo tên nguồn..." className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100" /></div>
+              <div className="relative"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm theo tên nguồn..." className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100/70" /></div>
               <div className="space-y-3">
                 {filteredSources.map((source) => (
-                  <button key={source.id} type="button" onClick={() => selectSource(source)} className={`w-full rounded-xl border p-4 text-left transition ${selectedId === source.id ? "border-blue-500 bg-blue-50/60 ring-2 ring-blue-100" : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"}`}>
+                  <button key={source.id} type="button" onClick={() => selectSource(source)} className={`w-full rounded-xl border p-4 text-left transition duration-300 ${selectedId === source.id ? "border-blue-500 bg-blue-50/60 ring-2 ring-blue-100" : "border-slate-200 hover:-translate-y-0.5 hover:border-blue-200 hover:bg-slate-50 hover:shadow-md"}`}>
                     <div className="flex items-start justify-between gap-3"><span className="font-bold text-slate-800">{source.name}</span><span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${source.status === "Đã kết nối" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{source.status}</span></div>
                     <p className="mt-2 truncate font-mono text-xs text-slate-500">{source.endpoint}</p>
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs"><span className="text-slate-400">{source.updatedAt}</span><span className="font-semibold text-blue-700">Xem chi tiết</span></div>
@@ -386,12 +387,12 @@ export default function ApiConnection() {
           </SectionCard>
         </div>
 
-        <SectionCard className="mt-5 border-t-4 border-t-teal-500">
-          <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-            <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-teal-50 text-teal-600"><FileJson2 size={20} /></span><div><h2 className="font-bold">Kiểm tra nguồn &amp; Xem dữ liệu</h2><p className="text-xs text-slate-500">Xác thực phản hồi JSON trước khi tích hợp vào Data Lakehouse</p></div></div>
+        <SectionCard className="mt-5">
+          <div className="flex flex-col gap-3 border-b border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-50 text-blue-700"><FileJson2 size={20} /></span><div><h2 className="font-display text-lg font-extrabold text-slate-950">Kiểm tra nguồn &amp; Xem dữ liệu</h2><p className="mt-1 text-xs text-slate-500">Xác thực phản hồi JSON trước khi tích hợp vào Data Lakehouse</p></div></div>
             <div className="flex flex-wrap items-center gap-2">
               {preview.metadata && <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700">Schema {preview.metadata.schema_version}</span>}
-              <button type="button" onClick={loadPreview} disabled={!form.url.trim() || preview.loading} className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50">
+              <button type="button" onClick={loadPreview} disabled={!form.url.trim() || preview.loading} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-blue-800 hover:shadow-md disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50">
                 {preview.loading ? <LoaderCircle size={16} className="animate-spin" /> : <TestTube2 size={16} />}
                 {preview.loading ? "Đang kiểm tra" : "Kiểm tra nguồn API"}
               </button>
@@ -405,20 +406,20 @@ export default function ApiConnection() {
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-bold">Xem trước {preview.data.length} bản ghi</p><span className="font-mono text-xs text-slate-500">{preview.metadata?.dataset_id}</span></div>
               <div className="overflow-x-auto rounded-xl border border-slate-200">
                 <table className="w-full min-w-max text-left text-sm">
-                  <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr>{Object.keys(preview.data[0] || {}).map((heading) => <th key={heading} className="whitespace-nowrap px-4 py-3 font-semibold">{heading}</th>)}</tr></thead>
-                  <tbody className="divide-y divide-slate-100">{preview.data.map((row, rowIndex) => <tr key={row.record_id || rowIndex}>{Object.keys(preview.data[0] || {}).map((key) => <td key={key} className="max-w-64 whitespace-nowrap px-4 py-3 text-slate-600">{String(row[key] ?? "")}</td>)}</tr>)}</tbody>
+                  <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr>{Object.keys(preview.data[0] || {}).map((heading) => <th key={heading} className="whitespace-nowrap px-4 py-3 font-bold">{heading}</th>)}</tr></thead>
+                  <tbody className="divide-y divide-slate-100">{preview.data.map((row, rowIndex) => <tr key={row.record_id || rowIndex} className="transition hover:bg-blue-50/50">{Object.keys(preview.data[0] || {}).map((key) => <td key={key} className="max-w-64 whitespace-nowrap px-4 py-3 text-slate-600">{String(row[key] ?? "")}</td>)}</tr>)}</tbody>
                 </table>
               </div>
             </div>
           )}
         </SectionCard>
 
-        {selectedSource && <SectionCard className="mt-5 border-t-4 border-t-blue-600">
-          <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-            <div><h2 className="text-lg font-bold sm:text-xl">Chi tiết nguồn: {selectedSource?.name}</h2><p className="mt-1 text-xs text-slate-500">Cấu hình kỹ thuật, lịch sử xử lý và kết nối báo cáo</p></div>
+        {selectedSource && <SectionCard className="mt-5">
+          <div className="flex flex-col gap-3 border-b border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div><h2 className="font-display text-lg font-extrabold text-slate-950 sm:text-xl">Chi tiết nguồn: {selectedSource?.name}</h2><p className="mt-1 text-xs text-slate-500">Cấu hình kỹ thuật, lịch sử xử lý và kết nối báo cáo</p></div>
             <div className="flex flex-wrap items-center gap-2">
-              <a href={AIRFLOW_DAG_URL} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50">Mở Airflow</a>
-              <button type="button" onClick={runPipeline} disabled={["starting", "queued", "running"].includes(pipeline.state)} className="inline-flex w-fit items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+              <a href={AIRFLOW_DAG_URL} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:border-blue-300 hover:bg-slate-50 hover:text-blue-700">Mở Airflow</a>
+              <button type="button" onClick={runPipeline} disabled={["starting", "queued", "running"].includes(pipeline.state)} className="inline-flex w-fit items-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-blue-800 hover:shadow-md disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60">
                 <RefreshCw size={16} className={["starting", "queued", "running"].includes(pipeline.state) ? "animate-spin" : ""} />
                 {["starting", "queued", "running"].includes(pipeline.state) ? "Pipeline đang chạy" : "Cập nhật dữ liệu"}
               </button>
@@ -426,7 +427,7 @@ export default function ApiConnection() {
           </div>
           <div className="p-4 sm:p-6">
             <div className="grid gap-3 sm:grid-cols-3">
-              {[{ icon: Save, label: "Lưu cấu hình", value: "Đã lưu vào hệ thống" }, { icon: CheckCircle2, label: "Kiểm tra kết nối", value: "Đã kiểm tra" }, { icon: Settings2, label: "Dataset ID", value: selectedSource.datasetId }].map(({ icon: Icon, label, value }) => <div key={label} className="rounded-xl border border-slate-200 p-4"><p className="text-xs text-slate-500">{label}</p><p className="mt-2 flex items-center gap-2 break-all text-sm font-bold"><Icon size={16} className="shrink-0 text-blue-500" />{value}</p></div>)}
+              {[{ icon: Save, label: "Lưu cấu hình", value: "Đã lưu vào hệ thống" }, { icon: CheckCircle2, label: "Kiểm tra kết nối", value: "Đã kiểm tra" }, { icon: Settings2, label: "Dataset ID", value: selectedSource.datasetId }].map(({ icon: Icon, label, value }) => <div key={label} className="rounded-xl border border-slate-200 p-4 transition duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-md"><p className="text-xs text-slate-500">{label}</p><p className="mt-2 flex items-center gap-2 break-all text-sm font-bold"><Icon size={16} className="shrink-0 text-blue-700" />{value}</p></div>)}
             </div>
             <div className={`mt-4 rounded-xl border p-4 text-sm ${pipeline.state === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : pipeline.state === "failed" ? "border-rose-200 bg-rose-50 text-rose-800" : "border-blue-100 bg-blue-50 text-blue-800"}`}>
               <strong>API Dataset Pipeline:</strong>{" "}
@@ -443,7 +444,7 @@ export default function ApiConnection() {
                 const state = pipelineTaskState(index);
                 const stateLabel = { waiting: "Sẵn sàng", running: "Đang chạy", success: "Hoàn thành", failed: "Thất bại" }[state];
                 const stateClass = { waiting: "bg-slate-100 text-slate-500", running: "bg-blue-100 text-blue-700", success: "bg-emerald-100 text-emerald-700", failed: "bg-rose-100 text-rose-700" }[state];
-                return <div key={step} className={`rounded-xl border p-4 ${state === "running" ? "border-blue-300 bg-blue-50/50" : state === "failed" ? "border-rose-200" : "border-slate-200"}`}><div className="flex items-center justify-between"><span className="font-mono text-xs text-blue-600">0{index + 1}</span><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${stateClass}`}>{stateLabel}</span></div><p className="mt-4 text-sm font-bold">{step}</p></div>;
+                return <div key={step} className={`rounded-xl border p-4 transition duration-300 hover:-translate-y-1 hover:shadow-md ${state === "running" ? "border-blue-300 bg-blue-50/50" : state === "failed" ? "border-rose-200" : "border-slate-200"}`}><div className="flex items-center justify-between"><span className="font-data text-xs font-bold text-blue-700">0{index + 1}</span><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${stateClass}`}>{stateLabel}</span></div><p className="mt-4 text-sm font-bold">{step}</p></div>;
               })}
             </div>
             <div className="mt-6 border-b border-slate-200"><div className="flex gap-5 overflow-x-auto">{[{ id: "history", label: "Lịch sử cập nhật", icon: History }, { id: "report", label: "Báo cáo liên quan", icon: Table2 }].map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => setActiveTab(id)} className={`flex shrink-0 items-center gap-2 border-b-2 px-1 pb-3 text-sm font-semibold ${activeTab === id ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500"}`}><Icon size={16} />{label}</button>)}</div></div>
@@ -451,10 +452,10 @@ export default function ApiConnection() {
           </div>
         </SectionCard>}
 
-        {selectedSource?.dashboardSlug && <SectionCard className="mt-5 border-t-4 border-t-violet-500">
-          <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-            <div><h2 className="text-lg font-bold sm:text-xl">Dashboard: {selectedSource.name}</h2><p className="mt-1 text-xs text-slate-500">Báo cáo phân tích tương ứng với nguồn API đã chọn</p></div>
-            <a href={`${SUPERSET_ORIGIN}/superset/dashboard/${encodeURIComponent(selectedSource.dashboardSlug)}/`} target="_blank" rel="noreferrer" className="w-fit rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-700">Mở toàn màn hình</a>
+        {selectedSource?.dashboardSlug && <SectionCard className="mt-5">
+          <div className="flex flex-col gap-3 border-b border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div><h2 className="font-display text-lg font-extrabold text-slate-950 sm:text-xl">Dashboard: {selectedSource.name}</h2><p className="mt-1 text-xs text-slate-500">Báo cáo phân tích tương ứng với nguồn API đã chọn</p></div>
+            <a href={`${SUPERSET_ORIGIN}/superset/dashboard/${encodeURIComponent(selectedSource.dashboardSlug)}/`} target="_blank" rel="noreferrer" className="w-fit rounded-lg bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-700 transition hover:-translate-y-0.5 hover:bg-blue-100">Mở toàn màn hình</a>
           </div>
           <div className={`mx-2 mt-3 rounded-xl border p-3 text-sm sm:mx-4 ${pipeline.state === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
             {pipeline.state === "success" ? "Dữ liệu Dashboard đã được đồng bộ thành công." : "Dashboard đang hiển thị dữ liệu hiện có. Nhấn “Cập nhật dữ liệu” để chạy pipeline và đồng bộ dữ liệu mới nhất."}
@@ -465,7 +466,7 @@ export default function ApiConnection() {
         </SectionCard>}
       </main>
 
-      <footer className="mt-8 border-t border-slate-200 bg-white"><div className="mx-auto flex max-w-[1480px] flex-col gap-2 px-4 py-5 text-xs text-slate-500 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8"><span>© 2026 Trung tâm Công nghệ Phần mềm – Đại học Cần Thơ (CUSC).</span><span>Hỗ trợ kỹ thuật: support@cusc.ctu.edu.vn</span></div></footer>
+      <footer className="mt-8 border-t border-slate-200 bg-white"><div className="mx-auto flex w-full max-w-[1680px] flex-col gap-2 px-4 py-5 text-xs text-slate-500 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8"><span>© 2026 Trung tâm Công nghệ Phần mềm – Đại học Cần Thơ (CUSC).</span><span>Hỗ trợ kỹ thuật: support@cusc.ctu.edu.vn</span></div></footer>
     </div>
   );
 }

@@ -263,7 +263,7 @@ export default function UserDatabase() {
   return (
     <div className="min-h-screen bg-slate-50">
       <UserTopNavigation /> 
-      <main className="mx-auto w-full max-w-[1480px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <main className="mx-auto w-full max-w-[1680px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <section className="relative overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-white via-blue-50/60 to-indigo-50 p-5 shadow-card sm:p-7 lg:p-8">
           <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-200/30 blur-3xl" />
           <div className="relative flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">

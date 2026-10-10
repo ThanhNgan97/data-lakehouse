@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { Home, UploadCloud, Code2, Database, Zap, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 
 const items = [
-  ["/user", "Trang chủ", Home],
-  ["/user/file", "Tải file", UploadCloud],
-  ["/user/api", "API", Code2],
-  ["/user/database", "Database", Database],
-  ["/user/iot", "IoT", Zap],
+  ["/user", "Trang chủ"],
+  ["/user/file", "Tải file"],
+  ["/user/api", "API"],
+  ["/user/database", "Database"],
+  ["/user/iot", "IoT"],
 ];
 
 export default function UserTopNavigation() {
@@ -31,7 +31,7 @@ export default function UserTopNavigation() {
 
   return (
     <header className={`sticky top-0 z-50 border-b border-slate-200 transition-shadow ${scrolled ? "bg-white/95 backdrop-blur-md shadow-sm" : "bg-white"}`}>
-      <div className="mx-auto flex min-h-[72px] max-w-[1480px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-[72px] max-w-[1680px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
         <NavLink to="/user" className="flex min-w-0 items-center gap-3 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
           <img src="/CUSC Logo Series.png" alt="CUSC" className="h-9 w-auto shrink-0 object-contain" />
           <div className="min-w-0">
@@ -44,9 +44,9 @@ export default function UserTopNavigation() {
         </NavLink>
 
         <nav aria-label="Điều hướng User Portal" className="order-3 flex w-full gap-1 overflow-x-auto xl:order-none xl:w-auto">
-          {items.map(([to, label, Icon]) => (
-            <NavLink key={to} to={to} end={to === "/user"} className={({ isActive }) => `relative flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 ${isActive ? "bg-blue-50 text-blue-700 after:absolute after:bottom-0 after:left-3 after:right-3 after:h-0.5 after:bg-blue-700" : "text-slate-600 hover:bg-slate-50 hover:text-blue-700"}`}>
-              <Icon size={16} strokeWidth={2} aria-hidden="true" />{label}
+          {items.map(([to, label]) => (
+            <NavLink key={to} to={to} end={to === "/user"} className={({ isActive }) => `relative flex shrink-0 items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 ${isActive ? "bg-blue-50 text-blue-700 after:absolute after:bottom-0 after:left-3 after:right-3 after:h-0.5 after:bg-blue-700" : "text-slate-600 hover:bg-slate-50 hover:text-blue-700"}`}>
+              {label}
             </NavLink>
           ))}
         </nav>
@@ -59,7 +59,7 @@ export default function UserTopNavigation() {
               <p className="mt-0.5 text-[10px] text-slate-500">Tài khoản người dùng</p>
             </div>
           </div>
-          <button type="button" onClick={logout} className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
+          <button type="button" onClick={logout} className="flex items-center gap-2 rounded-lg bg-slate-950 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
             <LogOut size={16} aria-hidden="true" />Đăng xuất
           </button>
         </div>

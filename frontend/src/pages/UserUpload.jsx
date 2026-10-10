@@ -504,21 +504,21 @@ const UserUpload = () => {
     : 0;
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F6F8FC] font-sans">
+    <div className="flex min-h-screen flex-col bg-slate-50 font-sans">
       <UserTopNavigation />
 
-      <main className="mx-auto w-full max-w-[1920px] flex-1 space-y-5 px-3 py-5 sm:px-5 sm:py-7 md:px-6 lg:space-y-7 lg:px-7 xl:px-8 2xl:px-10">
-        <div>
-          {/* <p className="mb-1 text-xs font-semibold text-blue-700">Workspace nguồn dữ liệu</p> */}
-          {/* <h1 className="text-2xl font-bold tracking-tight text-slate-900">Tải file</h1> */}
-          {/* <p className="mt-2 text-sm text-slate-500">Tải file từ máy tính hoặc nhập từ URL, theo dõi tiến trình xử lý và xem báo cáo.</p> */}
+      <main className="mx-auto w-full max-w-[1680px] flex-1 space-y-5 px-4 py-6 sm:px-6 lg:space-y-5 lg:px-8 lg:py-8">
+        <div className="relative overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-white via-blue-50/60 to-indigo-50 p-5 shadow-card sm:p-7 lg:p-8">
+          <span className="relative mb-3 inline-flex rounded-full bg-blue-700 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.16em] text-white">File ingestion</span>
+          <h1 className="relative font-display text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl lg:text-4xl">Tải file dữ liệu</h1>
+          <p className="relative mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">Tải dữ liệu từ máy tính hoặc đường dẫn URL, theo dõi toàn bộ quá trình xử lý và khám phá kết quả trên dashboard phân tích.</p>
         </div>
         {/* ROW 1 — Upload + History */}
-        <section className="grid grid-cols-1 items-stretch gap-5 xl:grid-cols-[7fr_13fr] xl:gap-6 2xl:gap-7">
+        <section className="grid grid-cols-1 items-stretch gap-5 xl:grid-cols-[7fr_13fr]">
           {/* 1. Upload Card */}
-          <Card className="flex h-full min-w-0 flex-col rounded-2xl border-transparent p-4 shadow-elevated sm:p-5 xl:p-6">
+          <Card className="flex h-full min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-card sm:p-6">
             <div className="mb-3 shrink-0">
-              <h2 className="font-display text-lg font-extrabold tracking-tight text-navy-950 sm:text-xl">
+              <h2 className="font-display text-lg font-extrabold tracking-tight text-slate-950 sm:text-xl">
                 Tải lên dữ liệu
               </h2>
               {/* <p className="text-xs text-ink-400 mt-1">
@@ -526,26 +526,26 @@ const UserUpload = () => {
               </p> */}
             </div>
 
-            <div className="mb-4 grid grid-cols-2 rounded-xl bg-ink-50/80 p-1 text-xs font-bold sm:text-[13px]">
+            <div className="mb-4 grid grid-cols-2 rounded-xl bg-slate-100 p-1 text-xs font-bold sm:text-[13px]">
               <button type="button" onClick={() => setInputMode("upload")}
-                className={`rounded-lg px-3 py-2.5 transition ${inputMode === "upload" ? "bg-white text-cobalt-700 shadow-sm ring-1 ring-ink-100" : "text-ink-500 hover:text-navy-900"}`}>
+                className={`rounded-lg px-3 py-2.5 transition ${inputMode === "upload" ? "bg-white text-blue-700 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-900"}`}>
                 Upload file
               </button>
               <button type="button" onClick={() => setInputMode("url")}
-                className={`rounded-lg px-3 py-2.5 transition ${inputMode === "url" ? "bg-white text-cobalt-700 shadow-sm ring-1 ring-ink-100" : "text-ink-500 hover:text-navy-900"}`}>
+                className={`rounded-lg px-3 py-2.5 transition ${inputMode === "url" ? "bg-white text-blue-700 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-900"}`}>
                 Dán đường dẫn URL
               </button>
             </div>
 
             {inputMode === "url" ? (
-              <div className="flex-1 rounded-[22px] border border-ink-100 bg-ink-50/40 p-4">
+              <div className="flex-1 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
                 <label className="block text-xs font-semibold text-ink-700">
                   Đường dẫn file
                   <div className="relative mt-2">
                     <input type="url" value={sourceUrl}
                       onChange={(event) => { setSourceUrl(event.target.value); setUrlManifest(null); setSelectedCandidateIds([]); }}
                       placeholder="https://example.com/data/report.pdf"
-                      className="w-full rounded-xl border border-ink-200 bg-white py-2.5 pl-3 pr-11 text-sm font-normal outline-none focus:border-cobalt-400 focus:ring-2 focus:ring-cobalt-100" />
+                      className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-3 pr-11 text-sm font-normal outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100/70" />
                     {sourceUrl && (
                       <button
                         type="button"
@@ -567,7 +567,7 @@ const UserUpload = () => {
                 <p className="mt-2 text-[11px] text-ink-400">Hỗ trợ file HTTP trực tiếp và Google Drive file/folder · tối đa 100 MB/file.</p>
                 {!urlManifest ? (
                   <button type="button" disabled={!sourceUrl || urlBusy} onClick={scanSourceUrl}
-                    className="mt-4 w-full rounded-xl bg-cobalt-600 px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-50">
+                    className="mt-4 w-full rounded-lg bg-blue-700 px-4 py-2.5 text-xs font-bold text-white transition hover:-translate-y-0.5 hover:bg-blue-800 hover:shadow-md disabled:translate-y-0 disabled:opacity-50">
                     {urlBusy ? "Đang quét..." : "Scan URL"}
                   </button>
                 ) : (
@@ -592,7 +592,7 @@ const UserUpload = () => {
                     ))}
                     {urlManifest.files[0]?.reason && <p className="mt-2 text-xs text-rose-600">{urlManifest.files[0].reason}</p>}
                     <button type="button" disabled={!selectedCandidateIds.length || urlBusy} onClick={importSourceUrl}
-                      className="mt-3 w-full rounded-xl bg-cobalt-600 px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-50">
+                      className="mt-3 w-full rounded-lg bg-blue-700 px-4 py-2.5 text-xs font-bold text-white transition hover:-translate-y-0.5 hover:bg-blue-800 hover:shadow-md disabled:translate-y-0 disabled:opacity-50">
                       {urlBusy ? "Đang import..." : "Import file"}
                     </button>
                   </div>
@@ -663,17 +663,17 @@ const UserUpload = () => {
               onDragOver={onDragOver}
               onDragLeave={onDragLeave}
               onDrop={onDrop}
-              className={`group relative flex min-h-[210px] flex-1 flex-col items-center justify-center overflow-hidden rounded-[18px] border-2 border-dashed px-3 py-5 text-center transition-all duration-300 sm:min-h-[240px] sm:rounded-[22px] sm:px-5 sm:py-6 ${
+              className={`group relative flex min-h-[210px] flex-1 flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed px-3 py-5 text-center transition-all duration-300 sm:min-h-[240px] sm:px-5 sm:py-6 ${
                 uploading
-                  ? "cursor-wait opacity-90 bg-ink-50 border-ink-200"
-                  : "cursor-pointer border-cobalt-200 bg-cobalt-50/40 hover:border-cobalt-400 hover:bg-cobalt-50/70 hover:shadow-sm"
-              } ${isDragging ? "border-cobalt-500 bg-cobalt-50 scale-[1.01]" : ""}`}
+                  ? "cursor-wait border-slate-200 bg-slate-50 opacity-90"
+                  : "cursor-pointer border-blue-200 bg-blue-50/40 hover:border-blue-400 hover:bg-blue-50/70 hover:shadow-md"
+              } ${isDragging ? "scale-[1.01] border-blue-500 bg-blue-50" : ""}`}
             >
               <div
                 className={`w-12 h-12 mb-3 rounded-2xl flex items-center justify-center transition-all duration-300 ${
                   isDragging
-                    ? "bg-cobalt-600 text-white scale-110"
-                    : "border border-cobalt-100 bg-white text-cobalt-600 shadow-sm group-hover:scale-105"
+                    ? "scale-110 bg-blue-700 text-white"
+                    : "border border-blue-100 bg-white text-blue-700 shadow-sm group-hover:scale-105"
                 }`}
               >
                 <Icon
@@ -689,11 +689,11 @@ const UserUpload = () => {
               <p className="mt-1 max-w-full break-words text-[10px] font-medium text-ink-500 font-data sm:text-[11px]">
                 Hỗ trợ: PDF, DOCX, CSV, TSV, XLSX, XLS, JSON, PARQUET
               </p>
-              <span className="mt-2 inline-flex items-center rounded-full bg-cobalt-50 px-3 py-1 text-[11px] font-bold text-cobalt-700 shadow-sm">
+              <span className="mt-2 inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-[11px] font-bold text-blue-700 shadow-sm">
                 Tối đa 100 MB mỗi file
               </span>
               {!uploading && (
-                <span className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-cobalt-600 px-5 text-xs font-bold text-white shadow-[0_8px_18px_-8px_rgba(37,99,235,0.65)] transition group-hover:-translate-y-0.5 group-hover:bg-cobalt-700">
+                <span className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-blue-700 px-5 text-xs font-bold text-white shadow-md transition group-hover:-translate-y-0.5 group-hover:bg-blue-800 group-hover:shadow-lg">
                   <span className="mr-1.5 text-base leading-none">+</span>
                   Chọn tệp từ máy tính
                 </span>
@@ -727,10 +727,10 @@ const UserUpload = () => {
           </Card>
 
           {/* 2. Upload History */}
-          <Card className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border-transparent shadow-elevated">
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-ink-100 bg-white px-4 py-3.5 sm:px-6">
+          <Card className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
               <div className="min-w-0">
-                <h3 className="font-display text-lg font-extrabold tracking-tight text-navy-950 sm:text-xl">
+                <h3 className="font-display text-lg font-extrabold tracking-tight text-slate-950 sm:text-xl">
                   Lịch sử tải lên
                 </h3>
                 {/* <p className="text-[11px] text-ink-400 mt-0.5">
@@ -739,7 +739,7 @@ const UserUpload = () => {
               </div>
               <button
                 onClick={fetchHistory}
-                className="flex shrink-0 items-center gap-1.5 rounded-lg bg-lake-50 px-3 py-2 text-xs font-bold text-lake-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-lake-100"
+                className="flex shrink-0 items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-100"
                 disabled={historyLoading}
               >
                 <Icon
@@ -750,7 +750,7 @@ const UserUpload = () => {
               </button>
             </div>
 
-            <div className="min-h-[280px] max-h-[440px] flex-1 overflow-y-auto bg-[#FAFBFD] p-2.5 sm:min-h-[340px] sm:p-3 xl:h-[382px] xl:min-h-0">
+            <div className="min-h-[280px] max-h-[440px] flex-1 overflow-y-auto bg-slate-50 p-2.5 sm:min-h-[340px] sm:p-3 xl:h-[382px] xl:min-h-0">
               {history.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-ink-300">
                   <Icon name="inbox" className="w-9 h-9 mb-3 opacity-60" />
@@ -766,7 +766,7 @@ const UserUpload = () => {
                     return (
                       <div
                         key={item.id || i}
-                        className="flex flex-col gap-2 rounded-xl border border-ink-100 bg-white p-3 transition-all hover:-translate-y-px hover:border-lake-200 hover:shadow-card"
+                        className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 transition-all duration-300 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
                       >
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex items-center gap-3 min-w-0">
@@ -826,7 +826,7 @@ const UserUpload = () => {
 
         {/* ROW 2 — Pipeline Status */}
         {activePipeline && (
-          <Card className="min-w-0 rounded-2xl border-transparent p-4 shadow-elevated sm:p-6 lg:p-7">
+          <Card className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-card sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
               <div>
                 <h3 className="font-display text-lg font-extrabold tracking-tight text-navy-950 sm:text-xl">
@@ -884,7 +884,7 @@ const UserUpload = () => {
                 return (
                   <div
                     key={pt.id}
-                    className={`relative min-w-0 overflow-hidden rounded-xl border p-4 shadow-[0_8px_24px_-16px_rgba(15,23,42,0.35)] ${cardBorder} ${cardBg} transition-all duration-300 hover:-translate-y-1 hover:shadow-elevated 2xl:p-5`}
+                    className={`relative min-w-0 overflow-hidden rounded-xl border p-4 ${cardBorder} ${cardBg} transition-all duration-300 hover:-translate-y-1 hover:shadow-md 2xl:p-5`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 items-start gap-3">
@@ -930,10 +930,10 @@ const UserUpload = () => {
 
         {/* ROW 3 — Superset Analytics */}
         {activePipeline?.state === "success" && (
-        <Card className="flex flex-col overflow-hidden rounded-2xl border-transparent shadow-elevated">
-          <div className="flex shrink-0 flex-col gap-3 border-b border-ink-100 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <Card className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card">
+          <div className="flex shrink-0 flex-col gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div>
-              <h3 className="font-display text-lg font-extrabold tracking-tight text-navy-950 sm:text-xl">
+              <h3 className="font-display text-lg font-extrabold tracking-tight text-slate-950 sm:text-xl">
                 Báo cáo Phân tích
               </h3>
               {/* <p className="text-[11px] text-ink-400 mt-0.5 font-data">
@@ -952,7 +952,7 @@ const UserUpload = () => {
             </a>
             )}
           </div>
-          <div className="bg-[#FAFBFD] relative p-2 sm:p-3">
+          <div className="relative bg-slate-50 p-2 sm:p-3">
             {completedDashboardUrl ? (
               <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start">
                 <aside className="w-full shrink-0 rounded-xl bg-white p-5 shadow-card ring-1 ring-ink-100 lg:sticky lg:top-20 lg:w-72 xl:w-80">

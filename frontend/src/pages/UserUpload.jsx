@@ -6,7 +6,7 @@ import { Badge, Card } from "../components/ui";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 const MAX_UPLOAD_FILE_BYTES = 100 * 1024 * 1024;
-const UPLOAD_EXTENSIONS = ["pdf", "docx", "csv", "tsv", "xlsx", "xls", "json", "parquet"];
+const UPLOAD_EXTENSIONS = ["pdf", "docx", "json", "csv", "xlsx", "xls"];
 const SUPERSET_ORIGIN = new URL(
   import.meta.env.VITE_SUPERSET_URL ||
     import.meta.env.VITE_SUPERSET_DASHBOARD_URL ||
@@ -654,7 +654,7 @@ const UserUpload = () => {
               type="file"
               ref={fileInputRef}
               onChange={(e) => processFile(e.target.files[0])}
-              accept=".pdf,.docx,.csv,.tsv,.xlsx,.xls,.json,.parquet"
+              accept=".pdf,.docx,.json,.csv,.xlsx,.xls"
               className="hidden"
             />
 
@@ -687,7 +687,7 @@ const UserUpload = () => {
                   : "Kéo thả file hoặc bấm để chọn"}
               </p>
               <p className="mt-1 max-w-full break-words text-[10px] font-medium text-ink-500 font-data sm:text-[11px]">
-                Hỗ trợ: PDF, DOCX, CSV, TSV, XLSX, XLS, JSON, PARQUET
+                Hỗ trợ: PDF, DOCX, JSON, CSV, EXCEL
               </p>
               <span className="mt-2 inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-[11px] font-bold text-blue-700 shadow-sm">
                 Tối đa 100 MB mỗi file

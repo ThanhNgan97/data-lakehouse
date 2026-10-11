@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from db.database import engine, Base, SessionLocal, get_password_hash
 from db.models import User
+from db.schema_migrations import apply_additive_migrations
 
 def migrate_and_seed():
     print("==================================================")
@@ -18,6 +19,7 @@ def migrate_and_seed():
         # Step 1: Create all tables defined in SQLAlchemy models (e.g. users table)
         print("\n1. Đang tạo cấu trúc bảng (Tables Schema)...")
         Base.metadata.create_all(bind=engine)
+        apply_additive_migrations(engine)
         print("   -> [THÀNH CÔNG] Bảng 'users' đã được tạo trong Cơ sở dữ liệu!")
 
         # Step 2: Seed initial admin user if not exists

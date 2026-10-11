@@ -168,6 +168,8 @@ const UserUpload = () => {
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [refreshingId, setRefreshingId] = useState(null);
+  const [selectedHistoryId, setSelectedHistoryId] = useState(null);
+  const [historySelectionLoading, setHistorySelectionLoading] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [activePipeline, setActivePipeline] = useState(null);
   const [reportFile, setReportFile] = useState("");
@@ -182,6 +184,45 @@ const UserUpload = () => {
   const pollingRef = useRef(null);
   const urlPollingRef = useRef(null);
   const dashboardPollingRef = useRef(null);
+  const selectedHistoryIdRef = useRef(null);
+  const selectedDagRunIdRef = useRef(null);
+
+  const selectHistoryItem = useCallback(async (item, showLoading = true) => {
+    if (!item?.dag_run_id) return;
+    selectedHistoryIdRef.current = item.id;
+    selectedDagRunIdRef.current = item.dag_run_id;
+    setSelectedHistoryId(item.id);
+    setReportFile("");
+    setReportYear("");
+    setReportTerm("");
+    if (showLoading) setHistorySelectionLoading(true);
+
+    try {
+      const [dashboardResult, pipelineResult] = await Promise.allSettled([
+        axios.get(`${API_URL}/upload/history/${item.id}/dashboard`, { headers: authHeader() }),
+        axios.get(`${API_URL}/upload/pipeline-status/${item.dag_run_id}`, { headers: authHeader() }),
+      ]);
+      const dashboard = dashboardResult.status === "fulfilled"
+        ? dashboardResult.value.data?.dashboard
+        : item.dashboard;
+      const pipeline = pipelineResult.status === "fulfilled"
+        ? pipelineResult.value.data
+        : {
+            dag_run_id: item.dag_run_id,
+            state: item.pipeline_status,
+            tasks: [],
+          };
+      if (dashboard) pipeline.dashboard = dashboard;
+      setActivePipeline(pipeline);
+      setHistory((current) => current.map((entry) =>
+        entry.id === item.id
+          ? { ...entry, pipeline_status: pipeline.state || entry.pipeline_status, dashboard: dashboard || entry.dashboard }
+          : entry
+      ));
+    } finally {
+      if (showLoading) setHistorySelectionLoading(false);
+    }
+  }, []);
 
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -192,24 +233,16 @@ const UserUpload = () => {
       const hist = res.data || [];
       setHistory(hist);
 
-      if (hist[0]?.dag_run_id) {
-        try {
-          const statusRes = await axios.get(
-            `${API_URL}/upload/pipeline-status/${hist[0].dag_run_id}`,
-            { headers: authHeader() },
-          );
-          setActivePipeline(statusRes.data);
-        } catch {
-          /* Keep history usable while Airflow is temporarily unavailable. */
-        }
-      }
+      const selectedItem = hist.find((item) => item.id === selectedHistoryIdRef.current);
+      const targetItem = selectedItem || hist[0];
+      if (targetItem?.dag_run_id) selectHistoryItem(targetItem, false);
 
       if (
-        hist.length > 0 &&
-        ["running", "queued", "pending"].includes(hist[0].pipeline_status)
+        targetItem &&
+        ["running", "queued", "pending"].includes(targetItem.pipeline_status)
       ) {
-        if (!pollingRef.current && hist[0].dag_run_id) {
-          pollPipelineStatus(hist[0].dag_run_id);
+        if (!pollingRef.current && targetItem.dag_run_id) {
+          pollPipelineStatus(targetItem.dag_run_id);
         }
       }
     } catch {
@@ -217,7 +250,7 @@ const UserUpload = () => {
     } finally {
       setHistoryLoading(false);
     }
-  }, []);
+  }, [selectHistoryItem]);
 
   useEffect(() => {
     fetchHistory();
@@ -242,13 +275,7 @@ const UserUpload = () => {
     if (!item.dag_run_id) return;
     setRefreshingId(item.id ?? item.dag_run_id);
     try {
-      const res = await axios.get(`${API_URL}/upload/pipeline-status/${item.dag_run_id}`, {
-        headers: authHeader(),
-      });
-      setActivePipeline(res.data);
-      setHistory((current) => current.map((entry) =>
-        entry.id === item.id ? { ...entry, pipeline_status: res.data.state } : entry
-      ));
+      await selectHistoryItem(item, false);
     } catch {
       /* Keep the current row unchanged when Airflow is unavailable. */
     } finally {
@@ -277,7 +304,7 @@ const UserUpload = () => {
           `${API_URL}/upload/pipeline-status/${activePipeline.dag_run_id}`,
           { headers: authHeader() },
         );
-        setActivePipeline(res.data);
+        if (selectedDagRunIdRef.current === dagRunId) setActivePipeline(res.data);
       } catch {
         /* Keep retrying while this completed run is selected. */
       }
@@ -305,7 +332,7 @@ const UserUpload = () => {
           `${API_URL}/upload/pipeline-status/${dagRunId}`,
           { headers: authHeader() },
         );
-        setActivePipeline(res.data);
+        if (selectedDagRunIdRef.current === dagRunId) setActivePipeline(res.data);
       } catch {}
     })();
 
@@ -365,6 +392,9 @@ const UserUpload = () => {
       setUploadProgress(100);
       setUploadStatus(`Đã tải lên ${file.name}`);
       if (res.data.dag_run_id) {
+        selectedHistoryIdRef.current = null;
+        selectedDagRunIdRef.current = res.data.dag_run_id;
+        setSelectedHistoryId(null);
         pollPipelineStatus(res.data.dag_run_id);
       }
       fetchHistory();
@@ -476,7 +506,7 @@ const UserUpload = () => {
     };
 
   const completedDashboardUrl =
-    activePipeline?.state === "success" && activePipeline?.dashboard?.imported
+    activePipeline?.dashboard?.imported
       ? dashboardUrlFor(activePipeline.dashboard.slug)
       : "";
   const reportYears = [...new Set(history.map((item) => {
@@ -763,10 +793,27 @@ const UserUpload = () => {
                   {history.map((item, i) => {
                     const st = getStatus(item);
                     const visual = fileVisual(item.filename);
+                    const isSelected = selectedHistoryId === item.id;
                     return (
                       <div
                         key={item.id || i}
-                        className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 transition-all duration-300 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
+                        role={item.dag_run_id ? "button" : undefined}
+                        tabIndex={item.dag_run_id ? 0 : undefined}
+                        aria-pressed={item.dag_run_id ? isSelected : undefined}
+                        onClick={() => item.dag_run_id && selectHistoryItem(item)}
+                        onKeyDown={(event) => {
+                          if (item.dag_run_id && ["Enter", " "].includes(event.key)) {
+                            event.preventDefault();
+                            selectHistoryItem(item);
+                          }
+                        }}
+                        className={`flex flex-col gap-2 rounded-xl border bg-white p-3 transition-all duration-300 ${
+                          item.dag_run_id ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md" : ""
+                        } ${
+                          isSelected
+                            ? "border-cobalt-400 bg-cobalt-50/40 shadow-md ring-2 ring-cobalt-100"
+                            : "border-slate-200 hover:border-blue-200"
+                        }`}
                       >
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex items-center gap-3 min-w-0">
@@ -794,9 +841,17 @@ const UserUpload = () => {
 
                           <div className="flex shrink-0 items-center justify-end gap-1 border-t border-ink-50 pt-2 sm:border-0 sm:pt-0 sm:gap-2">
                             <Badge tone={st.tone}>{st.label}</Badge>
+                            {isSelected && item.dashboard?.imported && (
+                              <span className="hidden text-[10px] font-bold uppercase tracking-wide text-cobalt-700 sm:inline">
+                                Đang xem
+                              </span>
+                            )}
                             <button
                               type="button"
-                              onClick={() => refreshHistoryItem(item)}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                refreshHistoryItem(item);
+                              }}
                               disabled={!item.dag_run_id || refreshingId === (item.id ?? item.dag_run_id)}
                               aria-label={`Tải lại trạng thái ${item.filename}`}
                               title="Tải lại trạng thái"
@@ -806,7 +861,10 @@ const UserUpload = () => {
                             </button>
                             <button
                               type="button"
-                              onClick={() => removeHistoryItem(item.id, i)}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                removeHistoryItem(item.id, i);
+                              }}
                               aria-label={`Ẩn ${item.filename} khỏi giao diện`}
                               title="Chỉ xóa khỏi giao diện"
                               className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-ink-400 transition hover:bg-rose-50 hover:text-rose-600"
@@ -929,7 +987,7 @@ const UserUpload = () => {
         )}
 
         {/* ROW 3 — Superset Analytics */}
-        {activePipeline?.state === "success" && (
+        {(activePipeline?.state === "success" || completedDashboardUrl) && (
         <Card className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card">
           <div className="flex shrink-0 flex-col gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div>
@@ -953,7 +1011,11 @@ const UserUpload = () => {
             )}
           </div>
           <div className="relative bg-slate-50 p-2 sm:p-3">
-            {completedDashboardUrl ? (
+            {historySelectionLoading ? (
+              <div className="flex min-h-48 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-6 text-center text-sm font-medium text-blue-800">
+                Đang mở dashboard của file đã chọn...
+              </div>
+            ) : completedDashboardUrl ? (
               <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start">
                 <aside className="w-full shrink-0 rounded-xl bg-white p-5 shadow-card ring-1 ring-ink-100 lg:sticky lg:top-20 lg:w-72 xl:w-80">
                   <div className="mb-4 flex items-center gap-2">

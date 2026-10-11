@@ -2,7 +2,7 @@ import os
 import logging
 from pathlib import Path
 from urllib.parse import quote_plus
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from core.security import get_password_hash
 
@@ -40,21 +40,10 @@ def init_db():
         from db.models import User, UploadHistory
         Base.metadata.create_all(bind=engine)
 
-        # `create_all` does not add columns to an existing table. Keep this
-        # additive migration here until the project adopts a migration tool.
-        with engine.begin() as connection:
-            connection.execute(text(
-                "ALTER TABLE api_sources "
-                "ADD COLUMN IF NOT EXISTS metadata_info JSONB"
-            ))
-            connection.execute(text(
-                "ALTER TABLE api_sources "
-                "ADD COLUMN IF NOT EXISTS auth_config JSONB"
-            ))
-            connection.execute(text(
-                "ALTER TABLE api_sources "
-                "ADD COLUMN IF NOT EXISTS credential_ciphertext TEXT"
-            ))
+        # `create_all` does not alter legacy tables. Apply the shared,
+        # idempotent upgrades before serving any requests.
+        from db.schema_migrations import apply_additive_migrations
+        apply_additive_migrations(engine)
     
 
         db = SessionLocal()

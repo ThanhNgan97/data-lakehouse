@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import uuid
 import ast
 import requests
@@ -20,6 +21,10 @@ router = APIRouter()
 
 def _user_id(user):
     return user.id if hasattr(user, "id") else user.get("id")
+
+
+def _is_airbyte_pipeline_run(dag_run_id: str) -> bool:
+    return re.fullmatch(r"airbyte__\d+", dag_run_id) is not None
 
 
 def _dashboard_from_xcom(dag_run_id: str):
@@ -226,6 +231,7 @@ async def get_upload_dashboard(
 @router.get("/upload/pipeline-status/{dag_run_id}", summary="Lấy trạng thái step-by-step của Pipeline")
 async def get_pipeline_status(
     dag_run_id: str,
+    context_id: str | None = None,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
@@ -236,8 +242,14 @@ async def get_pipeline_status(
         UploadHistory.dag_run_id == dag_run_id,
         UploadHistory.user_id == _user_id(current_user),
     ).first()
-    if not record:
+    is_airbyte_run = _is_airbyte_pipeline_run(dag_run_id)
+    if not record and not is_airbyte_run:
         raise HTTPException(status_code=404, detail="Không tìm thấy pipeline của người dùng.")
+    if not record and not (context_id or "").strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Pipeline database cần context_id để xác minh nguồn dữ liệu.",
+        )
 
     airflow_base = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/{AIRFLOW_FILE_DAG_ID}/dagRuns/{dag_run_id}"
     try:
@@ -245,7 +257,14 @@ async def get_pipeline_status(
         resp_dag = requests.get(airflow_base, auth=("airflow", "airflow"), timeout=5)
         state = "unknown"
         if resp_dag.status_code == 200:
-            state = resp_dag.json().get("state", "unknown")
+            dag_payload = resp_dag.json()
+            if not record:
+                dag_context_id = str((dag_payload.get("conf") or {}).get("context_id") or "").strip()
+                if not dag_context_id or dag_context_id != context_id.strip():
+                    raise HTTPException(status_code=404, detail="Không tìm thấy pipeline database phù hợp.")
+            state = dag_payload.get("state", "unknown")
+        elif not record:
+            raise HTTPException(status_code=404, detail="Không tìm thấy pipeline database trên Airflow.")
             
         # Lấy trạng thái các task (taskInstances)
         tasks = []
@@ -263,14 +282,17 @@ async def get_pipeline_status(
         # Read the metadata returned by the final provisioning task. The
         # frontend owns the browser-facing Superset origin; this API only
         # exposes the stable dashboard identity for the current DAG run.
-        dashboard = _stored_dashboard(record)
+        dashboard = _stored_dashboard(record) if record else None
         try:
             xcom_dashboard = _dashboard_from_xcom(dag_run_id)
         except requests.RequestException:
             xcom_dashboard = None
         if xcom_dashboard:
-            _save_dashboard(record, xcom_dashboard)
-            dashboard = _stored_dashboard(record)
+            if record:
+                _save_dashboard(record, xcom_dashboard)
+                dashboard = _stored_dashboard(record)
+            else:
+                dashboard = xcom_dashboard
         
         # Đồng bộ trạng thái hiện tại từ Airflow. Một DAG run có thể được clear
         # và retry sau khi Spark đã ghi lỗi vào DB, vì vậy "failed" không được
@@ -333,5 +355,7 @@ async def get_pipeline_status(
             "parsed_data": parsed_data,
             "dashboard": dashboard,
         }
+    except HTTPException:
+        raise
     except Exception as e:
         return {"state": "unreachable", "error": str(e), "tasks": []}

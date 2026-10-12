@@ -1,11 +1,28 @@
 import json
+import os
 import sys
 import urllib.request
 
 BASE_URL = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8090"
 url = f"{BASE_URL}/api/v1/education/learning-outcomes?limit=5"
+login_request = urllib.request.Request(
+    f"{BASE_URL}/api/v1/auth/login",
+    data=json.dumps({
+        "username": os.getenv("MOCK_API_USERNAME", "lakehouse_test"),
+        "password": os.getenv("MOCK_API_PASSWORD", "Lakehouse@123"),
+    }).encode("utf-8"),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
 
-with urllib.request.urlopen(url, timeout=10) as response:
+with urllib.request.urlopen(login_request, timeout=10) as response:
+    access_token = json.load(response)["access_token"]
+
+data_request = urllib.request.Request(
+    url,
+    headers={"Authorization": f"Bearer {access_token}"},
+)
+with urllib.request.urlopen(data_request, timeout=10) as response:
     payload = json.load(response)
 
 assert payload["dataset"] == "education.learning_outcomes"

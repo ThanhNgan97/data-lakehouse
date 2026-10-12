@@ -68,6 +68,9 @@ export default function UserDatabase() {
   const [session, setSession] = useState(readStoredSession);
   const [pipeline, setPipeline] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(true);
+  const activeJobIdRef = useRef(
+    session?.airbyte_job_id == null ? null : String(session.airbyte_job_id),
+  );
 
   const checkBridge = useCallback(async () => {
     setBridgeStatus("checking");
@@ -77,16 +80,24 @@ export default function UserDatabase() {
     } catch { setBridgeStatus("offline"); }
   }, []);
 
-  const fetchPipeline = useCallback(async (jobId) => {
+  const fetchPipeline = useCallback(async (jobId, contextId) => {
     if (!jobId) return;
+    const requestedJobId = String(jobId);
     try {
-      const { data } = await axios.get(`${API_URL}/upload/pipeline-status/airbyte__${jobId}`, { headers: authHeader() });
+      const { data } = await axios.get(`${API_URL}/upload/pipeline-status/airbyte__${jobId}`, {
+        headers: authHeader(),
+        params: { context_id: contextId },
+      });
+      // A response from the previous job may arrive after a new WebSocket
+      // event. Never let that stale response restore the old completed UI.
+      if (activeJobIdRef.current !== requestedJobId) return;
       setPipeline(data);
       if (["success", "failed"].includes(data.state)) {
         clearInterval(pollRef.current);
         pollRef.current = null;
       }
     } catch {
+      if (activeJobIdRef.current !== requestedJobId) return;
       // Airbyte can still be syncing before its Airflow DAG exists.
       setPipeline((current) => current || { state: "queued", tasks: [] });
     }
@@ -136,8 +147,13 @@ export default function UserDatabase() {
           const state = JSON.parse(event.data);
           if (!state.airbyte_job_id) return;
           const next = { ...state, connected_at: state.updated_at || new Date().toISOString(), realtime: true };
+          const incomingJobId = String(state.airbyte_job_id);
+          if (activeJobIdRef.current !== incomingJobId) {
+            activeJobIdRef.current = incomingJobId;
+            setPipeline({ state: "queued", tasks: [] });
+            setDashboardLoading(true);
+          }
           setSession(next);
-          setPipeline((current) => current || { state: "queued", tasks: [] });
           localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
           if (state.message) setMessage(state.message);
         } catch { /* Ignore malformed bridge events. */ }
@@ -160,10 +176,13 @@ export default function UserDatabase() {
   }, []);
   useEffect(() => {
     if (!session?.airbyte_job_id) return undefined;
-    fetchPipeline(session.airbyte_job_id);
-    pollRef.current = window.setInterval(() => fetchPipeline(session.airbyte_job_id), 6000);
+    fetchPipeline(session.airbyte_job_id, session.tenant_id);
+    pollRef.current = window.setInterval(
+      () => fetchPipeline(session.airbyte_job_id, session.tenant_id),
+      6000,
+    );
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [session?.airbyte_job_id, fetchPipeline]);
+  }, [session?.airbyte_job_id, session?.tenant_id, fetchPipeline]);
 
   const loadBundle = async (file) => {
     setError("");
@@ -233,7 +252,9 @@ export default function UserDatabase() {
     try {
       const response = await axios.post(ONBOARD_URL, bundle, { timeout: 190000 });
       const next = { ...response.data, bundle_file: bundleFile, connected_at: new Date().toISOString() };
+      activeJobIdRef.current = next.airbyte_job_id == null ? null : String(next.airbyte_job_id);
       setSession(next); setPipeline({ state: "queued", tasks: [] });
+      setDashboardLoading(true);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       setMessage(response.data.message || "Kết nối thành công. Airbyte đang đồng bộ dữ liệu.");
     } catch (requestError) {
@@ -244,6 +265,7 @@ export default function UserDatabase() {
 
   const resetSession = () => {
     localStorage.removeItem(STORAGE_KEY);
+    activeJobIdRef.current = null;
     setSession(null); setPipeline(null); setBundle(null); setBundleFile(""); setMessage(""); setError("");
   };
 

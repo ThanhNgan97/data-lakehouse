@@ -54,3 +54,9 @@ def test_dashboard_metadata_round_trips_through_history_record():
         "imported": True,
         "status": "ready",
     }
+
+
+def test_database_pipeline_run_id_is_strictly_scoped_to_airbyte_jobs():
+    assert upload._is_airbyte_pipeline_run("airbyte__78") is True
+    assert upload._is_airbyte_pipeline_run("airbyte__78/../other") is False
+    assert upload._is_airbyte_pipeline_run("manual__78") is False

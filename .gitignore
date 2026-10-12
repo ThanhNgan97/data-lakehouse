@@ -26,3 +26,7 @@ lakehouse/spark/.extracted_tables/
 lakehouse/spark/.generated_exports/
 superset_exports/generated/
 *.zip
+
+# Local presentation samples (generated for preview only)
+outputs/parquet_layers_demo/
+scratch/parquet_layers_artifact/

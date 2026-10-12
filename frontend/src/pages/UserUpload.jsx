@@ -186,9 +186,14 @@ const UserUpload = () => {
   const dashboardPollingRef = useRef(null);
   const selectedHistoryIdRef = useRef(null);
   const selectedDagRunIdRef = useRef(null);
+  const pipelineRequestSequenceRef = useRef(0);
+  const pollingDagRunIdRef = useRef(null);
+  const pollingGenerationRef = useRef(0);
+  const importActiveDagRunIdRef = useRef(null);
 
   const selectHistoryItem = useCallback(async (item, showLoading = true) => {
     if (!item?.dag_run_id) return;
+    const requestSequence = ++pipelineRequestSequenceRef.current;
     selectedHistoryIdRef.current = item.id;
     selectedDagRunIdRef.current = item.dag_run_id;
     setSelectedHistoryId(item.id);
@@ -213,19 +218,32 @@ const UserUpload = () => {
             tasks: [],
           };
       if (dashboard) pipeline.dashboard = dashboard;
-      setActivePipeline(pipeline);
+      if (
+        selectedDagRunIdRef.current === item.dag_run_id &&
+        pipelineRequestSequenceRef.current === requestSequence
+      ) {
+        setActivePipeline(pipeline);
+      }
       setHistory((current) => current.map((entry) =>
         entry.id === item.id
           ? { ...entry, pipeline_status: pipeline.state || entry.pipeline_status, dashboard: dashboard || entry.dashboard }
           : entry
       ));
     } finally {
-      if (showLoading) setHistorySelectionLoading(false);
+      if (showLoading && pipelineRequestSequenceRef.current === requestSequence) {
+        setHistorySelectionLoading(false);
+      }
     }
   }, []);
 
-  const fetchHistory = useCallback(async () => {
-    setHistoryLoading(true);
+  const fetchHistory = useCallback(async (options = {}) => {
+    const normalizedOptions = options?.nativeEvent ? {} : options;
+    const {
+      showLoading = true,
+      refreshSelected = true,
+      selectDagRunId = null,
+    } = normalizedOptions;
+    if (showLoading) setHistoryLoading(true);
     try {
       const res = await axios.get(`${API_URL}/upload/history`, {
         headers: authHeader(),
@@ -233,31 +251,40 @@ const UserUpload = () => {
       const hist = res.data || [];
       setHistory(hist);
 
+      const requestedItem = selectDagRunId
+        ? hist.find((item) => item.dag_run_id === selectDagRunId)
+        : null;
       const selectedItem = hist.find((item) => item.id === selectedHistoryIdRef.current);
-      const targetItem = selectedItem || hist[0];
-      if (targetItem?.dag_run_id) selectHistoryItem(targetItem, false);
+      const targetItem = requestedItem || selectedItem || hist[0];
+      const shouldLoadPipeline = requestedItem || !selectedHistoryIdRef.current || refreshSelected;
+      if (targetItem?.dag_run_id && shouldLoadPipeline) selectHistoryItem(targetItem, false);
 
       if (
         targetItem &&
         ["running", "queued", "pending"].includes(targetItem.pipeline_status)
       ) {
-        if (!pollingRef.current && targetItem.dag_run_id) {
+        if (
+          !pollingRef.current &&
+          targetItem.dag_run_id &&
+          pollingDagRunIdRef.current !== targetItem.dag_run_id
+        ) {
           pollPipelineStatus(targetItem.dag_run_id);
         }
       }
     } catch {
       /* silence */
     } finally {
-      setHistoryLoading(false);
+      if (showLoading) setHistoryLoading(false);
     }
   }, [selectHistoryItem]);
 
   useEffect(() => {
     fetchHistory();
     return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
+      pollingGenerationRef.current += 1;
+      if (pollingRef.current) clearTimeout(pollingRef.current);
       if (urlPollingRef.current) clearInterval(urlPollingRef.current);
-      if (dashboardPollingRef.current) clearInterval(dashboardPollingRef.current);
+      if (dashboardPollingRef.current) clearTimeout(dashboardPollingRef.current);
     };
   }, [fetchHistory]);
 
@@ -290,7 +317,7 @@ const UserUpload = () => {
       !activePipeline?.dag_run_id
     ) {
       if (dashboardPollingRef.current) {
-        clearInterval(dashboardPollingRef.current);
+        clearTimeout(dashboardPollingRef.current);
         dashboardPollingRef.current = null;
       }
       return undefined;
@@ -298,21 +325,28 @@ const UserUpload = () => {
 
     // XCom can become visible a fraction after the DAG changes to success.
     // Retry automatically so the user never has to press "Làm mới".
-    dashboardPollingRef.current = setInterval(async () => {
+    const dagRunId = activePipeline.dag_run_id;
+    let cancelled = false;
+    const pollDashboard = async () => {
       try {
         const res = await axios.get(
-          `${API_URL}/upload/pipeline-status/${activePipeline.dag_run_id}`,
+          `${API_URL}/upload/pipeline-status/${dagRunId}`,
           { headers: authHeader() },
         );
-        if (selectedDagRunIdRef.current === dagRunId) setActivePipeline(res.data);
+        if (!cancelled && selectedDagRunIdRef.current === dagRunId) {
+          setActivePipeline(res.data);
+        }
       } catch {
         /* Keep retrying while this completed run is selected. */
       }
-    }, 2000);
+      if (!cancelled) dashboardPollingRef.current = setTimeout(pollDashboard, 2000);
+    };
+    dashboardPollingRef.current = setTimeout(pollDashboard, 2000);
 
     return () => {
+      cancelled = true;
       if (dashboardPollingRef.current) {
-        clearInterval(dashboardPollingRef.current);
+        clearTimeout(dashboardPollingRef.current);
         dashboardPollingRef.current = null;
       }
     };
@@ -324,36 +358,46 @@ const UserUpload = () => {
 
   const pollPipelineStatus = (dagRunId) => {
     if (!dagRunId) return;
-    if (pollingRef.current) clearInterval(pollingRef.current);
+    if (pollingRef.current) clearTimeout(pollingRef.current);
+    pollingRef.current = null;
+    pollingDagRunIdRef.current = dagRunId;
+    const pollingGeneration = ++pollingGenerationRef.current;
 
-    (async () => {
+    const poll = async () => {
       try {
         const res = await axios.get(
           `${API_URL}/upload/pipeline-status/${dagRunId}`,
           { headers: authHeader() },
         );
-        if (selectedDagRunIdRef.current === dagRunId) setActivePipeline(res.data);
-      } catch {}
-    })();
-
-    pollingRef.current = setInterval(async () => {
-      try {
-        const res = await axios.get(
-          `${API_URL}/upload/pipeline-status/${dagRunId}`,
-          { headers: authHeader() },
-        );
+        if (pollingGenerationRef.current !== pollingGeneration) return;
         const state = res.data.state;
-        setActivePipeline(res.data);
+        if (selectedDagRunIdRef.current === dagRunId) {
+          setActivePipeline(res.data);
+        }
+        setHistory((current) => current.map((entry) =>
+          entry.dag_run_id === dagRunId
+            ? { ...entry, pipeline_status: state, dashboard: res.data.dashboard || entry.dashboard }
+            : entry
+        ));
         if (["success", "failed", "unreachable"].includes(state)) {
-          clearInterval(pollingRef.current);
           pollingRef.current = null;
-          fetchHistory();
+          pollingDagRunIdRef.current = null;
+          fetchHistory({ showLoading: false, refreshSelected: false });
+          return;
         }
       } catch {
-        clearInterval(pollingRef.current);
-        pollingRef.current = null;
+        if (pollingGenerationRef.current === pollingGeneration) {
+          pollingRef.current = null;
+          pollingDagRunIdRef.current = null;
+        }
+        return;
       }
-    }, 5000);
+      if (pollingGenerationRef.current === pollingGeneration) {
+        pollingRef.current = setTimeout(poll, 5000);
+      }
+    };
+
+    poll();
   };
 
   const processFile = async (file) => {
@@ -397,7 +441,11 @@ const UserUpload = () => {
         setSelectedHistoryId(null);
         pollPipelineStatus(res.data.dag_run_id);
       }
-      fetchHistory();
+      fetchHistory({
+        showLoading: false,
+        refreshSelected: false,
+        selectDagRunId: res.data.dag_run_id || null,
+      });
     } catch (err) {
       setUploadError(
         err.response?.data?.detail ||
@@ -446,7 +494,12 @@ const UserUpload = () => {
       setUploadStatus(res.data.message || "Đã nhập file từ URL.");
       setActiveImportJob(res.data);
       setUrlManifest(null);
-      fetchHistory();
+      pipelineRequestSequenceRef.current += 1;
+      selectedHistoryIdRef.current = null;
+      selectedDagRunIdRef.current = null;
+      setSelectedHistoryId(null);
+      importActiveDagRunIdRef.current = null;
+      fetchHistory({ showLoading: false, refreshSelected: false });
       pollImportJob(res.data.job_id);
     } catch (err) {
       setUploadError(err.response?.data?.detail || "Không thể nhập file từ URL.");
@@ -460,14 +513,32 @@ const UserUpload = () => {
       try {
         const res = await axios.get(`${API_URL}/url-import/jobs/${jobId}`, { headers: authHeader() });
         setActiveImportJob(res.data);
-        fetchHistory();
         const activeFile = res.data.files?.find((file) => file.dag_run_id && file.status === "PROCESSING");
-        if (activeFile && !pollingRef.current) pollPipelineStatus(activeFile.dag_run_id);
+        if (activeFile && activeFile.dag_run_id !== importActiveDagRunIdRef.current) {
+          const previousActiveDagRunId = importActiveDagRunIdRef.current;
+          const shouldFollowActiveFile =
+            !selectedDagRunIdRef.current ||
+            selectedDagRunIdRef.current === previousActiveDagRunId;
+          importActiveDagRunIdRef.current = activeFile.dag_run_id;
+          fetchHistory({
+            showLoading: false,
+            refreshSelected: false,
+            selectDagRunId: shouldFollowActiveFile ? activeFile.dag_run_id : null,
+          });
+          pollPipelineStatus(activeFile.dag_run_id);
+        } else if (
+          activeFile &&
+          !pollingRef.current &&
+          pollingDagRunIdRef.current !== activeFile.dag_run_id
+        ) {
+          pollPipelineStatus(activeFile.dag_run_id);
+        }
         if (["COMPLETED", "PARTIAL_SUCCESS", "FAILED", "CANCELLED"].includes(res.data.status)) {
           clearInterval(urlPollingRef.current);
           urlPollingRef.current = null;
           setUploadStatus(`Import URL: ${res.data.status}`);
-          fetchHistory();
+          importActiveDagRunIdRef.current = null;
+          fetchHistory({ showLoading: false, refreshSelected: false });
         }
       } catch {
         clearInterval(urlPollingRef.current);

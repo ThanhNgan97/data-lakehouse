@@ -8,7 +8,12 @@ ctu-ioc-mock-api:
   ports:
     - "8090:8000"
   environment:
-    MOCK_API_KEY: ${MOCK_API_KEY}
+    MOCK_API_KEY: ${MOCK_API_KEY:-}
+    MOCK_AUTH_REQUIRED: ${MOCK_AUTH_REQUIRED:-true}
+    MOCK_API_USERNAME: ${MOCK_API_USERNAME:-lakehouse_test}
+    MOCK_API_PASSWORD: ${MOCK_API_PASSWORD:-Lakehouse@123}
+    MOCK_API_TOKEN_SECRET: ${MOCK_API_TOKEN_SECRET:-ctu-ioc-local-test-token-secret-change-me}
+    MOCK_API_TOKEN_TTL_SECONDS: ${MOCK_API_TOKEN_TTL_SECONDS:-3600}
   restart: unless-stopped
 
 # Other containers in the SAME Docker Compose network can call:

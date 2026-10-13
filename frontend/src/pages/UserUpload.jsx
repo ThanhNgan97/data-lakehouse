@@ -170,9 +170,12 @@ const UserUpload = () => {
   const [refreshingId, setRefreshingId] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [activePipeline, setActivePipeline] = useState(null);
-  const [reportFile, setReportFile] = useState("");
+  const [selectedReportRunId, setSelectedReportRunId] = useState("");
+  const [reportLoading, setReportLoading] = useState(false);
   const [reportYear, setReportYear] = useState("");
   const [reportTerm, setReportTerm] = useState("");
+  const [reportUnit, setReportUnit] = useState("");
+  const [reportUnits, setReportUnits] = useState([]);
   const [inputMode, setInputMode] = useState("upload");
   const [sourceUrl, setSourceUrl] = useState("");
   const [urlManifest, setUrlManifest] = useState(null);
@@ -182,6 +185,7 @@ const UserUpload = () => {
   const pollingRef = useRef(null);
   const urlPollingRef = useRef(null);
   const dashboardPollingRef = useRef(null);
+  const selectedReportRunIdRef = useRef("");
 
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -192,10 +196,16 @@ const UserUpload = () => {
       const hist = res.data || [];
       setHistory(hist);
 
-      if (hist[0]?.dag_run_id) {
+      const selectedItem = hist.find(
+        (item) => item.dag_run_id === selectedReportRunIdRef.current,
+      );
+      const reportItem = selectedItem || hist.find((item) => item.dag_run_id);
+      if (reportItem?.dag_run_id) {
+        selectedReportRunIdRef.current = reportItem.dag_run_id;
+        setSelectedReportRunId(reportItem.dag_run_id);
         try {
           const statusRes = await axios.get(
-            `${API_URL}/upload/pipeline-status/${hist[0].dag_run_id}`,
+            `${API_URL}/upload/pipeline-status/${reportItem.dag_run_id}`,
             { headers: authHeader() },
           );
           setActivePipeline(statusRes.data);
@@ -229,6 +239,20 @@ const UserUpload = () => {
   }, [fetchHistory]);
 
   useEffect(() => {
+    let cancelled = false;
+    axios.get(`${API_URL}/gold/units`, { headers: authHeader() })
+      .then((res) => {
+        if (!cancelled) setReportUnits(res.data || []);
+      })
+      .catch(() => {
+        if (!cancelled) setReportUnits([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!activePipeline?.tasks?.some((task) => task.state === "running")) return undefined;
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
@@ -240,6 +264,8 @@ const UserUpload = () => {
 
   const refreshHistoryItem = async (item) => {
     if (!item.dag_run_id) return;
+    selectedReportRunIdRef.current = item.dag_run_id;
+    setSelectedReportRunId(item.dag_run_id);
     setRefreshingId(item.id ?? item.dag_run_id);
     try {
       const res = await axios.get(`${API_URL}/upload/pipeline-status/${item.dag_run_id}`, {
@@ -297,6 +323,8 @@ const UserUpload = () => {
 
   const pollPipelineStatus = (dagRunId) => {
     if (!dagRunId) return;
+    selectedReportRunIdRef.current = dagRunId;
+    setSelectedReportRunId(dagRunId);
     if (pollingRef.current) clearInterval(pollingRef.current);
 
     (async () => {
@@ -475,25 +503,47 @@ const UserUpload = () => {
       tone: "ink",
     };
 
+  const selectReportRun = async (dagRunId) => {
+    if (!dagRunId || dagRunId === selectedReportRunIdRef.current) return;
+    const previousRunId = selectedReportRunIdRef.current;
+    selectedReportRunIdRef.current = dagRunId;
+    setSelectedReportRunId(dagRunId);
+    setReportLoading(true);
+    setUploadError("");
+    try {
+      const res = await axios.get(`${API_URL}/upload/pipeline-status/${dagRunId}`, {
+        headers: authHeader(),
+      });
+      setActivePipeline(res.data);
+      setHistory((current) => current.map((entry) =>
+        entry.dag_run_id === dagRunId
+          ? { ...entry, pipeline_status: res.data.state }
+          : entry
+      ));
+    } catch {
+      selectedReportRunIdRef.current = previousRunId;
+      setSelectedReportRunId(previousRunId);
+      setUploadError("Không thể tải dashboard của lần upload đã chọn.");
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
   const completedDashboardUrl =
     activePipeline?.state === "success" && activePipeline?.dashboard?.imported
       ? dashboardUrlFor(activePipeline.dashboard.slug)
       : "";
+  const reportItems = history.filter(
+    (item) => item.dag_run_id && item.pipeline_status === "success",
+  );
   const reportYears = [...new Set(history.map((item) => {
     const filenameYear = item.filename?.match(/(?:19|20)\d{2}/)?.[0];
     if (filenameYear) return filenameYear;
-    const date = item.uploaded_at ? new Date(item.uploaded_at) : null;
-    return date && !Number.isNaN(date.getTime()) ? String(date.getFullYear()) : null;
+    const uploadedAt = item.uploaded_at ? new Date(item.uploaded_at) : null;
+    return uploadedAt && !Number.isNaN(uploadedAt.getTime())
+      ? String(uploadedAt.getFullYear())
+      : null;
   }).filter(Boolean))].sort((a, b) => Number(b) - Number(a));
-  const filteredDashboardUrl = completedDashboardUrl
-    ? (() => {
-        const url = new URL(completedDashboardUrl);
-        if (reportFile) url.searchParams.set("filename", reportFile);
-        if (reportYear) url.searchParams.set("year", reportYear);
-        if (reportTerm) url.searchParams.set("term", reportTerm);
-        return url.toString();
-      })()
-    : "";
   const importCounts = activeImportJob?.counts || {};
   const importTotal = activeImportJob?.files?.length || 0;
   const importFinished = ["COMPLETED", "DUPLICATE", "FAILED", "UNSUPPORTED", "CANCELLED"]
@@ -763,10 +813,26 @@ const UserUpload = () => {
                   {history.map((item, i) => {
                     const st = getStatus(item);
                     const visual = fileVisual(item.filename);
+                    const canOpenReport = item.pipeline_status === "success" && Boolean(item.dag_run_id);
+                    const isSelectedReport = item.dag_run_id === selectedReportRunId;
                     return (
                       <div
                         key={item.id || i}
-                        className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 transition-all duration-300 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
+                        role={canOpenReport ? "button" : undefined}
+                        tabIndex={canOpenReport ? 0 : undefined}
+                        aria-label={canOpenReport ? `Mở dashboard của ${item.filename}` : undefined}
+                        onClick={canOpenReport ? () => selectReportRun(item.dag_run_id) : undefined}
+                        onKeyDown={canOpenReport ? (event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            selectReportRun(item.dag_run_id);
+                          }
+                        } : undefined}
+                        className={`flex flex-col gap-2 rounded-xl border bg-white p-3 transition-all duration-300 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md ${
+                          isSelectedReport
+                            ? "border-blue-400 ring-2 ring-blue-100"
+                            : "border-slate-200"
+                        } ${canOpenReport ? "cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-200" : ""}`}
                       >
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex items-center gap-3 min-w-0">
@@ -796,7 +862,10 @@ const UserUpload = () => {
                             <Badge tone={st.tone}>{st.label}</Badge>
                             <button
                               type="button"
-                              onClick={() => refreshHistoryItem(item)}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                refreshHistoryItem(item);
+                              }}
                               disabled={!item.dag_run_id || refreshingId === (item.id ?? item.dag_run_id)}
                               aria-label={`Tải lại trạng thái ${item.filename}`}
                               title="Tải lại trạng thái"
@@ -806,7 +875,10 @@ const UserUpload = () => {
                             </button>
                             <button
                               type="button"
-                              onClick={() => removeHistoryItem(item.id, i)}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                removeHistoryItem(item.id, i);
+                              }}
                               aria-label={`Ẩn ${item.filename} khỏi giao diện`}
                               title="Chỉ xóa khỏi giao diện"
                               className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-ink-400 transition hover:bg-rose-50 hover:text-rose-600"
@@ -942,7 +1014,7 @@ const UserUpload = () => {
             </div>
             {completedDashboardUrl && (
             <a
-              href={filteredDashboardUrl}
+              href={completedDashboardUrl}
               target="_blank"
               rel="noreferrer"
               className="self-start sm:self-auto text-xs text-lake-700 hover:text-lake-800 bg-lake-50 hover:bg-lake-100 px-3 py-1.5 rounded-lg transition font-semibold flex items-center gap-1.5"
@@ -961,22 +1033,24 @@ const UserUpload = () => {
                       <Icon name="filter" className="h-[18px] w-[18px]" />
                     </span>
                     <div>
-                      <p className="text-base font-bold text-navy-950">Bộ lọc báo cáo</p>
+                      <p className="text-base font-bold text-navy-950">Chọn báo cáo</p>
                       {/* <p className="text-[10px] text-ink-400">Lọc dữ liệu trên Superset</p> */}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                  <div className="grid grid-cols-1 gap-3">
                     <label className="text-sm font-bold text-ink-700">
-                      Tên file
+                      Tệp dữ liệu
                       <select
-                        value={reportFile}
-                        onChange={(event) => setReportFile(event.target.value)}
-                        className="mt-2 w-full rounded-lg border border-ink-200 bg-white px-3 py-3 text-sm font-medium text-ink-700 outline-none transition focus:border-cobalt-400 focus:ring-2 focus:ring-cobalt-100"
+                        value={selectedReportRunId}
+                        onChange={(event) => selectReportRun(event.target.value)}
+                        disabled={reportLoading}
+                        className="mt-2 w-full rounded-lg border border-ink-200 bg-white px-3 py-3 text-sm font-medium text-ink-700 outline-none transition focus:border-cobalt-400 focus:ring-2 focus:ring-cobalt-100 disabled:cursor-wait disabled:opacity-60"
                       >
-                        <option value="">Tất cả file</option>
-                        {[...new Map(history.map((item) => [item.filename, item])).values()].map((item) => (
-                          <option key={item.id || item.filename} value={item.filename}>{item.filename}</option>
+                        {reportItems.map((item) => (
+                          <option key={item.id || item.dag_run_id} value={item.dag_run_id}>
+                            {item.filename}
+                          </option>
                         ))}
                       </select>
                     </label>
@@ -989,40 +1063,47 @@ const UserUpload = () => {
                         className="mt-2 w-full rounded-lg border border-ink-200 bg-white px-3 py-3 text-sm font-medium text-ink-700 outline-none transition focus:border-cobalt-400 focus:ring-2 focus:ring-cobalt-100"
                       >
                         <option value="">Tất cả năm</option>
-                        {reportYears.map((year) => <option key={year} value={year}>{year}</option>)}
+                        {reportYears.map((year) => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
                       </select>
                     </label>
 
                     <label className="text-sm font-bold text-ink-700">
-                      Kỳ
+                      Học kỳ
                       <select
                         value={reportTerm}
                         onChange={(event) => setReportTerm(event.target.value)}
                         className="mt-2 w-full rounded-lg border border-ink-200 bg-white px-3 py-3 text-sm font-medium text-ink-700 outline-none transition focus:border-cobalt-400 focus:ring-2 focus:ring-cobalt-100"
                       >
-                        <option value="">Tất cả kỳ</option>
-                        <option value="1">Kỳ 1</option>
-                        <option value="2">Kỳ 2</option>
-                        <option value="3">Kỳ 3</option>
+                        <option value="">Tất cả học kỳ</option>
+                        <option value="1">Học kỳ 1</option>
+                        <option value="2">Học kỳ 2</option>
+                        <option value="3">Học kỳ 3</option>
+                      </select>
+                    </label>
+
+                    <label className="text-sm font-bold text-ink-700">
+                      Đơn vị/Khoa–Phòng
+                      <select
+                        value={reportUnit}
+                        onChange={(event) => setReportUnit(event.target.value)}
+                        className="mt-2 w-full rounded-lg border border-ink-200 bg-white px-3 py-3 text-sm font-medium text-ink-700 outline-none transition focus:border-cobalt-400 focus:ring-2 focus:ring-cobalt-100"
+                      >
+                        <option value="">Tất cả đơn vị</option>
+                        {reportUnits.map((unit) => (
+                          <option key={unit.nhom_don_vi} value={unit.nhom_don_vi}>
+                            {unit.ten_phong_ban || unit.nhom_don_vi}
+                          </option>
+                        ))}
                       </select>
                     </label>
                   </div>
-
-                  {(reportFile || reportYear || reportTerm) && (
-                    <button
-                      type="button"
-                      onClick={() => { setReportFile(""); setReportYear(""); setReportTerm(""); }}
-                      className="mt-5 flex w-full items-center justify-center gap-1.5 rounded-lg bg-ink-50 px-3 py-3 text-sm font-bold text-ink-600 transition hover:bg-ink-100"
-                    >
-                      <Icon name="x" className="h-3.5 w-3.5" />
-                      Xóa bộ lọc
-                    </button>
-                  )}
                 </aside>
 
                 <iframe
-                  key={filteredDashboardUrl}
-                  src={filteredDashboardUrl}
+                  key={completedDashboardUrl}
+                  src={completedDashboardUrl}
                   title={activePipeline.dashboard.title || "Superset Dashboard"}
                   className="h-[480px] min-w-0 flex-1 rounded-xl border border-ink-100 bg-white shadow-inner sm:h-[600px] lg:h-[720px] xl:h-[820px]"
                   allowFullScreen

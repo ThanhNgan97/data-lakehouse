@@ -37,6 +37,11 @@ AIRFLOW_API_DAG_ID = os.getenv("AIRFLOW_API_DAG_ID", "api_dataset_pipeline")
 AIRFLOW_API_USERNAME = os.getenv("AIRFLOW_API_USERNAME", "airflow")
 AIRFLOW_API_PASSWORD = os.getenv("AIRFLOW_ADMIN_PASSWORD", "")
 
+# Superset REST API used to build filter-state keys for external report filters.
+SUPERSET_API_URL = os.getenv("SUPERSET_API_URL", "http://superset:8088")
+SUPERSET_ADMIN_USERNAME = os.getenv("SUPERSET_ADMIN_USERNAME", "admin")
+SUPERSET_ADMIN_PASSWORD = os.getenv("SUPERSET_ADMIN_PASSWORD", "admin")
+
 # CTU IOC demo source used by the backend preview endpoint.
 MOCK_API_PUBLIC_URL = os.getenv("MOCK_API_PUBLIC_URL", "http://localhost:8090")
 MOCK_API_INTERNAL_URL = os.getenv("MOCK_API_INTERNAL_URL", "http://ctu-ioc-mock-api:8000")

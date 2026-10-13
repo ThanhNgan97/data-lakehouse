@@ -209,6 +209,22 @@ class TestUniversalAIPipelineE2E(unittest.TestCase):
         expected_uuid = get_deterministic_uuid("dashboard.student_tuition_summary")
         self.assertEqual(bundle["dashboard_uuid"], expected_uuid)
 
+        native_filters = bundle["dashboard"]["metadata"]["native_filter_configuration"]
+        self.assertTrue(any(item["filterType"] == "filter_time" for item in native_filters))
+        select_columns = {
+            item["targets"][0]["column"]["name"]
+            for item in native_filters
+            if item["filterType"] == "filter_select"
+        }
+        self.assertIn("faculty", select_columns)
+        self.assertIn("academic_year", select_columns)
+        self.assertTrue(all(
+            target.get("datasetUuid") == bundle["dataset"]["uuid"]
+            for item in native_filters
+            if item["filterType"] == "filter_select"
+            for target in item["targets"]
+        ))
+
         # Kiểm tra đầy đủ 3 archetype visual: KPI, Bar, Table
         viz_types = [c[0]["viz_type"] for c in bundle["charts"]]
         self.assertIn("big_number_total", viz_types)

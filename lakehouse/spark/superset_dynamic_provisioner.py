@@ -353,6 +353,80 @@ def get_trino_columns(table_name: str, schema: str = "gold") -> Optional[List[st
     return None
 
 
+def build_native_filter_configuration(
+    dataset: Dict[str, Any],
+    dataset_uuid: str,
+    max_select_filters: int = 6,
+) -> List[Dict[str, Any]]:
+    """Build portable Superset native filters from the dataset schema."""
+    filters: List[Dict[str, Any]] = []
+    main_dttm = dataset.get("main_dttm_col")
+
+    if main_dttm:
+        filters.append({
+            "id": f"NATIVE_FILTER-{get_deterministic_uuid(f'filter.time.{dataset_uuid}')}",
+            "name": "Khoảng thời gian",
+            "filterType": "filter_time",
+            "targets": [{}],
+            "defaultDataMask": {"extraFormData": {}, "filterState": {}, "ownState": {}},
+            "cascadeParentIds": [],
+            "scope": {"rootPath": ["ROOT_ID"], "excluded": []},
+            "type": "NATIVE_FILTER",
+            "description": f"Lọc theo {to_vietnamese_label(main_dttm)}",
+        })
+
+    candidates = []
+    for index, column in enumerate(dataset.get("columns", [])):
+        name = str(column.get("column_name") or "").strip()
+        if (
+            not name
+            or name == main_dttm
+            or name == "total_records"
+            or column.get("is_dttm")
+            or not column.get("filterable")
+            or not column.get("groupby")
+            or is_technical_column(name)
+        ):
+            continue
+
+        normalized = name.lower()
+        if normalized in {"id", "uuid"} or normalized.endswith(("_uuid", "_hash")):
+            continue
+
+        priority_terms = (
+            "year", "nam", "semester", "hoc_ky", "term", "unit", "don_vi",
+            "faculty", "khoa", "department", "phong", "status", "trang_thai",
+            "category", "type", "region", "element", "device", "location",
+        )
+        priority = 0 if any(term in normalized for term in priority_terms) else 1
+        candidates.append((priority, index, column))
+
+    for _, _, column in sorted(candidates)[:max_select_filters]:
+        name = column["column_name"]
+        label = column.get("verbose_name") or to_vietnamese_label(name)
+        filters.append({
+            "id": f"NATIVE_FILTER-{get_deterministic_uuid(f'filter.select.{dataset_uuid}.{name}')}",
+            "name": label,
+            "filterType": "filter_select",
+            "targets": [{"datasetUuid": dataset_uuid, "column": {"name": name}}],
+            "defaultDataMask": {"extraFormData": {}, "filterState": {}, "ownState": {}},
+            "cascadeParentIds": [],
+            "scope": {"rootPath": ["ROOT_ID"], "excluded": []},
+            "controlValues": {
+                "creatable": False,
+                "multiSelect": True,
+                "enableEmptyFilter": False,
+                "defaultToFirstItem": False,
+                "inverseSelection": False,
+                "searchAllOptions": True,
+            },
+            "type": "NATIVE_FILTER",
+            "description": f"Lọc dashboard theo {label}",
+        })
+
+    return filters
+
+
 # =====================================================================
 # BUILDERS: DATASET & CHARTS
 # =====================================================================
@@ -2404,6 +2478,7 @@ def build_dashboard_bundle(decision: RoutingDecision) -> Dict[str, Any]:
         )
 
     slug = f"auto-{table_name.replace('_', '-')}"
+    native_filters = build_native_filter_configuration(dataset_dict, dataset_uuid)
     dashboard_dict = {
         "dashboard_title": title,
         "description": desc,
@@ -2422,6 +2497,8 @@ def build_dashboard_bundle(decision: RoutingDecision) -> Dict[str, Any]:
             "expanded_slices": {},
             "refresh_frequency": 0,
             "default_filters": "{}",
+            "native_filter_configuration": native_filters,
+            "filter_bar_orientation": "HORIZONTAL",
         },
         "version": "1.0.0",
     }

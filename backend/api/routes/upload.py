@@ -2,20 +2,86 @@ import logging
 import os
 import uuid
 import ast
+import json
+import re
 import requests
 from threading import Thread
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
+from pydantic import BaseModel, Field
 from api.dependencies import get_current_user
 from db.database import get_db
 from sqlalchemy.orm import Session
 from db.models import ImportJob, ImportJobFile, SourceFile, UploadHistory, User
 from db.minio_client import minio_client
 from core.config import MAX_UPLOAD_FILE_BYTES, MINIO_BUCKET_NAME
-from core.config import AIRFLOW_FILE_DAG_ID, AIRFLOW_WEBSERVER_URL
+from core.config import (
+    AIRFLOW_FILE_DAG_ID,
+    AIRFLOW_WEBSERVER_URL,
+    SUPERSET_API_URL,
+    SUPERSET_ADMIN_PASSWORD,
+    SUPERSET_ADMIN_USERNAME,
+)
+from api.routes.pipeline_preview import _run_trino_query, _validate_table_name
 from services.url_ingestion.state import derive_job_status, utcnow
 from services.url_ingestion.manager import process_import_job
 from services.url_ingestion.policies import SUPPORTED_EXTENSIONS
 router = APIRouter()
+
+FILTER_NAMESPACE = uuid.NAMESPACE_DNS
+FILTER_COLUMN_PATTERN = re.compile(r"^[a-zA-Z0-9_]{1,128}$")
+
+
+class ReportFilterStateRequest(BaseModel):
+    filters: dict[str, list[str]] = Field(default_factory=dict)
+
+
+def _parse_xcom_value(value):
+    if not isinstance(value, str):
+        return value
+    try:
+        return json.loads(value)
+    except (TypeError, ValueError):
+        try:
+            return ast.literal_eval(value)
+        except (SyntaxError, ValueError):
+            return None
+
+
+def _dashboard_result_for_run(dag_run_id: str):
+    airflow_base = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/{AIRFLOW_FILE_DAG_ID}/dagRuns/{dag_run_id}"
+    response = requests.get(
+        f"{airflow_base}/taskInstances/auto_provision_superset/xcomEntries/return_value",
+        auth=("airflow", "airflow"),
+        timeout=8,
+    )
+    if response.status_code != 200:
+        return None
+    value = _parse_xcom_value(response.json().get("value"))
+    return value if isinstance(value, dict) else None
+
+
+def _dataset_uuid(table_name: str) -> str:
+    return str(uuid.uuid5(FILTER_NAMESPACE, f"ctu.lakehouse.dataset.{table_name}"))
+
+
+def _native_filter_id(table_name: str, column_name: str) -> str:
+    dataset_uuid = _dataset_uuid(table_name)
+    value = uuid.uuid5(
+        FILTER_NAMESPACE,
+        f"ctu.lakehouse.filter.select.{dataset_uuid}.{column_name}",
+    )
+    return f"NATIVE_FILTER-{value}"
+
+
+def _authorize_dag_run(db: Session, current_user, dag_run_id: str) -> UploadHistory:
+    user_id = current_user.id if hasattr(current_user, "id") else current_user.get("id")
+    record = db.query(UploadHistory).filter(
+        UploadHistory.dag_run_id == dag_run_id,
+        UploadHistory.user_id == user_id,
+    ).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lần upload.")
+    return record
 @router.get("/")
 def read_root():
     return {"message": "Welcome to the Lakehouse API!"}
@@ -126,10 +192,158 @@ async def get_upload_history(
     Kèm theo thông tin người upload, metadata, kích thước...
     """
     try:
-        histories = db.query(UploadHistory).join(User, UploadHistory.user_id == User.id).order_by(UploadHistory.uploaded_at.desc()).limit(limit)
+        user_id = current_user.id if hasattr(current_user, "id") else current_user.get("id")
+        histories = (
+            db.query(UploadHistory)
+            .join(User, UploadHistory.user_id == User.id)
+            .filter(UploadHistory.user_id == user_id)
+            .order_by(UploadHistory.uploaded_at.desc())
+            .limit(limit)
+        )
         return [record.to_dict() for record in histories]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi lấy lịch sử: {str(e)}")
+
+
+@router.get("/upload/report-filters/{dag_run_id}")
+def get_report_filters(
+    dag_run_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Return data-driven select filters for the dashboard produced by a run."""
+    _authorize_dag_run(db, current_user, dag_run_id)
+    result = _dashboard_result_for_run(dag_run_id)
+    if not result or not result.get("table_name"):
+        raise HTTPException(status_code=404, detail="Không tìm thấy dataset của dashboard.")
+
+    table_name = _validate_table_name(result["table_name"])
+    try:
+        _, rows = _run_trino_query(f"DESCRIBE lakehouse.gold.{table_name}")
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Không đọc được schema dataset: {exc}")
+
+    priority_terms = (
+        "year", "nam", "semester", "hoc_ky", "term", "unit", "don_vi",
+        "faculty", "khoa", "department", "phong", "status", "trang_thai",
+        "category", "type", "region", "element", "device", "location",
+    )
+    excluded = {"total_records", "id", "uuid"}
+    candidates = []
+    for index, row in enumerate(rows):
+        column_name = str(row[0]).strip()
+        column_type = str(row[1]).lower()
+        normalized = column_name.lower()
+        if (
+            not FILTER_COLUMN_PATTERN.match(column_name)
+            or normalized in excluded
+            or normalized.startswith("_")
+            or normalized.endswith(("_uuid", "_hash"))
+        ):
+            continue
+        is_text = any(value in column_type for value in ("char", "varchar", "boolean"))
+        is_named_period = any(value in normalized for value in ("year", "nam", "semester", "hoc_ky", "term"))
+        if not is_text and not is_named_period:
+            continue
+        priority = 0 if any(term in normalized for term in priority_terms) else 1
+        candidates.append((priority, index, column_name))
+
+    filters = []
+    # The report sidebar is intentionally compact: expose only the first three
+    # high-value dimensions selected for this dataset. The dataset selector is
+    # rendered separately by the frontend and is not counted in this limit.
+    for _, _, column_name in sorted(candidates)[:3]:
+        try:
+            _, values = _run_trino_query(
+                f'SELECT DISTINCT "{column_name}" FROM lakehouse.gold.{table_name} '
+                f'WHERE "{column_name}" IS NOT NULL ORDER BY 1 LIMIT 100'
+            )
+        except Exception:
+            continue
+        options = [str(row[0]) for row in values if row and row[0] is not None]
+        if not options:
+            continue
+        filters.append({
+            "key": column_name,
+            "label": column_name.replace("_", " ").strip().title(),
+            "native_filter_id": _native_filter_id(table_name, column_name),
+            "options": options,
+        })
+
+    return {
+        "dag_run_id": dag_run_id,
+        "dashboard_slug": result.get("dashboard_slug"),
+        "table_name": table_name,
+        "filters": filters,
+    }
+
+
+@router.post("/upload/report-filter-state/{dag_run_id}")
+def create_report_filter_state(
+    dag_run_id: str,
+    request: ReportFilterStateRequest,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Create a Superset native-filter cache key for external combobox values."""
+    _authorize_dag_run(db, current_user, dag_run_id)
+    result = _dashboard_result_for_run(dag_run_id)
+    if not result or not result.get("dashboard_slug") or not result.get("table_name"):
+        raise HTTPException(status_code=404, detail="Không tìm thấy dashboard của pipeline.")
+    table_name = _validate_table_name(result["table_name"])
+
+    data_mask = {}
+    for column_name, selected_values in request.filters.items():
+        if not FILTER_COLUMN_PATTERN.match(column_name):
+            raise HTTPException(status_code=400, detail="Tên cột lọc không hợp lệ.")
+        values = [str(value) for value in selected_values if str(value)]
+        if not values:
+            continue
+        filter_id = _native_filter_id(table_name, column_name)
+        data_mask[filter_id] = {
+            "id": filter_id,
+            "extraFormData": {"filters": [{"col": column_name, "op": "IN", "val": values}]},
+            "filterState": {"value": values},
+            "ownState": {},
+        }
+
+    superset_url = SUPERSET_API_URL.rstrip("/")
+    try:
+        login = requests.post(
+            f"{superset_url}/api/v1/security/login",
+            json={
+                "username": SUPERSET_ADMIN_USERNAME,
+                "password": SUPERSET_ADMIN_PASSWORD,
+                "provider": "db",
+                "refresh": True,
+            },
+            timeout=10,
+        )
+        login.raise_for_status()
+        headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+        slug = result["dashboard_slug"]
+        dashboard_response = requests.get(
+            f"{superset_url}/api/v1/dashboard/?q=(filters:!((col:slug,opr:eq,value:'{slug}')))" ,
+            headers=headers,
+            timeout=10,
+        )
+        dashboard_response.raise_for_status()
+        dashboards = dashboard_response.json().get("result", [])
+        if not dashboards:
+            raise HTTPException(status_code=404, detail="Dashboard không tồn tại trong Superset.")
+        dashboard_id = dashboards[0]["id"]
+        state_response = requests.post(
+            f"{superset_url}/api/v1/dashboard/{dashboard_id}/filter_state",
+            headers=headers,
+            json={"value": json.dumps(data_mask)},
+            timeout=10,
+        )
+        state_response.raise_for_status()
+        return {"key": state_response.json().get("key")}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Không áp dụng được bộ lọc Superset: {exc}")
 
 @router.get("/upload/pipeline-status/{dag_run_id}", summary="Lấy trạng thái step-by-step của Pipeline")
 async def get_pipeline_status(

@@ -14,7 +14,7 @@ const SUPERSET_ORIGIN = new URL(
 ).origin;
 const dashboardUrlFor = (slug) =>
   slug
-    ? `${SUPERSET_ORIGIN}/superset/dashboard/${encodeURIComponent(slug)}/?standalone=3`
+    ? `${SUPERSET_ORIGIN}/superset/dashboard/${encodeURIComponent(slug)}/?standalone=3&show_filters=0`
     : "";
 const authHeader = () => ({
   Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -158,6 +158,19 @@ const formatDuration = (seconds) => {
   return `${minutes} phút${remainder ? ` ${remainder} giây` : ""}`;
 };
 
+const REPORT_FILTER_LABELS = {
+  academic_year: "Năm học", nam_hoc: "Năm học", year: "Năm",
+  hoc_ky: "Học kỳ", semester: "Học kỳ", term: "Học kỳ",
+  nhom_don_vi: "Đơn vị/Khoa–Phòng", ten_phong_ban: "Đơn vị/Khoa–Phòng",
+  faculty: "Khoa/Viện", department: "Phòng ban", device_id: "Thiết bị",
+  location: "Khu vực", region: "Khu vực", element: "Nguyên tố", status: "Trạng thái",
+  health_status: "Trạng thái đánh giá", quy_danh_gia: "Quý đánh giá",
+  performance_tier: "Mức hiệu suất", action_priority: "Mức độ ưu tiên",
+  alert_flag: "Cảnh báo", category: "Nhóm dữ liệu", type: "Loại dữ liệu",
+};
+const reportFilterLabel = (filter) =>
+  REPORT_FILTER_LABELS[String(filter.key || "").toLowerCase()] || filter.label || filter.key;
+
 const UserUpload = () => {
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -172,10 +185,10 @@ const UserUpload = () => {
   const [activePipeline, setActivePipeline] = useState(null);
   const [selectedReportRunId, setSelectedReportRunId] = useState("");
   const [reportLoading, setReportLoading] = useState(false);
-  const [reportYear, setReportYear] = useState("");
-  const [reportTerm, setReportTerm] = useState("");
-  const [reportUnit, setReportUnit] = useState("");
-  const [reportUnits, setReportUnits] = useState([]);
+  const [dynamicReportFilters, setDynamicReportFilters] = useState([]);
+  const [reportFilterValues, setReportFilterValues] = useState({});
+  const [reportFilterKey, setReportFilterKey] = useState("");
+  const [reportFiltersLoading, setReportFiltersLoading] = useState(false);
   const [inputMode, setInputMode] = useState("upload");
   const [sourceUrl, setSourceUrl] = useState("");
   const [urlManifest, setUrlManifest] = useState(null);
@@ -239,24 +252,35 @@ const UserUpload = () => {
   }, [fetchHistory]);
 
   useEffect(() => {
-    let cancelled = false;
-    axios.get(`${API_URL}/gold/units`, { headers: authHeader() })
-      .then((res) => {
-        if (!cancelled) setReportUnits(res.data || []);
-      })
-      .catch(() => {
-        if (!cancelled) setReportUnits([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
     if (!activePipeline?.tasks?.some((task) => task.state === "running")) return undefined;
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [activePipeline]);
+
+  useEffect(() => {
+    const dagRunId = activePipeline?.dag_run_id;
+    if (activePipeline?.state !== "success" || !activePipeline?.dashboard?.imported || !dagRunId) {
+      setDynamicReportFilters([]);
+      setReportFilterValues({});
+      setReportFilterKey("");
+      return undefined;
+    }
+    let cancelled = false;
+    setReportFiltersLoading(true);
+    setReportFilterValues({});
+    setReportFilterKey("");
+    axios.get(`${API_URL}/upload/report-filters/${dagRunId}`, { headers: authHeader() })
+      .then((res) => {
+        if (!cancelled) setDynamicReportFilters(res.data?.filters || []);
+      })
+      .catch(() => {
+        if (!cancelled) setDynamicReportFilters([]);
+      })
+      .finally(() => {
+        if (!cancelled) setReportFiltersLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [activePipeline?.dag_run_id, activePipeline?.state, activePipeline?.dashboard?.imported]);
 
   const removeHistoryItem = (id, index) => {
     setHistory((current) => current.filter((item, itemIndex) => (item.id ?? itemIndex) !== (id ?? index)));
@@ -529,21 +553,44 @@ const UserUpload = () => {
     }
   };
 
+  const changeReportFilter = async (filterKey, value) => {
+    const nextValues = { ...reportFilterValues, [filterKey]: value };
+    setReportFilterValues(nextValues);
+    setReportFiltersLoading(true);
+    setUploadError("");
+    try {
+      const filters = Object.fromEntries(
+        Object.entries(nextValues)
+          .filter(([, selected]) => selected)
+          .map(([key, selected]) => [key, [selected]]),
+      );
+      const res = await axios.post(
+        `${API_URL}/upload/report-filter-state/${activePipeline.dag_run_id}`,
+        { filters },
+        { headers: authHeader() },
+      );
+      setReportFilterKey(res.data?.key || "");
+    } catch (err) {
+      setUploadError(err.response?.data?.detail || "Không thể áp dụng bộ lọc báo cáo.");
+    } finally {
+      setReportFiltersLoading(false);
+    }
+  };
+
   const completedDashboardUrl =
     activePipeline?.state === "success" && activePipeline?.dashboard?.imported
       ? dashboardUrlFor(activePipeline.dashboard.slug)
       : "";
+  const filteredDashboardUrl = completedDashboardUrl
+    ? (() => {
+        const url = new URL(completedDashboardUrl);
+        if (reportFilterKey) url.searchParams.set("native_filters_key", reportFilterKey);
+        return url.toString();
+      })()
+    : "";
   const reportItems = history.filter(
     (item) => item.dag_run_id && item.pipeline_status === "success",
   );
-  const reportYears = [...new Set(history.map((item) => {
-    const filenameYear = item.filename?.match(/(?:19|20)\d{2}/)?.[0];
-    if (filenameYear) return filenameYear;
-    const uploadedAt = item.uploaded_at ? new Date(item.uploaded_at) : null;
-    return uploadedAt && !Number.isNaN(uploadedAt.getTime())
-      ? String(uploadedAt.getFullYear())
-      : null;
-  }).filter(Boolean))].sort((a, b) => Number(b) - Number(a));
   const importCounts = activeImportJob?.counts || {};
   const importTotal = activeImportJob?.files?.length || 0;
   const importFinished = ["COMPLETED", "DUPLICATE", "FAILED", "UNSUPPORTED", "CANCELLED"]
@@ -1014,7 +1061,7 @@ const UserUpload = () => {
             </div>
             {completedDashboardUrl && (
             <a
-              href={completedDashboardUrl}
+              href={filteredDashboardUrl}
               target="_blank"
               rel="noreferrer"
               className="self-start sm:self-auto text-xs text-lake-700 hover:text-lake-800 bg-lake-50 hover:bg-lake-100 px-3 py-1.5 rounded-lg transition font-semibold flex items-center gap-1.5"
@@ -1055,55 +1102,29 @@ const UserUpload = () => {
                       </select>
                     </label>
 
-                    <label className="text-sm font-bold text-ink-700">
-                      Năm
-                      <select
-                        value={reportYear}
-                        onChange={(event) => setReportYear(event.target.value)}
-                        className="mt-2 w-full rounded-lg border border-ink-200 bg-white px-3 py-3 text-sm font-medium text-ink-700 outline-none transition focus:border-cobalt-400 focus:ring-2 focus:ring-cobalt-100"
-                      >
-                        <option value="">Tất cả năm</option>
-                        {reportYears.map((year) => (
-                          <option key={year} value={year}>{year}</option>
-                        ))}
-                      </select>
-                    </label>
+                    {dynamicReportFilters.map((filter) => (
+                      <label key={filter.key} className="text-sm font-bold text-ink-700">
+                        {reportFilterLabel(filter)}
+                        <select
+                          value={reportFilterValues[filter.key] || ""}
+                          onChange={(event) => changeReportFilter(filter.key, event.target.value)}
+                          disabled={reportFiltersLoading}
+                          className="mt-2 w-full rounded-lg border border-ink-200 bg-white px-3 py-3 text-sm font-medium text-ink-700 outline-none transition focus:border-cobalt-400 focus:ring-2 focus:ring-cobalt-100 disabled:cursor-wait disabled:opacity-60"
+                        >
+                          <option value="">Tất cả</option>
+                          {filter.options.map((option) => (
+                            <option key={option} value={option}>{option}</option>
+                          ))}
+                        </select>
+                      </label>
+                    ))}
 
-                    <label className="text-sm font-bold text-ink-700">
-                      Học kỳ
-                      <select
-                        value={reportTerm}
-                        onChange={(event) => setReportTerm(event.target.value)}
-                        className="mt-2 w-full rounded-lg border border-ink-200 bg-white px-3 py-3 text-sm font-medium text-ink-700 outline-none transition focus:border-cobalt-400 focus:ring-2 focus:ring-cobalt-100"
-                      >
-                        <option value="">Tất cả học kỳ</option>
-                        <option value="1">Học kỳ 1</option>
-                        <option value="2">Học kỳ 2</option>
-                        <option value="3">Học kỳ 3</option>
-                      </select>
-                    </label>
-
-                    <label className="text-sm font-bold text-ink-700">
-                      Đơn vị/Khoa–Phòng
-                      <select
-                        value={reportUnit}
-                        onChange={(event) => setReportUnit(event.target.value)}
-                        className="mt-2 w-full rounded-lg border border-ink-200 bg-white px-3 py-3 text-sm font-medium text-ink-700 outline-none transition focus:border-cobalt-400 focus:ring-2 focus:ring-cobalt-100"
-                      >
-                        <option value="">Tất cả đơn vị</option>
-                        {reportUnits.map((unit) => (
-                          <option key={unit.nhom_don_vi} value={unit.nhom_don_vi}>
-                            {unit.ten_phong_ban || unit.nhom_don_vi}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
                   </div>
                 </aside>
 
                 <iframe
-                  key={completedDashboardUrl}
-                  src={completedDashboardUrl}
+                  key={filteredDashboardUrl}
+                  src={filteredDashboardUrl}
                   title={activePipeline.dashboard.title || "Superset Dashboard"}
                   className="h-[480px] min-w-0 flex-1 rounded-xl border border-ink-100 bg-white shadow-inner sm:h-[600px] lg:h-[720px] xl:h-[820px]"
                   allowFullScreen

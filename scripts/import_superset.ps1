@@ -104,6 +104,9 @@ $pythonLines = @(
     "    from superset.connectors.sqla.models import SqlaTable",
     "    from superset.models.core import Database",
     "    dashboards = db.session.query(Dashboard).all()",
+    "    required_dashboard_slugs = {'ctu-ioc-learning-outcomes', 'ctu-ioc-teaching-progress'}",
+    "    required_dataset_names = {'learning_outcomes_metrics', 'teaching_progress_metrics'}",
+    "    datasets = db.session.query(SqlaTable).all()",
     "    filters = 0",
     "    for dashboard in dashboards:",
     "        try:",
@@ -115,7 +118,9 @@ $pythonLines = @(
     "    print('DATASET_COUNT=' + str(db.session.query(SqlaTable).count()))",
     "    print('CHART_COUNT=' + str(db.session.query(Slice).count()))",
     "    print('FILTER_COUNT=' + str(filters))",
-    "    print('DATABASE_COUNT=' + str(db.session.query(Database).count()))"
+    "    print('DATABASE_COUNT=' + str(db.session.query(Database).count()))",
+    "    print('REQUIRED_DASHBOARD_COUNT=' + str(sum(1 for item in dashboards if item.slug in required_dashboard_slugs)))",
+    "    print('REQUIRED_DATASET_COUNT=' + str(sum(1 for item in datasets if item.table_name in required_dataset_names)))"
 )
 
 Set-Content `
@@ -146,7 +151,7 @@ $counts = @{}
 foreach ($line in $inventory.Lines) {
     if (
         $line -match
-        '^(DASHBOARD_COUNT|DATASET_COUNT|CHART_COUNT|FILTER_COUNT|DATABASE_COUNT)=(\d+)$'
+        '^(DASHBOARD_COUNT|DATASET_COUNT|CHART_COUNT|FILTER_COUNT|DATABASE_COUNT|REQUIRED_DASHBOARD_COUNT|REQUIRED_DATASET_COUNT)=(\d+)$'
     ) {
         $counts[$Matches[1]] = [int]$Matches[2]
         Write-Host $line
@@ -154,11 +159,11 @@ foreach ($line in $inventory.Lines) {
 }
 
 $pass = (
-    $counts["DASHBOARD_COUNT"] -eq 2 -and
-    $counts["DATASET_COUNT"] -eq 2 -and
-    $counts["CHART_COUNT"] -eq 18 -and
-    $counts["FILTER_COUNT"] -eq 7 -and
-    $counts["DATABASE_COUNT"] -eq 1
+    $counts["REQUIRED_DASHBOARD_COUNT"] -eq 2 -and
+    $counts["REQUIRED_DATASET_COUNT"] -eq 2 -and
+    $counts["CHART_COUNT"] -ge 18 -and
+    $counts["FILTER_COUNT"] -ge 7 -and
+    $counts["DATABASE_COUNT"] -ge 1
 )
 
 Write-Host "SUPERSET_IMPORT_VERIFY=$pass"

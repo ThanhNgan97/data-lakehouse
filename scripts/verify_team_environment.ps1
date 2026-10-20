@@ -117,6 +117,54 @@ foreach ($portSpec in @(
 Write-Host "OZONE_RUNTIME_OWNERSHIP=PASS"
 
 # --------------------------------------------------
+# Apache Ozone cluster + bucket readiness
+# --------------------------------------------------
+
+$datanodes = Invoke-ComposeCapture @(
+    "exec","-T","scm",
+    "ozone","admin","datanode","list"
+)
+
+if ($datanodes.ExitCode -ne 0) {
+    throw "Unable to list Apache Ozone DataNodes."
+}
+
+$healthyDatanodes = @(
+    $datanodes.Lines |
+        Where-Object { $_ -match '^Health State:\s+HEALTHY\s*$' }
+).Count
+
+if ($healthyDatanodes -ne 3) {
+    throw "Expected 3 healthy Apache Ozone DataNodes; found $healthyDatanodes."
+}
+
+Write-Host "OZONE_HEALTHY_DATANODES=$healthyDatanodes"
+
+$bucket = Invoke-ComposeCapture @(
+    "exec","-T","om",
+    "ozone","sh","bucket","info",
+    "/s3v/$env:S3_BUCKET_NAME"
+)
+
+if ($bucket.ExitCode -ne 0) {
+    throw "Required Apache Ozone bucket is unavailable."
+}
+
+Write-Host "OZONE_BUCKET_PASS=$env:S3_BUCKET_NAME"
+
+$s3Probe = Invoke-ComposeCapture @(
+    "exec","-T","airflow-webserver",
+    "python","-c",
+    "import os,boto3; from botocore.config import Config; boto3.client('s3',endpoint_url=os.environ['S3_ENDPOINT'],aws_access_key_id=os.environ['S3_ACCESS_KEY'],aws_secret_access_key=os.environ['S3_SECRET_KEY'],config=Config(s3={'addressing_style':'path'})).head_bucket(Bucket=os.environ['S3_BUCKET_NAME'])"
+)
+
+if ($s3Probe.ExitCode -ne 0) {
+    throw "Signed Apache Ozone S3 bucket probe failed."
+}
+
+Write-Host "OZONE_SIGNED_S3_PROBE=PASS"
+
+# --------------------------------------------------
 # HTTP readiness
 # --------------------------------------------------
 
@@ -344,6 +392,9 @@ $pythonLines = @(
     "    from superset.connectors.sqla.models import SqlaTable",
     "    from superset.models.core import Database",
     "    dashboards = db.session.query(Dashboard).all()",
+    "    required_dashboard_slugs = {'ctu-ioc-learning-outcomes', 'ctu-ioc-teaching-progress'}",
+    "    required_dataset_names = {'learning_outcomes_metrics', 'teaching_progress_metrics'}",
+    "    datasets = db.session.query(SqlaTable).all()",
     "    filters = 0",
     "    for dashboard in dashboards:",
     "        try:",
@@ -355,7 +406,9 @@ $pythonLines = @(
     "    print('DATASET_COUNT=' + str(db.session.query(SqlaTable).count()))",
     "    print('CHART_COUNT=' + str(db.session.query(Slice).count()))",
     "    print('FILTER_COUNT=' + str(filters))",
-    "    print('DATABASE_COUNT=' + str(db.session.query(Database).count()))"
+    "    print('DATABASE_COUNT=' + str(db.session.query(Database).count()))",
+    "    print('REQUIRED_DASHBOARD_COUNT=' + str(sum(1 for item in dashboards if item.slug in required_dashboard_slugs)))",
+    "    print('REQUIRED_DATASET_COUNT=' + str(sum(1 for item in datasets if item.table_name in required_dataset_names)))"
 )
 
 Set-Content `
@@ -386,7 +439,7 @@ $counts = @{}
 foreach ($line in $superset.Lines) {
     if (
         $line -match
-        '^(DASHBOARD_COUNT|DATASET_COUNT|CHART_COUNT|FILTER_COUNT|DATABASE_COUNT)=(\d+)$'
+        '^(DASHBOARD_COUNT|DATASET_COUNT|CHART_COUNT|FILTER_COUNT|DATABASE_COUNT|REQUIRED_DASHBOARD_COUNT|REQUIRED_DATASET_COUNT)=(\d+)$'
     ) {
         $counts[$Matches[1]] = [int]$Matches[2]
         Write-Host $line
@@ -394,11 +447,11 @@ foreach ($line in $superset.Lines) {
 }
 
 $supersetPass = (
-    $counts["DASHBOARD_COUNT"] -eq 2 -and
-    $counts["DATASET_COUNT"] -eq 2 -and
-    $counts["CHART_COUNT"] -eq 18 -and
-    $counts["FILTER_COUNT"] -eq 7 -and
-    $counts["DATABASE_COUNT"] -eq 1
+    $counts["REQUIRED_DASHBOARD_COUNT"] -eq 2 -and
+    $counts["REQUIRED_DATASET_COUNT"] -eq 2 -and
+    $counts["CHART_COUNT"] -ge 18 -and
+    $counts["FILTER_COUNT"] -ge 7 -and
+    $counts["DATABASE_COUNT"] -ge 1
 )
 
 if (-not $supersetPass) {

@@ -15,7 +15,7 @@ The clean-machine objective is to regenerate demo state from tracked source arti
 
 ## High-level architecture
 
-CTU IOC Mock API -> Airflow api_dataset_pipeline -> Bronze -> Silver -> Gold -> Iceberg / MinIO / Nessie -> Trino -> Superset
+CTU IOC Mock API -> Airflow api_dataset_pipeline -> Bronze -> Silver -> Gold -> Iceberg / Apache Ozone / Nessie -> Trino -> Superset
 
 PostgreSQL provides metadata databases used by platform services.
 
@@ -67,8 +67,10 @@ Do not start a competing legacy Compose project for the same services and ports.
 | Superset | 8088 | 8088 |
 | CTU IOC Mock API | 8090 | 8000 |
 | Nessie | 19120 | 19120 |
-| MinIO API | 9000 | 9000 |
-| MinIO Console | 9001 | 9001 |
+| Apache Ozone SCM | 9876 | 9876 |
+| Apache Ozone OM | 9874 | 9874 |
+| Apache Ozone S3 Gateway | 9878 | 9878 |
+| Apache Ozone Recon | 9888 | 9888 |
 | PostgreSQL | 5433 | 5432 |
 | Kafka | 9094 | configured broker port |
 
@@ -78,7 +80,7 @@ Host/browser access uses `localhost:<host-port>`.
 
 Container-to-container communication uses Docker service DNS, for example:
 
-- `minio:9000`
+- `s3g:9878`
 - `nessie:19120`
 - `trino:8080`
 - `ctu-ioc-mock-api:8000`
@@ -93,7 +95,11 @@ Day 11 automation should wait for:
 - PostgreSQL: `pg_isready`
 - Airflow scheduler: `airflow jobs check --job-type SchedulerJob`
 - Airflow webserver: `GET http://localhost:8080/health`
-- MinIO: `GET http://localhost:9000/minio/health/live`
+- Ozone SCM: `GET http://localhost:9876/`
+- Ozone OM: `GET http://localhost:9874/`
+- Ozone S3 Gateway: signed S3 request to `http://localhost:9878`
+- Ozone Recon: `GET http://localhost:9888/`
+- Ozone DataNodes: three registered nodes in `HEALTHY` state
 - Nessie: `GET http://localhost:19120/api/v2/config`
 - Trino: `GET http://localhost:8081/v1/info`
 - Superset: `GET http://localhost:8088/health`
@@ -118,7 +124,7 @@ Clean import rehearsal belongs to Day 11.
 Do not copy:
 
 - PostgreSQL Docker volume data
-- MinIO Docker volume/object state
+- Apache Ozone Docker volume/object state
 - Iceberg runtime state
 - Nessie branch/history state
 - Superset `superset_home` or `superset.db`
@@ -168,7 +174,7 @@ Target clean-machine flow:
 
 clone -> create local .env -> start platform -> wait for readiness -> seed Learning + Teaching -> reconstruct Bronze/Silver/Gold -> import Superset artifacts -> verify environment
 
-No existing MinIO, Iceberg, Nessie, PostgreSQL, or Superset runtime state should be copied from the main machine.
+No existing Apache Ozone, Iceberg, Nessie, PostgreSQL, or Superset runtime state should be copied from the main machine.
 
 <!-- DAY10_TEAM_REPRO_START -->
 
@@ -178,7 +184,7 @@ This repository contains the reproducible local Data Lakehouse demo workflow pre
 
 ### Architecture
 
-The demo stack uses Docker Compose with PostgreSQL, MinIO, Nessie, Airflow, Trino, Superset, and the CTU IOC Mock API.
+The demo stack uses Docker Compose with PostgreSQL, Apache Ozone, Nessie, Airflow, Trino, Superset, and the CTU IOC Mock API.
 Demo state is reconstructed through source-controlled configuration and pipelines rather than by copying runtime volumes.
 
 ### Demo datasets
@@ -253,7 +259,7 @@ Verification is read-only. It checks services, Airflow, Learning and Teaching da
 
 Tracked reconstruction source is stored under `superset_exports/day10/`.
 
-Expected demo state:
+Required demo baseline (additional generated assets are allowed):
 
 - 2 dashboards
 - 2 datasets
@@ -266,8 +272,10 @@ Expected demo state:
 | Service | Container port |
 | --- | ---: |
 | PostgreSQL | 5432 |
-| MinIO API | 9000 |
-| MinIO Console | 9001 |
+| Apache Ozone SCM | 9876 |
+| Apache Ozone OM | 9874 |
+| Apache Ozone S3 Gateway | 9878 |
+| Apache Ozone Recon | 9888 |
 | Nessie | 19120 |
 | Airflow Webserver | 8080 |
 | Trino | 8080 |
@@ -286,7 +294,7 @@ Published host ports remain defined by the Compose files.
 
 **Do not copy Docker volumes or runtime state between machines.**
 
-Do not copy `postgres_data`, `minio_data`, `superset_home`, MinIO objects, Nessie history, Airflow metadata, or existing Iceberg state.
+Do not copy `postgres_data`, Ozone service volumes, `superset_home`, Ozone objects, Nessie history, Airflow metadata, or existing Iceberg state.
 
 **CLEAN-MACHINE ACCEPTANCE = DAY 11**
 

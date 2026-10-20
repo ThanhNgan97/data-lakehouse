@@ -26,3 +26,7 @@ lakehouse/spark/.extracted_tables/
 lakehouse/spark/.generated_exports/
 superset_exports/generated/
 *.zip
+
+# Great Expectations runtime artifacts and local secrets
+lakehouse/gx/uncommitted/
+lakehouse/gx/**/.ge_store_backend_id

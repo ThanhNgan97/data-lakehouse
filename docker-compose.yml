@@ -1,3 +1,20 @@
+x-ozone-image: &ozone-image
+  image: apache/ozone:2.2.1
+
+x-ozone-config: &ozone-config
+  OZONE-SITE.XML_hdds.datanode.dir: /data/hdds
+  OZONE-SITE.XML_ozone.metadata.dirs: /data/metadata
+  OZONE-SITE.XML_ozone.om.address: om
+  OZONE-SITE.XML_ozone.om.http-address: om:9874
+  OZONE-SITE.XML_ozone.recon.address: recon:9891
+  OZONE-SITE.XML_ozone.recon.db.dir: /data/metadata/recon
+  OZONE-SITE.XML_ozone.replication: "3"
+  OZONE-SITE.XML_ozone.scm.block.client.address: scm
+  OZONE-SITE.XML_ozone.scm.client.address: scm
+  OZONE-SITE.XML_ozone.scm.datanode.id.dir: /data/metadata
+  OZONE-SITE.XML_ozone.scm.names: scm
+  no_proxy: om,recon,scm,s3g,localhost,127.0.0.1
+
 services:
   # PostgreSQL + TimescaleDB
   postgres:
@@ -44,64 +61,153 @@ services:
     networks:
       - lakehouse-network
 
-  # MinIO
-  minio:
-    restart: "no"
-    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
-    container_name: demo-minio
-    command: server /data --console-address ":9001"
+  # Apache Ozone distributed object storage
+  scm:
+    <<: *ozone-image
+    restart: unless-stopped
+    container_name: demo-ozone-scm
+    command: ["ozone", "scm"]
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+      <<: *ozone-config
+      ENSURE_SCM_INITIALIZED: /data/metadata/scm/current/VERSION
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9876:9876"
     volumes:
-      - minio_data:/data
+      - ozone_scm_data:/data
     networks:
       - lakehouse-network
 
-  # Khởi tạo bucket
-  minio-init:
-    image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
-    container_name: demo-minio-init
-    depends_on:
-      - minio
+  om:
+    <<: *ozone-image
+    restart: unless-stopped
+    container_name: demo-ozone-om
+    command: ["ozone", "om"]
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
-      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-university-lakehouse}
+      <<: *ozone-config
+      CORE-SITE.XML_hadoop.proxyuser.hadoop.hosts: "*"
+      CORE-SITE.XML_hadoop.proxyuser.hadoop.groups: "*"
+      ENSURE_OM_INITIALIZED: /data/metadata/om/current/VERSION
+      WAITFOR: scm:9876
+    ports:
+      - "9874:9874"
+    volumes:
+      - ozone_om_data:/data
+    depends_on:
+      - scm
     networks:
       - lakehouse-network
-    entrypoint: >
-      /bin/sh -c "
-      set -e;
-      attempt=0;
-      until (/usr/bin/mc alias set myminio http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_SECRET_KEY}"); do
-        attempt=$$((attempt + 1));
-        if [ "$$attempt" -ge 60 ]; then
-          echo 'MinIO alias initialization failed' >&2;
-          exit 1;
-        fi;
-        echo 'Waiting for MinIO...';
-        sleep 2;
-      done;
-      if ! /usr/bin/mc stat "myminio/$${MINIO_BUCKET_NAME}" > /dev/null 2>&1; then
-        /usr/bin/mc mb "myminio/$${MINIO_BUCKET_NAME}";
-        echo 'Bucket initialized';
-      else
-        echo 'Bucket already exists';
-      fi;
-      /usr/bin/mc stat "myminio/$${MINIO_BUCKET_NAME}" > /dev/null;
-      echo 'Bucket ready';
-      exit 0;
-      "
+
+  datanode-1:
+    <<: *ozone-image
+    restart: unless-stopped
+    container_name: demo-ozone-datanode-1
+    command: ["ozone", "datanode"]
+    environment:
+      <<: *ozone-config
+      WAITFOR: scm:9876
+    volumes:
+      - ozone_datanode_1_data:/data
+    depends_on:
+      - scm
+    networks:
+      - lakehouse-network
+
+  datanode-2:
+    <<: *ozone-image
+    restart: unless-stopped
+    container_name: demo-ozone-datanode-2
+    command: ["ozone", "datanode"]
+    environment:
+      <<: *ozone-config
+      WAITFOR: scm:9876
+    volumes:
+      - ozone_datanode_2_data:/data
+    depends_on:
+      - scm
+    networks:
+      - lakehouse-network
+
+  datanode-3:
+    <<: *ozone-image
+    restart: unless-stopped
+    container_name: demo-ozone-datanode-3
+    command: ["ozone", "datanode"]
+    environment:
+      <<: *ozone-config
+      WAITFOR: scm:9876
+    volumes:
+      - ozone_datanode_3_data:/data
+    depends_on:
+      - scm
+    networks:
+      - lakehouse-network
+
+  recon:
+    <<: *ozone-image
+    restart: unless-stopped
+    container_name: demo-ozone-recon
+    command: ["ozone", "recon"]
+    environment:
+      <<: *ozone-config
+      WAITFOR: scm:9876
+    ports:
+      - "9888:9888"
+    volumes:
+      - ozone_recon_data:/data
+    depends_on:
+      - scm
+    networks:
+      - lakehouse-network
+
+  s3g:
+    <<: *ozone-image
+    restart: unless-stopped
+    container_name: demo-ozone-s3g
+    command: ["ozone", "s3g"]
+    environment:
+      <<: *ozone-config
+      WAITFOR: om:9874
+    ports:
+      - "9878:9878"
+    depends_on:
+      - om
+      - datanode-1
+      - datanode-2
+      - datanode-3
+    networks:
+      - lakehouse-network
+
+  ozone-init:
+    <<: *ozone-image
+    container_name: demo-ozone-init
+    restart: "no"
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        until ozone sh volume info /s3v >/dev/null 2>&1; do
+          ozone sh volume create /s3v >/dev/null 2>&1 || true
+          sleep 2
+        done
+        if ! ozone sh bucket info "/s3v/$${S3_BUCKET_NAME}" >/dev/null 2>&1; then
+          ozone sh bucket create "/s3v/$${S3_BUCKET_NAME}" --layout OBJECT_STORE
+        fi
+        ozone sh bucket info "/s3v/$${S3_BUCKET_NAME}"
+    environment:
+      <<: *ozone-config
+      WAITFOR: om:9874
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-university-lakehouse}
+    depends_on:
+      - s3g
+    networks:
+      - lakehouse-network
 
   # Trino
   trino:
     environment:
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-lakehouse}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-lakehouse-secret}
     restart: unless-stopped
     image: trinodb/trino:435
     container_name: demo-trino
@@ -110,7 +216,8 @@ services:
     volumes:
       - ./lakehouse/trino/catalog:/etc/trino/catalog
     depends_on:
-      - minio
+      ozone-init:
+        condition: service_completed_successfully
     networks:
       - lakehouse-network
 
@@ -208,21 +315,29 @@ services:
       # cookies unless Secure=true, which drops the session and breaks CSRF.
       AIRFLOW__WEBSERVER__SESSION_COOKIE_SAMESITE: 'Lax'
       AIRFLOW__WEBSERVER__SESSION_COOKIE_SECURE: 'False'
-      MINIO_ENDPOINT: 'http://minio:9000'
+      S3_ENDPOINT: 'http://s3g:9878'
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-lakehouse}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-lakehouse-secret}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-university-lakehouse}
       NESSIE_API_URL: 'http://nessie:19120/api/v1'
       TRINO_HOST: 'trino'
       TRINO_PORT: '8080'
       TRINO_HTTP_URL: 'http://trino:8080'
+      GX_CONTEXT_ROOT: '/opt/airflow/gx'
+      GX_ANALYTICS_ENABLED: 'false'
     volumes:
       - ./airflow_webserver_config.py:/opt/airflow/webserver_config.py:ro
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark
+      - ./lakehouse/gx:/opt/airflow/gx
       - ./.env:/opt/airflow/.env
     command: webserver
     depends_on:
       postgres:
         condition: service_started
       airflow-init:
+        condition: service_completed_successfully
+      ozone-init:
         condition: service_completed_successfully
     networks:
       - lakehouse-network
@@ -240,20 +355,28 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
       AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_WEBSERVER_SECRET_KEY}
-      MINIO_ENDPOINT: 'http://minio:9000'
+      S3_ENDPOINT: 'http://s3g:9878'
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-lakehouse}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-lakehouse-secret}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-university-lakehouse}
       NESSIE_API_URL: 'http://nessie:19120/api/v1'
       TRINO_HOST: 'trino'
       TRINO_PORT: '8080'
       TRINO_HTTP_URL: 'http://trino:8080'
+      GX_CONTEXT_ROOT: '/opt/airflow/gx'
+      GX_ANALYTICS_ENABLED: 'false'
     volumes:
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark
+      - ./lakehouse/gx:/opt/airflow/gx
       - ./.env:/opt/airflow/.env
     command: scheduler
     depends_on:
       postgres:
         condition: service_started
       airflow-init:
+        condition: service_completed_successfully
+      ozone-init:
         condition: service_completed_successfully
     networks:
       - lakehouse-network
@@ -321,7 +444,12 @@ services:
 
 volumes:
   postgres_data:
-  minio_data:
+  ozone_scm_data:
+  ozone_om_data:
+  ozone_recon_data:
+  ozone_datanode_1_data:
+  ozone_datanode_2_data:
+  ozone_datanode_3_data:
   superset_home:
   airbyte_db_data:
 

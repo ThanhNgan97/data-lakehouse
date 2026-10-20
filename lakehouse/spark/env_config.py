@@ -29,16 +29,22 @@ except ImportError:
 
 IS_DOCKER = os.path.exists("/.dockerenv")
 
-# ── MinIO ────────────────────────────────────────────────────
-_minio_ep = os.environ.get("MINIO_ENDPOINT") or "http://127.0.0.1:9000"
-if IS_DOCKER and ("127.0.0.1" in _minio_ep or "localhost" in _minio_ep):
-    MINIO_ENDPOINT = _minio_ep.replace("127.0.0.1", "minio").replace("localhost", "minio")
+# ── Apache Ozone S3 Gateway ─────────────────────────────────
+_s3_ep = os.environ.get("S3_ENDPOINT") or "http://127.0.0.1:9878"
+if IS_DOCKER and ("127.0.0.1" in _s3_ep or "localhost" in _s3_ep):
+    S3_ENDPOINT = _s3_ep.replace("127.0.0.1", "s3g").replace("localhost", "s3g")
 else:
-    MINIO_ENDPOINT = _minio_ep
+    S3_ENDPOINT = _s3_ep
 
-MINIO_ACCESS_KEY  = os.environ.get("MINIO_ACCESS_KEY",  "minioadmin")
-MINIO_SECRET_KEY  = os.environ.get("MINIO_SECRET_KEY",  "minioadmin")
-MINIO_BUCKET_NAME = os.environ.get("MINIO_BUCKET_NAME") or "university-lakehouse"
+S3_ACCESS_KEY  = os.environ.get("S3_ACCESS_KEY", "lakehouse")
+S3_SECRET_KEY  = os.environ.get("S3_SECRET_KEY", "lakehouse-secret")
+S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME") or "university-lakehouse"
+
+# Compatibility aliases while the Spark jobs are migrated to storage-neutral names.
+MINIO_ENDPOINT = S3_ENDPOINT
+MINIO_ACCESS_KEY = S3_ACCESS_KEY
+MINIO_SECRET_KEY = S3_SECRET_KEY
+MINIO_BUCKET_NAME = S3_BUCKET_NAME
 
 # ── PostgreSQL ───────────────────────────────────────────────
 _pg_host = os.environ.get("PG_HOST") or "127.0.0.1"

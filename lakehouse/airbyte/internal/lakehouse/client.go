@@ -15,9 +15,9 @@ import (
 )
 
 type Config struct {
-	Endpoint        string // localhost:9000
-	AccessKeyID     string // minioadmin
-	SecretAccessKey string // minioadmin
+	Endpoint        string // Apache Ozone S3 Gateway, for example localhost:9878
+	AccessKeyID     string
+	SecretAccessKey string
 	BucketName      string // university-lakehouse
 	UseSSL          bool
 }
@@ -29,16 +29,16 @@ type Client struct {
 
 func NewClient(cfg Config) (*Client, error) {
 	if cfg.Endpoint == "" {
-		cfg.Endpoint = "127.0.0.1:9000"
+		cfg.Endpoint = "127.0.0.1:9878"
 	}
 	cfg.Endpoint = strings.TrimPrefix(cfg.Endpoint, "http://")
 	cfg.Endpoint = strings.TrimPrefix(cfg.Endpoint, "https://")
 
 	if cfg.AccessKeyID == "" {
-		cfg.AccessKeyID = "minioadmin"
+		cfg.AccessKeyID = "lakehouse"
 	}
 	if cfg.SecretAccessKey == "" {
-		cfg.SecretAccessKey = "minioadmin"
+		cfg.SecretAccessKey = "lakehouse-secret"
 	}
 	if cfg.BucketName == "" {
 		cfg.BucketName = "university-lakehouse"
@@ -49,7 +49,7 @@ func NewClient(cfg Config) (*Client, error) {
 		Secure: cfg.UseSSL,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to init minio client: %w", err)
+		return nil, fmt.Errorf("failed to initialize S3-compatible client: %w", err)
 	}
 
 	return &Client{

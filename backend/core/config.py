@@ -20,11 +20,12 @@ API_SOURCE_CREDENTIAL_KEY = os.getenv("API_SOURCE_CREDENTIAL_KEY", "")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 12
 
-# MinIO Config
-MINIO_URL         = os.getenv("MINIO_URL",         "127.0.0.1:9000")
-MINIO_ACCESS_KEY  = os.getenv("MINIO_ACCESS_KEY",  "minioadmin")
-MINIO_SECRET_KEY  = os.getenv("MINIO_SECRET_KEY",  "minioadmin")
-MINIO_BUCKET_NAME = os.getenv("MINIO_BUCKET_NAME", "university-lakehouse")
+# S3-compatible storage (Apache Ozone S3 Gateway)
+S3_ENDPOINT    = os.getenv("S3_ENDPOINT", "http://127.0.0.1:9878")
+S3_ACCESS_KEY  = os.getenv("S3_ACCESS_KEY", "lakehouse")
+S3_SECRET_KEY  = os.getenv("S3_SECRET_KEY", "lakehouse-secret")
+S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "university-lakehouse")
+S3_REGION      = os.getenv("S3_REGION", "us-east-1")
 MAX_UPLOAD_FILE_BYTES = int(os.getenv("MAX_UPLOAD_FILE_BYTES", str(100 * 1024 * 1024)))
 
 # Nessie

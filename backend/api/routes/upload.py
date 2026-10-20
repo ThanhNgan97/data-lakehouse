@@ -9,8 +9,8 @@ from api.dependencies import get_current_user
 from db.database import get_db
 from sqlalchemy.orm import Session
 from db.models import ImportJob, ImportJobFile, SourceFile, UploadHistory, User
-from db.minio_client import minio_client
-from core.config import MAX_UPLOAD_FILE_BYTES, MINIO_BUCKET_NAME
+from db.s3_client import s3_client
+from core.config import MAX_UPLOAD_FILE_BYTES, S3_BUCKET_NAME
 from core.config import AIRFLOW_FILE_DAG_ID, AIRFLOW_WEBSERVER_URL
 from services.url_ingestion.state import derive_job_status, utcnow
 from services.url_ingestion.manager import process_import_job
@@ -55,11 +55,11 @@ async def upload_file(
         if file_size == 0:
             raise HTTPException(status_code=422, detail="File rỗng, không có dữ liệu để xử lý.")
 
-        minio_client.put_object(
-            bucket_name=MINIO_BUCKET_NAME,
-            object_name=object_name,
-            data=file.file,
-            length=file_size
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME,
+            Key=object_name,
+            Body=file.file,
+            ContentLength=file_size,
         )
 
         # Lưu lịch sử upload vào DB
@@ -71,7 +71,7 @@ async def upload_file(
             file_size_bytes=file_size,
             file_type=file.content_type,
             s3_path=object_name,
-            metadata_info={"source": "api", "bucket": MINIO_BUCKET_NAME},
+            metadata_info={"source": "api", "bucket": S3_BUCKET_NAME},
             status="Uploaded"
         )
         db.add(history_record)
@@ -107,7 +107,7 @@ async def upload_file(
             db.commit()
 
         return {
-            "message": f"Đã đẩy trực tiếp file {file.filename} vào trạm {object_name} của MinIO và kích hoạt pipeline!",
+            "message": f"Đã đẩy trực tiếp file {file.filename} vào trạm {object_name} của Apache Ozone và kích hoạt pipeline!",
             "dag_run_id": dag_run_id
         }
     except HTTPException:

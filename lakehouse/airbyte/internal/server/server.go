@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"os/exec"
 	"regexp"
 	"runtime"
@@ -34,8 +35,10 @@ func NewServer(port int) *Server {
 		port = 8085
 	}
 	lhClient, err := lakehouse.NewClient(lakehouse.Config{
-		Endpoint:   "127.0.0.1:9000",
-		BucketName: "university-lakehouse",
+		Endpoint:        envOrDefault("S3_ENDPOINT", "127.0.0.1:9878"),
+		AccessKeyID:     envOrDefault("S3_ACCESS_KEY", "lakehouse"),
+		SecretAccessKey: envOrDefault("S3_SECRET_KEY", "lakehouse-secret"),
+		BucketName:      envOrDefault("S3_BUCKET_NAME", "university-lakehouse"),
 	})
 	if err != nil {
 		fmt.Printf("⚠️ Warning: Could not initialize Lakehouse client: %v\n", err)
@@ -48,6 +51,13 @@ func NewServer(port int) *Server {
 		abClient:  abClient,
 		portalHub: newPortalStateHub(),
 	}
+}
+
+func envOrDefault(name, fallback string) string {
+	if value := strings.TrimSpace(os.Getenv(name)); value != "" {
+		return value
+	}
+	return fallback
 }
 
 func (s *Server) Start() error {

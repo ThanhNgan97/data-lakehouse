@@ -16,7 +16,13 @@ if (-not (Test-DockerEngine)) {
 
 $requiredServices = @(
     "postgres",
-    "minio",
+    "scm",
+    "om",
+    "datanode-1",
+    "datanode-2",
+    "datanode-3",
+    "s3g",
+    "recon",
     "nessie",
     "airflow-webserver",
     "airflow-scheduler",
@@ -31,10 +37,14 @@ foreach ($service in $requiredServices) {
 }
 
 # --------------------------------------------------
-# MinIO runtime ownership
+# Apache Ozone runtime ownership
 # --------------------------------------------------
 
-foreach ($hostPort in @(9000, 9001)) {
+foreach ($portSpec in @(
+    @{ Port=9878; Service="s3g" },
+    @{ Port=9888; Service="recon" }
+)) {
+    $hostPort = $portSpec.Port
 
     $ownerIds = @(
         & docker ps `
@@ -43,7 +53,7 @@ foreach ($hostPort in @(9000, 9001)) {
     )
 
     if ($LASTEXITCODE -ne 0) {
-        throw "Unable to inspect MinIO host port $hostPort."
+        throw "Unable to inspect Apache Ozone host port $hostPort."
     }
 
     $ownerIds = @(
@@ -54,7 +64,7 @@ foreach ($hostPort in @(9000, 9001)) {
     )
 
     if ($ownerIds.Count -ne 1) {
-        throw "Expected exactly one owner for MinIO host port $hostPort."
+        throw "Expected exactly one owner for Apache Ozone host port $hostPort."
     }
 
     $ownerJson = @(
@@ -62,7 +72,7 @@ foreach ($hostPort in @(9000, 9001)) {
     )
 
     if ($LASTEXITCODE -ne 0) {
-        throw "Unable to inspect MinIO port owner."
+        throw "Unable to inspect Apache Ozone port owner."
     }
 
     $owner = @(
@@ -86,17 +96,17 @@ foreach ($hostPort in @(9000, 9001)) {
 
     if (
         $ownerProject -ne $script:ComposeProjectName -or
-        $ownerService -ne "minio"
+        $ownerService -ne $portSpec.Service
     ) {
         throw (
-            "Wrong MinIO runtime owner on port $hostPort. " +
-            "Expected project=$($script:ComposeProjectName),service=minio; " +
+            "Wrong Apache Ozone runtime owner on port $hostPort. " +
+            "Expected project=$($script:ComposeProjectName),service=$($portSpec.Service); " +
             "actual project=$ownerProject,service=$ownerService,name=$ownerName"
         )
     }
 
     Write-Host (
-        "MINIO_PORT_OWNER_PASS=" +
+        "OZONE_PORT_OWNER_PASS=" +
         "PORT=$hostPort|" +
         "PROJECT=$ownerProject|" +
         "SERVICE=$ownerService|" +
@@ -104,14 +114,14 @@ foreach ($hostPort in @(9000, 9001)) {
     )
 }
 
-Write-Host "MINIO_RUNTIME_OWNERSHIP=PASS"
+Write-Host "OZONE_RUNTIME_OWNERSHIP=PASS"
 
 # --------------------------------------------------
 # HTTP readiness
 # --------------------------------------------------
 
 foreach ($probe in @(
-    @{ Name="minio";    Service="minio";             Port=9000; Path="/minio/health/live" },
+    @{ Name="ozone-recon"; Service="recon";          Port=9888; Path="/" },
     @{ Name="nessie";   Service="nessie";            Port=19120; Path="/api/v2/config" },
     @{ Name="airflow";  Service="airflow-webserver"; Port=8080; Path="/health" },
     @{ Name="trino";    Service="trino";             Port=8080; Path="/v1/info" },

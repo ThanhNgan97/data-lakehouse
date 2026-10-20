@@ -32,10 +32,10 @@ from api.dependencies import get_current_user
 router = APIRouter()
 
 # --- Cấu hình (đọc từ biến môi trường, khớp docker-compose hiện có) ---
-MINIO_ENDPOINT   = os.getenv("MINIO_ENDPOINT", "http://minio:9000")
-MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
-MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
-MINIO_BUCKET     = os.getenv("MINIO_BUCKET_NAME", "university-lakehouse")
+S3_ENDPOINT   = os.getenv("S3_ENDPOINT", "http://s3g:9878")
+S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY", "lakehouse")
+S3_SECRET_KEY = os.getenv("S3_SECRET_KEY", "lakehouse-secret")
+S3_BUCKET     = os.getenv("S3_BUCKET_NAME", "university-lakehouse")
 
 TRINO_HOST     = os.getenv("TRINO_HOST", "trino")
 TRINO_PORT     = int(os.getenv("TRINO_PORT", "8080"))
@@ -84,8 +84,8 @@ def _validate_nhom_don_vi(value: str) -> str:
 
 def _get_s3_client():
     return boto3.client(
-        "s3", endpoint_url=MINIO_ENDPOINT,
-        aws_access_key_id=MINIO_ACCESS_KEY, aws_secret_access_key=MINIO_SECRET_KEY,
+        "s3", endpoint_url=S3_ENDPOINT,
+        aws_access_key_id=S3_ACCESS_KEY, aws_secret_access_key=S3_SECRET_KEY,
     )
 
 
@@ -106,7 +106,7 @@ def get_pipeline_status(current_user=Depends(get_current_user)):
 
     try:
         s3 = _get_s3_client()
-        resp = s3.list_objects_v2(Bucket=MINIO_BUCKET, Prefix="bronze/data_extracted_", MaxKeys=1)
+        resp = s3.list_objects_v2(Bucket=S3_BUCKET, Prefix="bronze/data_extracted_", MaxKeys=1)
         status["bronze"] = "Contents" in resp and len(resp["Contents"]) > 0
     except Exception:
         status["bronze"] = False
@@ -128,11 +128,11 @@ def get_pipeline_status(current_user=Depends(get_current_user)):
 
 @router.get("/bronze/preview")
 def preview_bronze(limit: int = Query(50, ge=1, le=500), current_user=Depends(get_current_user)):
-    """Đọc file Parquet Bronze MỚI NHẤT trên MinIO (không qua Trino được vì
+    """Đọc file Parquet Bronze mới nhất trên Ozone (không qua Trino được vì
     Bronze chỉ là file thô, chưa phải bảng Iceberg)."""
     s3 = _get_s3_client()
-    resp_bronze = s3.list_objects_v2(Bucket=MINIO_BUCKET, Prefix="bronze/data_extracted_")
-    resp_archive = s3.list_objects_v2(Bucket=MINIO_BUCKET, Prefix="bronze_archive/data_extracted_")
+    resp_bronze = s3.list_objects_v2(Bucket=S3_BUCKET, Prefix="bronze/data_extracted_")
+    resp_archive = s3.list_objects_v2(Bucket=S3_BUCKET, Prefix="bronze_archive/data_extracted_")
 
     contents = []
     if "Contents" in resp_bronze and resp_bronze["Contents"]:
@@ -144,7 +144,7 @@ def preview_bronze(limit: int = Query(50, ge=1, le=500), current_user=Depends(ge
         raise HTTPException(status_code=404, detail="Chưa có file Parquet nào ở tầng Bronze hoặc Archive.")
 
     latest = max(contents, key=lambda o: o["LastModified"])
-    file_bytes = s3.get_object(Bucket=MINIO_BUCKET, Key=latest["Key"])["Body"].read()
+    file_bytes = s3.get_object(Bucket=S3_BUCKET, Key=latest["Key"])["Body"].read()
     df = pd.read_parquet(io.BytesIO(file_bytes))
     return {
         "layer": "bronze",

@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import uuid
 import ast
 import requests
@@ -16,6 +17,64 @@ from services.url_ingestion.state import derive_job_status, utcnow
 from services.url_ingestion.manager import process_import_job
 from services.url_ingestion.policies import SUPPORTED_EXTENSIONS
 router = APIRouter()
+
+
+def _user_id(user):
+    return user.id if hasattr(user, "id") else user.get("id")
+
+
+def _is_airbyte_pipeline_run(dag_run_id: str) -> bool:
+    return re.fullmatch(r"airbyte__\d+", dag_run_id) is not None
+
+
+def _dashboard_from_xcom(dag_run_id: str):
+    airflow_base = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/{AIRFLOW_FILE_DAG_ID}/dagRuns/{dag_run_id}"
+    response = requests.get(
+        f"{airflow_base}/taskInstances/auto_provision_superset/xcomEntries/return_value",
+        auth=("airflow", "airflow"),
+        timeout=5,
+    )
+    if response.status_code != 200:
+        return None
+    value = response.json().get("value")
+    if isinstance(value, str):
+        try:
+            import json
+            value = json.loads(value)
+        except (TypeError, ValueError):
+            try:
+                value = ast.literal_eval(value)
+            except (SyntaxError, ValueError):
+                value = None
+    if not isinstance(value, dict) or not value.get("dashboard_slug"):
+        return None
+    return {
+        "slug": value["dashboard_slug"],
+        "title": value.get("dashboard_title"),
+        "uuid": value.get("dashboard_uuid"),
+        "imported": bool(value.get("imported")),
+    }
+
+
+def _stored_dashboard(record: UploadHistory):
+    if not record.dashboard_slug:
+        return None
+    return {
+        "slug": record.dashboard_slug,
+        "title": record.dashboard_title,
+        "uuid": record.dashboard_uuid,
+        "imported": record.dashboard_status == "ready",
+        "status": record.dashboard_status,
+    }
+
+
+def _save_dashboard(record: UploadHistory, dashboard: dict):
+    record.dashboard_slug = dashboard["slug"]
+    record.dashboard_title = dashboard.get("title")
+    record.dashboard_uuid = dashboard.get("uuid")
+    record.dashboard_status = "ready" if dashboard.get("imported") else "pending"
+
+
 @router.get("/")
 def read_root():
     return {"message": "Welcome to the Lakehouse API!"}
@@ -126,27 +185,86 @@ async def get_upload_history(
     Kèm theo thông tin người upload, metadata, kích thước...
     """
     try:
-        histories = db.query(UploadHistory).join(User, UploadHistory.user_id == User.id).order_by(UploadHistory.uploaded_at.desc()).limit(limit)
+        histories = (
+            db.query(UploadHistory)
+            .join(User, UploadHistory.user_id == User.id)
+            .filter(UploadHistory.user_id == _user_id(current_user))
+            .order_by(UploadHistory.uploaded_at.desc())
+            .limit(limit)
+        )
         return [record.to_dict() for record in histories]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi lấy lịch sử: {str(e)}")
 
+
+@router.get("/upload/history/{history_id}/dashboard", summary="Lấy dashboard của một lần tải lên")
+async def get_upload_dashboard(
+    history_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    record = db.query(UploadHistory).filter(
+        UploadHistory.id == history_id,
+        UploadHistory.user_id == _user_id(current_user),
+    ).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lịch sử tải lên.")
+
+    dashboard = _stored_dashboard(record)
+    if not dashboard and record.dag_run_id:
+        try:
+            dashboard = _dashboard_from_xcom(record.dag_run_id)
+        except requests.RequestException:
+            dashboard = None
+        if dashboard:
+            _save_dashboard(record, dashboard)
+            db.commit()
+            dashboard = _stored_dashboard(record)
+
+    return {
+        "history_id": record.id,
+        "dag_run_id": record.dag_run_id,
+        "pipeline_status": record.pipeline_status,
+        "dashboard": dashboard,
+    }
+
 @router.get("/upload/pipeline-status/{dag_run_id}", summary="Lấy trạng thái step-by-step của Pipeline")
 async def get_pipeline_status(
     dag_run_id: str,
+    context_id: str | None = None,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """
     Gọi Airflow API để lấy trạng thái của DAG run và các task bên trong.
     """
+    record = db.query(UploadHistory).filter(
+        UploadHistory.dag_run_id == dag_run_id,
+        UploadHistory.user_id == _user_id(current_user),
+    ).first()
+    is_airbyte_run = _is_airbyte_pipeline_run(dag_run_id)
+    if not record and not is_airbyte_run:
+        raise HTTPException(status_code=404, detail="Không tìm thấy pipeline của người dùng.")
+    if not record and not (context_id or "").strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Pipeline database cần context_id để xác minh nguồn dữ liệu.",
+        )
+
     airflow_base = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/{AIRFLOW_FILE_DAG_ID}/dagRuns/{dag_run_id}"
     try:
         # Lấy trạng thái tổng quan DAG run (thử universal_lakehouse_pipeline trước, fallback về legacy)
         resp_dag = requests.get(airflow_base, auth=("airflow", "airflow"), timeout=5)
         state = "unknown"
         if resp_dag.status_code == 200:
-            state = resp_dag.json().get("state", "unknown")
+            dag_payload = resp_dag.json()
+            if not record:
+                dag_context_id = str((dag_payload.get("conf") or {}).get("context_id") or "").strip()
+                if not dag_context_id or dag_context_id != context_id.strip():
+                    raise HTTPException(status_code=404, detail="Không tìm thấy pipeline database phù hợp.")
+            state = dag_payload.get("state", "unknown")
+        elif not record:
+            raise HTTPException(status_code=404, detail="Không tìm thấy pipeline database trên Airflow.")
             
         # Lấy trạng thái các task (taskInstances)
         tasks = []
@@ -164,37 +282,21 @@ async def get_pipeline_status(
         # Read the metadata returned by the final provisioning task. The
         # frontend owns the browser-facing Superset origin; this API only
         # exposes the stable dashboard identity for the current DAG run.
-        dashboard = None
-        resp_dashboard = requests.get(
-            f"{airflow_base}/taskInstances/auto_provision_superset/xcomEntries/return_value",
-            auth=("airflow", "airflow"),
-            timeout=5,
-        )
-        if resp_dashboard.status_code == 200:
-            xcom_value = resp_dashboard.json().get("value")
-            if isinstance(xcom_value, str):
-                try:
-                    import json
-                    xcom_value = json.loads(xcom_value)
-                except (TypeError, ValueError):
-                    # Airflow 2.9 returns the non-deserialized XCom value as a
-                    # Python mapping repr (single quotes), not valid JSON.
-                    try:
-                        xcom_value = ast.literal_eval(xcom_value)
-                    except (SyntaxError, ValueError):
-                        xcom_value = None
-            if isinstance(xcom_value, dict) and xcom_value.get("dashboard_slug"):
-                dashboard = {
-                    "slug": xcom_value["dashboard_slug"],
-                    "title": xcom_value.get("dashboard_title"),
-                    "imported": bool(xcom_value.get("imported")),
-                }
+        dashboard = _stored_dashboard(record) if record else None
+        try:
+            xcom_dashboard = _dashboard_from_xcom(dag_run_id)
+        except requests.RequestException:
+            xcom_dashboard = None
+        if xcom_dashboard:
+            if record:
+                _save_dashboard(record, xcom_dashboard)
+                dashboard = _stored_dashboard(record)
+            else:
+                dashboard = xcom_dashboard
         
         # Đồng bộ trạng thái hiện tại từ Airflow. Một DAG run có thể được clear
         # và retry sau khi Spark đã ghi lỗi vào DB, vì vậy "failed" không được
         # ghim vĩnh viễn nếu chính DAG run đó sau cùng đã thành công.
-        record = db.query(UploadHistory).filter(UploadHistory.dag_run_id == dag_run_id).first()
-
         error_message = None
         parsed_data = None
         if record:
@@ -253,5 +355,7 @@ async def get_pipeline_status(
             "parsed_data": parsed_data,
             "dashboard": dashboard,
         }
+    except HTTPException:
+        raise
     except Exception as e:
         return {"state": "unreachable", "error": str(e), "tasks": []}

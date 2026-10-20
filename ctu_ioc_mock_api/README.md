@@ -23,10 +23,17 @@ Check:
 Invoke-RestMethod http://localhost:8090/health
 ```
 
-Full request:
+Login with the built-in local test account:
 
 ```powershell
-Invoke-RestMethod "http://localhost:8090/api/v1/education/learning-outcomes?limit=500"
+$login = Invoke-RestMethod -Method Post `
+  -Uri http://localhost:8090/api/v1/auth/login `
+  -ContentType "application/json" `
+  -Body '{"username":"lakehouse_test","password":"Lakehouse@123"}'
+
+Invoke-RestMethod `
+  -Uri "http://localhost:8090/api/v1/education/learning-outcomes?limit=500" `
+  -Headers @{ Authorization = "Bearer $($login.access_token)" }
 ```
 
 Interactive OpenAPI documentation:
@@ -80,21 +87,37 @@ The filter is strict:
 record.updated_at > updated_after
 ```
 
-## 5. Optional mock authentication
+## 5. Login authentication
 
-Set in `docker-compose.yml`:
+The Docker Compose setup requires login authentication by default. Configure the
+Lakehouse API source as follows:
+
+```text
+Data URL:       http://localhost:8090/api/v1/education/learning-outcomes
+Auth type:      Login account
+Login URL:      http://localhost:8090/api/v1/auth/login
+Username:       lakehouse_test
+Password:       Lakehouse@123
+Token field:    access_token
+Username field: username
+Password field: password
+Request format: JSON
+```
+
+The login response contains a signed Bearer token valid for 3600 seconds. These
+environment variables override the local defaults:
 
 ```yaml
-MOCK_API_KEY: "demo-secret"
+MOCK_API_USERNAME: lakehouse_test
+MOCK_API_PASSWORD: Lakehouse@123
+MOCK_API_TOKEN_SECRET: replace-this-outside-local-development
+MOCK_API_TOKEN_TTL_SECONDS: 3600
 ```
 
-Then call:
-
-```http
-Authorization: Bearer demo-secret
-```
-
-Leaving `MOCK_API_KEY` empty keeps the local mock endpoint open.
+`MOCK_API_KEY` is still accepted as a static Bearer token for backward
+compatibility. Set `MOCK_AUTH_REQUIRED=false` only when an open local data
+endpoint is explicitly needed. The default credentials and token secret are for
+local testing only and must not be used in production.
 
 ## 6. Mock-only scenarios for incremental tests
 

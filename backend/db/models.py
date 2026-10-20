@@ -41,6 +41,10 @@ class UploadHistory(Base):
     status = Column(String(50), default="Uploaded")
     dag_run_id = Column(String(255), nullable=True)
     pipeline_status = Column(String(50), default="pending", nullable=True)
+    dashboard_slug = Column(String(255), nullable=True)
+    dashboard_title = Column(String(512), nullable=True)
+    dashboard_uuid = Column(String(64), nullable=True)
+    dashboard_status = Column(String(50), default="pending", nullable=True)
     uploaded_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     uploader = relationship("User", foreign_keys=[user_id])
@@ -59,6 +63,13 @@ class UploadHistory(Base):
             "status": self.status,
             "dag_run_id": self.dag_run_id,
             "pipeline_status": self.pipeline_status,
+            "dashboard": ({
+                "slug": self.dashboard_slug,
+                "title": self.dashboard_title,
+                "uuid": self.dashboard_uuid,
+                "imported": self.dashboard_status == "ready",
+                "status": self.dashboard_status,
+            } if self.dashboard_slug else None),
             "uploaded_at": self.uploaded_at.isoformat() if self.uploaded_at else None,
         }
 

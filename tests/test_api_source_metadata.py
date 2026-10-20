@@ -2,7 +2,8 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-from fastapi import Response
+import pytest
+from fastapi import HTTPException, Response
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 
@@ -12,6 +13,7 @@ from api.routes.api_sources import (
     LoginAuthenticationRequest,
     SaveApiSourceRequest,
     _extract_token,
+    _login_for_token,
     _persisted_metadata,
     configure_api_source_credentials,
     save_api_source,
@@ -135,6 +137,22 @@ def test_saving_the_same_url_updates_metadata_and_preserves_stored_credential():
 def test_nested_token_field_is_supported():
     assert _extract_token({"data": {"access_token": " token-value "}}, "data.access_token") == "token-value"
     assert _extract_token({"access_token": "token-value"}, "data.access_token") is None
+
+
+def test_upstream_login_rejection_does_not_look_like_lakehouse_session_expiry(monkeypatch):
+    upstream_response = SimpleNamespace(status_code=401)
+    monkeypatch.setattr(api_sources.requests, "post", lambda *args, **kwargs: upstream_response)
+    request = LoginAuthenticationRequest(
+        login_url="https://example.test/auth/login",
+        username="api-user",
+        password="wrong-password",
+    )
+
+    with pytest.raises(HTTPException) as raised:
+        _login_for_token(request)
+
+    assert raised.value.status_code == 422
+    assert "API đăng nhập từ chối xác thực" in raised.value.detail
 
 
 def test_login_reauthentication_stores_token_but_never_password(monkeypatch):

@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import copy
+import hashlib
+import hmac
+import json
 import os
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
@@ -30,7 +35,7 @@ MAX_LIMIT = 500
 
 app = FastAPI(
     title="CTU IOC Mock API",
-    version="1.1.0",
+    version="1.2.0",
     description=(
         "Mock REST API for Data Lakehouse platform testing. "
         "Learning Outcomes keeps its established mock contract. "
@@ -132,12 +137,21 @@ class ScenarioResponse(BaseModel):
     note: str
 
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+
 def _load_json_records(
     path: Path,
     model: type[BaseModel],
 ) -> list[dict]:
-    import json
-
     payload = json.loads(path.read_text(encoding="utf-8"))
     records = payload["data"]
 
@@ -175,24 +189,105 @@ STATE = {
 }
 
 
+def _auth_required() -> bool:
+    return os.getenv("MOCK_AUTH_REQUIRED", "false").strip().lower() in {
+        "1", "true", "yes", "on",
+    }
+
+
+def _token_ttl_seconds() -> int:
+    try:
+        return max(60, int(os.getenv("MOCK_API_TOKEN_TTL_SECONDS", "3600")))
+    except ValueError:
+        return 3600
+
+
+def _b64url_encode(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).decode("ascii").rstrip("=")
+
+
+def _b64url_decode(value: str) -> bytes:
+    return base64.urlsafe_b64decode((value + "=" * (-len(value) % 4)).encode("ascii"))
+
+
+def _issue_access_token(username: str) -> str:
+    now = int(time.time())
+    header = {"alg": "HS256", "typ": "JWT"}
+    payload = {
+        "sub": username,
+        "iss": "ctu-ioc-mock-api",
+        "iat": now,
+        "exp": now + _token_ttl_seconds(),
+    }
+    encoded_header = _b64url_encode(
+        json.dumps(header, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    )
+    encoded_payload = _b64url_encode(
+        json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    )
+    signing_input = f"{encoded_header}.{encoded_payload}".encode("ascii")
+    secret = os.getenv(
+        "MOCK_API_TOKEN_SECRET",
+        "ctu-ioc-local-test-token-secret-change-me",
+    ).encode("utf-8")
+    signature = hmac.new(secret, signing_input, hashlib.sha256).digest()
+    return f"{encoded_header}.{encoded_payload}.{_b64url_encode(signature)}"
+
+
+def _valid_access_token(token: str) -> bool:
+    try:
+        encoded_header, encoded_payload, encoded_signature = token.split(".")
+        signing_input = f"{encoded_header}.{encoded_payload}".encode("ascii")
+        secret = os.getenv(
+            "MOCK_API_TOKEN_SECRET",
+            "ctu-ioc-local-test-token-secret-change-me",
+        ).encode("utf-8")
+        expected_signature = hmac.new(secret, signing_input, hashlib.sha256).digest()
+        supplied_signature = _b64url_decode(encoded_signature)
+        if not hmac.compare_digest(expected_signature, supplied_signature):
+            return False
+
+        header = json.loads(_b64url_decode(encoded_header))
+        payload = json.loads(_b64url_decode(encoded_payload))
+        return (
+            header.get("alg") == "HS256"
+            and payload.get("iss") == "ctu-ioc-mock-api"
+            and payload.get("sub") == os.getenv("MOCK_API_USERNAME", "lakehouse_test")
+            and int(payload.get("exp", 0)) > int(time.time())
+        )
+    except (
+        ValueError,
+        TypeError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        binascii.Error,
+    ):
+        return False
+
+
 def require_api_key(
     authorization: Optional[str] = Header(default=None),
 ) -> None:
     """
-    Authentication is optional for local testing.
-
-    If MOCK_API_KEY is not set, the endpoint is open.
-    If MOCK_API_KEY is set, clients must send:
-        Authorization: Bearer <MOCK_API_KEY>
+    Accept a token issued by the login endpoint. A configured static
+    MOCK_API_KEY remains valid for backward compatibility.
     """
-    expected = os.getenv("MOCK_API_KEY")
-    if not expected:
+    static_key = os.getenv("MOCK_API_KEY", "")
+    if not _auth_required() and not static_key:
         return
 
-    if authorization != f"Bearer {expected}":
+    scheme, separator, token = (authorization or "").partition(" ")
+    static_key_matches = bool(static_key) and hmac.compare_digest(token, static_key)
+    if (
+        not separator
+        or scheme.lower() != "bearer"
+        or not token
+        or (not static_key_matches and not _valid_access_token(token))
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing or invalid bearer token",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
 
@@ -337,6 +432,25 @@ def health() -> HealthResponse:
             records_loaded=len(STATE["records"]),
             active_scenario=STATE["scenario"],
         )
+
+
+@app.post("/auth/login", response_model=LoginResponse, include_in_schema=False)
+@app.post("/api/v1/auth/login", response_model=LoginResponse)
+def login(request: LoginRequest) -> LoginResponse:
+    expected_username = os.getenv("MOCK_API_USERNAME", "lakehouse_test")
+    expected_password = os.getenv("MOCK_API_PASSWORD", "Lakehouse@123")
+    username_matches = hmac.compare_digest(request.username, expected_username)
+    password_matches = hmac.compare_digest(request.password, expected_password)
+    if not username_matches or not password_matches:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password",
+        )
+
+    return LoginResponse(
+        access_token=_issue_access_token(expected_username),
+        expires_in=_token_ttl_seconds(),
+    )
 
 
 @app.get(

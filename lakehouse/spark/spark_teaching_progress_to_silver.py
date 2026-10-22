@@ -24,7 +24,7 @@ from api_dataset_registry import (
     TEACHING_PROGRESS_DATASET,
     get_dataset_config,
 )
-from env_config import MINIO_BUCKET_NAME
+from env_config import S3_BUCKET_NAME
 from nessie_catalog_utils import (
     create_branch,
     make_branch_name,
@@ -254,7 +254,7 @@ def bronze_batch_path(batch_id: str) -> str:
     """Return one Teaching Bronze Parquet path."""
     prefix = DATASET_CONFIG.bronze_prefix.strip("/")
     return (
-        f"s3a://{MINIO_BUCKET_NAME}/"
+        f"s3a://{S3_BUCKET_NAME}/"
         f"{prefix}/batch_id={batch_id}/data.parquet"
     )
 

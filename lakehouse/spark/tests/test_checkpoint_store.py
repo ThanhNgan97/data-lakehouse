@@ -9,12 +9,12 @@ from checkpoint_store import (
     CheckpointConflictError,
     CheckpointState,
     CheckpointStoreError,
-    MinioCheckpointStore,
+    OzoneCheckpointStore,
     PostgresCheckpointStore,
 )
 
 
-class FakeMinioClient:
+class FakeOzoneClient:
     def __init__(self):
         self.objects = {}
 
@@ -33,9 +33,9 @@ class FakeMinioClient:
         return {"ETag": '"test-etag"'}
 
 
-def _minio_store():
-    client = FakeMinioClient()
-    store = MinioCheckpointStore(
+def _ozone_store():
+    client = FakeOzoneClient()
+    store = OzoneCheckpointStore(
         s3_client_factory=lambda: client,
         bucket="test-bucket",
     )
@@ -291,14 +291,14 @@ def test_non_object_payload_fails_before_connection():
     factory.assert_not_called()
 
 
-def test_minio_load_missing_checkpoint_returns_none():
-    store, _ = _minio_store()
+def test_ozone_load_missing_checkpoint_returns_none():
+    store, _ = _ozone_store()
 
     assert store.load("education.teaching_progress") is None
 
 
-def test_minio_compare_and_set_persists_and_advances_version():
-    store, client = _minio_store()
+def test_ozone_compare_and_set_persists_and_advances_version():
+    store, client = _ozone_store()
 
     first = store.compare_and_set(
         dataset_id="education.teaching_progress",
@@ -324,8 +324,8 @@ def test_minio_compare_and_set_persists_and_advances_version():
     ) in client.objects
 
 
-def test_minio_compare_and_set_rejects_stale_version():
-    store, _ = _minio_store()
+def test_ozone_compare_and_set_rejects_stale_version():
+    store, _ = _ozone_store()
     store.compare_and_set(
         dataset_id="education.teaching_progress",
         strategy_type="timestamp",

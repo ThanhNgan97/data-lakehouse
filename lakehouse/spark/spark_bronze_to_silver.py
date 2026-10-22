@@ -30,14 +30,14 @@ from nessie_catalog_utils import (
 )
 from openmetadata_lineage_utils import get_client, ensure_bronze_table, push_lineage_safe
 from env_config import (
-    MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_BUCKET_NAME,
+    S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET_NAME,
     NESSIE_API_URL, HADOOP_HOME, SPARK_LOCAL_IP,
 )
 
 os.environ["HADOOP_HOME"]           = HADOOP_HOME
 os.environ["PATH"]                  = os.path.join(HADOOP_HOME, "bin") + ";" + os.environ.get("PATH", "")
-os.environ["AWS_ACCESS_KEY_ID"]     = MINIO_ACCESS_KEY
-os.environ["AWS_SECRET_ACCESS_KEY"] = MINIO_SECRET_KEY
+os.environ["AWS_ACCESS_KEY_ID"]     = S3_ACCESS_KEY
+os.environ["AWS_SECRET_ACCESS_KEY"] = S3_SECRET_KEY
 os.environ["SPARK_LOCAL_IP"]        = SPARK_LOCAL_IP
 
 SILVER_TABLE = "lakehouse.silver.kpi_cusc_master"
@@ -61,11 +61,11 @@ def get_spark_session():
         .config("spark.sql.catalog.lakehouse.warehouse", "s3a://university-lakehouse/iceberg-warehouse") \
         .config("spark.sql.catalog.lakehouse.cache-enabled", "false") \
         .config("spark.sql.catalogImplementation", "in-memory") \
-        .config("spark.sql.catalog.lakehouse.s3.endpoint", MINIO_ENDPOINT) \
+        .config("spark.sql.catalog.lakehouse.s3.endpoint", S3_ENDPOINT) \
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
-        .config("spark.hadoop.fs.s3a.endpoint", MINIO_ENDPOINT) \
-        .config("spark.hadoop.fs.s3a.access.key", MINIO_ACCESS_KEY) \
-        .config("spark.hadoop.fs.s3a.secret.key", MINIO_SECRET_KEY) \
+        .config("spark.hadoop.fs.s3a.endpoint", S3_ENDPOINT) \
+        .config("spark.hadoop.fs.s3a.access.key", S3_ACCESS_KEY) \
+        .config("spark.hadoop.fs.s3a.secret.key", S3_SECRET_KEY) \
         .config("spark.hadoop.fs.s3a.path.style.access", "true") \
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
         .config("spark.hadoop.fs.s3a.aws.credentials.provider",
@@ -79,8 +79,8 @@ def get_spark_session():
 
 def get_s3_client():
     return boto3.client(
-        "s3", endpoint_url=MINIO_ENDPOINT,
-        aws_access_key_id=MINIO_ACCESS_KEY, aws_secret_access_key=MINIO_SECRET_KEY,
+        "s3", endpoint_url=S3_ENDPOINT,
+        aws_access_key_id=S3_ACCESS_KEY, aws_secret_access_key=S3_SECRET_KEY,
         verify=False
     )
 
@@ -238,7 +238,7 @@ def save_discarded_duplicates(df_discarded, s3_client):
 
 def archive_processed_bronze_files(s3_client):
     """Sau khi merge vào main THÀNH CÔNG, chuyển Parquet Bronze sang bronze_archive/."""
-    resp = s3_client.list_objects_v2(Bucket=MINIO_BUCKET_NAME, Prefix=f"{BRONZE_PREFIX}data_extracted_")
+    resp = s3_client.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=f"{BRONZE_PREFIX}data_extracted_")
     contents = resp.get("Contents", [])
     if not contents:
         return
@@ -247,11 +247,11 @@ def archive_processed_bronze_files(s3_client):
         key = obj["Key"]
         archive_key = key.replace(BRONZE_PREFIX, BRONZE_ARCHIVE_PREFIX, 1)
         s3_client.copy_object(
-            Bucket=MINIO_BUCKET_NAME,
-            CopySource=f"{MINIO_BUCKET_NAME}/{key}",
+            Bucket=S3_BUCKET_NAME,
+            CopySource=f"{S3_BUCKET_NAME}/{key}",
             Key=archive_key,
         )
-        s3_client.delete_object(Bucket=MINIO_BUCKET_NAME, Key=key)
+        s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=key)
 
     print(f"🗑️ Đã archive {len(contents)} file Parquet Bronze sang '{BRONZE_ARCHIVE_PREFIX}'.")
 
@@ -262,7 +262,7 @@ def run_bronze_to_silver(spark, run_id=""):
     init_silver_table_if_needed(spark, "main")
 
     s3_client = get_s3_client()
-    resp = s3_client.list_objects_v2(Bucket=MINIO_BUCKET_NAME, Prefix=f"{BRONZE_PREFIX}data_extracted_")
+    resp = s3_client.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=f"{BRONZE_PREFIX}data_extracted_")
     parquet_contents = [obj["Key"] for obj in resp.get("Contents", []) if obj["Key"].endswith(".parquet")]
     
     if not parquet_contents:

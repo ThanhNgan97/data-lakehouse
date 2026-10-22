@@ -30,8 +30,8 @@ from google import genai
 from google.genai import types
 
 from env_config import (
-    MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, 
-    MINIO_BUCKET_NAME, GEMINI_API_KEY
+    S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY,
+    S3_BUCKET_NAME, GEMINI_API_KEY
 )
 
 # Cấu hình Gemini Client
@@ -61,7 +61,7 @@ def retry_with_backoff(func, max_retries=3, initial_delay=5):
             raise
 
 
-BUCKET_NAME    = MINIO_BUCKET_NAME
+BUCKET_NAME    = S3_BUCKET_NAME
 SOURCE_PREFIX  = "staging/"
 ARCHIVE_PREFIX = "archive/"
 
@@ -85,8 +85,8 @@ class KpiRecord(BaseModel):
 
 def get_s3_client():
     return boto3.client(
-        "s3", endpoint_url=MINIO_ENDPOINT,
-        aws_access_key_id=MINIO_ACCESS_KEY, aws_secret_access_key=MINIO_SECRET_KEY,
+        "s3", endpoint_url=S3_ENDPOINT,
+        aws_access_key_id=S3_ACCESS_KEY, aws_secret_access_key=S3_SECRET_KEY,
     )
 
 

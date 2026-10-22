@@ -265,13 +265,13 @@ func (b *BridgeServer) OnboardAndSync(ctx context.Context, bundle model.AirbyteC
 	}
 
 	// 4. Create or find the Apache Ozone S3 Parquet destination.
-	bucketName := bundle.MinIODestination.RecommendedBucket
+	bucketName := bundle.S3Destination.RecommendedBucket
 	if bucketName == "" {
 		bucketName = "university-lakehouse"
 	}
 	destPath := fmt.Sprintf("staging/%s", tenantID)
-	if bundle.MinIODestination.RecommendedPath != "" {
-		cleanP := strings.TrimRight(bundle.MinIODestination.RecommendedPath, "/")
+	if bundle.S3Destination.RecommendedPath != "" {
+		cleanP := strings.TrimRight(bundle.S3Destination.RecommendedPath, "/")
 		cleanP = strings.TrimSuffix(cleanP, "/table=${STREAM_NAME}")
 		cleanP = strings.TrimSuffix(cleanP, "/${STREAM_NAME}")
 		cleanP = strings.TrimSuffix(cleanP, "table=${STREAM_NAME}")
@@ -370,7 +370,7 @@ func (b *BridgeServer) OnboardAndSync(ctx context.Context, bundle model.AirbyteC
 
 	response := &OnboardResponse{
 		Status:              "SUCCESS",
-		Message:             fmt.Sprintf("Airbyte OSS đã kết nối thành công tới database nguồn (%d Views), tự động cấu hình MinIO Parquet Destination và đã kích hoạt Sync Job #%d!", len(discoveredList), jobID),
+		Message:             fmt.Sprintf("Airbyte OSS đã kết nối thành công tới database nguồn (%d Views), tự động cấu hình Apache Ozone S3 Parquet Destination và đã kích hoạt Sync Job #%d!", len(discoveredList), jobID),
 		TenantID:            bundle.TenantID,
 		AirbyteSourceID:     sourceID,
 		AirbyteDestID:       destID,

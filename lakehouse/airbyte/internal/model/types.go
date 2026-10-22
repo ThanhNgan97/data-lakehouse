@@ -26,13 +26,13 @@ type DBInfo struct {
 type MaskingType string
 
 const (
-	MaskNone     MaskingType = "NONE"
-	MaskExclude  MaskingType = "EXCLUDE"
-	MaskMD5      MaskingType = "MD5_HASH"
-	MaskEmail    MaskingType = "MASK_EMAIL"
-	MaskPhone    MaskingType = "MASK_PHONE"
-	MaskCard     MaskingType = "MASK_CARD"
-	MaskNull     MaskingType = "NULL_OUT"
+	MaskNone    MaskingType = "NONE"
+	MaskExclude MaskingType = "EXCLUDE"
+	MaskMD5     MaskingType = "MD5_HASH"
+	MaskEmail   MaskingType = "MASK_EMAIL"
+	MaskPhone   MaskingType = "MASK_PHONE"
+	MaskCard    MaskingType = "MASK_CARD"
+	MaskNull    MaskingType = "NULL_OUT"
 )
 
 // ColumnMetadata describes a table column
@@ -47,12 +47,12 @@ type ColumnMetadata struct {
 
 // TableMetadata describes a database table
 type TableMetadata struct {
-	Schema        string           `json:"schema"`
-	Name          string           `json:"name"`
-	EstimatedRows int64            `json:"estimated_rows"`
-	Columns       []ColumnMetadata `json:"columns"`
-	HasCursorCol  bool             `json:"has_cursor_col"`
-	SuggestedCursor string         `json:"suggested_cursor"`
+	Schema          string           `json:"schema"`
+	Name            string           `json:"name"`
+	EstimatedRows   int64            `json:"estimated_rows"`
+	Columns         []ColumnMetadata `json:"columns"`
+	HasCursorCol    bool             `json:"has_cursor_col"`
+	SuggestedCursor string           `json:"suggested_cursor"`
 }
 
 // ColumnRule represents column selection and masking
@@ -81,17 +81,17 @@ const (
 // ProvisionPlan holds the entire configuration to be generated/applied
 type ProvisionPlan struct {
 	TenantID             string       `json:"tenant_id"`
-	SyncStrategy         SyncStrategy `json:"sync_strategy"`                   // STANDARD or CDC
-	IntegrationSchema    string       `json:"integration_schema"`             // e.g., airbyte_vault (Standard)
-	PublicationName      string       `json:"publication_name,omitempty"`      // e.g., airbyte_pub_tenant01 (CDC)
-	ReplicationSlot      string       `json:"replication_slot,omitempty"`      // e.g., airbyte_slot_tenant01 (CDC)
+	SyncStrategy         SyncStrategy `json:"sync_strategy"`                       // STANDARD or CDC
+	IntegrationSchema    string       `json:"integration_schema"`                  // e.g., airbyte_vault (Standard)
+	PublicationName      string       `json:"publication_name,omitempty"`          // e.g., airbyte_pub_tenant01 (CDC)
+	ReplicationSlot      string       `json:"replication_slot,omitempty"`          // e.g., airbyte_slot_tenant01 (CDC)
 	MaxSlotWALKeepSizeGB int          `json:"max_slot_wal_keep_size_gb,omitempty"` // default: 20GB (CDC)
-	ReaderUsername       string       `json:"reader_username"`                // e.g., airbyte_reader
+	ReaderUsername       string       `json:"reader_username"`                     // e.g., airbyte_reader
 	ReaderPassword       string       `json:"reader_password"`
-	StatementTimeoutSec  int          `json:"statement_timeout_sec"`          // default: 30s
+	StatementTimeoutSec  int          `json:"statement_timeout_sec"` // default: 30s
 	Views                []ViewRule   `json:"views"`
-	MinIOBucket          string       `json:"minio_bucket,omitempty"`          // default: university-lakehouse
-	MinIOPath            string       `json:"minio_path,omitempty"`            // default: staging/<tenant>
+	S3Bucket             string       `json:"s3_bucket,omitempty"` // default: university-lakehouse
+	S3Path               string       `json:"s3_path,omitempty"`   // default: staging/<tenant>
 	RawSQLScript         string       `json:"raw_sql_script,omitempty"`
 	AuditSQLScript       string       `json:"audit_sql_script,omitempty"`
 }
@@ -118,7 +118,7 @@ type AirbyteConnectionBundle struct {
 	ReplicationSlot    string                `json:"replication_slot,omitempty"`
 	Connection         AirbyteConnectionInfo `json:"connection"`
 	ExposedViews       []ExposedViewInfo     `json:"exposed_views"`
-	MinIODestination   MinIOGuidelines       `json:"minio_destination_guidelines"`
+	S3Destination      S3Guidelines          `json:"s3_destination_guidelines"`
 	FirewallGuidelines FirewallGuidelines    `json:"firewall_guidelines"`
 }
 
@@ -140,7 +140,7 @@ type ExposedViewInfo struct {
 	ActiveColumns []string `json:"active_columns"`
 }
 
-type MinIOGuidelines struct {
+type S3Guidelines struct {
 	RecommendedBucket string `json:"recommended_bucket"`
 	RecommendedPath   string `json:"recommended_path_format"`
 	Format            string `json:"format"`

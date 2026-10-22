@@ -3,6 +3,12 @@ x-ozone-image: &ozone-image
 
 x-ozone-config: &ozone-config
   OZONE-SITE.XML_hdds.datanode.dir: /data/hdds
+  # Docker container IPs can change after a restart. Register stable service
+  # hostnames with SCM/RATIS so peers do not reconnect to a different node.
+  OZONE-SITE.XML_hdds.datanode.use.datanode.hostname: "true"
+  # Compose project network names may contain underscores. Allow Ozone/Ratis
+  # to resolve those container FQDNs instead of rejecting them as invalid DNS.
+  OZONE-SITE.XML_ozone.network.flexible.fqdn.resolution.enabled: "true"
   OZONE-SITE.XML_ozone.metadata.dirs: /data/metadata
   OZONE-SITE.XML_ozone.om.address: om
   OZONE-SITE.XML_ozone.om.http-address: om:9874
@@ -114,6 +120,7 @@ services:
     <<: *ozone-image
     restart: unless-stopped
     container_name: demo-ozone-datanode-1
+    hostname: datanode-1
     command: ["ozone", "datanode"]
     environment:
       <<: *ozone-config
@@ -136,6 +143,7 @@ services:
     <<: *ozone-image
     restart: unless-stopped
     container_name: demo-ozone-datanode-2
+    hostname: datanode-2
     command: ["ozone", "datanode"]
     environment:
       <<: *ozone-config
@@ -158,6 +166,7 @@ services:
     <<: *ozone-image
     restart: unless-stopped
     container_name: demo-ozone-datanode-3
+    hostname: datanode-3
     command: ["ozone", "datanode"]
     environment:
       <<: *ozone-config
@@ -249,6 +258,14 @@ services:
       <<: *ozone-config
       WAITFOR: om:9874
       S3_BUCKET_NAME: ${S3_BUCKET_NAME:-university-lakehouse}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      STAGING_PREFIX: ${STAGING_PREFIX:-staging}
+      ARCHIVE_PROCESSED_PREFIX: ${ARCHIVE_PROCESSED_PREFIX:-archive/processed}
+      ARCHIVE_FAILED_PREFIX: ${ARCHIVE_FAILED_PREFIX:-archive/failed}
+      ICEBERG_WAREHOUSE: ${ICEBERG_WAREHOUSE:-s3a://university-lakehouse/iceberg-warehouse}
+      ARCHIVE_RETENTION_DAYS: ${ARCHIVE_RETENTION_DAYS:-90}
+      ARCHIVE_CLEANUP_ENABLED: ${ARCHIVE_CLEANUP_ENABLED:-false}
+      ARCHIVE_CLEANUP_DRY_RUN: ${ARCHIVE_CLEANUP_DRY_RUN:-true}
     depends_on:
       s3g:
         condition: service_healthy
@@ -371,6 +388,14 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-lakehouse}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-lakehouse-secret}
       S3_BUCKET_NAME: ${S3_BUCKET_NAME:-university-lakehouse}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      STAGING_PREFIX: ${STAGING_PREFIX:-staging}
+      ARCHIVE_PROCESSED_PREFIX: ${ARCHIVE_PROCESSED_PREFIX:-archive/processed}
+      ARCHIVE_FAILED_PREFIX: ${ARCHIVE_FAILED_PREFIX:-archive/failed}
+      ICEBERG_WAREHOUSE: ${ICEBERG_WAREHOUSE:-s3a://university-lakehouse/iceberg-warehouse}
+      ARCHIVE_RETENTION_DAYS: ${ARCHIVE_RETENTION_DAYS:-90}
+      ARCHIVE_CLEANUP_ENABLED: ${ARCHIVE_CLEANUP_ENABLED:-false}
+      ARCHIVE_CLEANUP_DRY_RUN: ${ARCHIVE_CLEANUP_DRY_RUN:-true}
       NESSIE_API_URL: 'http://nessie:19120/api/v1'
       TRINO_HOST: 'trino'
       TRINO_PORT: '8080'
@@ -411,6 +436,14 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-lakehouse}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-lakehouse-secret}
       S3_BUCKET_NAME: ${S3_BUCKET_NAME:-university-lakehouse}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      STAGING_PREFIX: ${STAGING_PREFIX:-staging}
+      ARCHIVE_PROCESSED_PREFIX: ${ARCHIVE_PROCESSED_PREFIX:-archive/processed}
+      ARCHIVE_FAILED_PREFIX: ${ARCHIVE_FAILED_PREFIX:-archive/failed}
+      ICEBERG_WAREHOUSE: ${ICEBERG_WAREHOUSE:-s3a://university-lakehouse/iceberg-warehouse}
+      ARCHIVE_RETENTION_DAYS: ${ARCHIVE_RETENTION_DAYS:-90}
+      ARCHIVE_CLEANUP_ENABLED: ${ARCHIVE_CLEANUP_ENABLED:-false}
+      ARCHIVE_CLEANUP_DRY_RUN: ${ARCHIVE_CLEANUP_DRY_RUN:-true}
       NESSIE_API_URL: 'http://nessie:19120/api/v1'
       TRINO_HOST: 'trino'
       TRINO_PORT: '8080'
@@ -511,4 +544,7 @@ volumes:
 
 networks:
   lakehouse-network:
+    # Apache Ratis rejects Compose-generated DNS domains containing '_'.
+    # Use an explicit RFC-compatible Docker network name.
+    name: lakehouse-network
     driver: bridge

@@ -18,7 +18,6 @@ USER airflow
 # Cài tất cả packages một lần khi build image
 RUN pip install --no-cache-dir \
     pyspark==3.5.0 \
-    minio \
     python-docx \
     pdfplumber \
     boto3 \

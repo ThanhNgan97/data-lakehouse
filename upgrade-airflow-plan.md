@@ -28,7 +28,7 @@
                                      │
                                      ▼
         ┌─────────────────────────────────────────────────────────┐
-        │        TẦNG 1: BRONZE LANDING ZONE (MinIO Storage)       │
+        │     TẦNG 1: BRONZE LANDING ZONE (Apache Ozone Storage)  │
         │      Lưu nguyên trạng dữ liệu: bronze/landing/<batch_id> │
         └────────────────────────────┬────────────────────────────┘
                                      │
@@ -109,7 +109,7 @@
 - **Mục tiêu**: DAG duy nhất quản lý toàn bộ vòng đời dữ liệu từ lúc nạp đến lúc hiển thị.
 - **File tạo mới**: `lakehouse/dags/universal_lakehouse_pipeline.py`
 - **Các Tasks chính**:
-  1. `stage_and_sample`: Nhận diện file/payload mới trong MinIO `staging/` hoặc `bronze/landing/`.
+  1. `stage_and_sample`: Nhận diện file/payload mới trong Ozone `staging/` hoặc `bronze/landing/`.
   2. `ai_semantic_profiling`: Chạy `ai_dataset_router.py` để quyết định `route_target`.
   3. `branch_decision`: `BranchPythonOperator` chia nhánh:
      - Nhánh A (`route_legacy_kpi`): Kích hoạt các script KPI cũ.
@@ -136,9 +136,9 @@
 - ✅ Cập nhật `ai_dataset_router.py`: Bổ sung hàm `fetch_existing_silver_tables()` để AI Router đối chiếu với danh mục bảng Silver thực tế trên Nessie/Iceberg.
 - ✅ Cập nhật `spark_generic_dynamic_processor.py`: Đổi tên cột tự động theo `column_mapping` do AI suy luận khi đối chiếu schema cũ vs mới (giải quyết triệt để vấn đề 2025 vs 2026 lệch tên cột/thêm cột nhưng vẫn gom về 1 bảng).
 
-### Phase 7: MinIO Staging ➔ Archive Ingestion & Backend Trigger Integration
+### Phase 7: Ozone Staging ➔ Archive Ingestion & Backend Trigger Integration
 - ✅ Cập nhật `universal_lakehouse_pipeline.py`:
-  - Tự động quét file mới nhất trong MinIO prefix `staging/` khi trigger không truyền tham số.
+  - Tự động quét file mới nhất trong Ozone prefix `staging/` khi trigger không truyền tham số.
   - Sau khi nạp vào Iceberg và smoke test Trino thành công (`join_and_smoke_test`), tự động di chuyển file từ `staging/` sang `archive/` (Copy + Delete) để dọn sạch hộp thư đến và lưu vết kiểm toán.
 - ✅ Cập nhật `backend/api/routes/upload.py`:
   - Khi người dùng upload file qua Web UI/API, tự động kích hoạt `universal_lakehouse_pipeline` kèm payload cấu hình `conf`.

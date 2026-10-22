@@ -419,7 +419,7 @@ func (s *Server) handleSyncToAirbyte(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleLakehouseStreams(w http.ResponseWriter, r *http.Request) {
 	if s.lhClient == nil {
-		writeError(w, http.StatusServiceUnavailable, "Lakehouse MinIO client not initialized")
+		writeError(w, http.StatusServiceUnavailable, "Apache Ozone storage client not initialized")
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
@@ -427,7 +427,7 @@ func (s *Server) handleLakehouseStreams(w http.ResponseWriter, r *http.Request) 
 
 	streams, err := s.lhClient.ListStreams(ctx)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to list streams from MinIO: %v", err))
+		writeError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to list streams from Apache Ozone: %v", err))
 		return
 	}
 	writeJSON(w, http.StatusOK, streams)
@@ -445,7 +445,7 @@ func (s *Server) handleLakehouseVersionHistory(w http.ResponseWriter, r *http.Re
 		return
 	}
 	if s.lhClient == nil {
-		writeError(w, http.StatusServiceUnavailable, "Lakehouse MinIO client not initialized")
+		writeError(w, http.StatusServiceUnavailable, "Apache Ozone storage client not initialized")
 		return
 	}
 
@@ -471,12 +471,12 @@ func (s *Server) handleLakehouseVersionHistory(w http.ResponseWriter, r *http.Re
 }
 
 type TenantCheckResponse struct {
-	TenantID      string                      `json:"tenant_id"`
-	IsDuplicate   bool                        `json:"is_duplicate"`
-	SuggestedName string                      `json:"suggested_name"`
-	MinIO         *lakehouse.MinIOTenantCheck `json:"minio"`
-	Airbyte       *airbyte.AirbyteTenantCheck `json:"airbyte"`
-	Message       string                      `json:"message"`
+	TenantID      string                        `json:"tenant_id"`
+	IsDuplicate   bool                          `json:"is_duplicate"`
+	SuggestedName string                        `json:"suggested_name"`
+	Storage       *lakehouse.StorageTenantCheck `json:"storage"`
+	Airbyte       *airbyte.AirbyteTenantCheck   `json:"airbyte"`
+	Message       string                        `json:"message"`
 }
 
 func (s *Server) handleCheckTenant(w http.ResponseWriter, r *http.Request) {
@@ -511,13 +511,13 @@ func (s *Server) handleCheckTenant(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	// 1. Check MinIO
-	var minioRes *lakehouse.MinIOTenantCheck
+	// 1. Check Apache Ozone storage.
+	var storageRes *lakehouse.StorageTenantCheck
 	if s.lhClient != nil {
-		minioRes, _ = s.lhClient.CheckTenantExists(ctx, cleanID)
+		storageRes, _ = s.lhClient.CheckTenantExists(ctx, cleanID)
 	}
-	if minioRes == nil {
-		minioRes = &lakehouse.MinIOTenantCheck{Tables: []string{}}
+	if storageRes == nil {
+		storageRes = &lakehouse.StorageTenantCheck{Tables: []string{}}
 	}
 
 	// 2. Check Airbyte
@@ -533,13 +533,13 @@ func (s *Server) handleCheckTenant(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	isDuplicate := minioRes.Exists || airbyteRes.Exists
+	isDuplicate := storageRes.Exists || airbyteRes.Exists
 	suggestedName := cleanID
 
 	if isDuplicate {
 		for i := 2; i <= 30; i++ {
 			cand := fmt.Sprintf("%s_%d", cleanID, i)
-			var mCheck *lakehouse.MinIOTenantCheck
+			var mCheck *lakehouse.StorageTenantCheck
 			if s.lhClient != nil {
 				mCheck, _ = s.lhClient.CheckTenantExists(ctx, cand)
 			}
@@ -555,8 +555,8 @@ func (s *Server) handleCheckTenant(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var msgParts []string
-	if minioRes.Exists {
-		msgParts = append(msgParts, fmt.Sprintf("MinIO: Đã tồn tại dữ liệu (%d bảng: %s, %d files)", len(minioRes.Tables), strings.Join(minioRes.Tables, ", "), minioRes.FilesCount))
+	if storageRes.Exists {
+		msgParts = append(msgParts, fmt.Sprintf("Apache Ozone: Đã tồn tại dữ liệu (%d bảng: %s, %d files)", len(storageRes.Tables), strings.Join(storageRes.Tables, ", "), storageRes.FilesCount))
 	}
 	if airbyteRes.Exists {
 		var items []string
@@ -576,14 +576,14 @@ func (s *Server) handleCheckTenant(w http.ResponseWriter, r *http.Request) {
 	if isDuplicate {
 		message = fmt.Sprintf("⚠️ Trùng tên: '%s' đã tồn tại trên hệ thống (%s).", cleanID, strings.Join(msgParts, " ; "))
 	} else {
-		message = fmt.Sprintf("✅ Tên '%s' hợp lệ & khả dụng (chưa tồn tại trên MinIO & Airbyte).", cleanID)
+		message = fmt.Sprintf("✅ Tên '%s' hợp lệ & khả dụng (chưa tồn tại trên Apache Ozone & Airbyte).", cleanID)
 	}
 
 	writeJSON(w, http.StatusOK, TenantCheckResponse{
 		TenantID:      cleanID,
 		IsDuplicate:   isDuplicate,
 		SuggestedName: suggestedName,
-		MinIO:         minioRes,
+		Storage:       storageRes,
 		Airbyte:       airbyteRes,
 		Message:       message,
 	})

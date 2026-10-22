@@ -22,7 +22,7 @@ Write-Host "PROTECTED_SOURCE_DELETION_ALLOWED=False"
 Write-Host ""
 Write-Host "A destructive in-place data reset is intentionally not automated on Day 10."
 Write-Host "Day 11 clean-clone acceptance must use EMPTY/NEW runtime state."
-Write-Host "Do not copy existing Docker volumes, MinIO objects, Nessie history,"
+Write-Host "Do not copy existing Docker volumes, Ozone objects, Nessie history,"
 Write-Host "Airflow metadata, Superset home, or existing Iceberg state."
 
 Write-Host ""

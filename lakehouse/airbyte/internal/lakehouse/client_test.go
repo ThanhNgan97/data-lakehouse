@@ -7,7 +7,7 @@ import (
 
 func TestFullVersionHistory(t *testing.T) {
 	client, err := NewClient(Config{
-		Endpoint:   "127.0.0.1:9000",
+		Endpoint:   "127.0.0.1:9878",
 		BucketName: "university-lakehouse",
 	})
 	if err != nil {
@@ -19,7 +19,7 @@ func TestFullVersionHistory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to list streams: %v", err)
 	}
-	t.Logf("Found %d streams in MinIO staging/ (or legacy bronze paths)", len(streams))
+	t.Logf("Found %d streams in Apache Ozone staging/ (or legacy bronze paths)", len(streams))
 
 	// Test orders table which has part_0 and part_1!
 	res, err := client.QueryVersionHistory(ctx, "tenant_client_01", "orders", "")

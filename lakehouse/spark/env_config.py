@@ -40,11 +40,16 @@ S3_ACCESS_KEY  = os.environ.get("S3_ACCESS_KEY", "lakehouse")
 S3_SECRET_KEY  = os.environ.get("S3_SECRET_KEY", "lakehouse-secret")
 S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME") or "university-lakehouse"
 
-# Compatibility aliases while the Spark jobs are migrated to storage-neutral names.
-MINIO_ENDPOINT = S3_ENDPOINT
-MINIO_ACCESS_KEY = S3_ACCESS_KEY
-MINIO_SECRET_KEY = S3_SECRET_KEY
-MINIO_BUCKET_NAME = S3_BUCKET_NAME
+STAGING_PREFIX = os.environ.get("STAGING_PREFIX", "staging").strip("/")
+ARCHIVE_PROCESSED_PREFIX = os.environ.get(
+    "ARCHIVE_PROCESSED_PREFIX", "archive/processed"
+).strip("/")
+ARCHIVE_FAILED_PREFIX = os.environ.get(
+    "ARCHIVE_FAILED_PREFIX", "archive/failed"
+).strip("/")
+ICEBERG_WAREHOUSE = os.environ.get(
+    "ICEBERG_WAREHOUSE", f"s3a://{S3_BUCKET_NAME}/iceberg-warehouse"
+)
 
 # ── PostgreSQL ───────────────────────────────────────────────
 _pg_host = os.environ.get("PG_HOST") or "127.0.0.1"

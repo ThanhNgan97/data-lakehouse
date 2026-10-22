@@ -2,6 +2,9 @@ import logging
 import os
 import uuid
 import ast
+import hashlib
+import csv
+import io
 import requests
 from threading import Thread
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
@@ -10,12 +13,47 @@ from db.database import get_db
 from sqlalchemy.orm import Session
 from db.models import ImportJob, ImportJobFile, SourceFile, UploadHistory, User
 from db.s3_client import s3_client
-from core.config import MAX_UPLOAD_FILE_BYTES, S3_BUCKET_NAME
-from core.config import AIRFLOW_FILE_DAG_ID, AIRFLOW_WEBSERVER_URL
+from core.config import MAX_UPLOAD_FILE_BYTES, S3_BUCKET_NAME, S3_ENDPOINT, STAGING_PREFIX
+from core.config import (
+    AIRFLOW_API_PASSWORD,
+    AIRFLOW_API_USERNAME,
+    AIRFLOW_FILE_DAG_ID,
+    AIRFLOW_WEBSERVER_URL,
+    OZONE_VALIDATION_DAG_ID,
+)
 from services.url_ingestion.state import derive_job_status, utcnow
 from services.url_ingestion.manager import process_import_job
 from services.url_ingestion.policies import SUPPORTED_EXTENSIONS
 router = APIRouter()
+
+
+def _user_value(user, key, default=None):
+    if hasattr(user, key):
+        return getattr(user, key)
+    if isinstance(user, dict):
+        return user.get(key, default)
+    return default
+
+
+def _sample_downloaded_object(filename: str, payload: bytes) -> dict:
+    """Return a small, non-sensitive readability summary for the UI."""
+    extension = os.path.splitext(filename)[1].lower()
+    if extension in {".csv", ".tsv"}:
+        text = payload.decode("utf-8-sig", errors="replace")
+        delimiter = "\t" if extension == ".tsv" else ","
+        rows = list(csv.reader(io.StringIO(text), delimiter=delimiter))
+        columns = rows[0] if rows else []
+        return {
+            "format": extension.lstrip("."),
+            "readable": bool(rows),
+            "column_count": len(columns),
+            "sample_row_count": max(0, min(len(rows) - 1, 10)),
+        }
+    return {
+        "format": extension.lstrip(".") or "binary",
+        "readable": bool(payload),
+        "sample_bytes": len(payload),
+    }
 @router.get("/")
 def read_root():
     return {"message": "Welcome to the Lakehouse API!"}
@@ -38,7 +76,8 @@ async def upload_file(
                 status_code=415,
                 detail="Định dạng chưa được hỗ trợ. Chỉ nhận PDF, DOCX, CSV, TSV, XLSX, XLS, JSON và Parquet.",
             )
-        object_name = f"staging/manual/{uuid.uuid4().hex}/{safe_filename}"
+        upload_id = uuid.uuid4().hex
+        object_name = f"{STAGING_PREFIX}/manual/{upload_id}/{safe_filename}"
 
         file.file.seek(0, 2)
         file_size = file.file.tell()
@@ -54,6 +93,12 @@ async def upload_file(
    
         if file_size == 0:
             raise HTTPException(status_code=422, detail="File rỗng, không có dữ liệu để xử lý.")
+
+        digest = hashlib.sha256()
+        while chunk := file.file.read(1024 * 1024):
+            digest.update(chunk)
+        source_sha256 = digest.hexdigest()
+        file.file.seek(0)
 
         s3_client.put_object(
             Bucket=S3_BUCKET_NAME,
@@ -71,7 +116,15 @@ async def upload_file(
             file_size_bytes=file_size,
             file_type=file.content_type,
             s3_path=object_name,
-            metadata_info={"source": "api", "bucket": S3_BUCKET_NAME},
+            metadata_info={
+                "source": "api",
+                "storage": "apache_ozone",
+                "bucket": S3_BUCKET_NAME,
+                "object_key": object_name,
+                "upload_id": upload_id,
+                "sha256": source_sha256,
+                "archive_status": "PENDING",
+            },
             status="Uploaded"
         )
         db.add(history_record)
@@ -90,12 +143,47 @@ async def upload_file(
                     "source_name": safe_filename
                 }
             }
-            resp = requests.post(airflow_url, json=payload, auth=("airflow", "airflow"), timeout=30)
+            airflow_auth = (AIRFLOW_API_USERNAME, AIRFLOW_API_PASSWORD)
+            resp = requests.post(airflow_url, json=payload, auth=airflow_auth, timeout=30)
             if resp.status_code in [200, 201]:
                 logging.info("Universal Airflow pipeline triggered successfully.")
                 dag_run_id = resp.json().get("dag_run_id")
                 history_record.dag_run_id = dag_run_id
                 history_record.pipeline_status = "running"
+                db.commit()
+
+                validation_url = (
+                    f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/"
+                    f"{OZONE_VALIDATION_DAG_ID}/dagRuns"
+                )
+                validation_payload = {
+                    "conf": {
+                        "upload_id": upload_id,
+                        "bucket": S3_BUCKET_NAME,
+                        "object_key": object_name,
+                        "filename": safe_filename,
+                        "expected_size": file_size,
+                        "expected_sha256": source_sha256,
+                    }
+                }
+                validation_resp = requests.post(
+                    validation_url,
+                    json=validation_payload,
+                    auth=airflow_auth,
+                    timeout=30,
+                )
+                metadata = dict(history_record.metadata_info or {})
+                if validation_resp.status_code in [200, 201]:
+                    metadata["ozone_validation_dag_run_id"] = validation_resp.json().get("dag_run_id")
+                    metadata["ozone_validation_status"] = "running"
+                else:
+                    metadata["ozone_validation_status"] = "trigger_failed"
+                    logging.warning(
+                        "Failed to trigger Ozone validation DAG [%s]: %s",
+                        validation_resp.status_code,
+                        validation_resp.text,
+                    )
+                history_record.metadata_info = metadata
                 db.commit()
             else:
                 logging.warning(f"Failed to trigger Airflow pipeline [{resp.status_code}]: {resp.text}")
@@ -107,13 +195,96 @@ async def upload_file(
             db.commit()
 
         return {
-            "message": f"Đã đẩy trực tiếp file {file.filename} vào trạm {object_name} của Apache Ozone và kích hoạt pipeline!",
-            "dag_run_id": dag_run_id
+            "message": (
+                f"Đã tải file {file.filename} lên Apache Ozone."
+                + (" Pipeline đã được kích hoạt." if dag_run_id else " Không thể kích hoạt pipeline.")
+            ),
+            "upload_id": upload_id,
+            "history_id": history_record.id,
+            "bucket": S3_BUCKET_NAME,
+            "object_key": object_name,
+            "sha256": source_sha256,
+            "dag_run_id": dag_run_id,
+            "ozone_validation_dag_run_id": (history_record.metadata_info or {}).get(
+                "ozone_validation_dag_run_id"
+            ),
         }
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi đẩy file  {str(e)}")
+
+
+@router.get(
+    "/upload/{history_id}/ozone-validation",
+    summary="Xác minh file được đọc lại qua Apache Ozone S3 Gateway",
+)
+async def validate_uploaded_object_in_ozone(
+    history_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    record = db.query(UploadHistory).filter(UploadHistory.id == history_id).first()
+    current_user_id = _user_value(current_user, "id")
+    current_role = _user_value(current_user, "role", "user")
+    if not record or (record.user_id != current_user_id and current_role != "admin"):
+        raise HTTPException(status_code=404, detail="Không tìm thấy file tải lên.")
+
+    metadata = dict(record.metadata_info or {})
+    bucket = metadata.get("bucket") or S3_BUCKET_NAME
+    object_key = metadata.get("object_key") or record.s3_path
+    expected_sha256 = metadata.get("sha256")
+
+    try:
+        head = s3_client.head_object(Bucket=bucket, Key=object_key)
+        response = s3_client.get_object(Bucket=bucket, Key=object_key)
+        body = response["Body"]
+        digest = hashlib.sha256()
+        sample = bytearray()
+        bytes_read = 0
+        try:
+            for chunk in body.iter_chunks(chunk_size=1024 * 1024):
+                if not chunk:
+                    continue
+                digest.update(chunk)
+                bytes_read += len(chunk)
+                if len(sample) < 64 * 1024:
+                    sample.extend(chunk[: (64 * 1024) - len(sample)])
+        finally:
+            body.close()
+
+        actual_sha256 = digest.hexdigest()
+        expected_size = int(record.file_size_bytes)
+        actual_size = int(head.get("ContentLength", bytes_read))
+        checksum_valid = bool(expected_sha256) and actual_sha256 == expected_sha256
+        size_valid = actual_size == expected_size == bytes_read
+        sample_result = _sample_downloaded_object(record.filename, bytes(sample))
+        passed = checksum_valid and size_valid and sample_result["readable"]
+
+        return {
+            "status": "PASS" if passed else "FAIL",
+            "message": (
+                "Đã đọc file thành công qua Apache Ozone S3 Gateway."
+                if passed
+                else "File đã được đọc nhưng kết quả xác minh không khớp."
+            ),
+            "storage": "apache_ozone",
+            "endpoint": S3_ENDPOINT,
+            "bucket": bucket,
+            "object_key": object_key,
+            "filename": record.filename,
+            "content_length": actual_size,
+            "bytes_read": bytes_read,
+            "checksum_valid": checksum_valid,
+            "size_valid": size_valid,
+            "sample": sample_result,
+        }
+    except Exception as exc:
+        logging.exception("Ozone validation failed for upload history %s", history_id)
+        raise HTTPException(
+            status_code=502,
+            detail=f"Không thể đọc file qua Apache Ozone S3 Gateway: {exc}",
+        ) from exc
 
 @router.get("/upload/history", summary="Lấy lịch sử tải lên dữ liệu")
 async def get_upload_history(

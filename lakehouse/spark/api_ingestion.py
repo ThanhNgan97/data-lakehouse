@@ -559,7 +559,7 @@ def ingest_http_api_to_bronze(
     HTTP source adapter.
 
     Fetch HTTP payload, then delegate to the existing verified
-    contract/schema/metadata/checksum/MinIO Bronze engine.
+    contract/schema/metadata/checksum/Ozone Bronze engine.
     """
     payload = fetch_http_api_payload(
         api_url,

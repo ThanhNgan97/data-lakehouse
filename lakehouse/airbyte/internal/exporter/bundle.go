@@ -75,13 +75,13 @@ func GenerateBundle(cfg model.DBConfig, plan model.ProvisionPlan, outputDir stri
 	}
 	slotName = strings.ToLower(strings.ReplaceAll(slotName, "-", "_"))
 
-	bucketName := plan.MinIOBucket
+	bucketName := plan.S3Bucket
 	if bucketName == "" {
 		bucketName = "university-lakehouse"
 	}
-	minioPath := plan.MinIOPath
-	if minioPath == "" {
-		minioPath = fmt.Sprintf("staging/%s/table=${STREAM_NAME}/", tenantID)
+	s3Path := plan.S3Path
+	if s3Path == "" {
+		s3Path = fmt.Sprintf("staging/%s/table=${STREAM_NAME}/", tenantID)
 	}
 
 	bundle := &model.AirbyteConnectionBundle{
@@ -102,9 +102,9 @@ func GenerateBundle(cfg model.DBConfig, plan model.ProvisionPlan, outputDir stri
 			SSLMode:  cfg.SSLMode,
 		},
 		ExposedViews: exposedViews,
-		MinIODestination: model.MinIOGuidelines{
+		S3Destination: model.S3Guidelines{
 			RecommendedBucket: bucketName,
-			RecommendedPath:   minioPath,
+			RecommendedPath:   s3Path,
 			Format:            "Parquet (Snappy Compressed)",
 		},
 		FirewallGuidelines: model.FirewallGuidelines{

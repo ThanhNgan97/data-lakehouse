@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Shared Bronze Parquet writer for small/medium ingestion batches.
 
-Keeps the current project convention of writing one Parquet object to MinIO.
+Writes one Parquet object through Apache Ozone S3 Gateway.
 The writer is source-agnostic: document/KPI and API adapters can share it.
 """
 
@@ -14,19 +14,19 @@ import boto3
 import pandas as pd
 
 from env_config import (
-    MINIO_ACCESS_KEY,
-    MINIO_BUCKET_NAME,
-    MINIO_ENDPOINT,
-    MINIO_SECRET_KEY,
+    S3_ACCESS_KEY,
+    S3_BUCKET_NAME,
+    S3_ENDPOINT,
+    S3_SECRET_KEY,
 )
 
 
 def get_s3_client():
     return boto3.client(
         "s3",
-        endpoint_url=MINIO_ENDPOINT,
-        aws_access_key_id=MINIO_ACCESS_KEY,
-        aws_secret_access_key=MINIO_SECRET_KEY,
+        endpoint_url=S3_ENDPOINT,
+        aws_access_key_id=S3_ACCESS_KEY,
+        aws_secret_access_key=S3_SECRET_KEY,
     )
 
 
@@ -40,7 +40,7 @@ def _to_pandas(df: Any) -> pd.DataFrame:
 
 
 def write_parquet_object(df: Any, object_key: str, *, s3_client=None) -> tuple[str, int]:
-    """Write one Parquet object to MinIO and return (object_key, row_count)."""
+    """Write one Parquet object to Ozone and return (object_key, row_count)."""
     pandas_df = _to_pandas(df)
     row_count = len(pandas_df.index)
     if row_count == 0:
@@ -57,7 +57,7 @@ def write_parquet_object(df: Any, object_key: str, *, s3_client=None) -> tuple[s
 
     client = s3_client or get_s3_client()
     client.put_object(
-        Bucket=MINIO_BUCKET_NAME,
+        Bucket=S3_BUCKET_NAME,
         Key=object_key,
         Body=parquet_buffer.getvalue(),
         ContentType="application/octet-stream",
@@ -66,7 +66,7 @@ def write_parquet_object(df: Any, object_key: str, *, s3_client=None) -> tuple[s
 
 
 def read_parquet_object(object_key: str, *, s3_client=None) -> pd.DataFrame:
-    """Read one Parquet object back from MinIO for Bronze verification."""
+    """Read one Parquet object back from Ozone for Bronze verification."""
     client = s3_client or get_s3_client()
-    body = client.get_object(Bucket=MINIO_BUCKET_NAME, Key=object_key)["Body"].read()
+    body = client.get_object(Bucket=S3_BUCKET_NAME, Key=object_key)["Body"].read()
     return pd.read_parquet(io.BytesIO(body), engine="pyarrow")

@@ -165,6 +165,8 @@ const UserUpload = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState("");
   const [uploadError, setUploadError] = useState("");
+  const [ozoneValidation, setOzoneValidation] = useState(null);
+  const [verifyingOzoneId, setVerifyingOzoneId] = useState(null);
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [refreshingId, setRefreshingId] = useState(null);
@@ -256,6 +258,31 @@ const UserUpload = () => {
     }
   };
 
+  const verifyOzoneObject = async (historyId) => {
+    if (!historyId) return null;
+    setVerifyingOzoneId(historyId);
+    setOzoneValidation(null);
+    try {
+      const res = await axios.get(
+        `${API_URL}/upload/${historyId}/ozone-validation`,
+        { headers: authHeader() },
+      );
+      setOzoneValidation(res.data);
+      return res.data;
+    } catch (err) {
+      const failure = {
+        status: "FAIL",
+        message:
+          err.response?.data?.detail ||
+          "Không thể xác minh file qua Ozone S3 Gateway.",
+      };
+      setOzoneValidation(failure);
+      return failure;
+    } finally {
+      setVerifyingOzoneId(null);
+    }
+  };
+
   useEffect(() => {
     if (
       activePipeline?.state !== "success" ||
@@ -344,6 +371,7 @@ const UserUpload = () => {
     }
     setUploadError("");
     setUploadStatus("");
+    setOzoneValidation(null);
     setUploading(true);
     setUploadProgress(10);
 
@@ -364,6 +392,9 @@ const UserUpload = () => {
       });
       setUploadProgress(100);
       setUploadStatus(`Đã tải lên ${file.name}`);
+      if (res.data.history_id) {
+        await verifyOzoneObject(res.data.history_id);
+      }
       if (res.data.dag_run_id) {
         pollPipelineStatus(res.data.dag_run_id);
       }
@@ -715,6 +746,30 @@ const UserUpload = () => {
                 <span className="min-w-0 break-all font-medium leading-5">{uploadStatus}</span>
               </div>
             )}
+            {ozoneValidation && (
+              <div
+                className={`mt-3 rounded-xl border p-3 text-sm ${
+                  ozoneValidation.status === "PASS"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                    : "border-rose-200 bg-rose-50 text-rose-700"
+                }`}
+              >
+                <div className="flex items-start gap-2.5">
+                  <Icon
+                    name={ozoneValidation.status === "PASS" ? "checkCircle" : "alertTriangle"}
+                    className="mt-0.5 h-4 w-4 shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <p className="font-bold">{ozoneValidation.message}</p>
+                    {ozoneValidation.status === "PASS" && (
+                      <p className="mt-1 break-all font-data text-[11px] font-medium">
+                        {ozoneValidation.object_key} · {formatFileSize(ozoneValidation.content_length)} · checksum hợp lệ
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
             {uploadError && (
               <div className="mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-sm flex items-start gap-2.5">
                 <Icon
@@ -794,6 +849,15 @@ const UserUpload = () => {
 
                           <div className="flex shrink-0 items-center justify-end gap-1 border-t border-ink-50 pt-2 sm:border-0 sm:pt-0 sm:gap-2">
                             <Badge tone={st.tone}>{st.label}</Badge>
+                            <button
+                              type="button"
+                              onClick={() => verifyOzoneObject(item.id)}
+                              disabled={!item.id || verifyingOzoneId === item.id}
+                              title="Đọc lại file qua Ozone S3 Gateway"
+                              className="inline-flex h-8 items-center justify-center rounded-lg bg-emerald-50 px-2.5 text-[10px] font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {verifyingOzoneId === item.id ? "Đang đọc..." : "Kiểm tra Ozone"}
+                            </button>
                             <button
                               type="button"
                               onClick={() => refreshHistoryItem(item)}

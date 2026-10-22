@@ -228,7 +228,7 @@ func (c *AirbyteClient) CreateSource(ctx context.Context, workspaceID, name stri
 	return res.SourceID, nil
 }
 
-// CreateDestination creates an S3/MinIO destination via Public API
+// CreateDestination creates an Apache Ozone S3-compatible destination via Public API.
 func (c *AirbyteClient) CreateDestination(ctx context.Context, workspaceID, name string, config map[string]any) (string, error) {
 	req := map[string]any{
 		"workspaceId":   workspaceID,

@@ -26,6 +26,13 @@ S3_ACCESS_KEY  = os.getenv("S3_ACCESS_KEY", "lakehouse")
 S3_SECRET_KEY  = os.getenv("S3_SECRET_KEY", "lakehouse-secret")
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "university-lakehouse")
 S3_REGION      = os.getenv("S3_REGION", "us-east-1")
+STAGING_PREFIX = os.getenv("STAGING_PREFIX", "staging").strip("/")
+ARCHIVE_PROCESSED_PREFIX = os.getenv("ARCHIVE_PROCESSED_PREFIX", "archive/processed").strip("/")
+ARCHIVE_FAILED_PREFIX = os.getenv("ARCHIVE_FAILED_PREFIX", "archive/failed").strip("/")
+ICEBERG_WAREHOUSE = os.getenv(
+    "ICEBERG_WAREHOUSE",
+    f"s3a://{S3_BUCKET_NAME}/iceberg-warehouse",
+)
 MAX_UPLOAD_FILE_BYTES = int(os.getenv("MAX_UPLOAD_FILE_BYTES", str(100 * 1024 * 1024)))
 
 # Nessie
@@ -34,6 +41,7 @@ NESSIE_API_URL = os.getenv("NESSIE_API_URL", "http://localhost:19120/api/v1")
 # Airflow
 AIRFLOW_WEBSERVER_URL = os.getenv("AIRFLOW_WEBSERVER_URL", "http://localhost:8080")
 AIRFLOW_FILE_DAG_ID = os.getenv("AIRFLOW_FILE_DAG_ID", "universal_lakehouse_pipeline")
+OZONE_VALIDATION_DAG_ID = os.getenv("OZONE_VALIDATION_DAG_ID", "ozone_read_validation")
 AIRFLOW_API_DAG_ID = os.getenv("AIRFLOW_API_DAG_ID", "api_dataset_pipeline")
 AIRFLOW_API_USERNAME = os.getenv("AIRFLOW_API_USERNAME", "airflow")
 AIRFLOW_API_PASSWORD = os.getenv("AIRFLOW_ADMIN_PASSWORD", "")

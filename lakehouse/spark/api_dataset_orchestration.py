@@ -30,7 +30,7 @@ from incremental_ingestion import (
     run_incremental_ingestion,
 )
 from bronze_writer import read_parquet_object
-from checkpoint_store import MinioCheckpointStore
+from checkpoint_store import OzoneCheckpointStore
 from nessie_catalog_utils import use_main
 from spark_bronze_to_silver import get_spark_session
 
@@ -169,7 +169,7 @@ def _checkpoint_payload(state) -> str:
 def _latest_committed_batch_id(
     dataset_id: str,
 ) -> str:
-    state = MinioCheckpointStore().load(
+    state = OzoneCheckpointStore().load(
         dataset_id
     )
 

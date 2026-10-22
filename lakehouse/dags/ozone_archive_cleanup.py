@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import os
+import sys
 from datetime import datetime
 
 import boto3
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from botocore.config import Config
+
+SPARK_DIR = "/opt/airflow/spark"
+if SPARK_DIR not in sys.path:
+    sys.path.insert(0, SPARK_DIR)
 
 from ozone_object_lifecycle import delete_objects, list_expired_objects
 

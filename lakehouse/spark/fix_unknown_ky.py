@@ -1,5 +1,6 @@
 import os
 from spark_dependency_config import configure_pyspark_dependencies
+from env_config import NESSIE_API_URL, S3_ACCESS_KEY, S3_ENDPOINT, S3_SECRET_KEY
 
 configure_pyspark_dependencies()
 
@@ -13,13 +14,13 @@ spark = SparkSession.builder \
     .config('spark.sql.extensions', 'org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions,org.projectnessie.spark.extensions.NessieSparkSessionExtensions') \
     .config('spark.sql.catalog.lakehouse', 'org.apache.iceberg.spark.SparkCatalog') \
     .config('spark.sql.catalog.lakehouse.catalog-impl', 'org.apache.iceberg.nessie.NessieCatalog') \
-    .config('spark.sql.catalog.lakehouse.uri', 'http://localhost:19120/api/v1') \
+    .config('spark.sql.catalog.lakehouse.uri', NESSIE_API_URL) \
     .config('spark.sql.catalog.lakehouse.warehouse', 's3a://university-lakehouse/iceberg-warehouse') \
-    .config('spark.sql.catalog.lakehouse.s3.endpoint', 'http://127.0.0.1:9000') \
+    .config('spark.sql.catalog.lakehouse.s3.endpoint', S3_ENDPOINT) \
     .config('spark.hadoop.fs.s3a.impl', 'org.apache.hadoop.fs.s3a.S3AFileSystem') \
-    .config('spark.hadoop.fs.s3a.endpoint', 'http://127.0.0.1:9000') \
-    .config('spark.hadoop.fs.s3a.access.key', 'minioadmin') \
-    .config('spark.hadoop.fs.s3a.secret.key', 'minioadmin') \
+    .config('spark.hadoop.fs.s3a.endpoint', S3_ENDPOINT) \
+    .config('spark.hadoop.fs.s3a.access.key', S3_ACCESS_KEY) \
+    .config('spark.hadoop.fs.s3a.secret.key', S3_SECRET_KEY) \
     .config('spark.hadoop.fs.s3a.path.style.access', 'true') \
     .config('spark.hadoop.fs.s3a.connection.ssl.enabled', 'false') \
     .getOrCreate()

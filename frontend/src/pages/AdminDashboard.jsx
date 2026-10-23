@@ -208,7 +208,7 @@ const AdminDashboard = () => {
               <div className="hidden items-center gap-1.5 xl:flex">
                 <ConnChip label="Nessie" />
                 <ConnChip label="Trino" />
-                <ConnChip label="MinIO" />
+                <ConnChip label="Ozone" />
                 <ConnChip label="Superset" />
               </div>
 
@@ -229,7 +229,7 @@ const AdminDashboard = () => {
           <div className="flex gap-1.5 overflow-x-auto border-t border-line/80 px-4 py-2 xl:hidden">
             <ConnChip label="Nessie" />
             <ConnChip label="Trino" />
-            <ConnChip label="MinIO" />
+            <ConnChip label="Ozone" />
             <ConnChip label="Superset" />
           </div>
         </header>

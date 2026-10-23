@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Pure planning helpers for multi-table relational contexts landed in MinIO.
+"""Pure planning helpers for multi-table relational contexts landed in Ozone.
 
 The module intentionally has no Spark/Airflow dependency so discovery and
 relationship planning can be unit-tested without starting the data plane.

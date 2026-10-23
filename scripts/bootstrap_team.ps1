@@ -39,12 +39,16 @@ Write-Host "ENV=PASS"
 Write-Host "COMPOSE_PARSE=PASS"
 
 # --------------------------------------------------
-# MinIO host-port ownership preflight
+# Apache Ozone host-port ownership preflight
 # --------------------------------------------------
 
-$minioRuntimeConflicts = @()
+$ozoneRuntimeConflicts = @()
 
-foreach ($hostPort in @(9000, 9001)) {
+foreach ($portSpec in @(
+    @{ Port=9878; Service="s3g" },
+    @{ Port=9888; Service="recon" }
+)) {
+    $hostPort = $portSpec.Port
 
     $containerIds = @(
         & docker ps `
@@ -94,9 +98,9 @@ foreach ($hostPort in @(9000, 9001)) {
 
         if (
             $actualProject -ne $script:ComposeProjectName -or
-            $actualService -ne "minio"
+            $actualService -ne $portSpec.Service
         ) {
-            $minioRuntimeConflicts += [PSCustomObject]@{
+            $ozoneRuntimeConflicts += [PSCustomObject]@{
                 Port    = $hostPort
                 Name    = $actualName
                 Project = $actualProject
@@ -106,17 +110,16 @@ foreach ($hostPort in @(9000, 9001)) {
     }
 }
 
-if ($minioRuntimeConflicts.Count -gt 0) {
+if ($ozoneRuntimeConflicts.Count -gt 0) {
 
     Write-Host ""
-    Write-Host "MINIO_RUNTIME_PREFLIGHT=FAIL"
+    Write-Host "OZONE_RUNTIME_PREFLIGHT=FAIL"
     Write-Host "EXPECTED_PROJECT=$($script:ComposeProjectName)"
-    Write-Host "EXPECTED_SERVICE=minio"
 
-    foreach ($conflict in $minioRuntimeConflicts) {
+    foreach ($conflict in $ozoneRuntimeConflicts) {
 
         Write-Host (
-            "MINIO_PORT_CONFLICT=" +
+            "OZONE_PORT_CONFLICT=" +
             "PORT=$($conflict.Port)|" +
             "NAME=$($conflict.Name)|" +
             "PROJECT=$($conflict.Project)|" +
@@ -126,10 +129,10 @@ if ($minioRuntimeConflicts.Count -gt 0) {
 
     Write-Host "NO_CONTAINER_STOPPED_AUTOMATICALLY=True"
 
-    throw "MinIO host port is owned by another runtime."
+    throw "An Apache Ozone host port is owned by another runtime."
 }
 
-Write-Host "MINIO_RUNTIME_PREFLIGHT=PASS"
+Write-Host "OZONE_RUNTIME_PREFLIGHT=PASS"
 
 & "$PSScriptRoot\import_superset.ps1" -PreflightOnly
 
@@ -175,23 +178,12 @@ if (-not $postgresReady) {
 
 Write-Host "READY=postgres"
 
-# MinIO
-$p = Get-ComposePort "minio" 9000
-
-if (-not $p) {
-    throw "Unable to resolve MinIO port."
-}
-
-Wait-HttpEndpoint `
-    -Name "minio" `
-    -Url "http://127.0.0.1:$p/minio/health/live"
-
-# Required MinIO bucket initialization gate
-$minioInitReady = $false
+# Required Ozone bucket initialization gate
+$ozoneInitReady = $false
 
 for ($i = 1; $i -le 90; $i++) {
     $idProbe = Invoke-ComposeCapture @(
-        "ps","-q","-a","minio-init"
+        "ps","-q","-a","ozone-init"
     )
 
     $initId = @(
@@ -206,17 +198,17 @@ for ($i = 1; $i -le 90; $i++) {
         ) | Select-Object -Last 1
 
         if ($LASTEXITCODE -ne 0) {
-            throw "Unable to inspect minio-init."
+            throw "Unable to inspect ozone-init."
         }
 
         $parts = "$state" -split '\|',2
 
         if ($parts.Count -eq 2 -and $parts[0] -eq "exited") {
             if ([int]$parts[1] -ne 0) {
-                throw "MinIO bucket initialization failed."
+                throw "Apache Ozone bucket initialization failed."
             }
 
-            $minioInitReady = $true
+            $ozoneInitReady = $true
             break
         }
     }
@@ -224,12 +216,12 @@ for ($i = 1; $i -le 90; $i++) {
     Start-Sleep -Seconds 2
 }
 
-if (-not $minioInitReady) {
-    throw "MinIO bucket initialization timeout."
+if (-not $ozoneInitReady) {
+    throw "Apache Ozone bucket initialization timeout."
 }
 
-Write-Host "READY=minio-init"
-Write-Host "MINIO_BUCKET_READY=True"
+Write-Host "READY=ozone-init"
+Write-Host "OZONE_BUCKET_READY=True"
 
 # Nessie
 $p = Get-ComposePort "nessie" 19120
@@ -374,7 +366,7 @@ Write-Host "Browser endpoints:"
 foreach ($item in @(
     @{ Service="airflow-webserver"; Port=8080; Label="Airflow" },
     @{ Service="superset";          Port=8088; Label="Superset" },
-    @{ Service="minio";             Port=9001; Label="MinIO Console" }
+    @{ Service="recon";             Port=9888; Label="Apache Ozone Recon" }
 )) {
     $hostPort = Get-ComposePort `
         $item.Service `

@@ -1,6 +1,6 @@
 # ⚡ Airbyte Data Lakehouse - Secure DB Provisioning & Ingestion Tool
 
-A standalone, zero-dependency Go application engineered to safely onboard external and customer relational databases (PostgreSQL, MySQL, SQL Server) into an enterprise **MinIO-backed Data Lakehouse** via **Airbyte CDC (Change Data Capture)** and **Parquet landing (`staging/`)**.
+A standalone Go application engineered to safely onboard external and customer relational databases (PostgreSQL, MySQL, SQL Server) into an enterprise **Apache Ozone-backed Data Lakehouse** via **Airbyte CDC (Change Data Capture)** and **Parquet landing (`staging/`)**.
 
 ---
 
@@ -21,7 +21,7 @@ This tool bridges the gap between **Customer DBAs** (who prioritize database sec
 │  - Generates airbyte_reader user       │            │  - Configures Source, Dest, Connection      │
 │  - Exports airbyte_bundle.json         │            │               │                              │
 │            │                           │            │               ▼                              │
-│            └──────── (HTTP / Sync) ─────────────────┼─▶ [MinIO Object Storage (:9000, :9001)]      │
+│            └──────── (HTTP / Sync) ─────────────────┼─▶ [Apache Ozone S3 Gateway (:9878)]          │
 │                      or Manual JSON Handoff         │   - Bucket: university-lakehouse             │
 │                                                     │   - Prefix: staging/<tenant_id>/             │
 │                                                     │   - Snappy Compressed Parquet (.parquet)     │
@@ -45,7 +45,7 @@ Below are all the ports used across this tool and its connected ecosystem:
 ## 🚀 Key Features
 
 1. **Zero External Dependencies:**
-   * Pure Go implementation. All database drivers (`pgx`, `go-sql-driver/mysql`, `go-mssqldb`) and MinIO/Parquet libraries are compiled statically.
+   * Pure Go implementation. Database drivers, AWS S3 SDK, and Parquet libraries are compiled statically.
    * Full HTML/CSS/JS frontend embedded directly inside the binary via Go `embed.FS`.
    * Double-clicking `db-provisioner.exe` immediately launches the local server and opens the browser.
 
@@ -56,7 +56,7 @@ Below are all the ports used across this tool and its connected ecosystem:
    * Configures native CDC replication slots and publications with disk-bloat limits (`max_slot_wal_keep_size = 20GB`).
 
 3. **Multi-Tenant Lakehouse Isolation:**
-   * Dynamic duplicate tenant detection against live MinIO buckets (`/api/check-tenant`).
+   * Dynamic duplicate tenant detection against the live Apache Ozone bucket (`/api/check-tenant`).
    * Clean, deterministic landing directory structure:
      ```text
      s3://university-lakehouse/staging/<tenant_id>/<table_name>/part_0.parquet
@@ -65,13 +65,13 @@ Below are all the ports used across this tool and its connected ecosystem:
 4. **Automated Airbyte Bridge (Zero Manual Setup):**
    * Eliminates manual Airbyte UI clicking.
    * Auto-configures PostgreSQL/MySQL CDC sources (`snapshot_mode: initial`).
-   * Auto-configures MinIO S3 Parquet destinations.
+   * Auto-configures Apache Ozone S3-compatible Parquet destinations.
    * Establishes connections and immediately triggers the initial sync job.
    * Watches the Airbyte job and, after it succeeds, triggers the generic Airflow
      context pipeline with `context_id` and `airbyte_job_id`.
 
 5. **Parquet SCD Type 2 & Version History Explorer:**
-   * Full-screen data table browser for Parquet files stored in MinIO.
+   * Full-screen data table browser for Parquet files stored in Apache Ozone.
    * Collapsible row version history showing prior versions and transition states (`UPDATE`, `DELETE`).
    * Hard-deleted record indicators highlighted in red.
 
@@ -116,7 +116,7 @@ Run without arguments (or double-click the `.exe`):
 * **Step 7:** Download `airbyte_bundle_<tenant>.json` or trigger direct sync via Bridge.
 
 ### Mode 2: Server-side Airbyte Bridge Daemon
-Run on the server hosting Airbyte OSS and MinIO:
+Run on the server hosting Airbyte OSS and Apache Ozone:
 ```bash
 ./db-provisioner.exe bridge --port 9090 \
   --airflow-url http://localhost:8080 \
@@ -131,7 +131,7 @@ Run on the server hosting Airbyte OSS and MinIO:
 
 ## 👥 Team Collaboration & Remote Testing (Tailscale VPN)
 
-When team members clone this repo and want to test against a central Airbyte/MinIO instance without opening public router ports:
+When team members clone this repo and want to test against a central Airbyte/Apache Ozone instance without opening public router ports:
 
 1. **Both the Host and Member install [Tailscale](https://tailscale.com/)** and join the same mesh network.
 2. **On Host Machine (Central Server):**
@@ -157,7 +157,7 @@ data-lakehouse-airbyte-config-tool/
 │   ├── adapter/             # DB dialect adapters (PostgreSQL, MySQL, MSSQL)
 │   ├── airbyte/             # Airbyte Public API client & Bridge HTTP server
 │   ├── exporter/            # Handover bundle (.json) & audit SQL generator
-│   ├── lakehouse/           # MinIO S3 & DuckDB Parquet inspection engine
+│   ├── lakehouse/           # Apache Ozone S3 & DuckDB Parquet inspection engine
 │   ├── model/               # Core data structures, schemas, and configurations
 │   └── server/              # Local HTTP API server for Web UI & Parquet Explorer
 ├── web/

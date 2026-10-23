@@ -3,7 +3,7 @@ Minimal HTTP fetch example to plug into the existing CTU IOC Bronze ingestion ad
 
 This file intentionally stops at fetching + inspecting the API response.
 Reuse the project's existing JSON Schema validation, explicit Spark schema,
-Bronze metadata, checksum and MinIO Bronze writer after `payload` is obtained.
+Bronze metadata, checksum and Apache Ozone Bronze writer after `payload` is obtained.
 """
 
 import json
@@ -79,5 +79,5 @@ print("first_record_id =", first["record_id"])
 # 2) use payload["data"] with the configured source-native Spark schema
 # 3) add the 9 Bronze metadata fields
 # 4) compute deterministic source-record SHA-256
-# 5) write source-native Parquet to MinIO Bronze
+# 5) write source-native Parquet to Apache Ozone Bronze
 # 6) map configured source fields to the canonical Silver field names

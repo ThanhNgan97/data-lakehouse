@@ -17,7 +17,7 @@ from api_ingestion import (
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generic API/JSON -> MinIO Bronze Parquet"
+        description="Generic API/JSON -> Apache Ozone Bronze Parquet"
     )
 
     source = parser.add_mutually_exclusive_group(

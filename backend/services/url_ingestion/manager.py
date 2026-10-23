@@ -9,11 +9,11 @@ from sqlalchemy.exc import IntegrityError
 from core.config import (
     AIRFLOW_FILE_DAG_ID,
     AIRFLOW_WEBSERVER_URL,
-    MINIO_BUCKET_NAME,
+    S3_BUCKET_NAME,
     URL_CHECKSUM_DEDUP_ENABLED,
 )
 from db.database import SessionLocal
-from db.minio_client import minio_client
+from db.s3_client import s3_client
 from db.models import ImportJob, ImportJobFile, OutboxEvent, ScanCandidate, ScanManifest, SourceFile, UploadHistory
 
 from .contracts import FileCandidate, SourceDescriptor
@@ -232,7 +232,12 @@ def process_import_job(job_id: str):
                     continue
                 object_identity = checksum[:12] if checksum else uuid.uuid4().hex[:12]
                 object_key = f"staging/{source.id}/{object_identity}/{_safe_name(candidate.name)}"
-                minio_client.put_object(MINIO_BUCKET_NAME, object_key, stream, actual_size)
+                s3_client.put_object(
+                    Bucket=S3_BUCKET_NAME,
+                    Key=object_key,
+                    Body=stream,
+                    ContentLength=actual_size,
+                )
                 source.storage_path = object_key
                 dag_run_id = _trigger_airflow(source, row)
                 source.processing_status = "PROCESSING"

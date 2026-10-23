@@ -19,15 +19,15 @@ func TestGenerateBundleDefaultsToStagingPath(t *testing.T) {
 	}
 
 	want := "staging/tenant_01/table=${STREAM_NAME}/"
-	if got := bundle.MinIODestination.RecommendedPath; got != want {
+	if got := bundle.S3Destination.RecommendedPath; got != want {
 		t.Fatalf("RecommendedPath = %q, want %q", got, want)
 	}
 }
 
-func TestGenerateBundlePreservesExplicitMinIOPath(t *testing.T) {
+func TestGenerateBundlePreservesExplicitS3Path(t *testing.T) {
 	plan := model.ProvisionPlan{
 		TenantID:       "tenant_01",
-		MinIOPath:      "staging/custom-prefix",
+		S3Path:         "staging/custom-prefix",
 		RawSQLScript:   "-- setup",
 		AuditSQLScript: "-- audit",
 	}
@@ -38,7 +38,7 @@ func TestGenerateBundlePreservesExplicitMinIOPath(t *testing.T) {
 	}
 
 	want := "staging/custom-prefix"
-	if got := bundle.MinIODestination.RecommendedPath; got != want {
+	if got := bundle.S3Destination.RecommendedPath; got != want {
 		t.Fatalf("RecommendedPath = %q, want %q", got, want)
 	}
 }

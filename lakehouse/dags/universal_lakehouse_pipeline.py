@@ -31,6 +31,7 @@ if SPARK_DIR not in sys.path:
     sys.path.insert(0, SPARK_DIR)
 
 from relational_context import build_context_manifest, parse_context_object_key
+from ozone_object_lifecycle import archive_object
 
 default_args = {
     "owner": "lakehouse",
@@ -47,14 +48,14 @@ default_args = {
 # =====================================================================
 
 def _get_s3_client():
-    """Tạo S3 client kết nối tới MinIO."""
+    """Tạo S3 client kết nối tới Apache Ozone S3 Gateway."""
     import boto3
-    from env_config import MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY
+    from env_config import S3_ACCESS_KEY, S3_ENDPOINT, S3_SECRET_KEY
     return boto3.client(
         "s3",
-        endpoint_url=MINIO_ENDPOINT,
-        aws_access_key_id=MINIO_ACCESS_KEY,
-        aws_secret_access_key=MINIO_SECRET_KEY,
+        endpoint_url=S3_ENDPOINT,
+        aws_access_key_id=S3_ACCESS_KEY,
+        aws_secret_access_key=S3_SECRET_KEY,
     )
 
 
@@ -79,7 +80,7 @@ def _download_staging_object(s3, bucket: str, key: str, downloads_dir: Path) -> 
 def run_ai_semantic_profiling(**context):
     """Lấy mẫu dữ liệu và gọi AI Semantic Profiler để đưa ra quyết định định tuyến.
     Ưu tiên 1: input_path từ dag_run.conf
-    Ưu tiên 2: Tự động quét file mới nhất trong MinIO staging/
+    Ưu tiên 2: Tự động quét file mới nhất trong Ozone staging/
     Ưu tiên 3: Dùng file mẫu testdata/dynamic_sample_tuition.json
     """
     dag_run = context.get("dag_run")
@@ -94,31 +95,31 @@ def run_ai_semantic_profiling(**context):
     context_manifest_file = None
     context_objects = None
 
-    from env_config import MINIO_BUCKET_NAME
+    from env_config import S3_BUCKET_NAME
     downloads_dir = Path("/opt/airflow/spark/.staging_downloads")
     downloads_dir.mkdir(parents=True, exist_ok=True)
 
     # Ưu tiên 1: Có truyền input_path cụ thể
     if input_path:
         if input_path.startswith("staging/") or input_path.startswith("s3://"):
-            s3_key = input_path.replace(f"s3://{MINIO_BUCKET_NAME}/", "").lstrip("/")
+            s3_key = input_path.replace(f"s3://{S3_BUCKET_NAME}/", "").lstrip("/")
             s3 = _get_s3_client()
             input_path = _download_staging_object(
-                s3, MINIO_BUCKET_NAME, s3_key, downloads_dir
+                s3, S3_BUCKET_NAME, s3_key, downloads_dir
             )
             source_name = Path(s3_key).name
             s3_staging_key = s3_key
             parsed = parse_context_object_key(s3_key)
             if parsed:
                 context_id = parsed["context_id"]
-            print(f"📥 [MinIO] Đã tải file từ '{s3_key}' về '{input_path}'")
+            print(f"📥 [Ozone] Đã tải file từ '{s3_key}' về '{input_path}'")
 
-    # Ưu tiên 2: Tự động quét trạm staging/ trên MinIO
+    # Ưu tiên 2: Tự động quét trạm staging/ trên Ozone
     if not input_path:
         try:
             s3 = _get_s3_client()
             staging_prefix = f"staging/{context_id}/" if context_id else "staging/"
-            contents = _list_s3_objects(s3, MINIO_BUCKET_NAME, staging_prefix)
+            contents = _list_s3_objects(s3, S3_BUCKET_NAME, staging_prefix)
             staging_items = [
                 obj for obj in contents
                 if obj.get("Size", 0) > 0 and obj.get("Key") != "staging/"
@@ -130,15 +131,15 @@ def run_ai_semantic_profiling(**context):
                 s3_staging_key = latest_item["Key"]
                 filename = Path(s3_staging_key).name
                 input_path = _download_staging_object(
-                    s3, MINIO_BUCKET_NAME, s3_staging_key, downloads_dir
+                    s3, S3_BUCKET_NAME, s3_staging_key, downloads_dir
                 )
                 source_name = filename
                 parsed = parse_context_object_key(s3_staging_key)
                 if parsed:
                     context_id = parsed["context_id"]
-                print(f"🔍 [MinIO Staging] Tự động phát hiện file mới trong staging/: '{s3_staging_key}' ({latest_item.get('Size', 0)} bytes)")
+                print(f"🔍 [Ozone Staging] Tự động phát hiện file mới trong staging/: '{s3_staging_key}' ({latest_item.get('Size', 0)} bytes)")
         except Exception as se:
-            print(f"⚠️ [MinIO Staging Scan] Không thể quét staging/: {se}")
+            print(f"⚠️ [Ozone Staging Scan] Không thể quét staging/: {se}")
 
     # Ưu tiên 3: Fallback file mẫu demo nếu cả 2 nguồn trên đều rỗng
     if not input_path:
@@ -146,7 +147,7 @@ def run_ai_semantic_profiling(**context):
         if os.path.exists(default_test_file):
             input_path = default_test_file
             source_name = "dynamic_sample_tuition.json"
-            print("ℹ️ [Fallback] MinIO staging rỗng, sử dụng file mẫu mặc định để demo.")
+            print("ℹ️ [Fallback] Ozone staging rỗng, sử dụng file mẫu mặc định để demo.")
         else:
             raise ValueError("Không tìm thấy dữ liệu trong staging/ và không có default test file!")
 
@@ -161,12 +162,12 @@ def run_ai_semantic_profiling(**context):
     ):
         s3 = _get_s3_client()
         context_objects = _list_s3_objects(
-            s3, MINIO_BUCKET_NAME, f"staging/{context_id}/"
+            s3, S3_BUCKET_NAME, f"staging/{context_id}/"
         )
         manifest = build_context_manifest(
             context_objects,
             context_id,
-            bucket=MINIO_BUCKET_NAME,
+            bucket=S3_BUCKET_NAME,
             batch_id=(f"airbyte_job_{airbyte_job_id}" if airbyte_job_id else run_id),
         )
         if manifest["objects"]:
@@ -305,7 +306,7 @@ def _trino_rest_query(sql: str) -> bool:
 
 def smoke_test_trino(**context):
     """Kiểm tra Trino query engine đọc được bảng đích sau khi pipeline hoàn tất,
-    đồng thời tự động di chuyển file từ staging/ sang archive/ trên MinIO nếu có."""
+    đồng thời tự động lưu file nguồn đã xử lý vào archive trên Ozone nếu có."""
     ti = context["ti"]
     target_silver = ti.xcom_pull(task_ids="ai_semantic_profiler", key="target_silver_table") or "lakehouse.silver.kpi_cusc_master"
     target_gold = ti.xcom_pull(task_ids="ai_semantic_profiler", key="target_gold_table") or "lakehouse.gold.kpi_tong_hop_don_vi"
@@ -340,9 +341,9 @@ def smoke_test_trino(**context):
         else:
             print(f"ℹ️ [Trino] Gold table '{target_gold}' đã được ghi trong Iceberg.")
 
-        if context_manifest and (not silver_ok or not gold_ok):
+        if (context_manifest or s3_staging_key) and (not silver_ok or not gold_ok):
             raise RuntimeError(
-                "Relational context is not queryable through Trino; "
+                "Pipeline output is not queryable through Trino; "
                 "the staging batch will be retained for retry."
             )
 
@@ -357,7 +358,7 @@ def smoke_test_trino(**context):
         try:
             with open(context_manifest, "r", encoding="utf-8") as handle:
                 manifest = json.load(handle)
-            from env_config import MINIO_BUCKET_NAME
+            from env_config import S3_BUCKET_NAME
             s3 = _get_s3_client()
             safe_batch = "".join(
                 char if char.isalnum() or char in "_-" else "_"
@@ -368,19 +369,15 @@ def smoke_test_trino(**context):
             for item in manifest.get("objects", []):
                 key = item["key"]
                 try:
-                    s3.head_object(Bucket=MINIO_BUCKET_NAME, Key=key)
+                    s3.head_object(Bucket=S3_BUCKET_NAME, Key=key)
                 except Exception:
                     continue
-                relative = key.replace(f"staging/{context_id}/", "", 1)
-                archive_key = (
-                    f"archive/{context_id}/batch_id={safe_batch}/{relative}"
+                archive_object(
+                    s3,
+                    bucket=S3_BUCKET_NAME,
+                    source_key=key,
+                    archive_prefix=f"archive/processed/batch_id={safe_batch}",
                 )
-                s3.copy_object(
-                    Bucket=MINIO_BUCKET_NAME,
-                    CopySource={"Bucket": MINIO_BUCKET_NAME, "Key": key},
-                    Key=archive_key,
-                )
-                s3.delete_object(Bucket=MINIO_BUCKET_NAME, Key=key)
                 archived += 1
             print(
                 f"✅ [Context Archive] Đã archive {archived} object của "
@@ -388,34 +385,34 @@ def smoke_test_trino(**context):
             )
         except Exception as exc:
             raise RuntimeError(f"Không thể archive relational context: {exc}") from exc
-    # Tự động di chuyển (Archive) file nguồn đơn lẻ từ MinIO staging/ sang archive/
+    # Tự động lưu file nguồn đơn lẻ từ Ozone staging/ sang archive/processed/
     elif s3_staging_key:
         try:
-            from env_config import MINIO_BUCKET_NAME
+            from env_config import ARCHIVE_PROCESSED_PREFIX, S3_BUCKET_NAME
             s3 = _get_s3_client()
             # Kiểm tra xem file còn tồn tại ở staging/ không (nhánh KPI flow có thể đã dọn dẹp trước đó)
             file_exists = False
             try:
-                s3.head_object(Bucket=MINIO_BUCKET_NAME, Key=s3_staging_key)
+                s3.head_object(Bucket=S3_BUCKET_NAME, Key=s3_staging_key)
                 file_exists = True
             except Exception:
                 print(f"ℹ️ [Archive Cleanup] File '{s3_staging_key}' đã được xử lý và di chuyển trước đó.")
 
             if file_exists:
-                archive_key = s3_staging_key.replace("staging/", "archive/", 1)
-                if not archive_key.startswith("archive/"):
-                    archive_key = f"archive/{os.path.basename(s3_staging_key)}"
-
-                print(f"📦 [Archive Cleanup] Đang di chuyển file đã xử lý: '{s3_staging_key}' ➔ '{archive_key}'...")
-                s3.copy_object(
-                    Bucket=MINIO_BUCKET_NAME,
-                    CopySource={"Bucket": MINIO_BUCKET_NAME, "Key": s3_staging_key},
-                    Key=archive_key,
+                result = archive_object(
+                    s3,
+                    bucket=S3_BUCKET_NAME,
+                    source_key=s3_staging_key,
+                    archive_prefix=ARCHIVE_PROCESSED_PREFIX,
                 )
-                s3.delete_object(Bucket=MINIO_BUCKET_NAME, Key=s3_staging_key)
-                print(f"✅ [Archive Cleanup] Đã chuyển '{s3_staging_key}' sang '{archive_key}' và dọn sạch staging thành công!")
+                print(
+                    f"✅ [Archive Cleanup] Đã chuyển '{s3_staging_key}' sang "
+                    f"'{result.archive_key}' và xác minh {result.content_length} bytes."
+                )
         except Exception as ae:
-            print(f"⚠️ [Archive Cleanup] Không thể di chuyển file: {ae}")
+            raise RuntimeError(
+                f"Không thể xác minh và archive file nguồn trên Ozone: {ae}"
+            ) from ae
 
 
 # =====================================================================
@@ -454,7 +451,7 @@ def provision_superset_dashboard_task(**context):
         # dashboard produced for this exact DAG run.
         return result
     except Exception as exc:
-        print(f"⚠️ [Superset Task] Gặp lỗi khi tạo dashboard (pipeline data vẫn thành công): {exc}")
+        raise RuntimeError(f"Không thể tạo dashboard Superset: {exc}") from exc
 
 
 # =====================================================================
@@ -468,6 +465,9 @@ with DAG(
     schedule_interval=None,
     start_date=datetime(2026, 1, 1),
     catchup=False,
+    # Spark/Iceberg jobs share one local Airflow host. Serialise uploads so
+    # queued runs cannot start several memory-heavy Spark sessions at once.
+    max_active_runs=1,
     tags=["lakehouse", "ai", "universal", "iceberg", "trino", "superset"],
 ) as dag:
 
@@ -523,7 +523,8 @@ with DAG(
             task_id="process_dynamic_silver_gold",
             bash_command=(
                 "cd /opt/airflow/spark && "
-                "python spark_generic_dynamic_processor.py "
+                "python -u service_preflight.py && "
+                "python -u spark_generic_dynamic_processor.py "
                 '--input "{{ task_instance.xcom_pull(task_ids=\'ai_semantic_profiler\', key=\'input_path\') }}" '
                 '--decision-file "{{ task_instance.xcom_pull(task_ids=\'ai_semantic_profiler\', key=\'decision_file\') }}" '
                 '--run-id "{{ run_id }}"'

@@ -59,7 +59,7 @@ export const EmptyState = ({ icon = 'inbox', title, description, action }) => (
   </div>
 );
 
-/* Chip nhỏ báo trạng thái kết nối hệ thống (Nessie · Trino · MinIO...).
+/* Chip nhỏ báo trạng thái kết nối hệ thống (Nessie · Trino · Ozone...).
    `ok` giữ nguyên là dữ liệu đầu vào trực quan; component không tự kiểm tra health. */
 export const ConnChip = ({ label, ok = true }) => (
   <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-2.5 py-1 font-data text-[11px] text-ink-500 shadow-sm">

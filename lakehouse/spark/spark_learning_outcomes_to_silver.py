@@ -27,7 +27,7 @@ from api_dataset_registry import (
     LEARNING_OUTCOMES_DATASET,
     get_dataset_config,
 )
-from env_config import MINIO_BUCKET_NAME
+from env_config import S3_BUCKET_NAME
 from spark_bronze_to_silver import get_spark_session
 from nessie_catalog_utils import (
     create_branch,
@@ -297,7 +297,7 @@ def bronze_batch_path(batch_id: str) -> str:
     config = get_dataset_config(DATASET)
     prefix = config.bronze_prefix.strip("/")
     return (
-        f"s3a://{MINIO_BUCKET_NAME}/"
+        f"s3a://{S3_BUCKET_NAME}/"
         f"{prefix}/batch_id={batch_id}/data.parquet"
     )
 

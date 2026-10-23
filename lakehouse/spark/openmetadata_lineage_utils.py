@@ -122,7 +122,7 @@ def ensure_bronze_table(client) -> str:
             data=CreateDatabaseSchemaRequest(
                 name=BRONZE_SCHEMA_NAME,
                 database=database_entity.fullyQualifiedName,
-                description="Schema ảo đại diện cho tầng Bronze (file Parquet thô trên MinIO, "
+                description="Schema ảo đại diện cho tầng Bronze (file Parquet thô trên Ozone, "
                              "không phải bảng Iceberg thật, chỉ dùng để neo lineage).",
             )
         )

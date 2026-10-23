@@ -28,7 +28,7 @@ if str(_CURRENT_DIR) not in sys.path:
     sys.path.insert(0, str(_CURRENT_DIR))
 
 from ai_dataset_router import RoutingDecision, to_snake_case
-from env_config import MINIO_ACCESS_KEY, MINIO_BUCKET_NAME, MINIO_ENDPOINT, MINIO_SECRET_KEY
+from env_config import S3_ACCESS_KEY, S3_BUCKET_NAME, S3_ENDPOINT, S3_SECRET_KEY
 from nessie_catalog_utils import create_branch, make_branch_name, merge_branch_to_main, use_branch, use_main
 from relational_context import (
     EntityProfile,
@@ -290,18 +290,18 @@ def build_gold_context(
     )
 
 
-def _write_contract_to_minio(context_id: str, contract: Mapping[str, Any]) -> str:
+def _write_contract_to_ozone(context_id: str, contract: Mapping[str, Any]) -> str:
     import boto3
 
     key = f"metadata/contracts/{context_id}.json"
     client = boto3.client(
         "s3",
-        endpoint_url=MINIO_ENDPOINT,
-        aws_access_key_id=MINIO_ACCESS_KEY,
-        aws_secret_access_key=MINIO_SECRET_KEY,
+        endpoint_url=S3_ENDPOINT,
+        aws_access_key_id=S3_ACCESS_KEY,
+        aws_secret_access_key=S3_SECRET_KEY,
     )
     client.put_object(
-        Bucket=MINIO_BUCKET_NAME,
+        Bucket=S3_BUCKET_NAME,
         Key=key,
         Body=json.dumps(contract, ensure_ascii=False, indent=2).encode("utf-8"),
         ContentType="application/json",
@@ -394,7 +394,7 @@ def process_relational_context(
     run_id: str,
 ) -> Dict[str, Any]:
     context_id = _safe_name(str(manifest["context_id"]))
-    bucket = str(manifest.get("bucket") or MINIO_BUCKET_NAME)
+    bucket = str(manifest.get("bucket") or S3_BUCKET_NAME)
     entities = manifest.get("entities") or {}
     if not entities:
         raise ValueError(f"Context '{context_id}' has no tabular entities")
@@ -490,7 +490,7 @@ def process_relational_context(
             "silver_tables": silver_tables,
             "gold_table": gold_table,
         }
-        contract_key = _write_contract_to_minio(context_id, contract)
+        contract_key = _write_contract_to_ozone(context_id, contract)
         _update_routing_decision(
             decision_path,
             decision,

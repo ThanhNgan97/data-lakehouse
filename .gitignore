@@ -16,6 +16,7 @@ metastore_db/
 
 # Local runtime/test artifacts
 *.log
+airflow_logs/
 .pytest_cache/
 
 # Pipeline Runtime, AI Cache & Staging Data

@@ -149,6 +149,24 @@ class GenericSilverMergeTest(unittest.TestCase):
 
         self.assertEqual(result, 0)
 
+    def test_known_zero_count_does_not_rescan_dataframe(self):
+        from unittest.mock import Mock
+
+        dataframe = Mock()
+        result = merge.merge_into_silver(
+            self.spark,
+            dataframe,
+            target_table="unused",
+            business_key=("key_a",),
+            source_columns=("key_a",),
+            source_updated_field="source_updated",
+            delete_field=None,
+            source_view="unused_view",
+            row_count=0,
+        )
+        self.assertEqual(result, 0)
+        dataframe.count.assert_not_called()
+
     def test_empty_no_delete_input_returns_zero_without_target_resolution(self):
         empty = self.spark.createDataFrame(
             [],

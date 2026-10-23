@@ -31,7 +31,7 @@ if str(_CURRENT_DIR) not in sys.path:
     sys.path.insert(0, str(_CURRENT_DIR))
 
 from env_config import (
-    S3_ACCESS_KEY, S3_SECRET_KEY, S3_ENDPOINT,
+    S3_ACCESS_KEY, S3_SECRET_KEY, S3_ENDPOINT, S3_BUCKET_NAME,
     NESSIE_API_URL, HADOOP_HOME, SPARK_LOCAL_IP,
 )
 from nessie_catalog_utils import (
@@ -70,6 +70,9 @@ def get_spark_session(app_name: str = "Generic_Dynamic_Processor") -> SparkSessi
     spark = (
         SparkSession.builder
         .appName(app_name)
+        # Keep the local Spark job from consuming every Docker Desktop CPU;
+        # Airflow, Ozone, Nessie and Trino must remain responsive for the run.
+        .master(os.environ.get("SPARK_LOCAL_MASTER", "local[2]"))
         .config("spark.driver.host", SPARK_LOCAL_IP)
         .config("spark.driver.bindAddress", SPARK_LOCAL_IP)
         .config("spark.sql.extensions",
@@ -211,9 +214,24 @@ def process_generic_dataset(
     spark.sql("CREATE NAMESPACE IF NOT EXISTS lakehouse.silver")
     spark.sql("CREATE NAMESPACE IF NOT EXISTS lakehouse.gold")
 
-    # 2. Đọc và chuẩn hóa dữ liệu đầu vào
+    # 2. Preserve a Parquet Bronze snapshot for this exact upload. The original
+    # file remains in staging until the DAG verifies Silver/Gold through Trino.
     raw_df = read_input_dataset(spark, input_path)
     clean_df = standardize_dataframe_columns(raw_df)
+    if not clean_df.columns or clean_df.limit(1).count() == 0:
+        raise ValueError(f"File '{input_path}' không có dữ liệu bảng để xử lý")
+    if len(set(clean_df.columns)) != len(clean_df.columns):
+        raise ValueError(f"File '{input_path}' có tên cột trùng nhau sau chuẩn hóa")
+    safe_run_id = "".join(c if c.isalnum() or c in "_-" else "_" for c in run_id)
+    bronze_path = f"s3a://{S3_BUCKET_NAME}/bronze/file/batch_id={safe_run_id}/data.parquet"
+    clean_df.write.mode("overwrite").parquet(bronze_path)
+    bronze_df = spark.read.parquet(bronze_path)
+    source_count = clean_df.count()
+    bronze_count = bronze_df.count()
+    if bronze_count != source_count:
+        raise RuntimeError(f"Bronze readback không khớp số dòng: {bronze_path}")
+    print(f"BRONZE_PARQUET_PATH={bronze_path}")
+    clean_df = bronze_df
 
     # 2.5 Áp dụng Column Mapping (nếu AI phát hiện đổi tên cột sang bảng cũ)
     if decision.column_mapping:
@@ -257,7 +275,9 @@ def process_generic_dataset(
     # A single target row must never match multiple source rows in one MERGE.
     # Preserve conflicting variants in quarantine and collapse exact/repeated
     # versions of the same business key deterministically before classification.
-    source_candidates = clean_df.count()
+    # Column mapping only renames fields; it does not change the Bronze row
+    # count. Reuse the verified count instead of scanning S3 a third time.
+    source_candidates = bronze_count
     source_mergeable, source_conflicts = split_equal_timestamp_conflicts(
         clean_df,
         business_key=business_keys,
@@ -309,7 +329,7 @@ def process_generic_dataset(
             print(f"📦 [Silver] Bảng '{target_table}' chưa tồn tại. Tạo mới bảng Iceberg...")
             silver_df = clean_df.withColumn("_silver_updated_at", F.current_timestamp())
             silver_df.writeTo(target_table).using("iceberg").create()
-            records_processed = clean_df.count()
+            records_processed = deduplicated_count
             print(f"✅ [Silver] Đã khởi tạo bảng và chèn thành công {records_processed} bản ghi.")
         else:
             print(f"🔍 [Silver] Bảng '{target_table}' đã tồn tại. Tiến hành Schema Evolution & MERGE...")
@@ -341,6 +361,7 @@ def process_generic_dataset(
                 records_processed = merge_into_silver(
                     spark,
                     mergeable,
+                    row_count=mergeable_count,
                     target_table=target_table,
                     business_key=business_keys,
                     source_columns=clean_df.columns,

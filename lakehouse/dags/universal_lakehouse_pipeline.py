@@ -465,6 +465,9 @@ with DAG(
     schedule_interval=None,
     start_date=datetime(2026, 1, 1),
     catchup=False,
+    # Spark/Iceberg jobs share one local Airflow host. Serialise uploads so
+    # queued runs cannot start several memory-heavy Spark sessions at once.
+    max_active_runs=1,
     tags=["lakehouse", "ai", "universal", "iceberg", "trino", "superset"],
 ) as dag:
 
@@ -520,7 +523,8 @@ with DAG(
             task_id="process_dynamic_silver_gold",
             bash_command=(
                 "cd /opt/airflow/spark && "
-                "python spark_generic_dynamic_processor.py "
+                "python -u service_preflight.py && "
+                "python -u spark_generic_dynamic_processor.py "
                 '--input "{{ task_instance.xcom_pull(task_ids=\'ai_semantic_profiler\', key=\'input_path\') }}" '
                 '--decision-file "{{ task_instance.xcom_pull(task_ids=\'ai_semantic_profiler\', key=\'decision_file\') }}" '
                 '--run-id "{{ run_id }}"'

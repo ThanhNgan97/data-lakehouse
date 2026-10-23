@@ -170,6 +170,7 @@ const UserUpload = () => {
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [refreshingId, setRefreshingId] = useState(null);
+  const [retryingId, setRetryingId] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [activePipeline, setActivePipeline] = useState(null);
   const [reportFile, setReportFile] = useState("");
@@ -255,6 +256,21 @@ const UserUpload = () => {
       /* Keep the current row unchanged when Airflow is unavailable. */
     } finally {
       setRefreshingId(null);
+    }
+  };
+
+  const retryTrigger = async (item) => {
+    setRetryingId(item.id);
+    setUploadError("");
+    try {
+      const res = await axios.post(`${API_URL}/upload/${item.id}/retry-trigger`, {}, { headers: authHeader() });
+      await fetchHistory();
+      if (res.data.dag_run_id) pollPipelineStatus(res.data.dag_run_id);
+      else setUploadError(res.data.airflow_trigger_error || "Airflow chưa sẵn sàng; hãy thử lại sau.");
+    } catch (err) {
+      setUploadError(err.response?.data?.detail || "Không thể kích hoạt lại pipeline.");
+    } finally {
+      setRetryingId(null);
     }
   };
 
@@ -391,7 +407,12 @@ const UserUpload = () => {
         },
       });
       setUploadProgress(100);
-      setUploadStatus(`Đã tải lên ${file.name}`);
+      setUploadStatus(res.data.dag_run_id
+        ? `Đã lưu ${file.name} vào Ozone và kích hoạt pipeline.`
+        : `Đã lưu ${file.name} vào Ozone, nhưng pipeline chưa được kích hoạt.`);
+      if (!res.data.dag_run_id) {
+        setUploadError(res.data.airflow_trigger_error || "Airflow chưa sẵn sàng. Có thể kích hoạt lại từ lịch sử tải lên.");
+      }
       if (res.data.history_id) {
         await verifyOzoneObject(res.data.history_id);
       }
@@ -849,6 +870,14 @@ const UserUpload = () => {
 
                           <div className="flex shrink-0 items-center justify-end gap-1 border-t border-ink-50 pt-2 sm:border-0 sm:pt-0 sm:gap-2">
                             <Badge tone={st.tone}>{st.label}</Badge>
+                            {item.pipeline_status === "trigger_failed" && !item.dag_run_id && (
+                              <button type="button" onClick={() => retryTrigger(item)}
+                                disabled={retryingId === item.id}
+                                title={item.metadata_info?.airflow_trigger_error || "Dùng lại file trong Ozone staging"}
+                                className="rounded-lg bg-amber-50 px-2.5 py-2 text-[10px] font-bold text-amber-800 hover:bg-amber-100 disabled:opacity-50">
+                                {retryingId === item.id ? "Đang thử..." : "Kích hoạt lại"}
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => verifyOzoneObject(item.id)}
@@ -879,6 +908,11 @@ const UserUpload = () => {
                             </button>
                           </div>
                         </div>
+                        {item.pipeline_status === "trigger_failed" && item.metadata_info?.airflow_trigger_error && (
+                          <p className="text-xs text-amber-800" role="status">
+                            Airflow chưa nhận file: {item.metadata_info.airflow_trigger_error}
+                          </p>
+                        )}
                       </div>
                     );
                   })}

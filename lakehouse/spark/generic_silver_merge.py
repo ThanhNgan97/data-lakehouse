@@ -98,9 +98,11 @@ def merge_into_silver(
     delete_field: str | None,
     source_view: str,
     silver_updated_at_field: str = "_silver_updated_at",
+    row_count: int | None = None,
 ) -> int:
     """Execute configured Silver MERGE mechanics."""
-    row_count = df.count()
+    if row_count is None:
+        row_count = df.count()
 
     if row_count == 0:
         return 0

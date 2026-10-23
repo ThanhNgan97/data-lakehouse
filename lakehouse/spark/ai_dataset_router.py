@@ -835,6 +835,25 @@ def route_from_file_path(file_path: Union[str, Path]) -> RoutingDecision:
                     break
         return route_dataset(records, source_name=filename)
 
+    elif suffix in [".xlsx", ".xls", ".parquet"]:
+        # The data plane already accepts these formats. Profile their actual
+        # columns instead of inventing file_content/checksum columns, which
+        # do not exist in the input and break downstream Silver processing.
+        import pandas as pd
+
+        if suffix == ".parquet":
+            import pyarrow.parquet as pq
+
+            batches = pq.ParquetFile(path).iter_batches(batch_size=16)
+            first_batch = next(batches, None)
+            sample = first_batch.to_pandas() if first_batch is not None else pd.DataFrame()
+        else:
+            sample = pd.read_excel(path, sheet_name=0, nrows=16)
+        if sample.empty or not len(sample.columns):
+            raise ValueError(f"File '{filename}' không có dòng dữ liệu bảng để xử lý")
+        records = json.loads(sample.to_json(orient="records", date_format="iso"))
+        return route_dataset(records, source_name=filename)
+
     elif suffix in [".pdf", ".docx", ".doc", ".png", ".jpg", ".jpeg"]:
         # Tự động đọc tài liệu bằng Gemini Multimodal để xác định loại tài liệu
         return profile_and_extract_document_with_gemini(path)

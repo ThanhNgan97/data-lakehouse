@@ -408,6 +408,7 @@ services:
       - ./lakehouse/spark:/opt/airflow/spark
       - ./lakehouse/gx:/opt/airflow/gx
       - ./.env:/opt/airflow/.env
+      - airflow_logs:/opt/airflow/logs
     command: webserver
     depends_on:
       postgres:
@@ -428,6 +429,11 @@ services:
       - .env
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      # Spark runs in this LocalExecutor container. Keep unrelated DAG tasks
+      # from launching more heavy processes while one ingestion is active.
+      AIRFLOW__CORE__PARALLELISM: '2'
+      AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG: '1'
+      AIRFLOW__SCHEDULER__PARSING_PROCESSES: '1'
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:${PG_PASSWORD}@postgres:5432/airflow_db
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
@@ -455,6 +461,7 @@ services:
       - ./lakehouse/spark:/opt/airflow/spark
       - ./lakehouse/gx:/opt/airflow/gx
       - ./.env:/opt/airflow/.env
+      - airflow_logs:/opt/airflow/logs
     command: scheduler
     depends_on:
       postgres:
@@ -532,6 +539,7 @@ services:
     mem_limit: 256m
 
 volumes:
+  airflow_logs:
   postgres_data:
   ozone_scm_data:
   ozone_om_data:

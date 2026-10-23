@@ -6,6 +6,7 @@ import hashlib
 import csv
 import io
 import requests
+import time
 from threading import Thread
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
 from api.dependencies import get_current_user
@@ -25,6 +26,55 @@ from services.url_ingestion.state import derive_job_status, utcnow
 from services.url_ingestion.manager import process_import_job
 from services.url_ingestion.policies import SUPPORTED_EXTENSIONS
 router = APIRouter()
+
+
+def _trigger_file_pipeline(record: UploadHistory, db: Session) -> str | None:
+    """Create at most one Airflow run per upload, even after an HTTP timeout."""
+    run_id = f"file_upload__{(record.metadata_info or {}).get('upload_id', record.id)}"
+    base = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/{AIRFLOW_FILE_DAG_ID}"
+    auth = (AIRFLOW_API_USERNAME, AIRFLOW_API_PASSWORD)
+    payload = {"dag_run_id": run_id, "conf": {
+        "input_path": record.s3_path, "source_name": record.filename,
+    }}
+    error = "Airflow chưa sẵn sàng."
+    for attempt in range(3):
+        try:
+            # A previous POST may have succeeded even if its response was lost.
+            existing = requests.get(f"{base}/dagRuns/{run_id}", auth=auth, timeout=8)
+            if existing.status_code == 200:
+                record.dag_run_id = run_id
+                record.pipeline_status = existing.json().get("state") or "queued"
+                break
+            ready = requests.get(base, auth=auth, timeout=8)
+            if ready.status_code == 200 and ready.json().get("is_active"):
+                response = requests.post(f"{base}/dagRuns", json=payload, auth=auth, timeout=15)
+                if response.status_code in (200, 201):
+                    record.dag_run_id = response.json().get("dag_run_id") or run_id
+                    record.pipeline_status = "queued"
+                    break
+                error = (f"Airflow HTTP {response.status_code}: DAG chưa sẵn sàng."
+                         if response.status_code >= 500
+                         else f"Airflow HTTP {response.status_code}: {response.text[:200]}")
+                if response.status_code not in (409, 500, 502, 503, 504):
+                    break
+            else:
+                error = f"DAG chưa sẵn sàng (HTTP {ready.status_code})."
+                if ready.status_code in (401, 403):
+                    break
+        except requests.RequestException as exc:
+            error = f"Không kết nối được Airflow: {type(exc).__name__}"
+        if attempt < 2:
+            time.sleep(2)
+    metadata = dict(record.metadata_info or {})
+    if record.dag_run_id:
+        metadata.pop("airflow_trigger_error", None)
+    else:
+        record.pipeline_status = "trigger_failed"
+        metadata["airflow_trigger_error"] = error
+        logging.warning("Could not trigger file upload %s: %s", record.id, error)
+    record.metadata_info = metadata
+    db.commit()
+    return record.dag_run_id
 
 
 def _user_value(user, key, default=None):
@@ -133,25 +183,10 @@ async def upload_file(
         # Trigger Airflow Pipeline
        
 
-        airflow_url = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/{AIRFLOW_FILE_DAG_ID}/dagRuns"
-        dag_run_id = None
-        try:
-            # Truyền conf chứa vị trí staging và tên file để AI Semantic Router xử lý
-            payload = {
-                "conf": {
-                    "input_path": object_name,
-                    "source_name": safe_filename
-                }
-            }
-            airflow_auth = (AIRFLOW_API_USERNAME, AIRFLOW_API_PASSWORD)
-            resp = requests.post(airflow_url, json=payload, auth=airflow_auth, timeout=30)
-            if resp.status_code in [200, 201]:
-                logging.info("Universal Airflow pipeline triggered successfully.")
-                dag_run_id = resp.json().get("dag_run_id")
-                history_record.dag_run_id = dag_run_id
-                history_record.pipeline_status = "running"
-                db.commit()
-
+        dag_run_id = _trigger_file_pipeline(history_record, db)
+        if dag_run_id:
+            try:
+                airflow_auth = (AIRFLOW_API_USERNAME, AIRFLOW_API_PASSWORD)
                 validation_url = (
                     f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/"
                     f"{OZONE_VALIDATION_DAG_ID}/dagRuns"
@@ -185,14 +220,8 @@ async def upload_file(
                     )
                 history_record.metadata_info = metadata
                 db.commit()
-            else:
-                logging.warning(f"Failed to trigger Airflow pipeline [{resp.status_code}]: {resp.text}")
-                history_record.pipeline_status = "trigger_failed"
-                db.commit()
-        except Exception as e:
-            logging.error(f"Error triggering Airflow pipeline at {airflow_url}: {e}")
-            history_record.pipeline_status = "unreachable"
-            db.commit()
+            except requests.RequestException as exc:
+                logging.warning("Ozone validation DAG trigger failed: %s", exc)
 
         return {
             "message": (
@@ -205,6 +234,7 @@ async def upload_file(
             "object_key": object_name,
             "sha256": source_sha256,
             "dag_run_id": dag_run_id,
+            "airflow_trigger_error": (history_record.metadata_info or {}).get("airflow_trigger_error"),
             "ozone_validation_dag_run_id": (history_record.metadata_info or {}).get(
                 "ozone_validation_dag_run_id"
             ),
@@ -213,6 +243,29 @@ async def upload_file(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi đẩy file  {str(e)}")
+
+
+@router.post("/upload/{history_id}/retry-trigger")
+def retry_uploaded_file_pipeline(
+    history_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    record = db.query(UploadHistory).filter(UploadHistory.id == history_id).with_for_update().first()
+    if not record or (record.user_id != _user_value(current_user, "id") and _user_value(current_user, "role") != "admin"):
+        raise HTTPException(status_code=404, detail="Không tìm thấy file tải lên.")
+    if record.dag_run_id:
+        raise HTTPException(status_code=409, detail="File đã có DAG run; không kích hoạt trùng.")
+    if record.pipeline_status not in ("trigger_failed", "unreachable"):
+        raise HTTPException(status_code=409, detail="File không ở trạng thái cần kích hoạt lại.")
+    metadata = record.metadata_info or {}
+    try:
+        s3_client.head_object(Bucket=metadata.get("bucket") or S3_BUCKET_NAME, Key=record.s3_path)
+    except Exception as exc:
+        raise HTTPException(status_code=404, detail="Không tìm thấy file gốc trong Ozone staging.") from exc
+    run_id = _trigger_file_pipeline(record, db)
+    return {"dag_run_id": run_id, "pipeline_status": record.pipeline_status,
+            "airflow_trigger_error": (record.metadata_info or {}).get("airflow_trigger_error")}
 
 
 @router.get(
@@ -314,14 +367,15 @@ async def get_pipeline_status(
     airflow_base = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/{AIRFLOW_FILE_DAG_ID}/dagRuns/{dag_run_id}"
     try:
         # Lấy trạng thái tổng quan DAG run (thử universal_lakehouse_pipeline trước, fallback về legacy)
-        resp_dag = requests.get(airflow_base, auth=("airflow", "airflow"), timeout=5)
+        airflow_auth = (AIRFLOW_API_USERNAME, AIRFLOW_API_PASSWORD)
+        resp_dag = requests.get(airflow_base, auth=airflow_auth, timeout=5)
         state = "unknown"
         if resp_dag.status_code == 200:
             state = resp_dag.json().get("state", "unknown")
             
         # Lấy trạng thái các task (taskInstances)
         tasks = []
-        resp_tasks = requests.get(f"{airflow_base}/taskInstances", auth=("airflow", "airflow"), timeout=5)
+        resp_tasks = requests.get(f"{airflow_base}/taskInstances", auth=airflow_auth, timeout=5)
         if resp_tasks.status_code == 200:
             task_instances = resp_tasks.json().get("task_instances", [])
             for t in task_instances:
@@ -338,7 +392,7 @@ async def get_pipeline_status(
         dashboard = None
         resp_dashboard = requests.get(
             f"{airflow_base}/taskInstances/auto_provision_superset/xcomEntries/return_value",
-            auth=("airflow", "airflow"),
+            auth=airflow_auth,
             timeout=5,
         )
         if resp_dashboard.status_code == 200:

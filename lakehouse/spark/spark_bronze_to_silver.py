@@ -35,10 +35,14 @@ from env_config import (
 )
 
 os.environ["HADOOP_HOME"]           = HADOOP_HOME
-os.environ["PATH"]                  = os.path.join(HADOOP_HOME, "bin") + ";" + os.environ.get("PATH", "")
+if os.path.isdir(HADOOP_HOME):
+    os.environ["PATH"] = os.path.join(HADOOP_HOME, "bin") + os.pathsep + os.environ.get("PATH", "")
 os.environ["AWS_ACCESS_KEY_ID"]     = MINIO_ACCESS_KEY
 os.environ["AWS_SECRET_ACCESS_KEY"] = MINIO_SECRET_KEY
-os.environ["SPARK_LOCAL_IP"]        = SPARK_LOCAL_IP
+
+IS_KUBERNETES = bool(os.environ.get("KUBERNETES_SERVICE_HOST"))
+if not IS_KUBERNETES:
+    os.environ["SPARK_LOCAL_IP"] = SPARK_LOCAL_IP
 
 SILVER_TABLE = "lakehouse.silver.kpi_cusc_master"
 BRONZE_PREFIX          = "bronze/"
@@ -47,10 +51,17 @@ BRONZE_DISCARDED_PREFIX = "bronze_discarded_duplicates/"
 
 
 def get_spark_session():
-    return SparkSession.builder \
-        .appName("Bronze_To_Silver_Full_Schema") \
-        .config("spark.driver.host", SPARK_LOCAL_IP) \
-        .config("spark.driver.bindAddress", SPARK_LOCAL_IP) \
+    builder = SparkSession.builder.appName("Bronze_To_Silver_Full_Schema")
+
+    # In Kubernetes cluster mode the Spark Operator publishes the driver
+    # service and injects the correct driver host/bind settings. Overriding
+    # them with 127.0.0.1 would prevent executor pods from connecting.
+    if not IS_KUBERNETES:
+        builder = builder \
+            .config("spark.driver.host", SPARK_LOCAL_IP) \
+            .config("spark.driver.bindAddress", SPARK_LOCAL_IP)
+
+    builder = builder \
         .config("spark.sql.extensions",
                 "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions,"
                 "org.projectnessie.spark.extensions.NessieSparkSessionExtensions") \
@@ -64,17 +75,28 @@ def get_spark_session():
         .config("spark.sql.catalog.lakehouse.s3.endpoint", MINIO_ENDPOINT) \
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
         .config("spark.hadoop.fs.s3a.endpoint", MINIO_ENDPOINT) \
-        .config("spark.hadoop.fs.s3a.access.key", MINIO_ACCESS_KEY) \
-        .config("spark.hadoop.fs.s3a.secret.key", MINIO_SECRET_KEY) \
         .config("spark.hadoop.fs.s3a.path.style.access", "true") \
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
-        .config("spark.hadoop.fs.s3a.aws.credentials.provider",
-                "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
         .config("spark.hadoop.fs.s3a.fast.upload", "true") \
         .config("spark.hadoop.fs.s3a.connection.maximum", "100") \
         .config("spark.sql.shuffle.partitions", "4") \
-        .config("spark.sql.parquet.enableVectorizedReader", "false") \
-        .getOrCreate()
+        .config("spark.sql.parquet.enableVectorizedReader", "false")
+
+    if IS_KUBERNETES:
+        builder = builder.config(
+            "spark.hadoop.fs.s3a.aws.credentials.provider",
+            "com.amazonaws.auth.EnvironmentVariableCredentialsProvider",
+        )
+    else:
+        builder = builder \
+            .config("spark.hadoop.fs.s3a.access.key", MINIO_ACCESS_KEY) \
+            .config("spark.hadoop.fs.s3a.secret.key", MINIO_SECRET_KEY) \
+            .config(
+                "spark.hadoop.fs.s3a.aws.credentials.provider",
+                "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",
+            )
+
+    return builder.getOrCreate()
 
 
 def get_s3_client():

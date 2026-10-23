@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.context_manifests/
+.extracted_tables/
+.generated_exports/
+.routing_decisions/
+.staging_downloads/
+superset_exports/generated/
+tests/
+testdata/
+*.zip
+*.log
+.env

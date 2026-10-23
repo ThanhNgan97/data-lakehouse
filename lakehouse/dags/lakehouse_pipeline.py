@@ -1,6 +1,9 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.bash import BashOperator
+from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import (
+    SparkKubernetesOperator,
+)
 
 default_args = {
     'owner': 'lakehouse',
@@ -18,6 +21,7 @@ with DAG(
     schedule_interval=None, # Triggered externally via API
     start_date=datetime(2023, 1, 1),
     catchup=False,
+    template_searchpath=['/opt/airflow/k8s/spark/templates'],
     tags=['lakehouse'],
 ) as dag:
 
@@ -28,9 +32,15 @@ with DAG(
     )
 
     # Task 2: Merge Parquet to Iceberg (Silver) with Nessie
-    bronze_to_silver = BashOperator(
+    bronze_to_silver = SparkKubernetesOperator(
         task_id='bronze_to_silver',
-        bash_command='cd /opt/airflow/spark && python spark_bronze_to_silver.py --run_id {{ run_id }}',
+        namespace='lakehouse-spark',
+        application_file='spark-bronze-to-silver-airflow.yaml',
+        kubernetes_conn_id='kubernetes_default',
+        get_logs=True,
+        log_events_on_failure=True,
+        startup_timeout_seconds=600,
+        delete_on_termination=True,
     )
 
     # Task 3: Aggregate Silver to Gold Data Marts

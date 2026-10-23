@@ -217,6 +217,7 @@ services:
       - ./airflow_webserver_config.py:/opt/airflow/webserver_config.py:ro
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark
+      - ./k8s:/opt/airflow/k8s:ro
       - ./.env:/opt/airflow/.env
     command: webserver
     depends_on:
@@ -248,6 +249,7 @@ services:
     volumes:
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark
+      - ./k8s:/opt/airflow/k8s:ro
       - ./.env:/opt/airflow/.env
     command: scheduler
     depends_on:

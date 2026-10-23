@@ -15,10 +15,29 @@ API_URL = os.getenv(
     "http://ctu-ioc-mock-api:8000/api/v1/education/learning-outcomes",
 )
 API_KEY = os.getenv("CTU_IOC_API_KEY")
+LOGIN_URL = os.getenv(
+    "CTU_IOC_LOGIN_URL",
+    "http://ctu-ioc-mock-api:8000/api/v1/auth/login",
+)
+USERNAME = os.getenv("CTU_IOC_USERNAME", "lakehouse_test")
+PASSWORD = os.getenv("CTU_IOC_PASSWORD", "Lakehouse@123")
 
 headers = {"Accept": "application/json"}
 if API_KEY:
     headers["Authorization"] = f"Bearer {API_KEY}"
+else:
+    login_request = Request(
+        LOGIN_URL,
+        data=json.dumps({
+            "username": USERNAME,
+            "password": PASSWORD,
+        }).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urlopen(login_request, timeout=30) as response:
+        access_token = json.load(response)["access_token"]
+    headers["Authorization"] = f"Bearer {access_token}"
 
 request = Request(f"{API_URL}?limit=500", headers=headers)
 

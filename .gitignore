@@ -31,3 +31,6 @@ superset_exports/generated/
 # Great Expectations runtime artifacts and local secrets
 lakehouse/gx/uncommitted/
 lakehouse/gx/**/.ge_store_backend_id
+# Local presentation samples (generated for preview only)
+outputs/parquet_layers_demo/
+scratch/parquet_layers_artifact/

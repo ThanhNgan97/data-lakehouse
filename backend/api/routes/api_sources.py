@@ -172,7 +172,13 @@ def _login_for_token(request: LoginAuthenticationRequest) -> str:
         raise HTTPException(status_code=503, detail=f"Không thể kết nối API đăng nhập: {exc}") from exc
 
     if response.status_code not in (200, 201):
-        raise HTTPException(status_code=401, detail=f"API đăng nhập từ chối xác thực (HTTP {response.status_code}).")
+        # HTTP 401 is reserved for an invalid Lakehouse session. An upstream
+        # login failure is a source-credential validation error; returning 401
+        # here would make the frontend's global interceptor log the user out.
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"API đăng nhập từ chối xác thực (HTTP {response.status_code}).",
+        )
     try:
         payload = response.json()
     except ValueError as exc:
@@ -361,7 +367,10 @@ def inspect_api_source(
             raise HTTPException(status_code=404, detail="Không tìm thấy profile nguồn API.")
         stored_token = _stored_bearer_token(source)
         if source.auth_type in {"bearer", "login"} and not stored_token:
-            raise HTTPException(status_code=401, detail="Profile cần được xác thực lại.")
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Profile cần được xác thực lại.",
+            )
         if stored_token:
             headers["Authorization"] = f"Bearer {stored_token}"
     if not headers and _is_configured_mock_url(request.url) and MOCK_API_KEY:
@@ -382,7 +391,7 @@ def inspect_api_source(
     if response.status_code != 200:
         if response.status_code == 401:
             raise HTTPException(
-                status_code=401,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="API nguồn từ chối xác thực. Hãy kiểm tra Bearer Token hoặc cấu hình MOCK_API_KEY.",
             )
         raise HTTPException(
@@ -503,7 +512,10 @@ def trigger_api_dataset_pipeline(
 
     bearer_token = (request.bearer_token or "").strip() or _stored_bearer_token(source)
     if source.auth_type in {"bearer", "login"} and not bearer_token:
-        raise HTTPException(status_code=401, detail="Profile nguồn API cần được xác thực lại.")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Profile nguồn API cần được xác thực lại.",
+        )
 
     dag_run_id = f"portal_api__{dataset_id.rsplit('.', 1)[-1]}__{uuid.uuid4().hex[:12]}"
     airflow_url = (

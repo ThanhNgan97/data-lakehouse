@@ -9,52 +9,65 @@ import (
 	"strings"
 	"time"
 
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/parquet-go/parquet-go"
 )
 
 type Config struct {
-	Endpoint        string // localhost:9000
-	AccessKeyID     string // minioadmin
-	SecretAccessKey string // minioadmin
+	Endpoint        string // Apache Ozone S3 Gateway, for example localhost:9878
+	AccessKeyID     string
+	SecretAccessKey string
 	BucketName      string // university-lakehouse
 	UseSSL          bool
 }
 
 type Client struct {
-	cfg   Config
-	minio *minio.Client
+	cfg Config
+	s3  *s3.Client
 }
 
 func NewClient(cfg Config) (*Client, error) {
 	if cfg.Endpoint == "" {
-		cfg.Endpoint = "127.0.0.1:9000"
+		cfg.Endpoint = "127.0.0.1:9878"
 	}
 	cfg.Endpoint = strings.TrimPrefix(cfg.Endpoint, "http://")
 	cfg.Endpoint = strings.TrimPrefix(cfg.Endpoint, "https://")
 
 	if cfg.AccessKeyID == "" {
-		cfg.AccessKeyID = "minioadmin"
+		cfg.AccessKeyID = "lakehouse"
 	}
 	if cfg.SecretAccessKey == "" {
-		cfg.SecretAccessKey = "minioadmin"
+		cfg.SecretAccessKey = "lakehouse-secret"
 	}
 	if cfg.BucketName == "" {
 		cfg.BucketName = "university-lakehouse"
 	}
 
-	mc, err := minio.New(cfg.Endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(cfg.AccessKeyID, cfg.SecretAccessKey, ""),
-		Secure: cfg.UseSSL,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to init minio client: %w", err)
+	scheme := "http://"
+	if cfg.UseSSL {
+		scheme = "https://"
 	}
+	awsCfg, err := awsconfig.LoadDefaultConfig(
+		context.Background(),
+		awsconfig.WithRegion("us-east-1"),
+		awsconfig.WithCredentialsProvider(
+			credentials.NewStaticCredentialsProvider(cfg.AccessKeyID, cfg.SecretAccessKey, ""),
+		),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize S3-compatible client: %w", err)
+	}
+	s3Client := s3.NewFromConfig(awsCfg, func(options *s3.Options) {
+		options.BaseEndpoint = aws.String(scheme + cfg.Endpoint)
+		options.UsePathStyle = true
+	})
 
 	return &Client{
-		cfg:   cfg,
-		minio: mc,
+		cfg: cfg,
+		s3:  s3Client,
 	}, nil
 }
 
@@ -74,43 +87,46 @@ func (c *Client) ListStreams(ctx context.Context) ([]StreamInfo, error) {
 	streamMap := make(map[string]*StreamInfo)
 
 	for _, prefix := range prefixes {
-		objects := c.minio.ListObjects(ctx, c.cfg.BucketName, minio.ListObjectsOptions{
-			Prefix:    prefix,
-			Recursive: true,
+		paginator := s3.NewListObjectsV2Paginator(c.s3, &s3.ListObjectsV2Input{
+			Bucket: aws.String(c.cfg.BucketName),
+			Prefix: aws.String(prefix),
 		})
-
-		for obj := range objects {
-			if obj.Err != nil {
-				return nil, obj.Err
+		for paginator.HasMorePages() {
+			page, err := paginator.NextPage(ctx)
+			if err != nil {
+				return nil, err
 			}
-			if !strings.HasSuffix(strings.ToLower(obj.Key), ".parquet") {
-				continue
-			}
-
-			parts := strings.Split(obj.Key, "/")
-			if len(parts) < 4 {
-				continue
-			}
-
-			tenantPart := parts[1] // tenant_id=tenant_client_01
-			tablePart := parts[2]  // orders
-			tenantID := strings.TrimPrefix(tenantPart, "tenant_id=")
-
-			keyID := tenantID + "::" + tablePart
-			stream, ok := streamMap[keyID]
-			if !ok {
-				stream = &StreamInfo{
-					TenantID:   tenantID,
-					TableName:  tablePart,
-					Prefix:     fmt.Sprintf("%s/%s/%s/", parts[0], parts[1], parts[2]),
-					Files:      []string{},
+			for _, obj := range page.Contents {
+				key := aws.ToString(obj.Key)
+				if !strings.HasSuffix(strings.ToLower(key), ".parquet") {
+					continue
 				}
-				streamMap[keyID] = stream
-			}
 
-			stream.Files = append(stream.Files, obj.Key)
-			stream.FilesCount++
-			stream.TotalBytes += obj.Size
+				parts := strings.Split(key, "/")
+				if len(parts) < 4 {
+					continue
+				}
+
+				tenantPart := parts[1] // tenant_id=tenant_client_01
+				tablePart := parts[2]  // orders
+				tenantID := strings.TrimPrefix(tenantPart, "tenant_id=")
+
+				keyID := tenantID + "::" + tablePart
+				stream, ok := streamMap[keyID]
+				if !ok {
+					stream = &StreamInfo{
+						TenantID:  tenantID,
+						TableName: tablePart,
+						Prefix:    fmt.Sprintf("%s/%s/%s/", parts[0], parts[1], parts[2]),
+						Files:     []string{},
+					}
+					streamMap[keyID] = stream
+				}
+
+				stream.Files = append(stream.Files, key)
+				stream.FilesCount++
+				stream.TotalBytes += aws.ToInt64(obj.Size)
+			}
 		}
 	}
 
@@ -183,17 +199,20 @@ func (c *Client) QueryVersionHistory(ctx context.Context, tenantID, tableName, f
 	}
 	var parquetKeys []string
 	for _, prefix := range prefixes {
-		objects := c.minio.ListObjects(ctx, c.cfg.BucketName, minio.ListObjectsOptions{
-			Prefix:    prefix,
-			Recursive: true,
+		paginator := s3.NewListObjectsV2Paginator(c.s3, &s3.ListObjectsV2Input{
+			Bucket: aws.String(c.cfg.BucketName),
+			Prefix: aws.String(prefix),
 		})
-
-		for obj := range objects {
-			if obj.Err != nil {
-				return nil, obj.Err
+		for paginator.HasMorePages() {
+			page, err := paginator.NextPage(ctx)
+			if err != nil {
+				return nil, err
 			}
-			if strings.HasSuffix(strings.ToLower(obj.Key), ".parquet") {
-				parquetKeys = append(parquetKeys, obj.Key)
+			for _, obj := range page.Contents {
+				key := aws.ToString(obj.Key)
+				if strings.HasSuffix(strings.ToLower(key), ".parquet") {
+					parquetKeys = append(parquetKeys, key)
+				}
 			}
 		}
 		if len(parquetKeys) > 0 {
@@ -222,13 +241,16 @@ func (c *Client) QueryVersionHistory(ctx context.Context, tenantID, tableName, f
 	colSet := make(map[string]bool)
 
 	for _, key := range parquetKeys {
-		obj, err := c.minio.GetObject(ctx, c.cfg.BucketName, key, minio.GetObjectOptions{})
+		obj, err := c.s3.GetObject(ctx, &s3.GetObjectInput{
+			Bucket: aws.String(c.cfg.BucketName),
+			Key:    aws.String(key),
+		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to read %s: %w", key, err)
 		}
 
-		dataBytes, err := io.ReadAll(obj)
-		_ = obj.Close()
+		dataBytes, err := io.ReadAll(obj.Body)
+		_ = obj.Body.Close()
 		if err != nil {
 			return nil, fmt.Errorf("failed reading bytes from %s: %w", key, err)
 		}
@@ -505,8 +527,8 @@ func (c *Client) QueryVersionHistory(ctx context.Context, tenantID, tableName, f
 	}, nil
 }
 
-// MinIOTenantCheck contains check details for MinIO storage
-type MinIOTenantCheck struct {
+// StorageTenantCheck contains check details for Apache Ozone storage.
+type StorageTenantCheck struct {
 	Exists     bool     `json:"exists"`
 	Path       string   `json:"path"`
 	Tables     []string `json:"tables"`
@@ -514,11 +536,11 @@ type MinIOTenantCheck struct {
 	TotalBytes int64    `json:"total_bytes"`
 }
 
-// CheckTenantExists checks if a tenant directory or parquet files exist in MinIO
-func (c *Client) CheckTenantExists(ctx context.Context, tenantID string) (*MinIOTenantCheck, error) {
+// CheckTenantExists checks if a tenant prefix or parquet files exist in Ozone.
+func (c *Client) CheckTenantExists(ctx context.Context, tenantID string) (*StorageTenantCheck, error) {
 	cleanID := strings.TrimSpace(tenantID)
 	if cleanID == "" {
-		return &MinIOTenantCheck{Exists: false, Tables: []string{}}, nil
+		return &StorageTenantCheck{Exists: false, Tables: []string{}}, nil
 	}
 
 	prefixes := []string{
@@ -536,27 +558,30 @@ func (c *Client) CheckTenantExists(ctx context.Context, tenantID string) (*MinIO
 	var foundPath string
 
 	for _, p := range prefixes {
-		objects := c.minio.ListObjects(ctx, c.cfg.BucketName, minio.ListObjectsOptions{
-			Prefix:    p,
-			Recursive: true,
+		paginator := s3.NewListObjectsV2Paginator(c.s3, &s3.ListObjectsV2Input{
+			Bucket: aws.String(c.cfg.BucketName),
+			Prefix: aws.String(p),
 		})
-
-		for obj := range objects {
-			if obj.Err != nil {
-				return nil, obj.Err
+		for paginator.HasMorePages() {
+			page, err := paginator.NextPage(ctx)
+			if err != nil {
+				return nil, err
 			}
-			if strings.HasSuffix(strings.ToLower(obj.Key), ".parquet") {
-				if foundPath == "" {
-					foundPath = p
-				}
-				totalFiles++
-				totalBytes += obj.Size
+			for _, obj := range page.Contents {
+				key := aws.ToString(obj.Key)
+				if strings.HasSuffix(strings.ToLower(key), ".parquet") {
+					if foundPath == "" {
+						foundPath = p
+					}
+					totalFiles++
+					totalBytes += aws.ToInt64(obj.Size)
 
-				// Extract table name
-				trimmed := strings.TrimPrefix(obj.Key, p)
-				parts := strings.Split(trimmed, "/")
-				if len(parts) > 0 && parts[0] != "" {
-					tableMap[parts[0]] = true
+					// Extract table name
+					trimmed := strings.TrimPrefix(key, p)
+					parts := strings.Split(trimmed, "/")
+					if len(parts) > 0 && parts[0] != "" {
+						tableMap[parts[0]] = true
+					}
 				}
 			}
 		}
@@ -568,7 +593,7 @@ func (c *Client) CheckTenantExists(ctx context.Context, tenantID string) (*MinIO
 	}
 	sort.Strings(tables)
 
-	return &MinIOTenantCheck{
+	return &StorageTenantCheck{
 		Exists:     totalFiles > 0,
 		Path:       foundPath,
 		Tables:     tables,

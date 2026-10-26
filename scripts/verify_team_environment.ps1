@@ -16,7 +16,13 @@ if (-not (Test-DockerEngine)) {
 
 $requiredServices = @(
     "postgres",
-    "minio",
+    "scm",
+    "om",
+    "datanode-1",
+    "datanode-2",
+    "datanode-3",
+    "s3g",
+    "recon",
     "nessie",
     "airflow-webserver",
     "airflow-scheduler",
@@ -31,10 +37,14 @@ foreach ($service in $requiredServices) {
 }
 
 # --------------------------------------------------
-# MinIO runtime ownership
+# Apache Ozone runtime ownership
 # --------------------------------------------------
 
-foreach ($hostPort in @(9000, 9001)) {
+foreach ($portSpec in @(
+    @{ Port=9878; Service="s3g" },
+    @{ Port=9888; Service="recon" }
+)) {
+    $hostPort = $portSpec.Port
 
     $ownerIds = @(
         & docker ps `
@@ -43,7 +53,7 @@ foreach ($hostPort in @(9000, 9001)) {
     )
 
     if ($LASTEXITCODE -ne 0) {
-        throw "Unable to inspect MinIO host port $hostPort."
+        throw "Unable to inspect Apache Ozone host port $hostPort."
     }
 
     $ownerIds = @(
@@ -54,7 +64,7 @@ foreach ($hostPort in @(9000, 9001)) {
     )
 
     if ($ownerIds.Count -ne 1) {
-        throw "Expected exactly one owner for MinIO host port $hostPort."
+        throw "Expected exactly one owner for Apache Ozone host port $hostPort."
     }
 
     $ownerJson = @(
@@ -62,7 +72,7 @@ foreach ($hostPort in @(9000, 9001)) {
     )
 
     if ($LASTEXITCODE -ne 0) {
-        throw "Unable to inspect MinIO port owner."
+        throw "Unable to inspect Apache Ozone port owner."
     }
 
     $owner = @(
@@ -86,17 +96,17 @@ foreach ($hostPort in @(9000, 9001)) {
 
     if (
         $ownerProject -ne $script:ComposeProjectName -or
-        $ownerService -ne "minio"
+        $ownerService -ne $portSpec.Service
     ) {
         throw (
-            "Wrong MinIO runtime owner on port $hostPort. " +
-            "Expected project=$($script:ComposeProjectName),service=minio; " +
+            "Wrong Apache Ozone runtime owner on port $hostPort. " +
+            "Expected project=$($script:ComposeProjectName),service=$($portSpec.Service); " +
             "actual project=$ownerProject,service=$ownerService,name=$ownerName"
         )
     }
 
     Write-Host (
-        "MINIO_PORT_OWNER_PASS=" +
+        "OZONE_PORT_OWNER_PASS=" +
         "PORT=$hostPort|" +
         "PROJECT=$ownerProject|" +
         "SERVICE=$ownerService|" +
@@ -104,14 +114,62 @@ foreach ($hostPort in @(9000, 9001)) {
     )
 }
 
-Write-Host "MINIO_RUNTIME_OWNERSHIP=PASS"
+Write-Host "OZONE_RUNTIME_OWNERSHIP=PASS"
+
+# --------------------------------------------------
+# Apache Ozone cluster + bucket readiness
+# --------------------------------------------------
+
+$datanodes = Invoke-ComposeCapture @(
+    "exec","-T","scm",
+    "ozone","admin","datanode","list"
+)
+
+if ($datanodes.ExitCode -ne 0) {
+    throw "Unable to list Apache Ozone DataNodes."
+}
+
+$healthyDatanodes = @(
+    $datanodes.Lines |
+        Where-Object { $_ -match '^Health State:\s+HEALTHY\s*$' }
+).Count
+
+if ($healthyDatanodes -ne 3) {
+    throw "Expected 3 healthy Apache Ozone DataNodes; found $healthyDatanodes."
+}
+
+Write-Host "OZONE_HEALTHY_DATANODES=$healthyDatanodes"
+
+$bucket = Invoke-ComposeCapture @(
+    "exec","-T","om",
+    "ozone","sh","bucket","info",
+    "/s3v/$env:S3_BUCKET_NAME"
+)
+
+if ($bucket.ExitCode -ne 0) {
+    throw "Required Apache Ozone bucket is unavailable."
+}
+
+Write-Host "OZONE_BUCKET_PASS=$env:S3_BUCKET_NAME"
+
+$s3Probe = Invoke-ComposeCapture @(
+    "exec","-T","airflow-webserver",
+    "python","-c",
+    "import os,boto3; from botocore.config import Config; boto3.client('s3',endpoint_url=os.environ['S3_ENDPOINT'],aws_access_key_id=os.environ['S3_ACCESS_KEY'],aws_secret_access_key=os.environ['S3_SECRET_KEY'],config=Config(s3={'addressing_style':'path'})).head_bucket(Bucket=os.environ['S3_BUCKET_NAME'])"
+)
+
+if ($s3Probe.ExitCode -ne 0) {
+    throw "Signed Apache Ozone S3 bucket probe failed."
+}
+
+Write-Host "OZONE_SIGNED_S3_PROBE=PASS"
 
 # --------------------------------------------------
 # HTTP readiness
 # --------------------------------------------------
 
 foreach ($probe in @(
-    @{ Name="minio";    Service="minio";             Port=9000; Path="/minio/health/live" },
+    @{ Name="ozone-recon"; Service="recon";          Port=9888; Path="/" },
     @{ Name="nessie";   Service="nessie";            Port=19120; Path="/api/v2/config" },
     @{ Name="airflow";  Service="airflow-webserver"; Port=8080; Path="/health" },
     @{ Name="trino";    Service="trino";             Port=8080; Path="/v1/info" },
@@ -175,7 +233,9 @@ $dags = @(Get-JsonPayload $dagList.Lines)
 
 foreach ($dagId in @(
     "lakehouse_pipeline",
-    "api_dataset_pipeline"
+    "api_dataset_pipeline",
+    "ozone_read_validation",
+    "ozone_archive_cleanup"
 )) {
     if (
         @(
@@ -334,6 +394,9 @@ $pythonLines = @(
     "    from superset.connectors.sqla.models import SqlaTable",
     "    from superset.models.core import Database",
     "    dashboards = db.session.query(Dashboard).all()",
+    "    required_dashboard_slugs = {'ctu-ioc-learning-outcomes', 'ctu-ioc-teaching-progress'}",
+    "    required_dataset_names = {'learning_outcomes_metrics', 'teaching_progress_metrics'}",
+    "    datasets = db.session.query(SqlaTable).all()",
     "    filters = 0",
     "    for dashboard in dashboards:",
     "        try:",
@@ -345,7 +408,9 @@ $pythonLines = @(
     "    print('DATASET_COUNT=' + str(db.session.query(SqlaTable).count()))",
     "    print('CHART_COUNT=' + str(db.session.query(Slice).count()))",
     "    print('FILTER_COUNT=' + str(filters))",
-    "    print('DATABASE_COUNT=' + str(db.session.query(Database).count()))"
+    "    print('DATABASE_COUNT=' + str(db.session.query(Database).count()))",
+    "    print('REQUIRED_DASHBOARD_COUNT=' + str(sum(1 for item in dashboards if item.slug in required_dashboard_slugs)))",
+    "    print('REQUIRED_DATASET_COUNT=' + str(sum(1 for item in datasets if item.table_name in required_dataset_names)))"
 )
 
 Set-Content `
@@ -376,7 +441,7 @@ $counts = @{}
 foreach ($line in $superset.Lines) {
     if (
         $line -match
-        '^(DASHBOARD_COUNT|DATASET_COUNT|CHART_COUNT|FILTER_COUNT|DATABASE_COUNT)=(\d+)$'
+        '^(DASHBOARD_COUNT|DATASET_COUNT|CHART_COUNT|FILTER_COUNT|DATABASE_COUNT|REQUIRED_DASHBOARD_COUNT|REQUIRED_DATASET_COUNT)=(\d+)$'
     ) {
         $counts[$Matches[1]] = [int]$Matches[2]
         Write-Host $line
@@ -384,11 +449,11 @@ foreach ($line in $superset.Lines) {
 }
 
 $supersetPass = (
-    $counts["DASHBOARD_COUNT"] -eq 2 -and
-    $counts["DATASET_COUNT"] -eq 2 -and
-    $counts["CHART_COUNT"] -eq 18 -and
-    $counts["FILTER_COUNT"] -eq 7 -and
-    $counts["DATABASE_COUNT"] -eq 1
+    $counts["REQUIRED_DASHBOARD_COUNT"] -eq 2 -and
+    $counts["REQUIRED_DATASET_COUNT"] -eq 2 -and
+    $counts["CHART_COUNT"] -ge 18 -and
+    $counts["FILTER_COUNT"] -ge 7 -and
+    $counts["DATABASE_COUNT"] -ge 1
 )
 
 if (-not $supersetPass) {

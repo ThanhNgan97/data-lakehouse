@@ -183,7 +183,7 @@ HTTP GET
 → active v2 contract validation
 → configured source-native Spark schema
 → 9 Bronze metadata fields + deterministic checksum
-→ source-native MinIO Bronze Parquet
+→ source-native Apache Ozone Bronze Parquet
 → explicit source-to-canonical mapping
 → canonical Silver processing
 ```

@@ -19,7 +19,7 @@
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    TẦNG STORAGE: MinIO (S3-compatible)              │
+│              TẦNG STORAGE: Apache Ozone (S3-compatible)             │
 │  bucket: university-lakehouse                                       │
 │  ├── bronze/unstructured_data/  (PDF/DOCX gốc)                     │
 │  ├── bronze/structured_data/    (Parquet thô sau parse)             │
@@ -50,7 +50,7 @@
 ┌─────────────────────────────────────────────────────────────────────┐
 │              CATALOG & VERSIONING: Nessie + Iceberg                 │
 │  - Nessie: Git-like versioning cho Iceberg catalog                 │
-│  - Iceberg: ACID table format trên MinIO                           │
+│  - Iceberg: ACID table format trên Apache Ozone                    │
 │  - PostgreSQL (TimescaleDB): backend store cho Nessie               │
 └──────────────────────────────┬──────────────────────────────────────┘
                                │
@@ -86,7 +86,7 @@
 |---|---|---|---|
 | `postgres` | timescale/timescaledb:latest-pg15 | 5432 | Backend store cho Nessie + App DB |
 | `kafka` | apache/kafka:4.1.1 | 9094 | Message broker cho streaming |
-| `minio` | minio/minio:latest | 9000/9001 | Object storage (S3-compatible) |
+| `s3g` | apache/ozone | 9878 | Apache Ozone S3 Gateway |
 | `trino` | trinodb/trino:435 | 8081 | SQL query engine |
 | `nessie` | ghcr.io/projectnessie/nessie:0.104.5 | 19120 | Catalog versioning |
 | `superset` | apache/superset:3.1.0 | 8088 | BI/Visualization |
@@ -98,7 +98,7 @@
 ### 3.2 Data Pipeline (Medallion Architecture)
 
 #### 🥉 Tầng Bronze — `spark_ingest_bronze.py`
-- **Input**: File PDF/DOCX từ MinIO (`bronze/unstructured_data/`)
+- **Input**: File PDF/DOCX từ Ozone (`bronze/unstructured_data/`)
 - **Logic**: `pdfplumber` (parse bảng PDF) + `python-docx` (parse bảng Word)
 - **Output**: Parquet (`bronze/structured_data/data_extracted.parquet`)
 - **Schema**: `ma_chi_tieu`, `nhom_don_vi`, `quy_danh_gia`, `dinh_ky_thu_thap`, `muc_dang_ky`, `muc_dat`, `ket_qua_he_thong`, `checksum_sha256`
@@ -107,7 +107,7 @@
 > Bronze chạy bằng **boto3 thuần** (không qua Spark), phù hợp vì đây là tác vụ parse file, không cần Spark. Tuy nhiên tên file `spark_ingest_bronze.py` gây nhầm lẫn.
 
 #### 🥈 Tầng Silver — `spark_bronze_to_silver.py`
-- **Input**: Parquet Bronze từ MinIO
+- **Input**: Parquet Bronze từ Ozone
 - **Logic**: `MERGE INTO` Iceberg (dedup bằng `checksum_sha256`)
 - **Output**: Iceberg table `lakehouse.silver.kpi_cusc_master`
 - **Nessie Flow**: `create_branch` → `use_branch` → MERGE → `check_quality_silver` → `merge_branch_to_main`
@@ -159,7 +159,7 @@ main ─────────────────────────
 
 | Endpoint | Chức năng |
 |---|---|
-| `POST /api/upload` | Upload file PDF/DOCX lên MinIO bronze |
+| `POST /api/upload` | Upload file PDF/DOCX lên Ozone staging |
 | `GET /api/catalog/history` | Lấy commit history từ Nessie |
 | `GET /api/catalog/references` | Lấy danh sách branch/tag từ Nessie |
 | `POST /login` | JWT authentication |
@@ -173,7 +173,7 @@ main ─────────────────────────
 
 **Các trang**:
 - `/login` — Đăng nhập JWT
-- `/user` — Upload file (PDF/DOCX → MinIO)
+- `/user` — Upload file (PDF/DOCX → Ozone)
 - `/admin` — Admin Dashboard (embed Superset iframe + catalog history)
 
 **Trang `CatalogHistoryTimeline.jsx`** tồn tại nhưng **chưa được route** trong `App.jsx`.
@@ -192,7 +192,7 @@ main ─────────────────────────
 | **Dedup bằng checksum** | `MERGE INTO` với `checksum_sha256` đảm bảo idempotency |
 | **Đa nguồn dữ liệu** | Batch (PDF/DOCX) + Streaming (Kafka) song song |
 | **Lineage tracking** | OpenMetadata cho phép trace nguồn gốc dữ liệu Bronze → Silver → Gold |
-| **Tech stack hiện đại** | Iceberg + Nessie + Trino + MinIO là bộ lakehouse chuẩn production |
+| **Tech stack hiện đại** | Iceberg + Nessie + Trino + Apache Ozone tạo thành lakehouse phân tán |
 
 ### ⚠️ Những điểm CẦN CẢI THIỆN
 
@@ -209,7 +209,7 @@ main ─────────────────────────
 
 
 7. **Backend chưa trigger pipeline** airflow 
-   - Sau khi upload file lên MinIO, không có cơ chế tự động kích hoạt pipeline Bronze → Silver → Gold
+   - Sau khi upload file lên Ozone, pipeline tự động kích hoạt Bronze → Silver → Gold
    - → Cần webhook/scheduler hoặc API endpoint để trigger Spark job
 
 #### 🟢 Vấn đề nhỏ (Nice-to-have)
@@ -233,13 +233,13 @@ User Upload File (PDF/DOCX)
 FastAPI /api/upload
         │
         ▼
-MinIO: bronze/unstructured_data/
+Ozone: bronze/unstructured_data/
         │
         ▼  [Trigger: tự động sau upload hoặc cron]
 spark_ingest_bronze.py (boto3 + pdfplumber/docx)
         │
         ▼
-MinIO: bronze/structured_data/data_extracted.parquet
+Ozone: bronze/structured_data/data_extracted.parquet
         │
         ▼
 spark_bronze_to_silver.py (PySpark + Nessie branch)

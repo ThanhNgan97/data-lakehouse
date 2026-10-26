@@ -2,13 +2,13 @@
 """
 reset_lakehouse_clean.py
 ------------------------------------------------------------
-Reset ĐỒNG BỘ cả Nessie catalog (Postgres) và dữ liệu MinIO, để
+Reset ĐỒNG BỘ cả Nessie catalog (Postgres) và dữ liệu Apache Ozone, để
 tránh tình trạng "orphaned table" (Nessie nhớ bảng cũ nhưng file
-vật lý đã bị xoá) — vốn xảy ra khi bạn xoá dữ liệu MinIO thủ công
+vật lý đã bị xoá) — vốn xảy ra khi bạn xoá dữ liệu Ozone thủ công
 mà không xoá luôn lịch sử catalog tương ứng trong Nessie.
 
 Script này làm 2 việc, LUÔN CÙNG LÚC:
-  1. Xoá sạch nội dung bucket 'university-lakehouse' trên MinIO
+  1. Xoá sạch nội dung bucket 'university-lakehouse' trên Ozone
      (chỉ xoá object, KHÔNG xoá bucket, để khỏi phải tạo lại).
   2. Reset database 'nessie_db' trong Postgres về trạng thái ban đầu
      (DROP + CREATE lại) -> Nessie sẽ tự tạo lại schema + branch
@@ -34,21 +34,21 @@ import psycopg2
 from psycopg2 import sql
 
 from env_config import (
-    MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_BUCKET_NAME,
+    S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET_NAME,
     PG_HOST, PG_PORT, PG_USER, PG_PASSWORD, PG_MAINTENANCE_DB, NESSIE_DB,
 )
 
-# --- Cấu hình MinIO ---
-BUCKET_NAME = MINIO_BUCKET_NAME
+# --- Cấu hình Apache Ozone S3 Gateway ---
+BUCKET_NAME = S3_BUCKET_NAME
 
 
-def clear_minio_bucket():
+def clear_ozone_bucket():
     print(f"🗑️  Đang xoá toàn bộ object trong bucket '{BUCKET_NAME}'...")
     s3 = boto3.client(
         "s3",
-        endpoint_url=MINIO_ENDPOINT,
-        aws_access_key_id=MINIO_ACCESS_KEY,
-        aws_secret_access_key=MINIO_SECRET_KEY,
+        endpoint_url=S3_ENDPOINT,
+        aws_access_key_id=S3_ACCESS_KEY,
+        aws_secret_access_key=S3_SECRET_KEY,
     )
     paginator = s3.get_paginator("list_objects_v2")
     total_deleted = 0
@@ -59,7 +59,7 @@ def clear_minio_bucket():
         keys = [{"Key": obj["Key"]} for obj in objects]
         s3.delete_objects(Bucket=BUCKET_NAME, Delete={"Objects": keys})
         total_deleted += len(keys)
-    print(f"✅ Đã xoá {total_deleted} object khỏi MinIO.")
+    print(f"✅ Đã xoá {total_deleted} object khỏi Apache Ozone.")
 
 
 def reset_nessie_database():
@@ -90,7 +90,7 @@ def reset_nessie_database():
 
 def main():
     print("=" * 60)
-    print("⚠️  RESET ĐỒNG BỘ LAKEHOUSE (MinIO + Nessie catalog)")
+    print("⚠️  RESET ĐỒNG BỘ LAKEHOUSE (Apache Ozone + Nessie catalog)")
     print("    Toàn bộ dữ liệu Bronze/Silver/Gold và lịch sử branch/tag sẽ bị xoá.")
     print("=" * 60)
     confirm = input("Gõ 'YES' để xác nhận tiếp tục: ")
@@ -98,7 +98,7 @@ def main():
         print("❌ Đã huỷ, không có gì bị xoá.")
         sys.exit(0)
 
-    clear_minio_bucket()
+    clear_ozone_bucket()
     reset_nessie_database()
 
     print("\n🌟 HOÀN TẤT. Bước tiếp theo BẮT BUỘC phải làm:")

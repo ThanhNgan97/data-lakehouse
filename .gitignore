@@ -16,6 +16,7 @@ metastore_db/
 
 # Local runtime/test artifacts
 *.log
+airflow_logs/
 .pytest_cache/
 
 # Pipeline Runtime, AI Cache & Staging Data
@@ -27,6 +28,9 @@ lakehouse/spark/.generated_exports/
 superset_exports/generated/
 *.zip
 
+# Great Expectations runtime artifacts and local secrets
+lakehouse/gx/uncommitted/
+lakehouse/gx/**/.ge_store_backend_id
 # Local presentation samples (generated for preview only)
 outputs/parquet_layers_demo/
 scratch/parquet_layers_artifact/

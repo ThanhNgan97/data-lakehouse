@@ -207,7 +207,7 @@
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <!-- Prominent Tenant ID Card (Khắc phục lỗi đổ chung thư mục MinIO) -->
+        <!-- Prominent Tenant ID Card (prevents mixed Apache Ozone tenant prefixes) -->
         <div class="md:col-span-2 p-4 bg-indigo-50/70 border border-indigo-200/80 rounded-xl">
           <div class="flex items-start space-x-3">
             <div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 shadow-xs">
@@ -224,12 +224,12 @@
                   <span>Check Trùng Tên</span>
                 </button>
                 <div class="text-[11px] text-indigo-800 bg-white border border-indigo-200 px-3 py-2 rounded-lg flex items-center whitespace-nowrap font-mono shadow-2xs">
-                  📁 Thư mục MinIO: <code id="lbl-minio-step1" class="ml-1 font-bold text-indigo-900">staging/postgresqltest/</code>
+                  📁 Apache Ozone prefix: <code id="lbl-s3-step1" class="ml-1 font-bold text-indigo-900">staging/postgresqltest/</code>
                 </div>
               </div>
               <div id="tenant-check-box" class="mt-2.5"></div>
               <p class="text-[11px] text-indigo-800 mt-1.5 leading-relaxed">
-                <strong>Lưu ý:</strong> Mỗi hệ thống database Docker của một khách hàng cần có <strong>Mã Khách Hàng (Tenant ID) riêng biệt</strong> để dữ liệu đổ vào thư mục độc lập trên MinIO Lakehouse (không bị đè hoặc lẫn lộn dữ liệu).
+                <strong>Lưu ý:</strong> Mỗi hệ thống database Docker của một khách hàng cần có <strong>Mã Khách Hàng (Tenant ID) riêng biệt</strong> để dữ liệu đổ vào prefix độc lập trên Apache Ozone (không bị đè hoặc lẫn lộn dữ liệu).
               </p>
             </div>
           </div>
@@ -477,19 +477,19 @@
           <input id="plan-timeout" type="number" value="30" class="w-full bg-white border border-[#E2E8F0] focus:border-[#0F172A] rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#0F172A] outline-none transition-colors">
         </div>
 
-        <!-- Custom MinIO Destination Storage Config -->
+        <!-- Apache Ozone S3 destination storage config -->
         <div class="sm:col-span-2 md:col-span-4 pt-3 border-t border-[#E2E8F0] grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label class="block text-[11px] font-semibold text-[#334155] mb-1">Tên Bucket MinIO</label>
-            <input id="plan-minio-bucket" type="text" value="university-lakehouse" oninput="updateMinioPathPreview()" class="w-full bg-white border border-[#E2E8F0] focus:border-[#0F172A] rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#0F172A] outline-none transition-colors">
+            <label class="block text-[11px] font-semibold text-[#334155] mb-1">Tên bucket Apache Ozone</label>
+            <input id="plan-s3-bucket" type="text" value="university-lakehouse" oninput="updateS3PathPreview()" class="w-full bg-white border border-[#E2E8F0] focus:border-[#0F172A] rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#0F172A] outline-none transition-colors">
           </div>
           <div>
-            <label class="block text-[11px] font-semibold text-[#334155] mb-1">Đường dẫn thư mục MinIO (Path Prefix)</label>
-            <input id="plan-minio-path" type="text" value="staging/postgresqltest" oninput="updateMinioPathPreview()" class="w-full bg-white border border-[#E2E8F0] focus:border-[#0F172A] rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#0F172A] outline-none transition-colors">
+            <label class="block text-[11px] font-semibold text-[#334155] mb-1">Apache Ozone object prefix</label>
+            <input id="plan-s3-path" type="text" value="staging/postgresqltest" oninput="updateS3PathPreview()" class="w-full bg-white border border-[#E2E8F0] focus:border-[#0F172A] rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#0F172A] outline-none transition-colors">
           </div>
           <div class="sm:col-span-2 text-[11px] font-mono text-slate-500 flex flex-wrap items-center justify-between gap-2 bg-white p-2.5 rounded-lg border border-[#E2E8F0]">
-            <span>📁 Vị trí lưu Parquet thực tế trên MinIO:</span>
-            <span class="bg-indigo-50 text-indigo-900 border border-indigo-200 px-2 py-0.5 rounded font-bold" id="plan-minio-preview">university-lakehouse/staging/postgresqltest/${STREAM_NAME}/part_*.parquet</span>
+            <span>📁 Vị trí lưu Parquet thực tế trên Apache Ozone:</span>
+            <span class="bg-indigo-50 text-indigo-900 border border-indigo-200 px-2 py-0.5 rounded font-bold" id="plan-s3-preview">university-lakehouse/staging/postgresqltest/${STREAM_NAME}/part_*.parquet</span>
           </div>
         </div>
       </div>
@@ -606,7 +606,7 @@
           <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           <span>Khởi tạo Thành công Hoàn toàn!</span>
         </div>
-        <p class="text-[13px] text-[#64748B]">Hệ thống đã sẵn sàng kết nối vào Airbyte để đồng bộ sang MinIO Parquet.</p>
+        <p class="text-[13px] text-[#64748B]">Hệ thống đã sẵn sàng kết nối vào Airbyte để đồng bộ sang Apache Ozone Parquet.</p>
       </div>
 
       <!-- Credential Summary Card -->
@@ -638,11 +638,11 @@
         </div>
 
         <div class="p-5 bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl">
-          <h3 class="text-[11px] font-semibold text-emerald-900 uppercase tracking-wider mb-3">Cấu hình Đích đến MinIO Lakehouse</h3>
+          <h3 class="text-[11px] font-semibold text-emerald-900 uppercase tracking-wider mb-3">Cấu hình đích đến Apache Ozone</h3>
           <div class="space-y-2 text-xs font-mono text-emerald-950">
             <div><strong class="font-medium text-emerald-900">Bucket đích:</strong> <span class="bg-emerald-100/70 text-emerald-900 px-1.5 py-0.5 rounded text-[11px]">university-lakehouse</span></div>
             <div><strong class="font-medium text-emerald-900">Định dạng file:</strong> <span class="bg-emerald-100/70 text-emerald-900 px-1.5 py-0.5 rounded text-[11px]">Parquet (Snappy Compressed)</span></div>
-            <div><strong class="font-medium text-emerald-900">Phân vùng đường dẫn:</strong> <span id="res-minio-path" class="text-emerald-900 font-bold"></span></div>
+            <div><strong class="font-medium text-emerald-900">Phân vùng đường dẫn:</strong> <span id="res-s3-path" class="text-emerald-900 font-bold"></span></div>
             <div class="pt-2 text-[12px] text-emerald-800 font-sans leading-relaxed">
               Dữ liệu từ các View này khi Airbyte kéo về sẽ tự động nén thành Parquet và lưu cố định tại thư mục trên.
             </div>
@@ -660,7 +660,7 @@
           <span class="text-[10px] bg-slate-800 text-slate-300 px-2.5 py-0.5 rounded border border-slate-700 font-medium">Zero-Manual Handoff</span>
         </div>
         <p class="text-xs text-slate-400 mb-4">
-          Gửi gói cấu hình an toàn này trực tiếp về máy chủ Airbyte để hệ thống tự động kiểm tra tài nguyên và bắt đầu trích xuất vào MinIO Parquet.
+          Gửi gói cấu hình an toàn này trực tiếp về máy chủ Airbyte để hệ thống tự động kiểm tra tài nguyên và bắt đầu trích xuất vào Apache Ozone Parquet.
         </p>
 
         <div class="flex flex-col sm:flex-row items-center gap-3">
@@ -708,12 +708,12 @@
               <span class="text-xs font-mono font-medium bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-200">SCD Type 2 Timeline</span>
             </h2>
             <p class="text-[13px] text-[#64748B] mt-0.5">
-              Đọc trực tiếp các file Parquet từ MinIO Staging Layer và khôi phục toàn bộ lịch sử thay đổi từng dòng dữ liệu (INSERT / UPDATE / DELETE).
+              Đọc trực tiếp các file Parquet từ Apache Ozone staging và khôi phục toàn bộ lịch sử thay đổi từng dòng dữ liệu (INSERT / UPDATE / DELETE).
             </p>
           </div>
           <button onclick="loadExplorerStreams()" class="self-start sm:self-auto bg-white border border-[#E2E8F0] hover:bg-slate-50 text-xs font-medium px-3 py-2 rounded-lg text-[#334155] shadow-xs flex items-center space-x-1.5 transition cursor-pointer">
             <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-            <span>Làm mới MinIO</span>
+            <span>Làm mới Apache Ozone</span>
           </button>
         </div>
 
@@ -750,7 +750,7 @@
       <!-- Loading Placeholder -->
       <div id="explorer-loading" class="hidden text-center py-16 bg-white rounded-2xl border border-[#E2E8F0]">
         <svg class="animate-spin h-6 w-6 text-[#0F172A] mx-auto mb-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-        <div class="text-sm font-medium text-[#0F172A]">Đang đọc dữ liệu Parquet từ MinIO Lakehouse...</div>
+        <div class="text-sm font-medium text-[#0F172A]">Đang đọc dữ liệu Parquet từ Apache Ozone...</div>
         <div class="text-xs text-slate-500 mt-1">Đang phân tích các file batch và gom nhóm theo Primary Key</div>
       </div>
 
@@ -1122,15 +1122,15 @@
       if (connTenant && connTenant.value !== safeVal) connTenant.value = safeVal;
       if (planTenant && planTenant.value !== safeVal) planTenant.value = safeVal;
 
-      const minioPathInput = document.getElementById('plan-minio-path');
-      if (minioPathInput && (minioPathInput.value.startsWith('staging/') || minioPathInput.value.startsWith('bronze_archive/') || minioPathInput.value.startsWith('bronze/') || minioPathInput.value === '')) {
-        minioPathInput.value = `staging/${safeVal}`;
+      const s3PathInput = document.getElementById('plan-s3-path');
+      if (s3PathInput && (s3PathInput.value.startsWith('staging/') || s3PathInput.value.startsWith('bronze_archive/') || s3PathInput.value.startsWith('bronze/') || s3PathInput.value === '')) {
+        s3PathInput.value = `staging/${safeVal}`;
       }
 
-      const lblMinio1 = document.getElementById('lbl-minio-step1');
-      if (lblMinio1) lblMinio1.innerText = `staging/${safeVal}/`;
+      const storageLabel = document.getElementById('lbl-s3-step1');
+      if (storageLabel) storageLabel.innerText = `staging/${safeVal}/`;
 
-      updateMinioPathPreview();
+      updateS3PathPreview();
 
       // Update CDC publication name if needed
       if (selectedSyncStrategy === 'CDC') {
@@ -1158,7 +1158,7 @@
         statusBox.innerHTML = `
           <div class="flex items-center space-x-2 text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-2 rounded-lg">
             <svg class="animate-spin h-3.5 w-3.5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
-            <span>Đang kiểm tra trùng tên '${tenantVal}' trên MinIO & Airbyte...</span>
+            <span>Đang kiểm tra trùng tên '${tenantVal}' trên Apache Ozone & Airbyte...</span>
           </div>`;
       }
 
@@ -1171,8 +1171,8 @@
 
         if (data.is_duplicate) {
           let detailsHtml = '';
-          if (data.minio && data.minio.exists) {
-            detailsHtml += `<div class="mt-1">📁 <strong>MinIO:</strong> Đã có thư mục lưu trữ <code class="bg-amber-100 px-1 py-0.5 rounded text-amber-900 font-mono">${data.minio.path || 'staging/' + tenantVal + '/'}</code> (Chứa ${data.minio.files_count} file Parquet: ${data.minio.tables.join(', ') || 'dữ liệu'})</div>`;
+          if (data.storage && data.storage.exists) {
+            detailsHtml += `<div class="mt-1">📁 <strong>Apache Ozone:</strong> Đã có prefix lưu trữ <code class="bg-amber-100 px-1 py-0.5 rounded text-amber-900 font-mono">${data.storage.path || 'staging/' + tenantVal + '/'}</code> (Chứa ${data.storage.files_count} file Parquet: ${data.storage.tables.join(', ') || 'dữ liệu'})</div>`;
           }
           if (data.airbyte && data.airbyte.exists) {
             const abItems = [...(data.airbyte.connection_names || []), ...(data.airbyte.sources || [])];
@@ -1196,14 +1196,14 @@
                 ${detailsHtml || 'Tên này đã được sử dụng trước đó.'}
               </div>
               <div class="mt-2 text-[11px] text-amber-700 bg-amber-100/60 p-1.5 rounded border border-amber-200">
-                💡 <strong>Lưu ý:</strong> Nếu đây là nguồn dữ liệu của <em>khách hàng mới</em>, hãy đổi mã để tránh trộn lẫn file trên MinIO. Nếu bạn chủ ý đồng bộ tiếp cho cùng khách hàng này, bạn có thể tiếp tục.
+                💡 <strong>Lưu ý:</strong> Nếu đây là nguồn dữ liệu của <em>khách hàng mới</em>, hãy đổi mã để tránh trộn lẫn file trên Apache Ozone. Nếu bạn chủ ý đồng bộ tiếp cho cùng khách hàng này, bạn có thể tiếp tục.
               </div>
             </div>`;
         } else {
           statusBox.innerHTML = `
             <div class="flex items-center space-x-1.5 text-xs text-emerald-800 bg-emerald-50 border border-emerald-300 px-3 py-2 rounded-lg">
               <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-              <span><strong>Mã khả dụng:</strong> '${tenantVal}' chưa tồn tại trên MinIO & Airbyte (sẵn sàng sử dụng).</span>
+              <span><strong>Mã khả dụng:</strong> '${tenantVal}' chưa tồn tại trên Apache Ozone & Airbyte (sẵn sàng sử dụng).</span>
             </div>`;
         }
       } catch (e) {
@@ -1220,11 +1220,11 @@
       checkTenantDuplicate(true);
     }
 
-    function updateMinioPathPreview() {
-      const bucket = document.getElementById('plan-minio-bucket')?.value || 'university-lakehouse';
-      const path = document.getElementById('plan-minio-path')?.value || 'staging';
+    function updateS3PathPreview() {
+      const bucket = document.getElementById('plan-s3-bucket')?.value || 'university-lakehouse';
+      const path = document.getElementById('plan-s3-path')?.value || 'staging';
       const cleanPath = path.replace(/^\/+|\/+$/g, '');
-      const previewEl = document.getElementById('plan-minio-preview');
+      const previewEl = document.getElementById('plan-s3-preview');
       if (previewEl) {
         previewEl.innerText = `${bucket}/${cleanPath}/\${STREAM_NAME}/part_*.parquet`;
       }
@@ -1365,7 +1365,7 @@
       hideAlert();
       const tenantVal = (document.getElementById('conn-tenant')?.value || '').trim();
       if (isTenantDuplicate) {
-        const ok = confirm(`⚠️ CẢNH BÁO TRÙNG TÊN:\nMã khách hàng '${tenantVal}' đã tồn tại trên MinIO/Airbyte!\n\nNếu đây là khách hàng MỚI, bấm 'Cancel' để đổi tên (Gợi ý: '${currentSuggestedTenant}').\nNếu bạn muốn tiếp tục ghi nối tiếp cho khách hàng này, bấm 'OK'.`);
+        const ok = confirm(`⚠️ CẢNH BÁO TRÙNG TÊN:\nMã khách hàng '${tenantVal}' đã tồn tại trên Apache Ozone/Airbyte!\n\nNếu đây là khách hàng MỚI, bấm 'Cancel' để đổi tên (Gợi ý: '${currentSuggestedTenant}').\nNếu bạn muốn tiếp tục ghi nối tiếp cho khách hàng này, bấm 'OK'.`);
         if (!ok) return;
       }
 
@@ -1553,8 +1553,8 @@
 
       const tenantId = (document.getElementById('conn-tenant')?.value || document.getElementById('plan-tenant')?.value || 'tenant_01').trim();
       const schemaOrPub = document.getElementById('plan-schema')?.value || (selectedSyncStrategy === 'CDC' ? `airbyte_pub_${tenantId}` : 'airbyte_vault');
-      const bucket = document.getElementById('plan-minio-bucket')?.value || 'university-lakehouse';
-      const pathPrefix = document.getElementById('plan-minio-path')?.value || `staging/${tenantId}`;
+      const bucket = document.getElementById('plan-s3-bucket')?.value || 'university-lakehouse';
+      const pathPrefix = document.getElementById('plan-s3-path')?.value || `staging/${tenantId}`;
 
       generatedPlan = {
         tenant_id: tenantId,
@@ -1565,8 +1565,8 @@
         max_slot_wal_keep_size_gb: 20,
         reader_username: document.getElementById('plan-user')?.value || 'airbyte_reader',
         statement_timeout_sec: parseInt(document.getElementById('plan-timeout')?.value) || 30,
-        minio_bucket: bucket,
-        minio_path: pathPrefix,
+        s3_bucket: bucket,
+        s3_path: pathPrefix,
         views: views
       };
 
@@ -1671,7 +1671,7 @@
         document.getElementById('res-schema').innerText = (selectedSyncStrategy === 'CDC') ? `${currentConfig.schema} (Publication: ${generatedPlan.publication_name})` : generatedPlan.integration_schema;
         document.getElementById('res-user').innerText = generatedPlan.reader_username;
         document.getElementById('res-pass').innerText = generatedPlan.reader_password;
-        document.getElementById('res-minio-path').innerText = generatedPlan.minio_path ? (generatedPlan.minio_path.endsWith('/') ? `${generatedPlan.minio_path}table=\${STREAM_NAME}/` : `${generatedPlan.minio_path}/table=\${STREAM_NAME}/`) : `staging/${generatedPlan.tenant_id}/table=\${STREAM_NAME}/`;
+        document.getElementById('res-s3-path').innerText = generatedPlan.s3_path ? (generatedPlan.s3_path.endsWith('/') ? `${generatedPlan.s3_path}table=\${STREAM_NAME}/` : `${generatedPlan.s3_path}/table=\${STREAM_NAME}/`) : `staging/${generatedPlan.tenant_id}/table=\${STREAM_NAME}/`;
 
         const btnNext6 = document.getElementById('btn-next-step6');
         if (btnNext6) {
@@ -1760,7 +1760,7 @@
           <div class="p-3 bg-emerald-950/80 border border-emerald-500/40 rounded-lg mb-3">
             <div class="text-emerald-300 font-semibold text-xs flex items-center space-x-1.5">
               <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              <span>Airbyte đã nhận được dữ liệu và bắt đầu đồng bộ vào MinIO</span>
+              <span>Airbyte đã nhận được dữ liệu và bắt đầu đồng bộ vào Apache Ozone</span>
             </div>
             <div class="text-slate-300 text-[11px] mt-1">
               Mã Khách hàng: <strong class="text-white">${data.tenant_id}</strong> | Job ID: <strong class="text-amber-300">#${data.airbyte_job_id}</strong> | Trạng thái: <strong class="text-emerald-400">${data.job_status}</strong>
@@ -1825,12 +1825,12 @@
     async function loadExplorerStreams() {
       const tenantSelect = document.getElementById('explorer-tenant');
       const tableSelect = document.getElementById('explorer-table');
-      tenantSelect.innerHTML = '<option value="">Đang kết nối MinIO...</option>';
+      tenantSelect.innerHTML = '<option value="">Đang kết nối Apache Ozone...</option>';
       tableSelect.innerHTML = '<option value="">--</option>';
 
       try {
         const res = await fetch('/api/lakehouse/streams');
-        if (!res.ok) throw new Error('Không thể lấy danh sách streams từ MinIO');
+        if (!res.ok) throw new Error('Không thể lấy danh sách streams từ Apache Ozone');
         explorerStreams = await res.json();
 
         if (!explorerStreams || explorerStreams.length === 0) {

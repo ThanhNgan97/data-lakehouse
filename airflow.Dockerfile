@@ -18,14 +18,14 @@ USER airflow
 # Cài tất cả packages một lần khi build image
 RUN pip install --no-cache-dir \
     pyspark==3.5.0 \
-    minio \
     python-docx \
     pdfplumber \
     boto3 \
     psycopg2-binary \
     openpyxl \
     xlrd \
-    google-genai
+    google-genai \
+    great_expectations==1.24.0
 
 # Resolve JVM dependencies once while building the immutable image. Runtime
 # DAGs load these local JARs and do not need Maven or a machine-specific Ivy

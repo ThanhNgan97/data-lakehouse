@@ -797,7 +797,7 @@ SECURITY_ENV_REFERENCE_COUNT=0
 SECURITY_CLASSIFICATION=MUST_FIX_BEFORE_PRODUCTION
 ```
 
-Findings include inline sensitive settings in local/demo configuration for components such as PostgreSQL, MinIO, Nessie datasource configuration, Superset, Airflow, Mock API, and `.env`.
+Findings include inline sensitive settings in local/demo configuration for components such as PostgreSQL, the legacy object-storage configuration, Nessie datasource configuration, Superset, Airflow, Mock API, and `.env`.
 
 No secret values are reproduced in this report.
 

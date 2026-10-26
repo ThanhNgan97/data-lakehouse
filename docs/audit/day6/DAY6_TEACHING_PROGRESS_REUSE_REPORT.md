@@ -193,7 +193,7 @@ Mock Teaching API
 → HttpAdapter
 → generic API ingestion
 → Bronze Writer
-→ MinIO source-native Bronze
+→ Apache Ozone source-native Bronze
 ```
 
 Verified:

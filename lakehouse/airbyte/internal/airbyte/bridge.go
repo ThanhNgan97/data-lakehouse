@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -263,14 +264,14 @@ func (b *BridgeServer) OnboardAndSync(ctx context.Context, bundle model.AirbyteC
 		_ = b.client.UpdateSource(ctx, sourceID, sourceConfig)
 	}
 
-	// 4. Create or Find Destination (MinIO S3 Parquet) via Public API
-	bucketName := bundle.MinIODestination.RecommendedBucket
+	// 4. Create or find the Apache Ozone S3 Parquet destination.
+	bucketName := bundle.S3Destination.RecommendedBucket
 	if bucketName == "" {
 		bucketName = "university-lakehouse"
 	}
 	destPath := fmt.Sprintf("staging/%s", tenantID)
-	if bundle.MinIODestination.RecommendedPath != "" {
-		cleanP := strings.TrimRight(bundle.MinIODestination.RecommendedPath, "/")
+	if bundle.S3Destination.RecommendedPath != "" {
+		cleanP := strings.TrimRight(bundle.S3Destination.RecommendedPath, "/")
 		cleanP = strings.TrimSuffix(cleanP, "/table=${STREAM_NAME}")
 		cleanP = strings.TrimSuffix(cleanP, "/${STREAM_NAME}")
 		cleanP = strings.TrimSuffix(cleanP, "table=${STREAM_NAME}")
@@ -281,16 +282,28 @@ func (b *BridgeServer) OnboardAndSync(ctx context.Context, bundle model.AirbyteC
 			destPath = cleanP
 		}
 	}
-	destName := fmt.Sprintf("MinIO_Lakehouse_%s", tenantID)
+	destName := fmt.Sprintf("Ozone_Lakehouse_%s", tenantID)
+	s3Endpoint := os.Getenv("AIRBYTE_S3_ENDPOINT")
+	if s3Endpoint == "" {
+		s3Endpoint = "http://host.docker.internal:9878"
+	}
+	s3AccessKey := os.Getenv("S3_ACCESS_KEY")
+	if s3AccessKey == "" {
+		s3AccessKey = "lakehouse"
+	}
+	s3SecretKey := os.Getenv("S3_SECRET_KEY")
+	if s3SecretKey == "" {
+		s3SecretKey = "lakehouse-secret"
+	}
 
 	destConfig := map[string]any{
 		"destinationType":   "s3",
-		"s3_endpoint":       "http://host.docker.internal:9000",
+		"s3_endpoint":       s3Endpoint,
 		"s3_bucket_name":    bucketName,
 		"s3_bucket_region":  "",
 		"s3_bucket_path":    destPath,
-		"access_key_id":     "minioadmin",
-		"secret_access_key": "minioadmin",
+		"access_key_id":     s3AccessKey,
+		"secret_access_key": s3SecretKey,
 		"s3_path_format":    "${STREAM_NAME}/part_",
 		"format": map[string]any{
 			"format_type":       "Parquet",
@@ -330,7 +343,7 @@ func (b *BridgeServer) OnboardAndSync(ctx context.Context, bundle model.AirbyteC
 	}
 
 	// 6. Create or Find Connection
-	connName := fmt.Sprintf("Sync_%s_to_MinIO", tenantID)
+	connName := fmt.Sprintf("Sync_%s_to_Ozone", tenantID)
 	connID, err := b.client.FindConnectionBySourceAndDest(ctx, sourceID, destID)
 	if err != nil || connID == "" {
 		connID, err = b.client.CreateConnection(ctx, connName, sourceID, destID, streamConfigs)
@@ -357,7 +370,7 @@ func (b *BridgeServer) OnboardAndSync(ctx context.Context, bundle model.AirbyteC
 
 	response := &OnboardResponse{
 		Status:              "SUCCESS",
-		Message:             fmt.Sprintf("Airbyte OSS đã kết nối thành công tới database nguồn (%d Views), tự động cấu hình MinIO Parquet Destination và đã kích hoạt Sync Job #%d!", len(discoveredList), jobID),
+		Message:             fmt.Sprintf("Airbyte OSS đã kết nối thành công tới database nguồn (%d Views), tự động cấu hình Apache Ozone S3 Parquet Destination và đã kích hoạt Sync Job #%d!", len(discoveredList), jobID),
 		TenantID:            bundle.TenantID,
 		AirbyteSourceID:     sourceID,
 		AirbyteDestID:       destID,

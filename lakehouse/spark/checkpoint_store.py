@@ -18,7 +18,7 @@ from botocore.exceptions import ClientError
 
 from bronze_writer import get_s3_client
 from db_utils import get_db_connection
-from env_config import MINIO_BUCKET_NAME
+from env_config import S3_BUCKET_NAME
 
 
 ConnectionFactory = Callable[[], Any]
@@ -300,8 +300,8 @@ class PostgresCheckpointStore:
             connection.close()
 
 
-class MinioCheckpointStore:
-    """MinIO-backed checkpoint store for the serialized API Airflow DAG.
+class OzoneCheckpointStore:
+    """Apache Ozone-backed checkpoint store for the serialized API Airflow DAG.
 
     Each registered dataset owns one small JSON object. The DAG is configured
     with ``max_active_runs=1``, so the read/version-check/write sequence is not
@@ -312,7 +312,7 @@ class MinioCheckpointStore:
         self,
         *,
         s3_client_factory: Callable[[], Any] = get_s3_client,
-        bucket: str = MINIO_BUCKET_NAME,
+        bucket: str = S3_BUCKET_NAME,
         prefix: str = "metadata/api_ingestion_checkpoints",
     ) -> None:
         self._s3_client_factory = s3_client_factory
@@ -388,7 +388,7 @@ class MinioCheckpointStore:
             if error_code in {"NoSuchKey", "404", "NotFound"}:
                 return None
             raise CheckpointStoreError(
-                f"unable to read MinIO checkpoint for {dataset_id!r}"
+                f"unable to read Apache Ozone checkpoint for {dataset_id!r}"
             ) from exc
 
         try:
@@ -396,7 +396,7 @@ class MinioCheckpointStore:
             document = json.loads(raw_document.decode("utf-8"))
         except (KeyError, AttributeError, UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise CheckpointStoreError(
-                f"invalid MinIO checkpoint document for {dataset_id!r}"
+                f"invalid Apache Ozone checkpoint document for {dataset_id!r}"
             ) from exc
 
         return self._document_to_state(

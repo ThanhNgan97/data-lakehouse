@@ -8,7 +8,7 @@ TẦNG GOLD (APACHE SPARK + ICEBERG) - ĐỀ TÀI DATA LAKEHOUSE CUSC
 import os
 import sys
 from env_config import (
-    MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_ENDPOINT,
+    S3_ACCESS_KEY, S3_SECRET_KEY, S3_ENDPOINT,
     NESSIE_API_URL, HADOOP_HOME, SPARK_LOCAL_IP,
 )
 from spark_dependency_config import configure_pyspark_dependencies
@@ -17,8 +17,8 @@ configure_pyspark_dependencies()
 
 os.environ["HADOOP_HOME"]           = HADOOP_HOME
 os.environ["PATH"]                  = os.path.join(HADOOP_HOME, "bin") + ";" + os.environ.get("PATH", "")
-os.environ["AWS_ACCESS_KEY_ID"]     = MINIO_ACCESS_KEY
-os.environ["AWS_SECRET_ACCESS_KEY"] = MINIO_SECRET_KEY
+os.environ["AWS_ACCESS_KEY_ID"]     = S3_ACCESS_KEY
+os.environ["AWS_SECRET_ACCESS_KEY"] = S3_SECRET_KEY
 os.environ["SPARK_LOCAL_IP"] = SPARK_LOCAL_IP
 
 from pyspark.sql import SparkSession
@@ -122,10 +122,10 @@ def get_spark_session():
         .config("spark.sql.catalog.lakehouse.warehouse", "s3a://university-lakehouse/iceberg-warehouse")
         .config("spark.sql.catalog.lakehouse.cache-enabled", "false")
         .config("spark.sql.catalogImplementation", "in-memory")
-        .config("spark.sql.catalog.lakehouse.s3.endpoint", MINIO_ENDPOINT)
-        .config("spark.hadoop.fs.s3a.endpoint", MINIO_ENDPOINT)
-        .config("spark.hadoop.fs.s3a.access.key", MINIO_ACCESS_KEY)
-        .config("spark.hadoop.fs.s3a.secret.key", MINIO_SECRET_KEY)
+        .config("spark.sql.catalog.lakehouse.s3.endpoint", S3_ENDPOINT)
+        .config("spark.hadoop.fs.s3a.endpoint", S3_ENDPOINT)
+        .config("spark.hadoop.fs.s3a.access.key", S3_ACCESS_KEY)
+        .config("spark.hadoop.fs.s3a.secret.key", S3_SECRET_KEY)
         .config("spark.hadoop.fs.s3a.path.style.access", "true")
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
         .config("spark.hadoop.fs.s3a.aws.credentials.provider",

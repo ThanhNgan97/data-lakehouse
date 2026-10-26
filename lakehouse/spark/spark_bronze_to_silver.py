@@ -91,8 +91,8 @@ def get_spark_session():
         )
     else:
         builder = builder \
-            .config("spark.hadoop.fs.s3a.access.key", MINIO_ACCESS_KEY) \
-            .config("spark.hadoop.fs.s3a.secret.key", MINIO_SECRET_KEY) \
+            .config("spark.hadoop.fs.s3a.access.key", S3_ACCESS_KEY) \
+            .config("spark.hadoop.fs.s3a.secret.key", S3_SECRET_KEY) \
             .config(
                 "spark.hadoop.fs.s3a.aws.credentials.provider",
                 "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",

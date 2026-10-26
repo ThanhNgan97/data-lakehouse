@@ -30,17 +30,35 @@ The verified development workflow currently requires:
 
 WSL is not currently proven to be mandatory.
 
-## Environment setup
+## Quick start (recommended)
 
-Create the local environment file from the tracked contract:
+On a clean Windows machine with Git and Docker Desktop installed:
 
 ```powershell
-Copy-Item .env.example .env
+git clone <repo>
+cd lakehouse
+.\scripts\setup_team.ps1
 ```
 
-Then replace required `CHANGE_ME` values with local credentials.
+`setup_team.ps1` creates and completes `.env`, starts the canonical
+`newdirection` Compose project, initializes Apache Ozone, seeds the tracked
+demo datasets, imports Superset assets, and runs the read-only verification.
+The setup is complete only when it prints `SETUP_TEAM=PASS`.
 
-`.env` is local runtime configuration and must not be committed.
+For a machine that previously ran the MinIO-based demo, use the explicit
+one-time reset mode. This removes only detected legacy runtime containers and
+the `newdirection` demo volumes, so do not use it when local demo data must be
+preserved:
+
+```powershell
+git switch develop
+git pull --ff-only origin develop
+.\scripts\setup_team.ps1 -Fresh
+```
+
+`.env` remains local runtime configuration and must not be committed. A Gemini
+API key is optional for the core reproducibility check; add `GEMINI_API_KEY`
+to `.env` when document AI profiling is required.
 
 Historical Git exposure is not erased by removing a secret from the current working tree. Previously committed credentials require a separate rotation assessment.
 
@@ -166,7 +184,10 @@ Never commit:
 - generated credential files
 - runtime Docker volume contents
 
-`.env.example` is the canonical variable-name contract and must contain only empty values or placeholders such as `CHANGE_ME`.
+`.env.example` is the canonical variable-name contract. It may contain known,
+local-only demo defaults, but never real deployment credentials or personal
+API keys. `setup_team.ps1` generates unique application secret keys in the
+untracked `.env` file.
 
 ## Reproducibility principle
 
@@ -216,11 +237,20 @@ The real `.env` is local-only and must not be committed.
 ```powershell
 git clone <repo>
 cd lakehouse
-Copy-Item .env.example .env
-# Fill required local values
-.\scripts\bootstrap_team.ps1
-.\scripts\seed_demo.ps1
-.\scripts\verify_team_environment.ps1
+.\scripts\setup_team.ps1
+```
+
+The lower-level `bootstrap_team.ps1`, `seed_demo.ps1`, and
+`verify_team_environment.ps1` scripts remain available for diagnostics and CI.
+Team members should normally use `setup_team.ps1`.
+
+### Local backend
+
+After creating `backend/.venv` and installing `backend/requirements.txt`, start
+the host backend with the repository environment automatically loaded:
+
+```powershell
+.\scripts\start_backend.ps1
 ```
 
 ### Bootstrap

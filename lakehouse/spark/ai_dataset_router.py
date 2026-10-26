@@ -668,7 +668,7 @@ Trả về duy nhất định dạng JSON:
         # this list without another code change as model availability evolves.
         configured_models = os.getenv(
             "GEMINI_DOCUMENT_MODELS",
-            "gemini-2.5-flash,gemini-2.5-flash-lite",
+            "gemini-3.5-flash-lite",
         )
         candidate_models = list(dict.fromkeys(
             model.strip() for model in configured_models.split(",") if model.strip()

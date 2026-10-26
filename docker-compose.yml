@@ -290,6 +290,39 @@ services:
     networks:
       - lakehouse-network
 
+  # Standalone GX validation runtime. This is intentionally not installed in
+  # or mounted into Airflow; orchestration will call it through a stable
+  # validation boundary in a later phase.
+  gx-validator:
+    profiles: ["gx"]
+    build:
+      context: .
+      dockerfile: gx.Dockerfile
+    image: lakehouse-gx-validator:1.24.0
+    container_name: demo-gx-validator
+    restart: "no"
+    environment:
+      GX_ANALYTICS_ENABLED: 'false'
+      NESSIE_API_URL: 'http://nessie:19120/api/v1'
+      NESSIE_BRANCH: ${GX_NESSIE_BRANCH:-}
+      ICEBERG_TABLE: ${GX_ICEBERG_TABLE:-}
+      ICEBERG_WAREHOUSE: ${ICEBERG_WAREHOUSE:-s3a://university-lakehouse/iceberg-warehouse}
+      S3_ENDPOINT: 'http://s3g:9878'
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-lakehouse}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-lakehouse-secret}
+      TRINO_HOST: 'trino'
+      TRINO_PORT: '8080'
+      TRINO_USER: ${GX_TRINO_USER:-gx-validator}
+      TRINO_CATALOG: ${GX_TRINO_CATALOG:-lakehouse}
+      TRINO_SCHEMA: ${GX_TRINO_SCHEMA:-default}
+    depends_on:
+      nessie:
+        condition: service_started
+      trino:
+        condition: service_started
+    networks:
+      - lakehouse-network
+
 
 # Thêm Project Nessie (Iceberg Catalog)
 # Thêm Project Nessie (Iceberg Catalog)
@@ -400,13 +433,10 @@ services:
       TRINO_HOST: 'trino'
       TRINO_PORT: '8080'
       TRINO_HTTP_URL: 'http://trino:8080'
-      GX_CONTEXT_ROOT: '/opt/airflow/gx'
-      GX_ANALYTICS_ENABLED: 'false'
     volumes:
       - ./airflow_webserver_config.py:/opt/airflow/webserver_config.py:ro
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark
-      - ./lakehouse/gx:/opt/airflow/gx
       - ./.env:/opt/airflow/.env
       - airflow_logs:/opt/airflow/logs
     command: webserver
@@ -454,12 +484,9 @@ services:
       TRINO_HOST: 'trino'
       TRINO_PORT: '8080'
       TRINO_HTTP_URL: 'http://trino:8080'
-      GX_CONTEXT_ROOT: '/opt/airflow/gx'
-      GX_ANALYTICS_ENABLED: 'false'
     volumes:
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark
-      - ./lakehouse/gx:/opt/airflow/gx
       - ./.env:/opt/airflow/.env
       - airflow_logs:/opt/airflow/logs
     command: scheduler

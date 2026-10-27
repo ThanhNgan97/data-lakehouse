@@ -1,0 +1,6 @@
+# Business adapter versions selected by Candidate B P8.
+dbt-core==1.9.8
+dbt-trino==1.9.3
+# Read-only Ozone/Nessie readiness probes.
+boto3==1.41.5
+requests==2.34.2

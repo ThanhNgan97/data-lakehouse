@@ -1,0 +1,11 @@
+version: 2
+sources:
+  - name: silver
+    database: "{{ env_var('DBT_TARGET_CATALOG', 'lakehouse') }}"
+    schema: silver
+    description: Canonical Silver on the isolated Nessie ref selected by Trino.
+    tables:
+      - name: teaching_progress
+        description: Demo/assumed source contract, not a verified production CTU IOC contract.
+      - name: learning_outcomes
+        description: Program-period source; only da_xoa=false records enter Gold.

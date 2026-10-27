@@ -1,0 +1,19 @@
+name: api_gold
+version: '1.0.0'
+config-version: 2
+profile: api_gold
+model-paths: [models]
+test-paths: [tests]
+models:
+  api_gold:
+    staging:
+      +materialized: ephemeral
+    marts:
+      +materialized: table
+      +properties:
+        format: "'PARQUET'"
+      fct_learning_outcomes:
+        +pre-hook:
+          - "SET SESSION {{ target.database }}.collect_extended_statistics_on_write = false"
+        +post-hook:
+          - "RESET SESSION {{ target.database }}.collect_extended_statistics_on_write"

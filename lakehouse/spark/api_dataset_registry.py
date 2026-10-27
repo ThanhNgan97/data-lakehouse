@@ -46,7 +46,7 @@ class ApiDatasetConfig:
     # focused registry fixtures that are not orchestration-enabled.
     source_api_path: str | None = None
     silver_processor: str | None = None
-    gold_processor: str | None = None
+    dbt_selector: str | None = None
     gold_table: str | None = None
 
     def __post_init__(self) -> None:
@@ -145,7 +145,7 @@ class ApiDatasetConfig:
         orchestration_values = (
             self.source_api_path,
             self.silver_processor,
-            self.gold_processor,
+            self.dbt_selector,
             self.gold_table,
         )
         configured_orchestration_values = [
@@ -171,13 +171,14 @@ class ApiDatasetConfig:
 
             for field_name, processor in (
                 ("silver_processor", self.silver_processor),
-                ("gold_processor", self.gold_processor),
             ):
                 if processor.count(":") != 1:
                     raise ValueError(
                         f"{field_name} must use 'module:function' format"
                     )
 
+            from dbt_gold_contract import require_config
+            require_config(self)
             if not self.gold_table.startswith("lakehouse.gold."):
                 raise ValueError(
                     "gold_table must target lakehouse.gold"
@@ -213,7 +214,7 @@ class ApiDatasetConfig:
             for value in (
                 self.source_api_path,
                 self.silver_processor,
-                self.gold_processor,
+                self.dbt_selector,
                 self.gold_table,
             )
         )
@@ -366,10 +367,7 @@ DATASETS = {
             "spark_learning_outcomes_to_silver:"
             "process_learning_outcomes_batch"
         ),
-        gold_processor=(
-            "spark_learning_outcomes_to_gold:"
-            "run_learning_outcomes_gold"
-        ),
+        dbt_selector="agg_learning_outcomes_by_period",
         gold_table=(
             "lakehouse.gold.learning_outcomes_metrics"
         ),
@@ -421,10 +419,7 @@ DATASETS = {
             "spark_teaching_progress_to_silver:"
             "process_teaching_progress_batch"
         ),
-        gold_processor=(
-            "spark_teaching_progress_to_gold:"
-            "run_teaching_progress_gold"
-        ),
+        dbt_selector="fct_teaching_progress",
         gold_table=(
             "lakehouse.gold.teaching_progress_metrics"
         ),

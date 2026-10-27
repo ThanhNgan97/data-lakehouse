@@ -263,6 +263,20 @@ foreach ($dataset in $datasets) {
 
     $taskRows = @(Get-JsonPayload $taskResult.Lines)
 
+    $ingestRow = @(
+        $taskRows |
+            Where-Object { $_.task_id -eq "ingest_bronze" }
+    ) | Select-Object -First 1
+
+    # Incremental replays deliberately return exit code 99 when the source has
+    # no records newer than the stored Ozone checkpoint. Airflow maps this to
+    # SKIPPED and skips every downstream task. That is a successful, idempotent
+    # seed outcome as long as verify_team_environment confirms existing data.
+    $noChange = (
+        $null -ne $ingestRow -and
+        "$($ingestRow.state)" -eq "skipped"
+    )
+
     foreach ($taskId in $expectedTasks) {
         $row = @(
             $taskRows |
@@ -275,11 +289,22 @@ foreach ($dataset in $datasets) {
             throw "Expected task missing: $taskId"
         }
 
-        if ("$($row.state)" -ne "success") {
+        $state = "$($row.state)"
+
+        if ($noChange -and $state -eq "skipped") {
+            Write-Host "TASK_NO_CHANGE DATASET=$dataset TASK=$taskId"
+            continue
+        }
+
+        if ($state -ne "success") {
             throw "Task not successful: $taskId state=$($row.state)"
         }
 
         Write-Host "TASK_PASS DATASET=$dataset TASK=$taskId"
+    }
+
+    if ($noChange) {
+        Write-Host "SEED_DATASET_NO_CHANGE=$dataset"
     }
 }
 

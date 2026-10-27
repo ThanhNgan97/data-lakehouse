@@ -522,172 +522,28 @@ def command_validate_silver(
         spark.stop()
 
 
-def command_process_gold(
-    config: ApiDatasetConfig,
-    run_id: str,
-) -> None:
-    processor = _load_callable(
-        str(config.gold_processor)
-    )
-
-    spark = get_spark_session()
-    spark.sparkContext.setLogLevel("WARN")
-
-    try:
-        result = processor(
-            spark,
-            merge_to_main=True,
-        )
-
-        print(f"DATASET_ID={config.dataset}")
-        print(
-            f"GOLD_PROCESSOR="
-            f"{config.gold_processor}"
-        )
-        _print_primitive_result(
-            "GOLD",
-            result,
-        )
-        print("PROCESS_GOLD_PASS=True")
-    finally:
-        try:
-            use_main(spark)
-        finally:
-            spark.stop()
+def command_prepare_gold(config: ApiDatasetConfig, run_id: str) -> None:
+    from dbt_gold_runtime import prepare
+    state = prepare(config, run_id)
+    print(f"GOLD_ENGINE=dbt\nGOLD_REF={state['ref']}\nPREPARE_GOLD_PASS=True")
 
 
-def _expected_gold_source_rows(
-    spark,
-    config: ApiDatasetConfig,
-) -> int:
-    silver = spark.table(
-        config.silver_table
-    )
-
-    if not config.delete_supported:
-        return silver.count()
-
-    delete_field = config.canonical_field(
-        str(config.source_delete_field)
-    )
-
-    return (
-        silver
-        .filter(
-            F.col(delete_field)
-            == F.lit(False)
-        )
-        .count()
-    )
+def command_process_gold(config: ApiDatasetConfig, run_id: str) -> None:
+    from dbt_gold_runtime import build
+    build(config, run_id)
+    print("GOLD_ENGINE=dbt\nPROCESS_GOLD_PASS=True")
 
 
-def command_validate_gold(
-    config: ApiDatasetConfig,
-    run_id: str,
-) -> None:
-    gold_module_name = str(
-        config.gold_processor
-    ).split(":", 1)[0]
-    gold_module = importlib.import_module(
-        gold_module_name
-    )
+def command_validate_gold(config: ApiDatasetConfig, run_id: str) -> None:
+    from dbt_gold_runtime import validate
+    validate(config, run_id)
+    print("GOLD_ENGINE=dbt\nVALIDATE_GOLD_PASS=True")
 
-    try:
-        quality_function = getattr(
-            gold_module,
-            "check_gold_quality",
-        )
-    except AttributeError as exc:
-        raise ValueError(
-            "Configured Gold module does not expose "
-            "check_gold_quality"
-        ) from exc
 
-    spark = get_spark_session()
-    spark.sparkContext.setLogLevel("WARN")
-
-    try:
-        use_main(spark)
-        spark.catalog.clearCache()
-
-        expected_rows = (
-            _expected_gold_source_rows(
-                spark,
-                config,
-            )
-        )
-
-        quality = quality_function(
-            spark,
-            expected_rows,
-        )
-
-        gold = spark.table(
-            str(config.gold_table)
-        )
-
-        gold_rows = gold.count()
-        distinct_keys = (
-            gold
-            .select(*config.business_key)
-            .distinct()
-            .count()
-        )
-        duplicate_groups = (
-            gold
-            .groupBy(*config.business_key)
-            .count()
-            .filter(F.col("count") > 1)
-            .count()
-        )
-
-        if gold_rows <= 0:
-            raise RuntimeError(
-                "Gold validation found zero rows"
-            )
-
-        if gold_rows != expected_rows:
-            raise RuntimeError(
-                "Gold row reconciliation failed: "
-                f"expected={expected_rows}, "
-                f"actual={gold_rows}"
-            )
-
-        if distinct_keys != gold_rows:
-            raise RuntimeError(
-                "Gold grain reconciliation failed"
-            )
-
-        if duplicate_groups != 0:
-            raise RuntimeError(
-                "Gold contains duplicate business keys"
-            )
-
-        print(f"DATASET_ID={config.dataset}")
-        print(
-            f"GOLD_TABLE={config.gold_table}"
-        )
-        print(
-            f"EXPECTED_GOLD_ROWS="
-            f"{expected_rows}"
-        )
-        print(f"GOLD_ROW_COUNT={gold_rows}")
-        print(
-            f"GOLD_DISTINCT_BUSINESS_KEYS="
-            f"{distinct_keys}"
-        )
-        print(
-            f"GOLD_DUPLICATE_KEY_GROUPS="
-            f"{duplicate_groups}"
-        )
-        _print_primitive_result(
-            "GOLD_QUALITY",
-            quality,
-        )
-        print("GOLD_QUALITY_RESULT=PASS")
-        print("VALIDATE_GOLD_PASS=True")
-    finally:
-        spark.stop()
+def command_publish_gold(config: ApiDatasetConfig, run_id: str) -> None:
+    from dbt_gold_runtime import publish
+    publish(config, run_id)
+    print("GOLD_ENGINE=dbt\nPUBLISH_GOLD_PASS=True")
 
 
 def _trino_scalar_count(
@@ -765,33 +621,15 @@ def command_trino_smoke_test(
     config: ApiDatasetConfig,
     run_id: str,
 ) -> None:
-    gold_table = str(config.gold_table)
-
-    if not gold_table.startswith(
-        "lakehouse.gold."
-    ):
-        raise ValueError(
-            "Refusing non-Gold Trino target"
-        )
-
-    sql = (
-        "SELECT count(*) "
-        f"FROM {gold_table}"
-    )
-
-    row_count = _trino_scalar_count(sql)
-
-    if row_count <= 0:
-        raise RuntimeError(
-            "Trino Gold query returned zero rows"
-        )
-
-    print(f"DATASET_ID={config.dataset}")
-    print(f"GOLD_TABLE={gold_table}")
-    print("TRINO_CONNECTION=PASS")
-    print("TRINO_QUERY=PASS")
-    print(f"TRINO_ROW_COUNT={row_count}")
-    print("TRINO_SMOKE_TEST_PASS=True")
+    from dbt_gold_contract import outputs, require_config
+    require_config(config)
+    for name in outputs(config.dataset, run_id):
+        gold_table = "lakehouse.gold." + name
+        row_count = _trino_scalar_count(f"SELECT count(*) FROM {gold_table}")
+        if row_count <= 0:
+            raise RuntimeError("Trino Gold output returned zero rows: " + name)
+        print(f"GOLD_TABLE={gold_table}\nTRINO_ROW_COUNT={row_count}")
+    print(f"DATASET_ID={config.dataset}\nTRINO_CONNECTION=PASS\nTRINO_QUERY=PASS\nTRINO_SMOKE_TEST_PASS=True")
 
 
 COMMANDS = {
@@ -800,8 +638,10 @@ COMMANDS = {
     "validate-bronze": command_validate_bronze,
     "process-silver": command_process_silver,
     "validate-silver": command_validate_silver,
+    "prepare-gold": command_prepare_gold,
     "process-gold": command_process_gold,
     "validate-gold": command_validate_gold,
+    "publish-gold": command_publish_gold,
     "trino-smoke-test":
         command_trino_smoke_test,
 }

@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 
@@ -73,3 +74,36 @@ def test_kubernetes_runtime_uses_only_ozone_and_v3_image():
         assert "spark-3.5.0-v3" in content, path
         assert "ozone-s3-credentials" in content, path
         assert "host.docker.internal:9878" in content, path
+
+
+def test_one_command_team_setup_contract_is_present():
+    setup = (ROOT / "scripts" / "setup_team.ps1").read_text(encoding="utf-8")
+    assert 'Import-RootDotEnv -Override' in setup
+    assert 'bootstrap_team.ps1' in setup
+    assert 'seed_demo.ps1' in setup
+    assert 'verify_team_environment.ps1' in setup
+    assert 'SETUP_TEAM=PASS' in setup
+    assert 'docker system prune' not in setup
+    assert 'docker volume prune' not in setup
+
+
+def test_team_environment_defaults_match_host_ports_and_current_models():
+    env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
+    assert "PG_PORT=5433" in env_example
+    assert "S3_ENDPOINT=http://127.0.0.1:9878" in env_example
+    assert "AIRFLOW_WEBSERVER_URL=http://localhost:8080" in env_example
+    assert "GEMINI_DOCUMENT_MODELS=gemini-3.5-flash-lite" in env_example
+
+    compose = "\n".join([
+        (ROOT / "docker-compose.yml").read_text(encoding="utf-8"),
+        (ROOT / "docker-compose.mock-api.yml").read_text(encoding="utf-8"),
+    ])
+    compose_variables = set(re.findall(r"\$\{([A-Za-z_][A-Za-z0-9_]*)", compose))
+    env_variables = set(re.findall(r"(?m)^([A-Za-z_][A-Za-z0-9_]*)=", env_example))
+    assert compose_variables <= env_variables
+
+
+def test_seed_accepts_incremental_no_change_replays():
+    seed = (ROOT / "scripts" / "seed_demo.ps1").read_text(encoding="utf-8")
+    assert 'SEED_DATASET_NO_CHANGE=' in seed
+    assert 'TASK_NO_CHANGE' in seed

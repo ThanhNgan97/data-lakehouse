@@ -24,8 +24,7 @@ RUN pip install --no-cache-dir \
     psycopg2-binary \
     openpyxl \
     xlrd \
-    google-genai \
-    great_expectations==1.24.0
+    google-genai
 
 # Resolve JVM dependencies once while building the immutable image. Runtime
 # DAGs load these local JARs and do not need Maven or a machine-specific Ivy

@@ -157,7 +157,18 @@ with DAG(
         pool="spark_k8s",
     )
 
+<<<<<<< HEAD
     process_gold = SparkKubernetesOperator(
+=======
+    prepare_gold = BashOperator(
+        task_id="prepare_gold",
+        bash_command=runner_command("prepare-gold"),
+        env=COMMON_ENV,
+        append_env=True,
+    )
+
+    process_gold = BashOperator(
+>>>>>>> origin/develop
         task_id="process_gold",
         application_file="spark-api-dataset-airflow.yaml",
         params={"command": "process-gold"},
@@ -183,6 +194,13 @@ with DAG(
         pool="spark_k8s",
     )
 
+    publish_gold = BashOperator(
+        task_id="publish_gold",
+        bash_command=runner_command("publish-gold"),
+        env=COMMON_ENV,
+        append_env=True,
+    )
+
     trino_smoke_test = BashOperator(
         task_id="trino_smoke_test",
         bash_command=runner_command(
@@ -198,7 +216,9 @@ with DAG(
         >> validate_bronze
         >> process_silver
         >> validate_silver
+        >> prepare_gold
         >> process_gold
         >> validate_gold
+        >> publish_gold
         >> trino_smoke_test
     )

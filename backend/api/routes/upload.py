@@ -161,16 +161,18 @@ def _gx_from_xcom(dag_run_id: str):
         f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/{AIRFLOW_FILE_DAG_ID}"
         f"/dagRuns/{dag_run_id}"
     )
-    response = requests.get(
-        f"{airflow_base}/taskInstances/gx_validate_file_upload/"
-        "xcomEntries/return_value",
-        auth=(AIRFLOW_API_USERNAME, AIRFLOW_API_PASSWORD),
-        timeout=5,
-    )
-    if response.status_code != 200:
-        return None
-    value = _parse_xcom_mapping(response.json().get("value"))
-    if not value:
+    value = None
+    for task_id in ("gx_validate_database", "gx_validate_file_upload"):
+        response = requests.get(
+            f"{airflow_base}/taskInstances/{task_id}/xcomEntries/return_value",
+            auth=(AIRFLOW_API_USERNAME, AIRFLOW_API_PASSWORD),
+            timeout=5,
+        )
+        if response.status_code == 200:
+            value = _parse_xcom_mapping(response.json().get("value"))
+            if value:
+                break
+    if value is None:
         return None
     allowed = {
         "status", "integration_status", "reason", "dataset_id", "data_asset_ref",
@@ -181,7 +183,13 @@ def _gx_from_xcom(dag_run_id: str):
 
 def _gx_task_state(tasks):
     task = next(
-        (item for item in tasks if item.get("task_id") == "gx_validate_file_upload"),
+        (
+            item for item in tasks
+            if item.get("task_id") in {
+                "gx_validate_database", "gx_validate_file_upload",
+            }
+            and item.get("state") != "skipped"
+        ),
         None,
     )
     if not task:

@@ -461,6 +461,20 @@ def run_gx_file_quality_gate(**context):
     return validate_file_upload(**context)
 
 
+def run_gx_database_quality_gate(**context):
+    """Call GX for the Airbyte/database branch with fail-closed errors."""
+    from airflow.exceptions import AirflowException, AirflowFailException
+    from gx_airflow_adapter import GXAirflowError, NON_RETRYABLE
+    from gx_database_gate import validate_database_context
+
+    try:
+        return validate_database_context(**context)
+    except GXAirflowError as exc:
+        if exc.code in NON_RETRYABLE or not exc.retryable:
+            raise AirflowFailException(str(exc)) from exc
+        raise AirflowException(str(exc)) from exc
+
+
 # =====================================================================
 # DAG DEFINITION
 # =====================================================================
@@ -561,6 +575,13 @@ with DAG(
         retry_delay=timedelta(minutes=1),
     )
 
+    gx_validate_database = PythonOperator(
+        task_id="gx_validate_database",
+        python_callable=run_gx_database_quality_gate,
+        retries=1,
+        retry_delay=timedelta(minutes=1),
+    )
+
     # 7. Join & Smoke Test
     join_and_smoke_test = PythonOperator(
         task_id="join_and_smoke_test",
@@ -578,7 +599,8 @@ with DAG(
     # Wire DAG Dependencies
     ai_semantic_profiler >> branch_router
     branch_router >> [kpi_ingest_bronze, api_runner, process_dynamic, process_relational]
-    [kpi_predictive_analysis, api_runner, process_dynamic, process_relational] >> gx_validate_file_upload
-    gx_validate_file_upload >> join_and_smoke_test
+    [kpi_predictive_analysis, api_runner, process_dynamic] >> gx_validate_file_upload
+    process_relational >> gx_validate_database
+    [gx_validate_file_upload, gx_validate_database] >> join_and_smoke_test
     join_and_smoke_test >> auto_provision_superset
 

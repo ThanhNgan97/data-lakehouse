@@ -93,3 +93,10 @@ def test_gx_task_state_never_claims_pass_without_xcom():
         {"task_id": "gx_validate_file_upload", "state": "success"}
     ]) == {"status": "RESULT_UNAVAILABLE"}
     assert upload._gx_task_state([]) == {"status": "NOT_AVAILABLE"}
+
+
+def test_database_gx_task_state_is_exposed():
+    assert upload._gx_task_state([
+        {"task_id": "gx_validate_file_upload", "state": "skipped"},
+        {"task_id": "gx_validate_database", "state": "failed"},
+    ]) == {"status": "FAILED"}

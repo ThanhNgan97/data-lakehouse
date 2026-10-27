@@ -1,0 +1,13 @@
+api_gold:
+  target: integration
+  outputs:
+    integration:
+      type: trino
+      method: none
+      user: dbt_api_gold
+      host: "{{ env_var('DBT_TRINO_HOST', 'trino') }}"
+      port: "{{ env_var('DBT_TRINO_PORT', '8080') | int }}"
+      http_scheme: http
+      database: "{{ env_var('DBT_TARGET_CATALOG', 'lakehouse') }}"
+      schema: "{{ env_var('DBT_TARGET_SCHEMA', 'gold') }}"
+      threads: 1

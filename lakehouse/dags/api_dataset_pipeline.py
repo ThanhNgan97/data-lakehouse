@@ -128,6 +128,13 @@ with DAG(
         append_env=True,
     )
 
+    prepare_gold = BashOperator(
+        task_id="prepare_gold",
+        bash_command=runner_command("prepare-gold"),
+        env=COMMON_ENV,
+        append_env=True,
+    )
+
     process_gold = BashOperator(
         task_id="process_gold",
         bash_command=runner_command(
@@ -142,6 +149,13 @@ with DAG(
         bash_command=runner_command(
             "validate-gold"
         ),
+        env=COMMON_ENV,
+        append_env=True,
+    )
+
+    publish_gold = BashOperator(
+        task_id="publish_gold",
+        bash_command=runner_command("publish-gold"),
         env=COMMON_ENV,
         append_env=True,
     )
@@ -161,7 +175,9 @@ with DAG(
         >> validate_bronze
         >> process_silver
         >> validate_silver
+        >> prepare_gold
         >> process_gold
         >> validate_gold
+        >> publish_gold
         >> trino_smoke_test
     )

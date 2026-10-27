@@ -15,6 +15,7 @@ __pycache__/
 metastore_db/
 
 # Local runtime/test artifacts
+.runtime/
 *.log
 airflow_logs/
 .pytest_cache/

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 from time import perf_counter
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from threading import Thread
 from typing import Any
 
 from sqlalchemy import create_engine
@@ -56,6 +58,7 @@ def _trino_url() -> str:
 
 class TableValidationApplication:
     def __init__(self) -> None:
+        self.accepting_requests = False
         root = os.getenv("GX_CONFIG_ROOT", "/opt/gx/config")
         self.suites = SuiteRegistry(os.path.join(root, "suite_registry.json"))
         self.routes = DatasetValidationRegistry(
@@ -78,6 +81,12 @@ class TableValidationApplication:
             os.getenv("GX_OPENMETADATA_REQUIRED", "false").lower() == "true"
         )
         self.metrics = GXMetrics()
+        self.accepting_requests = True
+
+    def close(self) -> None:
+        """Stop admitting work and release pooled client connections."""
+        self.accepting_requests = False
+        self.sqlalchemy_engine.dispose()
 
     def validate(self, body: dict[str, Any]) -> dict[str, Any]:
         started = perf_counter()
@@ -257,8 +266,13 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(raw)
 
     def do_GET(self) -> None:
-        if self.path == "/health/ready":
-            self._send(200, {"status": "ready"})
+        if self.path == "/health/live":
+            self._send(200, {"status": "alive"})
+        elif self.path == "/health/ready":
+            if self.application.accepting_requests:
+                self._send(200, {"status": "ready"})
+            else:
+                self._send(503, {"status": "not_ready"})
         elif self.path == os.getenv("GX_METRICS_PATH", "/metrics"):
             raw = self.application.metrics.render().encode("utf-8")
             self.send_response(200)
@@ -272,6 +286,12 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         if self.path != "/v1/validate/table":
             self._send(404, {"error_code": "NOT_FOUND"})
+            return
+        if not self.application.accepting_requests:
+            self._send(
+                503,
+                {"error_code": "GX_UNAVAILABLE", "retryable": True},
+            )
             return
         try:
             length = int(self.headers.get("Content-Length", "0"))
@@ -306,7 +326,22 @@ class Handler(BaseHTTPRequestHandler):
 def main() -> None:
     Handler.application = TableValidationApplication()
     server = ThreadingHTTPServer(("0.0.0.0", int(os.getenv("GX_HTTP_PORT", "8090"))), Handler)
-    server.serve_forever()
+    server.daemon_threads = False
+
+    def begin_shutdown(_signum=None, _frame=None) -> None:
+        Handler.application.accepting_requests = False
+        # BaseServer.shutdown must run from a different thread than serve_forever.
+        Thread(target=server.shutdown, name="gx-http-shutdown", daemon=True).start()
+
+    signal.signal(signal.SIGTERM, begin_shutdown)
+    signal.signal(signal.SIGINT, begin_shutdown)
+    try:
+        server.serve_forever(poll_interval=0.2)
+    finally:
+        # server_close waits for non-daemon request threads before pooled
+        # dependencies are disposed.
+        server.server_close()
+        Handler.application.close()
 
 
 if __name__ == "__main__":

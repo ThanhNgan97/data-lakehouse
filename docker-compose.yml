@@ -301,6 +301,8 @@ services:
     image: lakehouse-gx-validator:1.24.0
     container_name: demo-gx-validator
     restart: unless-stopped
+    stop_grace_period: 30s
+    init: true
     entrypoint: ["python", "-m", "gx_runtime.api"]
     command: []
     environment:
@@ -327,6 +329,7 @@ services:
       TRINO_SCHEMA: ${GX_TRINO_SCHEMA:-default}
       GX_TRINO_NESSIE_BRANCH: ${GX_TRINO_NESSIE_BRANCH:-main}
       GX_HTTP_PORT: '8090'
+      GX_HEALTHCHECK_TIMEOUT_SECONDS: '3'
       GX_METRICS_PATH: '/metrics'
       GX_OPENMETADATA_ENABLED: ${GX_OPENMETADATA_ENABLED:-false}
       GX_OPENMETADATA_REQUIRED: ${GX_OPENMETADATA_REQUIRED:-false}
@@ -341,11 +344,19 @@ services:
       trino:
         condition: service_started
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health/ready', timeout=3)"]
+      test: ["CMD", "python", "-m", "gx_runtime.healthcheck", "ready"]
       interval: 10s
       timeout: 5s
       retries: 12
       start_period: 10s
+    deploy:
+      resources:
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+        limits:
+          cpus: '2.0'
+          memory: 4G
     networks:
       - lakehouse-network
 

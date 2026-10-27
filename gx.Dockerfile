@@ -37,5 +37,8 @@ COPY --chown=gx:gx lakehouse/gx /opt/gx/config
 
 WORKDIR /opt/gx
 
+HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=12 \
+    CMD ["python", "-m", "gx_runtime.healthcheck", "ready"]
+
 ENTRYPOINT ["python", "-m", "gx_runtime.smoke"]
 CMD ["imports"]

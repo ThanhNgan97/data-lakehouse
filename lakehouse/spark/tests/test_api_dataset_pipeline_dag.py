@@ -23,8 +23,10 @@ EXPECTED_TASKS = (
     "validate_bronze",
     "process_silver",
     "validate_silver",
+    "prepare_gold",
     "process_gold",
     "validate_gold",
+    "publish_gold",
     "trino_smoke_test",
 )
 
@@ -34,8 +36,10 @@ EXPECTED_COMMANDS = (
     "validate-bronze",
     "process-silver",
     "validate-silver",
+    "prepare-gold",
     "process-gold",
     "validate-gold",
+    "publish-gold",
     "trino-smoke-test",
 )
 
@@ -67,7 +71,7 @@ class ApiDatasetPipelineDagTest(
             )
         )
 
-    def test_exact_eight_visible_tasks(self):
+    def test_exact_ten_visible_tasks(self):
         self.assertEqual(
             tuple(
                 task.task_id

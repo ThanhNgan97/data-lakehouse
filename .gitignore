@@ -25,6 +25,7 @@ lakehouse/spark/.routing_decisions/
 lakehouse/spark/.context_manifests/
 lakehouse/spark/.extracted_tables/
 lakehouse/spark/.generated_exports/
+lakehouse/spark/wheelhouse/
 superset_exports/generated/
 *.zip
 

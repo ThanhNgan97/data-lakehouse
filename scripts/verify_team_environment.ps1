@@ -232,7 +232,7 @@ if ($dagList.ExitCode -ne 0) {
 $dags = @(Get-JsonPayload $dagList.Lines)
 
 foreach ($dagId in @(
-    "lakehouse_pipeline",
+    "universal_lakehouse_pipeline",
     "api_dataset_pipeline",
     "ozone_read_validation",
     "ozone_archive_cleanup"

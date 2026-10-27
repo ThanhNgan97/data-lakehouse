@@ -22,6 +22,9 @@ from pathlib import Path
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import BranchPythonOperator, PythonOperator
+from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import (
+    SparkKubernetesOperator,
+)
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -32,6 +35,12 @@ if SPARK_DIR not in sys.path:
 
 from relational_context import build_context_manifest, parse_context_object_key
 from ozone_object_lifecycle import archive_object
+from ozone_artifacts import (
+    object_uri,
+    read_json_artifact,
+    upload_file,
+    write_json_artifact,
+)
 
 default_args = {
     "owner": "lakehouse",
@@ -85,6 +94,9 @@ def run_ai_semantic_profiling(**context):
     """
     dag_run = context.get("dag_run")
     run_id = context.get("run_id", "manual_run")
+    clean_run_id = "".join(c if c.isalnum() else "_" for c in run_id)
+    control_prefix = f"control/runs/{clean_run_id}"
+    control_artifacts = []
     conf = dag_run.conf if dag_run and dag_run.conf else {}
 
     input_path = conf.get("input_path")
@@ -171,14 +183,10 @@ def run_ai_semantic_profiling(**context):
             batch_id=(f"airbyte_job_{airbyte_job_id}" if airbyte_job_id else run_id),
         )
         if manifest["objects"]:
-            manifests_dir = Path("/opt/airflow/spark/.context_manifests")
-            manifests_dir.mkdir(parents=True, exist_ok=True)
-            clean_run_id = "".join(c if c.isalnum() else "_" for c in run_id)
-            context_manifest_file = str(
-                manifests_dir / f"{context_id}_{clean_run_id}.json"
-            )
-            with open(context_manifest_file, "w", encoding="utf-8") as handle:
-                json.dump(manifest, handle, ensure_ascii=False, indent=2)
+            manifest_key = f"{control_prefix}/context-manifest.json"
+            context_manifest_file = object_uri(manifest_key)
+            write_json_artifact(context_manifest_file, manifest)
+            control_artifacts.append(manifest_key)
             print(
                 f"📦 [Relational Context] '{context_id}': "
                 f"{len(manifest['entities'])} entities, {len(manifest['objects'])} objects"
@@ -206,27 +214,30 @@ def run_ai_semantic_profiling(**context):
     print("✅ [AI Profiler] Quyết định định tuyến:")
     print(decision.model_dump_json(indent=2))
 
-    # Lưu decision ra file để Spark processor tái sử dụng không cần gọi lại LLM
-    decisions_dir = Path("/opt/airflow/spark/.routing_decisions")
-    decisions_dir.mkdir(parents=True, exist_ok=True)
-    clean_run_id = "".join(c if c.isalnum() else "_" for c in run_id)
-    decision_file_path = str(decisions_dir / f"decision_{clean_run_id}.json")
-
-    with open(decision_file_path, "w", encoding="utf-8") as f:
-        f.write(decision.model_dump_json(indent=2))
+    decision_key = f"{control_prefix}/routing-decision.json"
+    decision_file_path = object_uri(decision_key)
+    write_json_artifact(decision_file_path, decision.model_dump(mode="json"))
+    control_artifacts.append(decision_key)
 
     # Nếu tài liệu đã được bóc tách sang JSON bảng, cập nhật input_path cho Spark Processor
     effective_input_path = decision.extracted_json_path if decision.extracted_json_path else input_path
+    if s3_staging_key and not decision.extracted_json_path:
+        spark_input_path = object_uri(s3_staging_key, scheme="s3a")
+    else:
+        input_key = f"{control_prefix}/input/{Path(effective_input_path).name}"
+        spark_input_path = upload_file(effective_input_path, input_key)
+        control_artifacts.append(input_key)
 
     # Đẩy các thông tin quan trọng lên XCom
     ti = context["ti"]
     ti.xcom_push(key="route_target", value=decision.route_target)
     ti.xcom_push(key="decision_file", value=decision_file_path)
-    ti.xcom_push(key="input_path", value=effective_input_path)
+    ti.xcom_push(key="input_path", value=spark_input_path)
     ti.xcom_push(key="source_name", value=source_name)
     ti.xcom_push(key="s3_staging_key", value=s3_staging_key)
     ti.xcom_push(key="context_id", value=context_id)
     ti.xcom_push(key="context_manifest", value=context_manifest_file)
+    ti.xcom_push(key="control_artifacts", value=control_artifacts)
     ti.xcom_push(key="dataset_entity", value=decision.dataset_entity)
     ti.xcom_push(key="registered_dataset_id", value=decision.registered_dataset_id)
     ti.xcom_push(key="target_silver_table", value=decision.target_silver_table)
@@ -315,10 +326,9 @@ def smoke_test_trino(**context):
     decision_file = ti.xcom_pull(task_ids="ai_semantic_profiler", key="decision_file")
 
     # The relational processor refines the decision after key/relationship profiling.
-    if context_manifest and decision_file and os.path.exists(decision_file):
+    if context_manifest and decision_file:
         try:
-            with open(decision_file, "r", encoding="utf-8") as handle:
-                updated_decision = json.load(handle)
+            updated_decision = read_json_artifact(decision_file)
             target_silver = updated_decision.get("target_silver_table") or target_silver
             target_gold = updated_decision.get("target_gold_table") or target_gold
         except Exception as exc:
@@ -354,10 +364,9 @@ def smoke_test_trino(**context):
         print(f"ℹ️ [Trino Smoke Test] Hoàn tất kiểm tra với thông báo: {exc}")
 
     # Relational contexts are committed and archived atomically by manifest.
-    if context_manifest and os.path.exists(context_manifest):
+    if context_manifest:
         try:
-            with open(context_manifest, "r", encoding="utf-8") as handle:
-                manifest = json.load(handle)
+            manifest = read_json_artifact(context_manifest)
             from env_config import S3_BUCKET_NAME
             s3 = _get_s3_client()
             safe_batch = "".join(
@@ -424,7 +433,7 @@ def provision_superset_dashboard_task(**context):
     ti = context["ti"]
     decision_file = ti.xcom_pull(task_ids="ai_semantic_profiler", key="decision_file")
 
-    if not decision_file or not os.path.exists(decision_file):
+    if not decision_file:
         print(f"ℹ️ [Superset Task] Không tìm thấy decision file: '{decision_file}'. Bỏ qua auto-provisioning.")
         return
 
@@ -433,8 +442,7 @@ def provision_superset_dashboard_task(**context):
         from superset_dynamic_provisioner import provision_dynamic_dashboard
         from ai_dataset_router import RoutingDecision
 
-        with open(decision_file, "r", encoding="utf-8") as f:
-            decision = RoutingDecision(**json.load(f))
+        decision = RoutingDecision(**read_json_artifact(decision_file))
 
         output_dir = Path("/opt/airflow/spark/.generated_exports")
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -447,6 +455,28 @@ def provision_superset_dashboard_task(**context):
         )
         print("✅ [Superset Task] Tự động tạo Dashboard thành công:")
         print(json.dumps(result, indent=2, ensure_ascii=False))
+        control_artifacts = ti.xcom_pull(
+            task_ids="ai_semantic_profiler", key="control_artifacts"
+        ) or []
+        if control_artifacts:
+            from env_config import S3_BUCKET_NAME
+
+            s3 = _get_s3_client()
+            safe_run_id = "".join(
+                c if c.isalnum() or c in "_-" else "_"
+                for c in str(context.get("run_id", "run"))
+            )
+            for key in control_artifacts:
+                try:
+                    s3.head_object(Bucket=S3_BUCKET_NAME, Key=key)
+                except Exception:
+                    continue
+                archive_object(
+                    s3,
+                    bucket=S3_BUCKET_NAME,
+                    source_key=key,
+                    archive_prefix=f"archive/processed/control/batch_id={safe_run_id}",
+                )
         # PythonOperator stores this mapping in XCom so the API can embed the
         # dashboard produced for this exact DAG run.
         return result
@@ -465,6 +495,7 @@ with DAG(
     schedule_interval=None,
     start_date=datetime(2026, 1, 1),
     catchup=False,
+    template_searchpath=["/opt/airflow/k8s/spark/templates"],
     # Spark/Iceberg jobs share one local Airflow host. Serialise uploads so
     # queued runs cannot start several memory-heavy Spark sessions at once.
     max_active_runs=1,
@@ -491,57 +522,81 @@ with DAG(
             task_id="ingest_bronze",
             bash_command="cd /opt/airflow/spark && python spark_ingest_bronze.py --run_id {{ run_id }}",
         )
-        kpi_bronze_to_silver = BashOperator(
+        kpi_bronze_to_silver = SparkKubernetesOperator(
             task_id="bronze_to_silver",
-            bash_command="cd /opt/airflow/spark && python spark_bronze_to_silver.py --run_id {{ run_id }}",
+            application_file="spark-kpi-bronze-to-silver-airflow.yaml",
+            namespace="lakehouse-spark",
+            kubernetes_conn_id="kubernetes_default",
+            get_logs=True,
+            log_events_on_failure=True,
+            startup_timeout_seconds=600,
+            delete_on_termination=True,
+            pool="spark_k8s",
         )
-        kpi_silver_to_gold = BashOperator(
+        kpi_silver_to_gold = SparkKubernetesOperator(
             task_id="silver_to_gold",
-            bash_command="cd /opt/airflow/spark && python spark_silver_to_gold.py",
+            application_file="spark-kpi-silver-to-gold-airflow.yaml",
+            namespace="lakehouse-spark",
+            kubernetes_conn_id="kubernetes_default",
+            get_logs=True,
+            log_events_on_failure=True,
+            startup_timeout_seconds=600,
+            delete_on_termination=True,
+            pool="spark_k8s",
         )
-        kpi_predictive_analysis = BashOperator(
+        kpi_predictive_analysis = SparkKubernetesOperator(
             task_id="predictive_analysis",
-            bash_command="cd /opt/airflow/spark && python spark_predictive_analysis.py",
+            application_file="spark-kpi-predictive-airflow.yaml",
+            namespace="lakehouse-spark",
+            kubernetes_conn_id="kubernetes_default",
+            get_logs=True,
+            log_events_on_failure=True,
+            startup_timeout_seconds=600,
+            delete_on_termination=True,
+            pool="spark_k8s",
         )
         kpi_ingest_bronze >> kpi_bronze_to_silver >> kpi_silver_to_gold >> kpi_predictive_analysis
 
     # 4. Branch B: Registered Education APIs
     with TaskGroup("api_flow", tooltip="Xử lý API giáo dục đã đăng ký") as api_flow:
-        api_runner = BashOperator(
+        api_runner = SparkKubernetesOperator(
             task_id="run_registered_api",
-            bash_command=(
-                "cd /opt/airflow/spark && "
-                "python api_dataset_orchestration.py process-silver "
-                '--dataset-id "{{ task_instance.xcom_pull(task_ids=\'ai_semantic_profiler\', key=\'registered_dataset_id\') }}" '
-                '--run-id "{{ run_id }}"'
-            ),
+            application_file="spark-universal-api-airflow.yaml",
+            namespace="lakehouse-spark",
+            kubernetes_conn_id="kubernetes_default",
+            get_logs=True,
+            log_events_on_failure=True,
+            startup_timeout_seconds=600,
+            delete_on_termination=True,
+            pool="spark_k8s",
         )
 
     # 5. Branch C: Generic Autonomous Lakehouse (Any Dataset)
     with TaskGroup("generic_flow", tooltip="Xử lý dữ liệu đa nguồn linh hoạt (Generic Engine)") as generic_flow:
-        process_dynamic = BashOperator(
+        process_dynamic = SparkKubernetesOperator(
             task_id="process_dynamic_silver_gold",
-            bash_command=(
-                "cd /opt/airflow/spark && "
-                "python -u service_preflight.py && "
-                "python -u spark_generic_dynamic_processor.py "
-                '--input "{{ task_instance.xcom_pull(task_ids=\'ai_semantic_profiler\', key=\'input_path\') }}" '
-                '--decision-file "{{ task_instance.xcom_pull(task_ids=\'ai_semantic_profiler\', key=\'decision_file\') }}" '
-                '--run-id "{{ run_id }}"'
-            ),
+            application_file="spark-generic-airflow.yaml",
+            namespace="lakehouse-spark",
+            kubernetes_conn_id="kubernetes_default",
+            get_logs=True,
+            log_events_on_failure=True,
+            startup_timeout_seconds=600,
+            delete_on_termination=True,
+            pool="spark_k8s",
         )
 
     # 5.1 Branch D: Multi-table Airbyte relational context
     with TaskGroup("relational_flow", tooltip="Xử lý context quan hệ nhiều bảng từ Airbyte") as relational_flow:
-        process_relational = BashOperator(
+        process_relational = SparkKubernetesOperator(
             task_id="process_relational_context",
-            bash_command=(
-                "cd /opt/airflow/spark && "
-                "python spark_relational_context_processor.py "
-                '--manifest "{{ task_instance.xcom_pull(task_ids=\'ai_semantic_profiler\', key=\'context_manifest\') }}" '
-                '--decision-file "{{ task_instance.xcom_pull(task_ids=\'ai_semantic_profiler\', key=\'decision_file\') }}" '
-                '--run-id "{{ run_id }}"'
-            ),
+            application_file="spark-relational-airflow.yaml",
+            namespace="lakehouse-spark",
+            kubernetes_conn_id="kubernetes_default",
+            get_logs=True,
+            log_events_on_failure=True,
+            startup_timeout_seconds=600,
+            delete_on_termination=True,
+            pool="spark_k8s",
         )
 
     # 6. Join & Smoke Test

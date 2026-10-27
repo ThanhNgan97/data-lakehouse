@@ -29,6 +29,7 @@ if str(_CURRENT_DIR) not in sys.path:
 
 from ai_dataset_router import RoutingDecision, to_snake_case
 from env_config import S3_ACCESS_KEY, S3_BUCKET_NAME, S3_ENDPOINT, S3_SECRET_KEY
+from ozone_artifacts import read_json_artifact, write_json_artifact
 from nessie_catalog_utils import create_branch, make_branch_name, merge_branch_to_main, use_branch, use_main
 from relational_context import (
     EntityProfile,
@@ -59,8 +60,7 @@ def _quoted(value: str) -> str:
 
 
 def load_manifest(path: str) -> Dict[str, Any]:
-    with open(path, "r", encoding="utf-8") as handle:
-        manifest = json.load(handle)
+    manifest = read_json_artifact(path)
     if not manifest.get("context_id") or not manifest.get("entities"):
         raise ValueError("Relational context manifest is missing context_id or entities")
     return manifest
@@ -382,8 +382,7 @@ def _update_routing_decision(
         f"Relational context '{context_id}' joined around anchor "
         f"'{plan.anchor_entity}' using key {list(plan.anchor_key)}."
     )
-    with open(decision_path, "w", encoding="utf-8") as handle:
-        handle.write(decision.model_dump_json(indent=2))
+    write_json_artifact(decision_path, decision.model_dump(mode="json"))
 
 
 def process_relational_context(
@@ -527,8 +526,7 @@ def main() -> None:
     args = parser.parse_args()
 
     manifest = load_manifest(args.manifest)
-    with open(args.decision_file, "r", encoding="utf-8") as handle:
-        decision = RoutingDecision(**json.load(handle))
+    decision = RoutingDecision(**read_json_artifact(args.decision_file))
 
     spark = get_spark_session(f"Relational_Context_{manifest['context_id']}")
     try:

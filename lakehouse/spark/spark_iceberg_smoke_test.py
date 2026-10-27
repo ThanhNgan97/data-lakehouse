@@ -1,4 +1,4 @@
-"""Verify Spark, Iceberg, Nessie, and MinIO integration on Kubernetes."""
+"""Verify Spark, Iceberg, Nessie, and Apache Ozone integration on Kubernetes."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ def main() -> None:
             INSERT INTO {TABLE} VALUES
                 (1, 'spark-driver'),
                 (2, 'spark-executor'),
-                (3, 'iceberg-nessie-minio')
+                (3, 'iceberg-nessie-ozone')
             """
         )
 
@@ -39,7 +39,7 @@ def main() -> None:
         expected = [
             (1, "spark-driver"),
             (2, "spark-executor"),
-            (3, "iceberg-nessie-minio"),
+            (3, "iceberg-nessie-ozone"),
         ]
         if actual != expected:
             raise RuntimeError(f"Unexpected smoke-test rows: {actual!r}")

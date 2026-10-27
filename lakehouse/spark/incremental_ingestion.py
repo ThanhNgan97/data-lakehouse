@@ -18,9 +18,8 @@ from __future__ import annotations
 import hashlib
 import json
 
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Callable, Dict
 
 from pyspark.sql import SparkSession
 
@@ -42,7 +41,7 @@ STATUS_COMMITTED = "COMMITTED"
 STATUS_NO_CHANGE = "NO_CHANGE"
 
 
-FetchPayload = Callable[..., dict[str, Any]]
+FetchPayload = Callable[..., Dict[str, Any]]
 IngestPayload = Callable[..., IngestionResult]
 
 

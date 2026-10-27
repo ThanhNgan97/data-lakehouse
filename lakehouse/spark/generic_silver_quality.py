@@ -8,11 +8,12 @@ It intentionally contains no Learning Outcomes field names or business rules.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Tuple
 
 from pyspark.sql import DataFrame, functions as F
 
 
-DQRule = tuple[str, str]
+DQRule = Tuple[str, str]
 
 
 def add_dq_reasons(

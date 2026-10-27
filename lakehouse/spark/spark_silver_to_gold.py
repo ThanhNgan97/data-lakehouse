@@ -9,7 +9,8 @@ import os
 import sys
 from env_config import (
     S3_ACCESS_KEY, S3_SECRET_KEY, S3_ENDPOINT,
-    NESSIE_API_URL, HADOOP_HOME, SPARK_LOCAL_IP,
+    NESSIE_API_URL, HADOOP_HOME, SPARK_LOCAL_IP, ICEBERG_WAREHOUSE,
+    IS_KUBERNETES,
 )
 from spark_dependency_config import configure_pyspark_dependencies
 
@@ -19,7 +20,8 @@ os.environ["HADOOP_HOME"]           = HADOOP_HOME
 os.environ["PATH"]                  = os.path.join(HADOOP_HOME, "bin") + ";" + os.environ.get("PATH", "")
 os.environ["AWS_ACCESS_KEY_ID"]     = S3_ACCESS_KEY
 os.environ["AWS_SECRET_ACCESS_KEY"] = S3_SECRET_KEY
-os.environ["SPARK_LOCAL_IP"] = SPARK_LOCAL_IP
+if not IS_KUBERNETES:
+    os.environ["SPARK_LOCAL_IP"] = SPARK_LOCAL_IP
 
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
@@ -107,11 +109,13 @@ def add_quy_danh_gia_sort_key(df, col_name="quy_danh_gia"):
 
 def get_spark_session():
     print("Khởi tạo Spark Engine tính toán số liệu tầng Gold...")
-    spark = (
-        SparkSession.builder
-        .appName("Silver_To_Gold_DataMart")
-        .config("spark.driver.host", SPARK_LOCAL_IP)
-        .config("spark.driver.bindAddress", SPARK_LOCAL_IP)
+    builder = SparkSession.builder.appName("Silver_To_Gold_DataMart")
+    if not IS_KUBERNETES:
+        builder = builder \
+            .config("spark.driver.host", SPARK_LOCAL_IP) \
+            .config("spark.driver.bindAddress", SPARK_LOCAL_IP)
+    builder = (
+        builder
         .config("spark.sql.extensions",
                 "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions,"
                 "org.projectnessie.spark.extensions.NessieSparkSessionExtensions")
@@ -119,7 +123,7 @@ def get_spark_session():
         .config("spark.sql.catalog.lakehouse.catalog-impl", "org.apache.iceberg.nessie.NessieCatalog")
         .config("spark.sql.catalog.lakehouse.uri", NESSIE_API_URL)
         .config("spark.sql.catalog.lakehouse.ref", "main")
-        .config("spark.sql.catalog.lakehouse.warehouse", "s3a://university-lakehouse/iceberg-warehouse")
+        .config("spark.sql.catalog.lakehouse.warehouse", ICEBERG_WAREHOUSE)
         .config("spark.sql.catalog.lakehouse.cache-enabled", "false")
         .config("spark.sql.catalogImplementation", "in-memory")
         .config("spark.sql.catalog.lakehouse.s3.endpoint", S3_ENDPOINT)
@@ -128,14 +132,19 @@ def get_spark_session():
         .config("spark.hadoop.fs.s3a.secret.key", S3_SECRET_KEY)
         .config("spark.hadoop.fs.s3a.path.style.access", "true")
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
-        .config("spark.hadoop.fs.s3a.aws.credentials.provider",
-                "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
         .config("spark.hadoop.fs.s3a.fast.upload", "true")
         .config("spark.hadoop.fs.s3a.connection.maximum", "100")
         .config("spark.sql.shuffle.partitions", "4")
-        .getOrCreate()
     )
+    provider = (
+        "com.amazonaws.auth.EnvironmentVariableCredentialsProvider"
+        if IS_KUBERNETES
+        else "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider"
+    )
+    spark = builder.config(
+        "spark.hadoop.fs.s3a.aws.credentials.provider", provider
+    ).getOrCreate()
     spark.sparkContext.setLogLevel("ERROR")
     return spark
 

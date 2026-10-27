@@ -32,8 +32,10 @@ if str(_CURRENT_DIR) not in sys.path:
 
 from env_config import (
     S3_ACCESS_KEY, S3_SECRET_KEY, S3_ENDPOINT, S3_BUCKET_NAME,
-    NESSIE_API_URL, HADOOP_HOME, SPARK_LOCAL_IP,
+    NESSIE_API_URL, HADOOP_HOME, SPARK_LOCAL_IP, ICEBERG_WAREHOUSE,
+    IS_KUBERNETES,
 )
+from ozone_artifacts import materialize_file, read_json_artifact
 from nessie_catalog_utils import (
     make_branch_name,
     create_branch,
@@ -56,7 +58,8 @@ os.environ["HADOOP_HOME"]           = HADOOP_HOME
 os.environ["PATH"]                  = os.path.join(HADOOP_HOME, "bin") + ";" + os.environ.get("PATH", "")
 os.environ["AWS_ACCESS_KEY_ID"]     = S3_ACCESS_KEY
 os.environ["AWS_SECRET_ACCESS_KEY"] = S3_SECRET_KEY
-os.environ["SPARK_LOCAL_IP"]        = SPARK_LOCAL_IP
+if not IS_KUBERNETES:
+    os.environ["SPARK_LOCAL_IP"] = SPARK_LOCAL_IP
 
 from pyspark.sql import DataFrame, SparkSession, Window, functions as F
 from pyspark.sql.types import (
@@ -67,14 +70,18 @@ from pyspark.sql.types import (
 
 def get_spark_session(app_name: str = "Generic_Dynamic_Processor") -> SparkSession:
     """Khởi tạo Spark Session cấu hình Iceberg, Nessie và Apache Ozone S3A."""
-    spark = (
-        SparkSession.builder
-        .appName(app_name)
+    builder = SparkSession.builder.appName(app_name)
+    if not IS_KUBERNETES:
         # Keep the local Spark job from consuming every Docker Desktop CPU;
         # Airflow, Ozone, Nessie and Trino must remain responsive for the run.
-        .master(os.environ.get("SPARK_LOCAL_MASTER", "local[2]"))
-        .config("spark.driver.host", SPARK_LOCAL_IP)
-        .config("spark.driver.bindAddress", SPARK_LOCAL_IP)
+        builder = (
+            builder
+            .master(os.environ.get("SPARK_LOCAL_MASTER", "local[2]"))
+            .config("spark.driver.host", SPARK_LOCAL_IP)
+            .config("spark.driver.bindAddress", SPARK_LOCAL_IP)
+        )
+    builder = (
+        builder
         .config("spark.sql.extensions",
                 "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions,"
                 "org.projectnessie.spark.extensions.NessieSparkSessionExtensions")
@@ -82,7 +89,7 @@ def get_spark_session(app_name: str = "Generic_Dynamic_Processor") -> SparkSessi
         .config("spark.sql.catalog.lakehouse.catalog-impl", "org.apache.iceberg.nessie.NessieCatalog")
         .config("spark.sql.catalog.lakehouse.uri", NESSIE_API_URL)
         .config("spark.sql.catalog.lakehouse.ref", "main")
-        .config("spark.sql.catalog.lakehouse.warehouse", "s3a://university-lakehouse/iceberg-warehouse")
+        .config("spark.sql.catalog.lakehouse.warehouse", ICEBERG_WAREHOUSE)
         .config("spark.sql.catalog.lakehouse.cache-enabled", "false")
         .config("spark.sql.catalogImplementation", "in-memory")
         .config("spark.sql.catalog.lakehouse.s3.endpoint", S3_ENDPOINT)
@@ -92,14 +99,19 @@ def get_spark_session(app_name: str = "Generic_Dynamic_Processor") -> SparkSessi
         .config("spark.hadoop.fs.s3a.secret.key", S3_SECRET_KEY)
         .config("spark.hadoop.fs.s3a.path.style.access", "true")
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
-        .config("spark.hadoop.fs.s3a.aws.credentials.provider",
-                "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")
         .config("spark.hadoop.fs.s3a.fast.upload", "true")
         .config("spark.hadoop.fs.s3a.connection.maximum", "100")
         .config("spark.sql.shuffle.partitions", "4")
         .config("spark.sql.parquet.enableVectorizedReader", "false")
-        .getOrCreate()
     )
+    provider = (
+        "com.amazonaws.auth.EnvironmentVariableCredentialsProvider"
+        if IS_KUBERNETES
+        else "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider"
+    )
+    spark = builder.config(
+        "spark.hadoop.fs.s3a.aws.credentials.provider", provider
+    ).getOrCreate()
     spark.sparkContext.setLogLevel("ERROR")
     return spark
 
@@ -183,7 +195,7 @@ def read_input_dataset(spark: SparkSession, input_path: str) -> DataFrame:
     elif path_lower.endswith((".xlsx", ".xls")):
         import pandas as pd
 
-        pandas_df = pd.read_excel(input_path, sheet_name=0)
+        pandas_df = pd.read_excel(materialize_file(input_path), sheet_name=0)
         if pandas_df.empty or not len(pandas_df.columns):
             raise ValueError(f"File Excel '{input_path}' khÃ´ng cÃ³ dá»¯ liá»‡u.")
         pandas_df.columns = [str(column) for column in pandas_df.columns]
@@ -645,8 +657,7 @@ def main():
     try:
         decision_data = None
         if args.decision_file:
-            with open(args.decision_file, "r", encoding="utf-8") as f:
-                decision_data = RoutingDecision(**json.load(f))
+            decision_data = RoutingDecision(**read_json_artifact(args.decision_file))
         else:
             # Nếu không truyền decision, tự động gọi router phân tích ngay
             from ai_dataset_router import route_from_file_path

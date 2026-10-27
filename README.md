@@ -15,7 +15,7 @@ The clean-machine objective is to regenerate demo state from tracked source arti
 
 ## High-level architecture
 
-CTU IOC Mock API -> Airflow api_dataset_pipeline -> Bronze -> Silver -> Gold -> Iceberg / Apache Ozone / Nessie -> Trino -> Superset
+CTU IOC Mock API -> Airflow -> Spark Operator on Docker Desktop Kubernetes -> Bronze / Silver / Gold -> Iceberg / Apache Ozone / Nessie -> Trino -> Superset
 
 PostgreSQL provides metadata databases used by platform services.
 
@@ -26,6 +26,8 @@ The verified development workflow currently requires:
 - Git
 - Docker Engine
 - Docker Compose v2
+- Docker Desktop Kubernetes
+- kubectl
 - Windows PowerShell 5.1 or a compatible PowerShell environment
 
 WSL is not currently proven to be mandatory.
@@ -184,7 +186,7 @@ This repository contains the reproducible local Data Lakehouse demo workflow pre
 
 ### Architecture
 
-The demo stack uses Docker Compose with PostgreSQL, Apache Ozone, Nessie, Airflow, Trino, Superset, and the CTU IOC Mock API.
+The demo stack uses Docker Compose with PostgreSQL, Apache Ozone, Nessie, Airflow, Trino, Superset, and the CTU IOC Mock API. PySpark compute runs as SparkApplication resources on Docker Desktop Kubernetes.
 Demo state is reconstructed through source-controlled configuration and pipelines rather than by copying runtime volumes.
 
 ### Demo datasets

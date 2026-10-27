@@ -4,6 +4,10 @@ import unittest
 
 from airflow.models import DagBag
 from airflow.operators.bash import BashOperator
+from airflow.operators.python import ShortCircuitOperator
+from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import (
+    SparkKubernetesOperator,
+)
 
 
 DAG_DIR = Path("/opt/airflow/dags")
@@ -59,9 +63,9 @@ class ApiDatasetPipelineDagTest(
         )
         self.assertIsNone(error)
 
-    def test_new_and_legacy_dags_both_exist(self):
+    def test_primary_dag_exists_and_legacy_dag_is_removed(self):
         self.assertIsNotNone(self.dag)
-        self.assertIsNotNone(
+        self.assertIsNone(
             self.bag.get_dag(
                 "lakehouse_pipeline"
             )
@@ -111,44 +115,33 @@ class ApiDatasetPipelineDagTest(
                 expected_downstream,
             )
 
-    def test_all_tasks_use_bash_operator(self):
-        self.assertTrue(
-            all(
-                isinstance(
-                    task,
-                    BashOperator,
-                )
-                for task in self.dag.tasks
-            )
+    def test_spark_tasks_use_kubernetes_operator(self):
+        spark_tasks = {
+            "ingest_bronze",
+            "process_silver",
+            "validate_silver",
+            "process_gold",
+            "validate_gold",
+        }
+        for task_id in spark_tasks:
+            task = self.dag.get_task(task_id)
+            self.assertIsInstance(task, SparkKubernetesOperator)
+            self.assertEqual(task.pool, "spark_k8s")
+            self.assertEqual(task.kubernetes_conn_id, "kubernetes_default")
+
+    def test_preflight_short_circuits_no_change(self):
+        self.assertIsInstance(
+            self.dag.get_task("api_preflight"),
+            ShortCircuitOperator,
         )
 
-    def test_ingest_bronze_uses_no_change_skip_code(
-        self,
-    ):
-        task = self.dag.get_task(
-            "ingest_bronze"
-        )
-
-        skip_codes = task.skip_on_exit_code
-
-        if isinstance(skip_codes, int):
-            self.assertEqual(
-                skip_codes,
-                99,
-            )
-        else:
-            self.assertIn(
-                99,
-                skip_codes,
-            )
-
-    def test_each_task_invokes_generic_runner(
-        self,
-    ):
-        for task, command in zip(
-            self.dag.tasks,
-            EXPECTED_COMMANDS,
+    def test_non_spark_validation_tasks_remain_local(self):
+        for task_id, command in (
+            ("validate_bronze", "validate-bronze"),
+            ("trino_smoke_test", "trino-smoke-test"),
         ):
+            task = self.dag.get_task(task_id)
+            self.assertIsInstance(task, BashOperator)
             self.assertIn(
                 "api_dataset_orchestration.py",
                 task.bash_command,
@@ -166,17 +159,17 @@ class ApiDatasetPipelineDagTest(
                 task.bash_command,
             )
 
-    def test_manual_config_parameter_is_templated(
-        self,
-    ):
-        for task in self.dag.tasks:
+    def test_manual_config_parameter_is_templated(self):
+        for task_id in ("validate_bronze", "trino_smoke_test"):
+            task = self.dag.get_task(task_id)
             self.assertIn(
                 "dag_run.conf.get('dataset_id'",
                 task.env["DATASET_ID"],
             )
 
     def test_source_url_and_key_are_templated_from_run_config(self):
-        for task in self.dag.tasks:
+        for task_id in ("validate_bronze", "trino_smoke_test"):
+            task = self.dag.get_task(task_id)
             self.assertIn(
                 "dag_run.conf.get('source_api_url'",
                 task.env["SOURCE_API_URL"],

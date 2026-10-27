@@ -1,126 +1,85 @@
-# Spark runtime deployment
+# Spark runtime on Docker Desktop Kubernetes
 
-## Images
+Airflow runs in Docker Compose and submits every PySpark workload to the
+Spark Operator in the `lakehouse-spark` namespace. Apache Ozone is the only
+object store; Spark pods reach its S3 Gateway through
+`http://host.docker.internal:9878`.
 
-The initial integration smoke image is published to:
+## Build and publish the runtime image
 
-```text
-docker.io/tdang2202/cusc-datalakehouse:spark-3.5.0-v1
-```
-
-The current application runtime image is:
-
-```text
-docker.io/tdang2202/cusc-datalakehouse:spark-3.5.0-v2
-```
-
-Build from the repository root. The build context is intentionally limited to
-`lakehouse/spark` so `.env`, Git metadata, and unrelated project files cannot be
-copied into the image. The build reuses the five resolved Iceberg/Nessie/S3A
-JARs from the existing `custom-airflow:2.9.2` image. Build that image first if it
-is not present locally:
+Build the Airflow image first because it supplies the pinned Iceberg, Nessie,
+and S3A JARs used by `spark.Dockerfile`:
 
 ```powershell
 docker compose build airflow-webserver
-```
-
-```powershell
-docker build `
-  -f spark.Dockerfile `
-  -t tdang2202/cusc-datalakehouse:spark-3.5.0-v2 `
+docker build -f spark.Dockerfile `
+  -t tdang2202/cusc-datalakehouse:spark-3.5.0-v3 `
   lakehouse/spark
-
-docker push tdang2202/cusc-datalakehouse:spark-3.5.0-v2
+docker push tdang2202/cusc-datalakehouse:spark-3.5.0-v3
 ```
 
-The `v2` image contains Apache Spark, the Iceberg/Nessie/S3A JARs, and the
-pinned Python dependencies in `lakehouse/spark/spark-runtime-requirements.txt`.
-Do not reuse the full Airflow/application lockfile because those packages are
-not part of Spark's runtime contract.
+## Create runtime secrets
 
-## MinIO credentials
-
-Create the Secret from the local `.env` without writing its values to a YAML
-file. Run these commands from the repository root:
+Create secrets directly from `.env`; never export or commit their manifests:
 
 ```powershell
-$minioAccessKey = (Get-Content .env | Where-Object { $_ -match '^MINIO_ACCESS_KEY=' } | Select-Object -First 1) -replace '^MINIO_ACCESS_KEY=', ''
-$minioSecretKey = (Get-Content .env | Where-Object { $_ -match '^MINIO_SECRET_KEY=' } | Select-Object -First 1) -replace '^MINIO_SECRET_KEY=', ''
-
-if (-not $minioAccessKey -or -not $minioSecretKey) {
-  throw 'MINIO_ACCESS_KEY or MINIO_SECRET_KEY is missing from .env'
-}
-
-kubectl create secret generic minio-credentials `
-  --namespace lakehouse-spark `
-  --from-literal=access-key=$minioAccessKey `
-  --from-literal=secret-key=$minioSecretKey `
-  --dry-run=client -o yaml | kubectl apply -f -
-
-Remove-Variable minioAccessKey, minioSecretKey
-```
-
-Do not commit an exported Secret manifest or the `.env` file.
-
-The Airflow-triggered Bronze-to-Silver job also records pipeline failures in
-PostgreSQL. Create its password Secret from the same local `.env` file:
-
-```powershell
+$s3AccessKey = (Get-Content .env | Where-Object { $_ -match '^S3_ACCESS_KEY=' } | Select-Object -First 1) -replace '^S3_ACCESS_KEY=', ''
+$s3SecretKey = (Get-Content .env | Where-Object { $_ -match '^S3_SECRET_KEY=' } | Select-Object -First 1) -replace '^S3_SECRET_KEY=', ''
 $postgresPassword = (Get-Content .env | Where-Object { $_ -match '^PG_PASSWORD=' } | Select-Object -First 1) -replace '^PG_PASSWORD=', ''
 
-if (-not $postgresPassword) {
-  throw 'PG_PASSWORD is missing from .env'
-}
-
+kubectl create namespace lakehouse-spark --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic ozone-s3-credentials `
+  --namespace lakehouse-spark `
+  --from-literal=access-key=$s3AccessKey `
+  --from-literal=secret-key=$s3SecretKey `
+  --dry-run=client -o yaml | kubectl apply -f -
 kubectl create secret generic postgres-credentials `
   --namespace lakehouse-spark `
   --from-literal=password=$postgresPassword `
   --dry-run=client -o yaml | kubectl apply -f -
 
-Remove-Variable postgresPassword
+Remove-Variable s3AccessKey, s3SecretKey, postgresPassword
 ```
 
-## Private Docker Hub repository
+For a private Docker Hub repository, attach a registry secret to the
+`spark-operator-spark` service account.
 
-If the Docker Hub repository is private, create a pull secret with a Docker Hub
-access token. Do not use the account password:
+## Configure Airflow access
 
 ```powershell
-kubectl create secret docker-registry dockerhub-credentials `
-  --namespace lakehouse-spark `
-  --docker-server=https://index.docker.io/v1/ `
-  --docker-username=tdang2202 `
-  --docker-password='<DOCKER_HUB_ACCESS_TOKEN>'
+kubectl apply -f k8s/spark/airflow-rbac.yaml
 
-kubectl patch serviceaccount spark-operator-spark `
+$apiServer = (kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}').Replace('127.0.0.1', 'host.docker.internal')
+$airflowToken = kubectl create token airflow-spark-submitter `
   --namespace lakehouse-spark `
-  --type merge `
-  --patch '{"imagePullSecrets":[{"name":"dockerhub-credentials"}]}'
+  --duration=720h
+
+$airflowToken | docker compose exec -T `
+  -e KUBERNETES_API_SERVER=$apiServer `
+  airflow-webserver `
+  python /opt/airflow/k8s/spark/configure_airflow_connection.py
+
+Remove-Variable airflowToken, apiServer
 ```
 
-Skip this section when the repository is public.
+`airflow-init` creates the one-slot `spark_k8s` pool. Recreate Airflow after
+changing DAGs or mounts:
 
-## Run the integration smoke test
+```powershell
+docker compose up -d --force-recreate airflow-init airflow-webserver airflow-scheduler
+```
+
+## Validate the integration
 
 ```powershell
 kubectl delete sparkapplication spark-iceberg-smoke-test `
-  --namespace lakehouse-spark `
-  --ignore-not-found
-
+  --namespace lakehouse-spark --ignore-not-found
 kubectl apply -f k8s/spark/spark-iceberg-smoke-test.yaml
 kubectl get sparkapplication spark-iceberg-smoke-test `
-  --namespace lakehouse-spark `
-  --watch
+  --namespace lakehouse-spark --watch
 ```
 
-After the application reaches `COMPLETED`:
-
-```powershell
-kubectl logs spark-iceberg-smoke-test-driver `
-  --namespace lakehouse-spark | Select-String 'LAKEHOUSE_SMOKE_TEST_OK|TABLE=|ROW_COUNT='
-```
-
-Expected markers:
+The driver log must contain:
 
 ```text
 LAKEHOUSE_SMOKE_TEST_OK
@@ -135,80 +94,5 @@ docker compose exec trino trino `
   --execute 'SELECT * FROM lakehouse.spark_smoke.spark_k8s_smoke ORDER BY id'
 ```
 
-## Run the first migrated application
-
-The Bronze-to-Silver application uses the `v2` image, which adds only the
-Python packages required by that job:
-
-```powershell
-docker build `
-  -f spark.Dockerfile `
-  -t tdang2202/cusc-datalakehouse:spark-3.5.0-v2 `
-  lakehouse/spark
-
-docker push tdang2202/cusc-datalakehouse:spark-3.5.0-v2
-```
-
-Submit the application:
-
-```powershell
-kubectl delete sparkapplication spark-bronze-to-silver `
-  --namespace lakehouse-spark `
-  --ignore-not-found
-
-kubectl apply -f k8s/spark/spark-bronze-to-silver.yaml
-kubectl get sparkapplication spark-bronze-to-silver `
-  --namespace lakehouse-spark `
-  --watch
-```
-
-If no `bronze/data_extracted_*.parquet` object is waiting in MinIO, a successful
-run logs that there is no new Bronze file and exits without changing Silver.
-
-## Let Airflow submit SparkApplication resources
-
-Apply the namespace-scoped Airflow permissions:
-
-```powershell
-kubectl apply -f k8s/spark/airflow-rbac.yaml
-```
-
-The Compose configuration mounts `./k8s` read-only into the Airflow webserver
-and scheduler. Recreate only those services after adding or changing the mount:
-
-```powershell
-docker compose up -d --force-recreate airflow-webserver airflow-scheduler
-```
-
-Create a 30-day ServiceAccount token and store the generated Kubernetes config
-in Airflow's metadata database. The token is passed over stdin and is not
-written to the repository:
-
-```powershell
-$apiServer = (kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}').Replace('127.0.0.1', 'host.docker.internal')
-$airflowToken = kubectl create token airflow-spark-submitter `
-  --namespace lakehouse-spark `
-  --duration=720h
-
-$airflowToken | docker compose exec -T `
-  -e KUBERNETES_API_SERVER=$apiServer `
-  airflow-webserver `
-  python /opt/airflow/k8s/spark/configure_airflow_connection.py
-
-Remove-Variable airflowToken, apiServer
-```
-
-Refresh this connection before the displayed token expiry. The local Docker
-Desktop connection disables TLS verification because the API certificate does
-not match the `host.docker.internal` alias. Production clusters must use a
-trusted API hostname and certificate verification.
-
-Validate the migrated task without running the rest of the DAG:
-
-```powershell
-docker compose exec airflow-scheduler airflow tasks test `
-  lakehouse_pipeline bronze_to_silver 2026-10-22T00:00:00+00:00
-```
-
-The task succeeds when Airflow creates the SparkApplication, streams the driver
-log, observes exit code `0`, and deletes the completed test resource.
+All templates under `k8s/spark/templates` use the v3 image, Ozone S3 Gateway,
+Nessie, namespace-scoped RBAC, and the `ozone-s3-credentials` secret.

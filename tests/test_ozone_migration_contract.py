@@ -51,3 +51,25 @@ def test_python_runtime_uses_storage_neutral_s3_configuration():
         assert "minio" not in content, path
         assert "minioadmin" not in content, path
         assert ":9000" not in content, path
+
+
+def test_kubernetes_runtime_uses_only_ozone_and_v3_image():
+    runtime_paths = [
+        ROOT / "k8s" / "spark" / "README.md",
+        ROOT / "docs" / "kubernets" / "INSTALLATION.md",
+        ROOT / "lakehouse" / "spark" / "spark_iceberg_smoke_test.py",
+    ]
+    runtime_paths.extend((ROOT / "k8s" / "spark").rglob("*.yaml"))
+
+    for path in runtime_paths:
+        content = path.read_text(encoding="utf-8").lower()
+        assert "minio" not in content, path
+        assert ":9000" not in content, path
+
+    templates = list((ROOT / "k8s" / "spark" / "templates").glob("*.yaml"))
+    assert templates
+    for path in templates:
+        content = path.read_text(encoding="utf-8")
+        assert "spark-3.5.0-v3" in content, path
+        assert "ozone-s3-credentials" in content, path
+        assert "host.docker.internal:9878" in content, path

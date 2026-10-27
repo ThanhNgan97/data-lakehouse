@@ -357,7 +357,10 @@ services:
       _AIRFLOW_WWW_USER_CREATE: 'true'
       _AIRFLOW_WWW_USER_USERNAME: airflow
       _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
-    command: version
+    command:
+      - bash
+      - -c
+      - airflow pools set spark_k8s 1 "Serial Spark applications for Docker Desktop" && airflow version
     depends_on:
       - postgres
     networks:

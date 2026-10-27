@@ -31,7 +31,8 @@ from nessie_catalog_utils import (
 from openmetadata_lineage_utils import get_client, ensure_bronze_table, push_lineage_safe
 from env_config import (
     S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET_NAME,
-    NESSIE_API_URL, HADOOP_HOME, SPARK_LOCAL_IP,
+    NESSIE_API_URL, HADOOP_HOME, SPARK_LOCAL_IP, ICEBERG_WAREHOUSE,
+    IS_KUBERNETES,
 )
 
 os.environ["HADOOP_HOME"]           = HADOOP_HOME
@@ -40,7 +41,6 @@ if os.path.isdir(HADOOP_HOME):
 os.environ["AWS_ACCESS_KEY_ID"]     = S3_ACCESS_KEY
 os.environ["AWS_SECRET_ACCESS_KEY"] = S3_SECRET_KEY
 
-IS_KUBERNETES = bool(os.environ.get("KUBERNETES_SERVICE_HOST"))
 if not IS_KUBERNETES:
     os.environ["SPARK_LOCAL_IP"] = SPARK_LOCAL_IP
 
@@ -69,7 +69,7 @@ def get_spark_session():
         .config("spark.sql.catalog.lakehouse.catalog-impl", "org.apache.iceberg.nessie.NessieCatalog") \
         .config("spark.sql.catalog.lakehouse.uri", NESSIE_API_URL) \
         .config("spark.sql.catalog.lakehouse.ref", "main") \
-        .config("spark.sql.catalog.lakehouse.warehouse", "s3a://university-lakehouse/iceberg-warehouse") \
+        .config("spark.sql.catalog.lakehouse.warehouse", ICEBERG_WAREHOUSE) \
         .config("spark.sql.catalog.lakehouse.cache-enabled", "false") \
         .config("spark.sql.catalogImplementation", "in-memory") \
         .config("spark.sql.catalog.lakehouse.s3.endpoint", S3_ENDPOINT) \

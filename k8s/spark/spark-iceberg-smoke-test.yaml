@@ -6,7 +6,7 @@ metadata:
 spec:
   type: Python
   mode: cluster
-  image: docker.io/tdang2202/cusc-datalakehouse:spark-3.5.0-v1
+  image: docker.io/tdang2202/cusc-datalakehouse:spark-3.5.0-v3
   imagePullPolicy: Always
   mainApplicationFile: local:///opt/lakehouse/spark/spark_iceberg_smoke_test.py
   sparkVersion: "3.5.0"
@@ -20,7 +20,7 @@ spec:
     spark.sql.catalog.lakehouse.warehouse: s3a://university-lakehouse/iceberg-warehouse
     spark.sql.catalog.lakehouse.cache-enabled: "false"
     spark.hadoop.fs.s3a.impl: org.apache.hadoop.fs.s3a.S3AFileSystem
-    spark.hadoop.fs.s3a.endpoint: http://host.docker.internal:9000
+    spark.hadoop.fs.s3a.endpoint: http://host.docker.internal:9878
     spark.hadoop.fs.s3a.path.style.access: "true"
     spark.hadoop.fs.s3a.connection.ssl.enabled: "false"
     spark.hadoop.fs.s3a.aws.credentials.provider: com.amazonaws.auth.EnvironmentVariableCredentialsProvider
@@ -35,12 +35,12 @@ spec:
       - name: AWS_ACCESS_KEY_ID
         valueFrom:
           secretKeyRef:
-            name: minio-credentials
+            name: ozone-s3-credentials
             key: access-key
       - name: AWS_SECRET_ACCESS_KEY
         valueFrom:
           secretKeyRef:
-            name: minio-credentials
+            name: ozone-s3-credentials
             key: secret-key
 
   executor:
@@ -51,12 +51,12 @@ spec:
       - name: AWS_ACCESS_KEY_ID
         valueFrom:
           secretKeyRef:
-            name: minio-credentials
+            name: ozone-s3-credentials
             key: access-key
       - name: AWS_SECRET_ACCESS_KEY
         valueFrom:
           secretKeyRef:
-            name: minio-credentials
+            name: ozone-s3-credentials
             key: secret-key
 
   restartPolicy:

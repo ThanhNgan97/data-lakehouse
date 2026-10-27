@@ -6,6 +6,18 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from core.security import get_password_hash
 
+# Load local backend settings first, then the repository-level environment.
+# This keeps direct development commands such as ``uvicorn main:app`` aligned
+# with the Docker host ports without requiring Uvicorn's ``--env-file`` flag.
+try:
+    from dotenv import load_dotenv
+
+    _backend_dir = Path(__file__).resolve().parent.parent
+    load_dotenv(_backend_dir / ".env", override=False)
+    load_dotenv(_backend_dir.parent / ".env", override=False)
+except ImportError:
+    pass
+
 # Setup Base for ORM models
 Base = declarative_base()
 

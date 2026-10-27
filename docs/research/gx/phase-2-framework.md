@@ -1,4 +1,130 @@
-# Giai đoạn 2 - Xây dựng GX framework dùng chung
+# Giai đoạn 2 — Framework đa engine, stateless, persistent-ready
+
+Ngày cập nhật: 2026-10-27
+
+## Kết luận hiện tại
+
+Giai đoạn 2 đã được nâng cấp theo kiến trúc GX service độc lập. Framework nằm
+trong `lakehouse/gx_runtime`, không còn nằm trong Spark worker hoặc Airflow.
+Validation engine chỉ tạo kết quả kỹ thuật; `ValidationPolicy` mới quyết định
+`PASSED`, `WARNING`, `FAILED` và `merge_allowed`.
+
+## Public contract
+
+Hai entry point ổn định:
+
+```python
+validate_dataframe(
+    dataframe,
+    data_asset_ref=...,
+    dataset_id=...,
+    data_layer=...,
+    suite_names=("suite",),
+    suite_versions={"suite": "1.0.0"},
+    run_id=...,
+    validator=...,
+    result_store=...,
+    execution_mode=ExecutionMode.ENFORCE,
+    nessie_branch=...,
+    snapshot_id=...,
+    nessie_commit_hash=...,
+)
+
+validate_table(
+    data_asset_ref=...,
+    dataset_id=...,
+    data_layer=...,
+    suite_names=("suite",),
+    suite_versions={"suite": "1.0.0"},
+    run_id=...,
+    nessie_branch=...,
+    snapshot_id=...,
+    nessie_commit_hash=...,
+    validator=...,
+    result_store=...,
+)
+```
+
+Table validation fail ngay khi thiếu branch, snapshot ID hoặc Nessie commit
+hash. `SqlAlchemyTableEngine` là adapter boundary ổn định; rule SQL nghiệp vụ
+được bổ sung cùng suite ở giai đoạn 3–4.
+
+## Request và summary
+
+`ValidationRequest` chứa:
+
+- `data_asset_ref`, `dataset_id`, `data_layer`;
+- `execution_engine` (`spark` hoặc `sql`);
+- suite name và version;
+- `run_id`, execution mode;
+- `nessie_branch`, `snapshot_id`, `nessie_commit_hash`.
+
+`ValidationSummary` luôn có toàn bộ trường truy vết trên, cùng:
+
+- `validation_id` xác định theo input identity, ổn định khi retry;
+- validation timestamp UTC;
+- `status`, `success`, `merge_allowed`, `executed`;
+- số expectation và failure critical/warning;
+- technical result IDs, metrics và Data Docs URL.
+
+## Policy mode
+
+| Mode | Engine chạy | Failure được báo | Merge |
+|---|---|---|---|
+| `off` | Không | Summary ghi `executed=false` | Cho phép |
+| `report` | Có | `WARNING` | Cho phép |
+| `enforce` | Có | Critical → `FAILED`; warning → `WARNING` | Chặn khi critical |
+
+Mode không nằm trong Spark/SQL adapter. Infrastructure/configuration/storage
+error ném exception riêng và fail-closed, không bị biến thành quality pass.
+
+## Suite registry và stateless execution
+
+- Registry `lakehouse/gx/suite_registry.json` và suite definitions được quản lý
+  bằng Git, có version, supported engines, contract version và effective date.
+- Image copy registry vào `/opt/gx/config`; runtime chỉ đọc.
+- Spark adapter tạo ephemeral GX context cho mỗi request, không tái sử dụng
+  process state hay ghi checkpoint/validation definition vào container.
+- Cùng identity tạo cùng `validation_id`, hỗ trợ retry và đối soát.
+
+Business suite thực tế chưa được khai báo trong giai đoạn 2; registry rỗng có
+chủ đích và sẽ được điền trong giai đoạn 3–4.
+
+## Persistent storage
+
+- Production factory chỉ chấp nhận `GX_RESULT_STORE_BACKEND=s3`.
+- Summary JSON được ghi vào Ozone/S3 theo
+  `gx/validation-results/<dataset>/<layer>/<run>/<validation_id>.json`.
+- Filesystem backend bị từ chối; `InMemoryResultStore` chỉ dành cho unit test.
+- Data Docs dùng base URL object storage từ `GX_DATA_DOCS_BASE_URL`.
+- Suite definitions ở Git, secrets/endpoint/bucket lấy từ environment.
+
+## Kết quả kiểm chứng
+
+Ngày 2026-10-27:
+
+- Docker image build: PASS.
+- `pip check`: không có dependency lỗi.
+- Core contract/policy/registry/storage tests: PASS.
+- GX 1.24 Spark adapter với suite versioned từ Git: valid PASS, invalid
+  FAIL_AS_EXPECTED.
+- Toàn bộ suite giai đoạn 1–2 trong image: PASS.
+- `docker compose --profile gx config --quiet`: PASS.
+
+## Phạm vi chưa làm
+
+- Business contract và suite thật: giai đoạn 3–4.
+- Snapshot-aware merge gate và Airflow integration: giai đoạn 5 + 8.
+- Data Docs renderer/upload hoàn chỉnh: triển khai cùng suite/checkpoint.
+- SQL rule implementations: bổ sung theo compatibility của từng expectation.
+
+---
+
+## Lịch sử thiết kế cũ (đã được thay thế)
+
+Phần dưới ghi lại triển khai ngày 2026-10-15 để đối chiếu. Các đường dẫn
+`lakehouse/spark/data_quality`, File Data Context trong Airflow và filesystem
+`uncommitted` không còn là kiến trúc đang sử dụng.
 
 Ngày kiểm chứng: 2026-10-15  
 Nhánh: `research/great-expectations-poc`

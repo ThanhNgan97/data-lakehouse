@@ -29,6 +29,8 @@ function Test-DockerEngine {
 }
 
 function Import-RootDotEnv {
+    param([switch]$Override)
+
     $path = Join-Path $script:RepoRoot ".env"
 
     if (-not (Test-Path $path)) {
@@ -61,7 +63,7 @@ function Import-RootDotEnv {
                 "Process"
             )
 
-            if ([string]::IsNullOrWhiteSpace($existing)) {
+            if ($Override -or [string]::IsNullOrWhiteSpace($existing)) {
                 [Environment]::SetEnvironmentVariable(
                     $name,
                     $value,

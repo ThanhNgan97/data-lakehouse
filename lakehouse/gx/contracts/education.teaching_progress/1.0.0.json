@@ -84,7 +84,7 @@
           "severity": "warning",
           "columns": ["_source_updated_at"],
           "threshold": {"max_age_hours": 8760},
-          "supported_engines": ["spark", "sql"],
+          "supported_engines": ["sql"],
           "promotion_condition": "Replace pilot threshold with source SLA before production enforcement"
         },
         {
@@ -161,14 +161,14 @@
       "id": "silver_gold.row_count",
       "type": "row_count_match",
       "severity": "critical",
-      "supported_engines": ["spark", "sql"]
+      "supported_engines": ["sql"]
     },
     {
       "id": "silver_gold.candidate_key_set",
       "type": "key_set_match",
       "severity": "critical",
       "columns": ["ma_lop_hoc_phan", "nam_hoc", "hoc_ky"],
-      "supported_engines": ["spark", "sql"]
+      "supported_engines": ["sql"]
     },
     {
       "id": "silver_gold.value_and_lineage",
@@ -179,7 +179,7 @@
         "ty_le_tien_do_giang_day": "ty_le_tien_do_giang_day",
         "_record_checksum": "source_record_checksum"
       },
-      "supported_engines": ["spark", "sql"]
+      "supported_engines": ["sql"]
     }
   ]
 }

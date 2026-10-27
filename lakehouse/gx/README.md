@@ -10,9 +10,11 @@ Each `suite_registry.json` entry must declare:
 - `supported_engines` (`spark` and/or `sql`)
 - `contract_version`
 - `effective_from`
-- `definition` (path relative to this directory)
+- `definitions` (engine-to-path mapping relative to this directory)
 
-Business suites are intentionally added in phases 3–4. Validation results and
+Spark definitions use native GX JSON. SQL definitions use the local
+`lakehouse-sql-suite/v1` format and execute one scalar query per expectation so
+engine behavior stays explicit and independently testable. Validation results and
 Data Docs must be written to the configured object store, never this directory.
 
 Versioned data contracts are registered separately in `contract_registry.json`.

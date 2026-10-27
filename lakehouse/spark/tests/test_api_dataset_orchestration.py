@@ -44,10 +44,8 @@ class ApiDatasetOrchestrationTest(
                 ":",
                 config.silver_processor,
             )
-            self.assertIn(
-                ":",
-                config.gold_processor,
-            )
+            self.assertTrue(config.dbt_selector)
+            self.assertNotIn(":", config.dbt_selector)
             self.assertTrue(
                 config.gold_table.startswith(
                     "lakehouse.gold."
@@ -71,11 +69,8 @@ class ApiDatasetOrchestrationTest(
             ),
         )
         self.assertEqual(
-            config.gold_processor,
-            (
-                "spark_learning_outcomes_to_gold:"
-                "run_learning_outcomes_gold"
-            ),
+            config.dbt_selector,
+            "agg_learning_outcomes_by_period",
         )
         self.assertEqual(
             config.gold_table,
@@ -102,11 +97,8 @@ class ApiDatasetOrchestrationTest(
             ),
         )
         self.assertEqual(
-            config.gold_processor,
-            (
-                "spark_teaching_progress_to_gold:"
-                "run_teaching_progress_gold"
-            ),
+            config.dbt_selector,
+            "fct_teaching_progress",
         )
         self.assertEqual(
             config.gold_table,
@@ -189,7 +181,7 @@ class ApiDatasetOrchestrationTest(
             expected,
         )
 
-    def test_exact_eight_commands(self):
+    def test_exact_ten_commands(self):
         self.assertEqual(
             tuple(COMMANDS),
             (
@@ -198,8 +190,10 @@ class ApiDatasetOrchestrationTest(
                 "validate-bronze",
                 "process-silver",
                 "validate-silver",
+                "prepare-gold",
                 "process-gold",
                 "validate-gold",
+                "publish-gold",
                 "trino-smoke-test",
             ),
         )

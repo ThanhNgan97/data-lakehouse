@@ -1,0 +1,47 @@
+version: 2
+models:
+  - name: stg_teaching_progress
+    description: Rename Silver lineage columns without changing grain or values.
+  - name: fct_teaching_progress
+    description: >-
+      One row per ma_lop_hoc_phan, nam_hoc, hoc_ky. Source-provided progress;
+      monitored record count is 1. No weighted progress or schedule status.
+      Alias preserves the existing teaching_progress_metrics table name.
+    columns:
+      - name: ma_lop_hoc_phan
+        tests: [not_null]
+      - name: nam_hoc
+        tests: [not_null]
+      - name: hoc_ky
+        tests: [not_null]
+      - name: ty_le_tien_do_giang_day
+        tests: [not_null]
+      - name: source_record_id
+        tests: [not_null]
+      - name: source_updated_at
+        tests: [not_null]
+      - name: source_batch_id
+        tests: [not_null]
+      - name: source_record_checksum
+        tests: [not_null]
+      - name: _gold_updated_at
+        tests: [not_null]
+  - name: fct_learning_outcomes
+    description: Active program-period metrics; previous available period, zero denominators yield NULL.
+    columns:
+      - name: ma_chuong_trinh
+      - name: nam_hoc
+      - name: nam_bat_dau
+      - name: hoc_ky
+      - name: source_record_id
+      - name: source_updated_at
+      - name: source_batch_id
+      - name: source_record_checksum
+      - name: _gold_updated_at
+  - name: agg_learning_outcomes_by_period
+    description: Ratio of summed numerators/denominators per academic year and semester; not average of program ratios. GPA contributors are not claimed to be unique people across programs.
+    columns:
+      - name: nam_hoc
+      - name: hoc_ky
+      - name: so_chuong_trinh
+      - name: _gold_updated_at

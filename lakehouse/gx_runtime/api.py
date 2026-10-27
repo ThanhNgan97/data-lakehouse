@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from time import perf_counter
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
@@ -25,6 +26,7 @@ from .metadata_export import (
     export_validation_metadata,
     openmetadata_exporter_from_env,
 )
+from .observability import GXMetrics
 from .service import validate_table
 from .snapshot_gate import NessieSnapshotResolver, SnapshotAwareQualityGate
 from .storage import result_store_from_env
@@ -75,8 +77,59 @@ class TableValidationApplication:
         self.metadata_required = (
             os.getenv("GX_OPENMETADATA_REQUIRED", "false").lower() == "true"
         )
+        self.metrics = GXMetrics()
 
     def validate(self, body: dict[str, Any]) -> dict[str, Any]:
+        started = perf_counter()
+        layer = str(body.get("data_layer", "unknown"))
+        engine = str(body.get("execution_engine", "sql"))
+        status = "ERROR"
+        summary = None
+        metrics = getattr(self, "metrics", None)
+        if metrics is None:
+            metrics = self.metrics = GXMetrics()
+        try:
+            retry_attempt = int(body.get("retry_attempt", 0))
+        except (TypeError, ValueError) as exc:
+            raise ValidationConfigurationError("retry_attempt must be an integer") from exc
+        if retry_attempt > 0:
+            metrics.record_retry(engine)
+        try:
+            response, summary = self._validate(body)
+            status = summary.status.value
+            return response
+        except QualityGateRejectedError:
+            status = "FAILED"
+            metrics.record_quality_failure(layer, engine)
+            raise
+        except TimeoutError:
+            status = "TIMEOUT"
+            metrics.record_timeout(engine)
+            raise
+        except (ValidationExecutionError, ValidationPersistenceError, MetadataExportError) as exc:
+            if _caused_by_timeout(exc):
+                status = "TIMEOUT"
+                metrics.record_timeout(engine)
+            else:
+                metrics.record_engine_error(engine)
+            raise
+        finally:
+            values = summary.metrics if summary is not None else {}
+            metrics.observe_validation(
+                duration_seconds=perf_counter() - started,
+                layer=layer,
+                engine=engine,
+                status=status,
+                rows=_metric_value(values, "validation_rows", "row_count", "dataset_rows"),
+                bytes_scanned=_metric_value(
+                    values,
+                    "validation_bytes_scanned",
+                    "bytes_scanned",
+                    "trino_bytes_scanned",
+                ),
+            )
+
+    def _validate(self, body: dict[str, Any]) -> tuple[dict[str, Any], Any]:
         required = {
             "dataset_id", "data_layer", "contract_version", "source_kind",
             "run_id", "nessie_branch", "snapshot_id", "nessie_commit_hash",
@@ -162,7 +215,24 @@ class TableValidationApplication:
                 "published": metadata.published,
                 "failed": metadata.failed,
             },
-        }
+        }, summary
+
+
+def _metric_value(values: dict[str, Any], *names: str) -> float | None:
+    for name in names:
+        value = values.get(name)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return float(value)
+    return None
+
+
+def _caused_by_timeout(error: BaseException) -> bool:
+    current: BaseException | None = error
+    while current is not None:
+        if isinstance(current, TimeoutError):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
 
 
 ERRORS = (
@@ -189,6 +259,13 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         if self.path == "/health/ready":
             self._send(200, {"status": "ready"})
+        elif self.path == os.getenv("GX_METRICS_PATH", "/metrics"):
+            raw = self.application.metrics.render().encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
         else:
             self._send(404, {"error_code": "NOT_FOUND"})
 

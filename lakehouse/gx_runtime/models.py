@@ -45,6 +45,7 @@ class ValidationRequest:
     dataset_id: str
     data_layer: str
     execution_engine: ExecutionEngine
+    contract_version: str
     suites: tuple[SuiteReference, ...]
     run_id: str
     execution_mode: ExecutionMode = ExecutionMode.ENFORCE
@@ -57,6 +58,7 @@ class ValidationRequest:
             "data_asset_ref": self.data_asset_ref,
             "dataset_id": self.dataset_id,
             "data_layer": self.data_layer,
+            "contract_version": self.contract_version,
             "run_id": self.run_id,
         }
         missing = [name for name, value in required.items() if not value.strip()]
@@ -116,6 +118,7 @@ class ValidationSummary:
     data_layer: str
     execution_engine: ExecutionEngine
     execution_mode: ExecutionMode
+    contract_version: str
     suite_names: tuple[str, ...]
     suite_versions: dict[str, str]
     run_id: str

@@ -1,0 +1,10 @@
+{
+  "contracts": [
+    {
+      "dataset_id": "education.teaching_progress",
+      "contract_version": "1.0.0",
+      "effective_from": "2026-10-27",
+      "definition": "contracts/education.teaching_progress/1.0.0.json"
+    }
+  ]
+}

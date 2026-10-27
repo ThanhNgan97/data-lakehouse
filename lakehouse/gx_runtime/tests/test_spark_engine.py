@@ -64,6 +64,7 @@ class GreatExpectationsSparkEngineTest(unittest.TestCase):
                 dataset_id="education.teaching_progress",
                 data_layer="silver",
                 execution_engine=ExecutionEngine.SPARK,
+                contract_version="1.0.0",
                 suites=(SuiteReference("progress_range", "1.0.0"),),
                 run_id="spark-engine-test",
             )

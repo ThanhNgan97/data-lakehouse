@@ -1,0 +1,185 @@
+{
+  "contract_version": "1.0.0",
+  "dataset_id": "education.teaching_progress",
+  "effective_from": "2026-10-27",
+  "status": "pilot",
+  "owner": "data-platform",
+  "source_contract_version": "1.0-demo",
+  "grain": {
+    "description": "One teaching progress observation per course section, academic year, and semester",
+    "candidate_business_key": [
+      "ma_lop_hoc_phan",
+      "nam_hoc",
+      "hoc_ky"
+    ],
+    "source_record_id": "ma_ban_ghi",
+    "profile_verified": true,
+    "business_semantics_verified": false,
+    "verification_note": "30/30 distinct candidate keys and record IDs in the current demo Iceberg snapshot; production source-owner confirmation is still required"
+  },
+  "schema_evolution": {
+    "additional_columns": "allow_with_warning",
+    "column_removal": "forbid",
+    "type_change": "forbid",
+    "nullable_to_required": "require_contract_version",
+    "column_rename": "require_contract_version"
+  },
+  "layers": {
+    "silver": {
+      "data_asset_ref": "lakehouse.silver.teaching_progress",
+      "columns": {
+        "ma_ban_ghi": {"type": "varchar", "nullable": false},
+        "ma_don_vi": {"type": "varchar", "nullable": false},
+        "ten_don_vi": {"type": "varchar", "nullable": false},
+        "ma_lop_hoc_phan": {"type": "varchar", "nullable": false},
+        "nam_hoc": {"type": "varchar", "nullable": false},
+        "hoc_ky": {"type": "integer", "nullable": false},
+        "ty_le_tien_do_giang_day": {"type": "double", "nullable": false},
+        "thoi_gian_cap_nhat_nguon": {"type": "timestamp_with_timezone", "nullable": false},
+        "_source_system": {"type": "varchar", "nullable": false},
+        "_source_type": {"type": "varchar", "nullable": false},
+        "_dataset": {"type": "varchar", "nullable": false},
+        "_schema_version": {"type": "varchar", "nullable": false},
+        "_ingestion_mode": {"type": "varchar", "nullable": false},
+        "_batch_id": {"type": "varchar", "nullable": false},
+        "_source_updated_at": {"type": "timestamp_with_timezone", "nullable": false},
+        "_ingested_at": {"type": "timestamp_with_timezone", "nullable": false},
+        "_record_checksum": {"type": "varchar", "nullable": false},
+        "_silver_updated_at": {"type": "timestamp_with_timezone", "nullable": false}
+      },
+      "rules": [
+        {
+          "id": "silver.schema.required_columns",
+          "type": "schema",
+          "severity": "critical",
+          "supported_engines": ["spark", "sql"]
+        },
+        {
+          "id": "silver.required.null_ratio",
+          "type": "null_ratio",
+          "severity": "critical",
+          "columns": ["ma_ban_ghi", "ma_don_vi", "ma_lop_hoc_phan", "nam_hoc", "hoc_ky", "ty_le_tien_do_giang_day", "_source_updated_at"],
+          "threshold": {"max_ratio": 0.0},
+          "supported_engines": ["spark", "sql"]
+        },
+        {
+          "id": "silver.candidate_key.duplicate_ratio",
+          "type": "duplicate_ratio",
+          "severity": "warning",
+          "columns": ["ma_lop_hoc_phan", "nam_hoc", "hoc_ky"],
+          "threshold": {"max_ratio": 0.0},
+          "supported_engines": ["spark", "sql"],
+          "promotion_condition": "May become critical only after production source-owner confirms grain and business key"
+        },
+        {
+          "id": "silver.volume.non_empty",
+          "type": "volume",
+          "severity": "critical",
+          "threshold": {"min_rows": 1},
+          "supported_engines": ["spark", "sql"]
+        },
+        {
+          "id": "silver.source.freshness",
+          "type": "freshness",
+          "severity": "warning",
+          "columns": ["_source_updated_at"],
+          "threshold": {"max_age_hours": 8760},
+          "supported_engines": ["spark", "sql"],
+          "promotion_condition": "Replace pilot threshold with source SLA before production enforcement"
+        },
+        {
+          "id": "silver.progress.range",
+          "type": "range",
+          "severity": "critical",
+          "columns": ["ty_le_tien_do_giang_day"],
+          "threshold": {"min": 0.0, "max": 100.0},
+          "supported_engines": ["spark", "sql"]
+        }
+      ]
+    },
+    "gold": {
+      "data_asset_ref": "lakehouse.gold.teaching_progress_metrics",
+      "columns": {
+        "ma_don_vi": {"type": "varchar", "nullable": false},
+        "ten_don_vi": {"type": "varchar", "nullable": false},
+        "ma_lop_hoc_phan": {"type": "varchar", "nullable": false},
+        "nam_hoc": {"type": "varchar", "nullable": false},
+        "hoc_ky": {"type": "integer", "nullable": false},
+        "ty_le_tien_do_giang_day": {"type": "double", "nullable": false},
+        "so_ban_ghi_theo_doi": {"type": "bigint", "nullable": false},
+        "source_record_id": {"type": "varchar", "nullable": false},
+        "source_updated_at": {"type": "timestamp_with_timezone", "nullable": false},
+        "source_batch_id": {"type": "varchar", "nullable": false},
+        "source_record_checksum": {"type": "varchar", "nullable": false},
+        "_gold_updated_at": {"type": "timestamp_with_timezone", "nullable": false}
+      },
+      "rules": [
+        {
+          "id": "gold.schema.required_columns",
+          "type": "schema",
+          "severity": "critical",
+          "supported_engines": ["sql"]
+        },
+        {
+          "id": "gold.required.null_ratio",
+          "type": "null_ratio",
+          "severity": "critical",
+          "columns": ["ma_lop_hoc_phan", "nam_hoc", "hoc_ky", "ty_le_tien_do_giang_day", "source_record_id", "source_record_checksum"],
+          "threshold": {"max_ratio": 0.0},
+          "supported_engines": ["sql"]
+        },
+        {
+          "id": "gold.candidate_grain.duplicate_ratio",
+          "type": "duplicate_ratio",
+          "severity": "warning",
+          "columns": ["ma_lop_hoc_phan", "nam_hoc", "hoc_ky"],
+          "threshold": {"max_ratio": 0.0},
+          "supported_engines": ["sql"],
+          "promotion_condition": "May become critical only after production source-owner confirms grain"
+        },
+        {
+          "id": "gold.volume.non_empty",
+          "type": "volume",
+          "severity": "critical",
+          "threshold": {"min_rows": 1},
+          "supported_engines": ["sql"]
+        },
+        {
+          "id": "gold.source.freshness",
+          "type": "freshness",
+          "severity": "warning",
+          "columns": ["source_updated_at"],
+          "threshold": {"max_age_hours": 8760},
+          "supported_engines": ["sql"],
+          "promotion_condition": "Replace pilot threshold with source SLA before production enforcement"
+        }
+      ]
+    }
+  },
+  "reconciliation_rules": [
+    {
+      "id": "silver_gold.row_count",
+      "type": "row_count_match",
+      "severity": "critical",
+      "supported_engines": ["spark", "sql"]
+    },
+    {
+      "id": "silver_gold.candidate_key_set",
+      "type": "key_set_match",
+      "severity": "critical",
+      "columns": ["ma_lop_hoc_phan", "nam_hoc", "hoc_ky"],
+      "supported_engines": ["spark", "sql"]
+    },
+    {
+      "id": "silver_gold.value_and_lineage",
+      "type": "column_reconciliation",
+      "severity": "critical",
+      "mappings": {
+        "ma_ban_ghi": "source_record_id",
+        "ty_le_tien_do_giang_day": "ty_le_tien_do_giang_day",
+        "_record_checksum": "source_record_checksum"
+      },
+      "supported_engines": ["spark", "sql"]
+    }
+  ]
+}

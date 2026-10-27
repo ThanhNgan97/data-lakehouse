@@ -14,3 +14,8 @@ Each `suite_registry.json` entry must declare:
 
 Business suites are intentionally added in phases 3–4. Validation results and
 Data Docs must be written to the configured object store, never this directory.
+
+Versioned data contracts are registered separately in `contract_registry.json`.
+Contracts define layer schemas, evolution policy, rule severity, thresholds,
+and engine compatibility. Expectation suites in phase 4 implement those rules;
+they do not redefine the contract.

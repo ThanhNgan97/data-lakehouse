@@ -304,6 +304,7 @@ services:
     environment:
       GX_ANALYTICS_ENABLED: 'false'
       GX_SUITE_REGISTRY: '/opt/gx/config/suite_registry.json'
+      GX_CONTRACT_REGISTRY: '/opt/gx/config/contract_registry.json'
       GX_RESULT_STORE_BACKEND: 's3'
       GX_RESULT_STORE_BUCKET: ${S3_BUCKET_NAME:-university-lakehouse}
       GX_RESULT_STORE_PREFIX: ${GX_RESULT_STORE_PREFIX:-gx/validation-results}

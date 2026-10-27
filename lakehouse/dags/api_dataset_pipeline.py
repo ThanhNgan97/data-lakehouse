@@ -100,6 +100,29 @@ def run_gx_gold_quality_gate(**context):
         raise AirflowException(str(exc)) from exc
 
 
+def run_gx_reconciliation_gate(**context):
+    """Require Silver and Gold values/lineage to reconcile."""
+    from airflow.exceptions import AirflowException, AirflowFailException
+    from gx_airflow_adapter import GXAirflowError, NON_RETRYABLE
+    from gx_reconciliation_gate import validate_silver_gold_reconciliation
+
+    dag_run = context.get("dag_run")
+    dataset_id = dag_run.conf.get("dataset_id") if dag_run else None
+    dataset_id = dataset_id or context.get("params", {}).get("dataset_id")
+    if not dataset_id:
+        raise ValueError("dataset_id is required for GX reconciliation")
+    try:
+        return validate_silver_gold_reconciliation(
+            dataset_id=str(dataset_id),
+            run_id=str(context.get("run_id") or ""),
+            source_kind="api",
+        )
+    except GXAirflowError as exc:
+        if exc.code in NON_RETRYABLE or not exc.retryable:
+            raise AirflowFailException(str(exc)) from exc
+        raise AirflowException(str(exc)) from exc
+
+
 with DAG(
     "api_dataset_pipeline",
     default_args=default_args,
@@ -220,6 +243,13 @@ with DAG(
         retry_delay=timedelta(minutes=1),
     )
 
+    gx_reconcile_silver_gold = PythonOperator(
+        task_id="gx_reconcile_silver_gold",
+        python_callable=run_gx_reconciliation_gate,
+        retries=1,
+        retry_delay=timedelta(minutes=1),
+    )
+
     trino_smoke_test = BashOperator(
         task_id="trino_smoke_test",
         bash_command=runner_command(
@@ -241,5 +271,6 @@ with DAG(
         >> validate_gold
         >> publish_gold
         >> gx_validate_gold
+        >> gx_reconcile_silver_gold
         >> trino_smoke_test
     )

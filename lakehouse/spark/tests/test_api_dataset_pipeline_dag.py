@@ -34,10 +34,13 @@ EXPECTED_TASKS = (
     "validate_gold",
     "publish_gold",
     "gx_validate_gold",
+    "gx_reconcile_silver_gold",
     "trino_smoke_test",
 )
 
-GX_TASKS = {"gx_validate_silver", "gx_validate_gold"}
+GX_TASKS = {
+    "gx_validate_silver", "gx_validate_gold", "gx_reconcile_silver_gold",
+}
 
 EXPECTED_COMMANDS = (
     "api-preflight",
@@ -80,7 +83,7 @@ class ApiDatasetPipelineDagTest(
             )
         )
 
-    def test_exact_twelve_visible_tasks(self):
+    def test_exact_thirteen_visible_tasks(self):
         self.assertEqual(
             tuple(
                 task.task_id

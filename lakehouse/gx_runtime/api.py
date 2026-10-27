@@ -12,6 +12,7 @@ from sqlalchemy import create_engine
 from .contracts import ContractRegistry
 from .engines import SqlAlchemyTableEngine, VersionedSqlSuiteExecutor
 from .errors import (
+    MetadataExportError,
     QualityGateRejectedError,
     SnapshotMismatchError,
     ValidationConfigurationError,
@@ -19,6 +20,11 @@ from .errors import (
     ValidationPersistenceError,
 )
 from .models import ExecutionEngine, ExecutionMode, SourceKind
+from .metadata_export import (
+    MetadataExportOutcome,
+    export_validation_metadata,
+    openmetadata_exporter_from_env,
+)
 from .service import validate_table
 from .snapshot_gate import NessieSnapshotResolver, SnapshotAwareQualityGate
 from .storage import result_store_from_env
@@ -65,6 +71,10 @@ class TableValidationApplication:
             os.getenv("NESSIE_API_URL", "http://nessie:19120/api/v1")
         )
         self.gate = SnapshotAwareQualityGate()
+        self.metadata_exporter = openmetadata_exporter_from_env()
+        self.metadata_required = (
+            os.getenv("GX_OPENMETADATA_REQUIRED", "false").lower() == "true"
+        )
 
     def validate(self, body: dict[str, Any]) -> dict[str, Any]:
         required = {
@@ -133,12 +143,25 @@ class TableValidationApplication:
         approval = self.gate.verify_current(summary, self.resolver)
         if not summary.merge_allowed:
             raise QualityGateRejectedError("DATA_QUALITY_FAILED")
+        metadata = MetadataExportOutcome(False, 0, 0)
+        if self.metadata_exporter is not None:
+            metadata = export_validation_metadata(
+                summary,
+                str(store.uri),
+                self.metadata_exporter,
+                required=self.metadata_required,
+            )
         return {
             "status": summary.status.value,
             "validation_id": summary.validation_id,
             "validation_uri": store.uri,
             "merge_allowed": summary.merge_allowed,
             "approval": approval.as_dict(),
+            "metadata_export": {
+                "enabled": metadata.enabled,
+                "published": metadata.published,
+                "failed": metadata.failed,
+            },
         }
 
 
@@ -147,6 +170,7 @@ ERRORS = (
     (ValidationConfigurationError, "GX_CONFIGURATION_ERROR", 400, False),
     (ValidationPersistenceError, "GX_EXECUTION_ERROR", 503, True),
     (ValidationExecutionError, "GX_EXECUTION_ERROR", 503, True),
+    (MetadataExportError, "GX_EXECUTION_ERROR", 503, True),
     (QualityGateRejectedError, "DATA_QUALITY_FAILED", 422, False),
 )
 

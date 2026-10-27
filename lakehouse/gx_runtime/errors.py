@@ -27,3 +27,7 @@ class QualityGateRejectedError(ValidationFrameworkError):
 
 class SnapshotMismatchError(QualityGateRejectedError):
     """The candidate identity changed after validation and must be revalidated."""
+
+
+class MetadataExportError(ValidationFrameworkError):
+    """A metadata sink rejected or could not persist validation metadata."""

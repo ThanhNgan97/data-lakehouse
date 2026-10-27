@@ -57,6 +57,7 @@ def validate_dataframe(
     nessie_commit_hash: str | None = None,
     policy: ValidationPolicy | None = None,
     source_kind: SourceKind | None = None,
+    suite_revision: str | None = None,
 ):
     request = ValidationRequest(
         data_asset_ref=data_asset_ref,
@@ -71,6 +72,7 @@ def validate_dataframe(
         snapshot_id=snapshot_id,
         nessie_commit_hash=nessie_commit_hash,
         source_kind=source_kind,
+        suite_revision=suite_revision,
     )
     return _run(
         request,
@@ -97,6 +99,7 @@ def validate_table(
     execution_mode: ExecutionMode = ExecutionMode.ENFORCE,
     policy: ValidationPolicy | None = None,
     source_kind: SourceKind | None = None,
+    suite_revision: str | None = None,
 ):
     request = ValidationRequest(
         data_asset_ref=data_asset_ref,
@@ -111,6 +114,7 @@ def validate_table(
         snapshot_id=snapshot_id,
         nessie_commit_hash=nessie_commit_hash,
         source_kind=source_kind,
+        suite_revision=suite_revision,
     )
     if request.execution_engine is not ExecutionEngine.SQL:
         raise ValidationConfigurationError("Table validation requires SQL engine")

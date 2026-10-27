@@ -23,7 +23,9 @@ class InMemoryResultStore:
     records: dict[str, dict] = field(default_factory=dict)
 
     def save(self, summary: ValidationSummary) -> str:
-        self.records[summary.validation_id] = summary.as_dict()
+        self.records[summary.validation_id] = summary.as_dict(
+            redact_observed_values=_redaction_enabled()
+        )
         return f"memory://{summary.validation_id}"
 
 
@@ -60,8 +62,19 @@ class S3ResultStore:
             client.put_object(
                 Bucket=self.bucket,
                 Key=key,
-                Body=json.dumps(summary.as_dict(), sort_keys=True).encode("utf-8"),
+                Body=json.dumps(
+                    summary.as_dict(redact_observed_values=_redaction_enabled()),
+                    sort_keys=True,
+                ).encode("utf-8"),
                 ContentType="application/json",
+                Metadata={
+                    "gx-suite-revision": summary.suite_revision or "unknown",
+                    "gx-retention-days": os.getenv("GX_RESULT_RETENTION_DAYS", "90"),
+                },
+                Tagging=(
+                    "gx-artifact=validation-result&gx-retention-days="
+                    + os.getenv("GX_RESULT_RETENTION_DAYS", "90")
+                ),
             )
         except Exception as exc:
             raise ValidationPersistenceError(
@@ -88,3 +101,7 @@ def result_store_from_env() -> ResultStore:
         access_key_id=os.getenv("S3_ACCESS_KEY") or None,
         secret_access_key=os.getenv("S3_SECRET_KEY") or None,
     )
+
+
+def _redaction_enabled() -> bool:
+    return os.getenv("GX_REDACT_OBSERVED_VALUES", "true").strip().lower() != "false"

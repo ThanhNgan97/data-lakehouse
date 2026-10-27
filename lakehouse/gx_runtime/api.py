@@ -29,6 +29,8 @@ from .metadata_export import (
     openmetadata_exporter_from_env,
 )
 from .observability import GXMetrics
+from .production import ProductionSettings
+from .revocation import SnapshotRevocation, revocation_store_from_env
 from .service import validate_table
 from .snapshot_gate import NessieSnapshotResolver, SnapshotAwareQualityGate
 from .storage import result_store_from_env
@@ -81,6 +83,8 @@ class TableValidationApplication:
             os.getenv("GX_OPENMETADATA_REQUIRED", "false").lower() == "true"
         )
         self.metrics = GXMetrics()
+        self.production = ProductionSettings.from_env()
+        self.revocations = revocation_store_from_env()
         self.accepting_requests = True
 
     def close(self) -> None:
@@ -156,6 +160,7 @@ class TableValidationApplication:
             raise ValidationConfigurationError(
                 f"Invalid validation enum: {exc}"
             ) from exc
+        self.production.validate_mode(execution_mode)
         if engine is not ExecutionEngine.SQL:
             raise ValidationConfigurationError(
                 "HTTP table validation currently supports the SQL engine only"
@@ -180,6 +185,17 @@ class TableValidationApplication:
             str(body["nessie_commit_hash"]),
         )
         if requested_identity != (current.snapshot_id, current.nessie_commit_hash):
+            self.revocations.save(
+                SnapshotRevocation(
+                    dataset_id=plan.dataset_id,
+                    data_layer=plan.data_layer,
+                    nessie_branch=requested_branch,
+                    revoked_snapshot_id=requested_identity[0],
+                    revoked_commit_hash=requested_identity[1],
+                    current_snapshot_id=current.snapshot_id,
+                    current_commit_hash=current.nessie_commit_hash,
+                )
+            )
             error = SnapshotMismatchError(
                 "SNAPSHOT_MISMATCH; refresh identity and run GX again"
             )
@@ -201,6 +217,7 @@ class TableValidationApplication:
             result_store=store,
             execution_mode=execution_mode,
             source_kind=plan.source_kind,
+            suite_revision=self.production.suite_revision,
         )
         approval = self.gate.verify_current(summary, self.resolver)
         if not summary.merge_allowed:
@@ -224,6 +241,7 @@ class TableValidationApplication:
                 "published": metadata.published,
                 "failed": metadata.failed,
             },
+            "suite_revision": summary.suite_revision,
         }, summary
 
 

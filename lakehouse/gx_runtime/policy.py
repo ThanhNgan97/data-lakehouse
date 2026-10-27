@@ -88,6 +88,8 @@ class ValidationPolicy:
         # metadata; source-aware runs intentionally receive distinct identities.
         if request.source_kind:
             identity_parts.append(f"source={request.source_kind.value}")
+        if request.suite_revision:
+            identity_parts.append(f"suite_revision={request.suite_revision}")
         identity = "|".join(identity_parts)
         return ValidationSummary(
             validation_id=str(uuid5(NAMESPACE_URL, identity)),
@@ -120,4 +122,5 @@ class ValidationPolicy:
             data_docs_url=technical.data_docs_url,
             metrics=technical.metrics,
             source_kind=request.source_kind,
+            suite_revision=request.suite_revision,
         )

@@ -60,6 +60,7 @@ class ValidationRequest:
     snapshot_id: str | None = None
     nessie_commit_hash: str | None = None
     source_kind: SourceKind | None = None
+    suite_revision: str | None = None
 
     def __post_init__(self) -> None:
         required = {
@@ -143,6 +144,7 @@ class ValidationSummary:
     data_docs_url: str | None = None
     metrics: dict[str, Any] = field(default_factory=dict)
     source_kind: SourceKind | None = None
+    suite_revision: str | None = None
 
     @property
     def validated_branch(self) -> str | None:
@@ -160,7 +162,7 @@ class ValidationSummary:
     def critical_failure_count(self) -> int:
         return len(self.critical_failures)
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self, *, redact_observed_values: bool = False) -> dict[str, Any]:
         payload = asdict(self)
         payload["status"] = self.status.value
         payload["execution_engine"] = self.execution_engine.value
@@ -176,6 +178,10 @@ class ValidationSummary:
         payload["warning_failures"] = [
             asdict(failure) for failure in self.warning_failures
         ]
+        if redact_observed_values:
+            for failure in payload["critical_failures"] + payload["warning_failures"]:
+                if failure.get("observed_value") is not None:
+                    failure["observed_value"] = "[REDACTED]"
         # Phase-5 publish gates consume explicit validated identity names. Keep
         # the original fields for phase-2 API compatibility.
         payload["layer"] = self.data_layer

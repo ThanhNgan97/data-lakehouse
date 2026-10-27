@@ -74,6 +74,17 @@ const PIPELINE_TASKS = [
     number: "border-violet-100 bg-violet-50 text-violet-700",
   },
   {
+    id: "quality",
+    taskIds: ["gx_validate_file_upload"],
+    label: "GX Quality",
+    sub: "Kiểm tra chất lượng dữ liệu",
+    icon: "checkCircle",
+    iconClass: "bg-emerald-50 text-emerald-700",
+    tone: "quality",
+    dot: "bg-emerald-500",
+    number: "border-emerald-100 bg-emerald-50 text-emerald-700",
+  },
+  {
     id: "analyze",
     taskIds: ["kpi_flow.predictive_analysis", "auto_provision_superset"],
     label: "Analyze",
@@ -1073,7 +1084,7 @@ const UserUpload = () => {
               )}
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 2xl:grid-cols-4 2xl:gap-5">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-5 xl:gap-4">
               {PIPELINE_TASKS.map((pt, index) => {
                 const t = taskForStage(activePipeline.tasks, pt.taskIds);
                 const state = t?.state === "upstream_failed" ? "failed" : (t?.state || "pending");
@@ -1152,6 +1163,61 @@ const UserUpload = () => {
                 );
               })}
             </div>
+
+            {activePipeline.gx_validation && (
+              <div className={`mt-5 rounded-xl border p-4 ${
+                activePipeline.gx_validation.status === "PASSED"
+                  ? "border-emerald-200 bg-emerald-50"
+                  : activePipeline.gx_validation.status === "NOT_CONFIGURED"
+                    ? "border-amber-200 bg-amber-50"
+                    : ["RUNNING", "PENDING"].includes(activePipeline.gx_validation.status)
+                      ? "border-blue-200 bg-blue-50"
+                      : ["NOT_AVAILABLE", "RESULT_UNAVAILABLE"].includes(activePipeline.gx_validation.status)
+                        ? "border-slate-200 bg-slate-50"
+                      : "border-rose-200 bg-rose-50"
+              }`}>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-extrabold text-navy-950">Great Expectations Quality Gate</p>
+                    <p className="mt-1 text-xs text-ink-600">
+                      {activePipeline.gx_validation.status === "NOT_CONFIGURED"
+                        ? "Dataset này chưa có GX contract; kết quả không được xem là GX PASS."
+                        : activePipeline.gx_validation.status === "PASSED"
+                          ? "Snapshot đã vượt qua kiểm tra GX và được phép tiếp tục."
+                          : activePipeline.gx_validation.status === "FAILED"
+                            ? "GX phát hiện lỗi chất lượng; các bước xuất bản phía sau đã bị chặn."
+                            : activePipeline.gx_validation.status === "NOT_AVAILABLE"
+                              ? "DAG run cũ này chưa có bước GX Quality."
+                              : activePipeline.gx_validation.status === "RESULT_UNAVAILABLE"
+                                ? "Task GX đã hoàn tất nhưng không đọc được kết quả; hệ thống không tự suy luận là PASS."
+                            : `Trạng thái GX: ${activePipeline.gx_validation.status}`}
+                    </p>
+                    {activePipeline.gx_validation.reason && (
+                      <p className="mt-1 text-xs font-medium text-amber-800">{activePipeline.gx_validation.reason}</p>
+                    )}
+                  </div>
+                  <Badge tone={
+                    activePipeline.gx_validation.status === "PASSED"
+                      ? "success"
+                      : activePipeline.gx_validation.status === "NOT_CONFIGURED"
+                        ? "warn"
+                        : ["RUNNING", "PENDING"].includes(activePipeline.gx_validation.status)
+                          ? "lake"
+                          : ["NOT_AVAILABLE", "RESULT_UNAVAILABLE"].includes(activePipeline.gx_validation.status)
+                            ? "ink"
+                          : "danger"
+                  }>
+                    {activePipeline.gx_validation.status}
+                  </Badge>
+                </div>
+                <dl className="mt-4 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
+                  <div><dt className="font-semibold text-ink-500">Dataset</dt><dd className="mt-1 break-all font-data text-navy-950">{activePipeline.gx_validation.dataset_id || "—"}</dd></div>
+                  <div><dt className="font-semibold text-ink-500">Nguồn</dt><dd className="mt-1 font-data text-navy-950">{activePipeline.gx_validation.source_kind || "—"}</dd></div>
+                  <div><dt className="font-semibold text-ink-500">Validation ID</dt><dd className="mt-1 break-all font-data text-navy-950">{activePipeline.gx_validation.validation_id || "—"}</dd></div>
+                  <div><dt className="font-semibold text-ink-500">Quyết định publish</dt><dd className="mt-1 font-bold text-navy-950">{activePipeline.gx_validation.merge_allowed === true ? "ALLOWED" : activePipeline.gx_validation.merge_allowed === false ? "BLOCKED" : "CHƯA ÁP DỤNG"}</dd></div>
+                </dl>
+              </div>
+            )}
           </Card>
         )}
 

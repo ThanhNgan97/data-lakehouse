@@ -8,10 +8,10 @@ HTTP, Spark, Bronze, Airflow, or dataset business semantics.
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import quote
 
 from botocore.exceptions import ClientError

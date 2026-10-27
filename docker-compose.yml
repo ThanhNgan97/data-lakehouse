@@ -396,7 +396,10 @@ services:
       _AIRFLOW_WWW_USER_CREATE: 'true'
       _AIRFLOW_WWW_USER_USERNAME: airflow
       _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
-    command: version
+    command:
+      - bash
+      - -c
+      - airflow pools set spark_k8s 1 "Serial Spark applications for Docker Desktop" && airflow version
     depends_on:
       - postgres
     networks:
@@ -443,6 +446,7 @@ services:
       - ./airflow_webserver_config.py:/opt/airflow/webserver_config.py:ro
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark
+      - ./k8s:/opt/airflow/k8s:ro
       - ./.env:/opt/airflow/.env
       - airflow_logs:/opt/airflow/logs
     command: webserver
@@ -493,6 +497,7 @@ services:
     volumes:
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark
+      - ./k8s:/opt/airflow/k8s:ro
       - ./.env:/opt/airflow/.env
       - airflow_logs:/opt/airflow/logs
     command: scheduler

@@ -340,7 +340,7 @@ $dagIds = @(
 )
 
 foreach ($requiredDag in @(
-    "lakehouse_pipeline",
+    "universal_lakehouse_pipeline",
     "api_dataset_pipeline"
 )) {
     if ($dagIds -notcontains $requiredDag) {

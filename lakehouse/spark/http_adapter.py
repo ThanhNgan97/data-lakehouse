@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Any, Callable
+from typing import Any, Callable, Dict
 from urllib.error import HTTPError, URLError
 from urllib.parse import (
     parse_qsl,
@@ -30,7 +30,7 @@ from pagination import (
 
 
 PayloadValidator = Callable[
-    [dict[str, Any]],
+    [Dict[str, Any]],
     None,
 ]
 

@@ -28,6 +28,7 @@ except ImportError:
 
 
 IS_DOCKER = os.path.exists("/.dockerenv")
+IS_KUBERNETES = bool(os.environ.get("KUBERNETES_SERVICE_HOST"))
 
 # ── Apache Ozone S3 Gateway ─────────────────────────────────
 _s3_ep = os.environ.get("S3_ENDPOINT") or "http://127.0.0.1:9878"

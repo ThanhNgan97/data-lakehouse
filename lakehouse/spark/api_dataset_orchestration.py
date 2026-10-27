@@ -33,6 +33,7 @@ from bronze_writer import read_parquet_object
 from checkpoint_store import OzoneCheckpointStore
 from nessie_catalog_utils import use_main
 from spark_bronze_to_silver import get_spark_session
+from env_config import IS_KUBERNETES
 
 
 DEFAULT_API_BASE_URL = (
@@ -188,13 +189,16 @@ def _latest_committed_batch_id(
 def command_api_preflight(
     config: ApiDatasetConfig,
     run_id: str,
-) -> None:
-    url = source_api_url(config)
+    *,
+    source_url_override: str = "",
+    source_api_key_override: str = "",
+):
+    url = source_url_override or source_api_url(config)
 
     result = fetch_incremental_payload(
         url,
         dataset=config.dataset,
-        api_key=_api_key(),
+        api_key=source_api_key_override or _api_key(),
         page_limit=500,
         timeout_seconds=30,
     )
@@ -230,6 +234,7 @@ def command_api_preflight(
     print(f"AIRFLOW_RUN_ID={run_id}")
     print("INCREMENTAL_PREFLIGHT=True")
     print("API_PREFLIGHT_PASS=True")
+    return result
 
 
 def command_ingest_bronze(
@@ -691,7 +696,8 @@ def main() -> None:
         == STATUS_NO_CHANGE
     ):
         print("ORCHESTRATION_SKIP_EXIT_CODE=99")
-        raise SystemExit(99)
+        if not IS_KUBERNETES:
+            raise SystemExit(99)
 
 
 if __name__ == "__main__":

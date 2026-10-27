@@ -10,11 +10,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, TypeAlias
+from typing import Any, Dict, Optional, Union
 
 
-PaginationState: TypeAlias = str | int | None
-PaginationQueryParams: TypeAlias = dict[str, str | None]
+PaginationState = Optional[Union[str, int]]
+PaginationQueryParams = Dict[str, Optional[str]]
 
 
 @dataclass(frozen=True)

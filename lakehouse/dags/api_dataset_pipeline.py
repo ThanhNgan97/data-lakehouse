@@ -4,6 +4,10 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.models.param import Param
 from airflow.operators.bash import BashOperator
+from airflow.operators.python import ShortCircuitOperator
+from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import (
+    SparkKubernetesOperator,
+)
 
 
 SPARK_DIR = "/opt/airflow/spark"
@@ -11,7 +15,8 @@ SPARK_DIR = "/opt/airflow/spark"
 if SPARK_DIR not in sys.path:
     sys.path.insert(0, SPARK_DIR)
 
-from api_dataset_registry import DATASETS
+from api_dataset_registry import DATASETS, get_dataset_config
+from api_dataset_orchestration import command_api_preflight
 
 
 REGISTERED_DATASET_IDS = sorted(DATASETS)
@@ -54,6 +59,22 @@ def runner_command(command: str) -> str:
     )
 
 
+def api_preflight_should_continue(**context) -> bool:
+    dag_run = context.get("dag_run")
+    conf = dag_run.conf if dag_run and dag_run.conf else {}
+    dataset_id = conf.get("dataset_id") or context["params"].get("dataset_id")
+    config = get_dataset_config(dataset_id)
+    result = command_api_preflight(
+        config,
+        context["run_id"],
+        source_url_override=conf.get("source_api_url", ""),
+        source_api_key_override=conf.get("source_api_key", ""),
+    )
+    has_changes = result.fetched_count > 0
+    print(f"API_PREFLIGHT_HAS_CHANGES={has_changes}")
+    return has_changes
+
+
 with DAG(
     "api_dataset_pipeline",
     default_args=default_args,
@@ -65,6 +86,7 @@ with DAG(
     start_date=datetime(2026, 1, 1),
     catchup=False,
     max_active_runs=1,
+    template_searchpath=["/opt/airflow/k8s/spark/templates"],
     tags=[
         "lakehouse",
         "api",
@@ -82,23 +104,22 @@ with DAG(
         ),
     },
 ) as dag:
-    api_preflight = BashOperator(
+    api_preflight = ShortCircuitOperator(
         task_id="api_preflight",
-        bash_command=runner_command(
-            "api-preflight"
-        ),
-        env=COMMON_ENV,
-        append_env=True,
+        python_callable=api_preflight_should_continue,
     )
 
-    ingest_bronze = BashOperator(
+    ingest_bronze = SparkKubernetesOperator(
         task_id="ingest_bronze",
-        bash_command=runner_command(
-            "ingest-bronze"
-        ),
-        env=COMMON_ENV,
-        append_env=True,
-        skip_on_exit_code=99,
+        application_file="spark-api-dataset-airflow.yaml",
+        params={"command": "ingest-bronze"},
+        namespace="lakehouse-spark",
+        kubernetes_conn_id="kubernetes_default",
+        get_logs=True,
+        log_events_on_failure=True,
+        startup_timeout_seconds=600,
+        delete_on_termination=True,
+        pool="spark_k8s",
     )
 
     validate_bronze = BashOperator(
@@ -110,24 +131,35 @@ with DAG(
         append_env=True,
     )
 
-    process_silver = BashOperator(
+    process_silver = SparkKubernetesOperator(
         task_id="process_silver",
-        bash_command=runner_command(
-            "process-silver"
-        ),
-        env=COMMON_ENV,
-        append_env=True,
+        application_file="spark-api-dataset-airflow.yaml",
+        params={"command": "process-silver"},
+        namespace="lakehouse-spark",
+        kubernetes_conn_id="kubernetes_default",
+        get_logs=True,
+        log_events_on_failure=True,
+        startup_timeout_seconds=600,
+        delete_on_termination=True,
+        pool="spark_k8s",
     )
 
-    validate_silver = BashOperator(
+    validate_silver = SparkKubernetesOperator(
         task_id="validate_silver",
-        bash_command=runner_command(
-            "validate-silver"
-        ),
-        env=COMMON_ENV,
-        append_env=True,
+        application_file="spark-api-dataset-airflow.yaml",
+        params={"command": "validate-silver"},
+        namespace="lakehouse-spark",
+        kubernetes_conn_id="kubernetes_default",
+        get_logs=True,
+        log_events_on_failure=True,
+        startup_timeout_seconds=600,
+        delete_on_termination=True,
+        pool="spark_k8s",
     )
 
+<<<<<<< HEAD
+    process_gold = SparkKubernetesOperator(
+=======
     prepare_gold = BashOperator(
         task_id="prepare_gold",
         bash_command=runner_command("prepare-gold"),
@@ -136,21 +168,30 @@ with DAG(
     )
 
     process_gold = BashOperator(
+>>>>>>> origin/develop
         task_id="process_gold",
-        bash_command=runner_command(
-            "process-gold"
-        ),
-        env=COMMON_ENV,
-        append_env=True,
+        application_file="spark-api-dataset-airflow.yaml",
+        params={"command": "process-gold"},
+        namespace="lakehouse-spark",
+        kubernetes_conn_id="kubernetes_default",
+        get_logs=True,
+        log_events_on_failure=True,
+        startup_timeout_seconds=600,
+        delete_on_termination=True,
+        pool="spark_k8s",
     )
 
-    validate_gold = BashOperator(
+    validate_gold = SparkKubernetesOperator(
         task_id="validate_gold",
-        bash_command=runner_command(
-            "validate-gold"
-        ),
-        env=COMMON_ENV,
-        append_env=True,
+        application_file="spark-api-dataset-airflow.yaml",
+        params={"command": "validate-gold"},
+        namespace="lakehouse-spark",
+        kubernetes_conn_id="kubernetes_default",
+        get_logs=True,
+        log_events_on_failure=True,
+        startup_timeout_seconds=600,
+        delete_on_termination=True,
+        pool="spark_k8s",
     )
 
     publish_gold = BashOperator(

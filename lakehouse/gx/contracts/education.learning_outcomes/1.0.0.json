@@ -1,0 +1,73 @@
+{
+  "contract_version": "1.0.0",
+  "dataset_id": "education.learning_outcomes",
+  "effective_from": "2026-10-27",
+  "status": "pilot",
+  "owner": "data-platform",
+  "grain": {
+    "description": "One learning outcome observation per program, academic year, and semester",
+    "candidate_business_key": ["ma_chuong_trinh", "nam_hoc", "hoc_ky"],
+    "source_record_id": "ma_ban_ghi",
+    "profile_verified": true,
+    "business_semantics_verified": false,
+    "verification_note": "31/31 distinct candidate keys and record IDs in the demo snapshot; source-owner confirmation remains required"
+  },
+  "schema_evolution": {
+    "additional_columns": "allow_with_warning",
+    "column_removal": "forbid",
+    "type_change": "forbid",
+    "nullable_to_required": "require_contract_version",
+    "column_rename": "require_contract_version"
+  },
+  "layers": {
+    "silver": {
+      "data_asset_ref": "lakehouse.silver.learning_outcomes",
+      "columns": {
+        "ma_ban_ghi": {"type": "varchar", "nullable": false},
+        "ma_chuong_trinh": {"type": "varchar", "nullable": false},
+        "ten_chuong_trinh": {"type": "varchar", "nullable": false},
+        "nam_hoc": {"type": "varchar", "nullable": false},
+        "hoc_ky": {"type": "integer", "nullable": false},
+        "so_sinh_vien": {"type": "bigint", "nullable": false},
+        "tong_luot_hoc_phan": {"type": "bigint", "nullable": false},
+        "_source_updated_at": {"type": "timestamp_with_timezone", "nullable": false},
+        "_record_checksum": {"type": "varchar", "nullable": false}
+      },
+      "rules": [
+        {"id": "learning.silver.schema", "type": "schema", "severity": "critical", "supported_engines": ["sql"]},
+        {"id": "learning.silver.required.null_ratio", "type": "null_ratio", "severity": "critical", "columns": ["ma_ban_ghi", "ma_chuong_trinh", "nam_hoc", "hoc_ky", "_source_updated_at"], "threshold": {"max_ratio": 0.0}, "supported_engines": ["sql"]},
+        {"id": "learning.silver.key.duplicate_ratio", "type": "duplicate_ratio", "severity": "warning", "columns": ["ma_chuong_trinh", "nam_hoc", "hoc_ky"], "threshold": {"max_ratio": 0.0}, "supported_engines": ["sql"]},
+        {"id": "learning.silver.volume", "type": "volume", "severity": "critical", "threshold": {"min_rows": 1}, "supported_engines": ["sql"]},
+        {"id": "learning.silver.freshness", "type": "freshness", "severity": "warning", "columns": ["_source_updated_at"], "threshold": {"max_age_hours": 8760}, "supported_engines": ["sql"]},
+        {"id": "learning.silver.non_negative", "type": "range", "severity": "critical", "columns": ["so_sinh_vien", "tong_luot_hoc_phan"], "threshold": {"min": 0}, "supported_engines": ["sql"]}
+      ]
+    },
+    "gold": {
+      "data_asset_ref": "lakehouse.gold.learning_outcomes_metrics",
+      "columns": {
+        "ma_chuong_trinh": {"type": "varchar", "nullable": false},
+        "nam_hoc": {"type": "varchar", "nullable": false},
+        "hoc_ky": {"type": "integer", "nullable": false},
+        "ty_le_qua_hoc_phan": {"type": "double", "nullable": false},
+        "gpa_trung_binh": {"type": "double", "nullable": true},
+        "ty_le_dung_tien_do": {"type": "double", "nullable": false},
+        "source_record_id": {"type": "varchar", "nullable": false},
+        "source_updated_at": {"type": "timestamp_with_timezone", "nullable": false},
+        "source_record_checksum": {"type": "varchar", "nullable": false}
+      },
+      "rules": [
+        {"id": "learning.gold.schema", "type": "schema", "severity": "critical", "supported_engines": ["sql"]},
+        {"id": "learning.gold.required.null_ratio", "type": "null_ratio", "severity": "critical", "columns": ["ma_chuong_trinh", "nam_hoc", "hoc_ky", "source_record_id", "source_record_checksum"], "threshold": {"max_ratio": 0.0}, "supported_engines": ["sql"]},
+        {"id": "learning.gold.key.duplicate_ratio", "type": "duplicate_ratio", "severity": "warning", "columns": ["ma_chuong_trinh", "nam_hoc", "hoc_ky"], "threshold": {"max_ratio": 0.0}, "supported_engines": ["sql"]},
+        {"id": "learning.gold.volume", "type": "volume", "severity": "critical", "threshold": {"min_rows": 1}, "supported_engines": ["sql"]},
+        {"id": "learning.gold.freshness", "type": "freshness", "severity": "warning", "columns": ["source_updated_at"], "threshold": {"max_age_hours": 8760}, "supported_engines": ["sql"]},
+        {"id": "learning.gold.percentages", "type": "range", "severity": "critical", "columns": ["ty_le_qua_hoc_phan", "ty_le_dung_tien_do"], "threshold": {"min": 0.0, "max": 100.0}, "supported_engines": ["sql"]}
+      ]
+    }
+  },
+  "reconciliation_rules": [
+    {"id": "learning.silver_gold.row_count", "type": "row_count_match", "severity": "critical", "supported_engines": ["sql"]},
+    {"id": "learning.silver_gold.key_set", "type": "key_set_match", "severity": "critical", "columns": ["ma_chuong_trinh", "nam_hoc", "hoc_ky"], "supported_engines": ["sql"]},
+    {"id": "learning.silver_gold.lineage", "type": "column_reconciliation", "severity": "critical", "supported_engines": ["sql"]}
+  ]
+}

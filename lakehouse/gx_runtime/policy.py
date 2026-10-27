@@ -74,18 +74,21 @@ class ValidationPolicy:
             status = ValidationStatus.PASSED
             merge_allowed = True
 
-        identity = "|".join(
-            [
-                request.dataset_id,
-                request.data_layer,
-                request.run_id,
-                request.contract_version,
-                request.nessie_branch or "",
-                request.snapshot_id or "",
-                request.nessie_commit_hash or "",
-                ",".join(f"{suite.name}@{suite.version}" for suite in request.suites),
-            ]
-        )
+        identity_parts = [
+            request.dataset_id,
+            request.data_layer,
+            request.run_id,
+            request.contract_version,
+            request.nessie_branch or "",
+            request.snapshot_id or "",
+            request.nessie_commit_hash or "",
+            ",".join(f"{suite.name}@{suite.version}" for suite in request.suites),
+        ]
+        # Preserve phase-2 validation IDs for callers that have no source-kind
+        # metadata; source-aware runs intentionally receive distinct identities.
+        if request.source_kind:
+            identity_parts.append(f"source={request.source_kind.value}")
+        identity = "|".join(identity_parts)
         return ValidationSummary(
             validation_id=str(uuid5(NAMESPACE_URL, identity)),
             status=status,
@@ -116,4 +119,5 @@ class ValidationPolicy:
             result_ids=technical.result_ids,
             data_docs_url=technical.data_docs_url,
             metrics=technical.metrics,
+            source_kind=request.source_kind,
         )

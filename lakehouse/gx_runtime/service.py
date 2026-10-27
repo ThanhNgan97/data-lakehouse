@@ -6,7 +6,13 @@ from typing import Any
 
 from .engines import DataFrameValidationEngine, TableValidationEngine
 from .errors import ValidationConfigurationError
-from .models import ExecutionEngine, ExecutionMode, SuiteReference, ValidationRequest
+from .models import (
+    ExecutionEngine,
+    ExecutionMode,
+    SourceKind,
+    SuiteReference,
+    ValidationRequest,
+)
 from .policy import ValidationPolicy
 from .storage import ResultStore
 
@@ -50,6 +56,7 @@ def validate_dataframe(
     snapshot_id: str | None = None,
     nessie_commit_hash: str | None = None,
     policy: ValidationPolicy | None = None,
+    source_kind: SourceKind | None = None,
 ):
     request = ValidationRequest(
         data_asset_ref=data_asset_ref,
@@ -63,6 +70,7 @@ def validate_dataframe(
         nessie_branch=nessie_branch,
         snapshot_id=snapshot_id,
         nessie_commit_hash=nessie_commit_hash,
+        source_kind=source_kind,
     )
     return _run(
         request,
@@ -88,6 +96,7 @@ def validate_table(
     result_store: ResultStore,
     execution_mode: ExecutionMode = ExecutionMode.ENFORCE,
     policy: ValidationPolicy | None = None,
+    source_kind: SourceKind | None = None,
 ):
     request = ValidationRequest(
         data_asset_ref=data_asset_ref,
@@ -101,6 +110,7 @@ def validate_table(
         nessie_branch=nessie_branch,
         snapshot_id=snapshot_id,
         nessie_commit_hash=nessie_commit_hash,
+        source_kind=source_kind,
     )
     if request.execution_engine is not ExecutionEngine.SQL:
         raise ValidationConfigurationError("Table validation requires SQL engine")

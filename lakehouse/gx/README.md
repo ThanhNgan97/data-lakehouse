@@ -21,3 +21,9 @@ Versioned data contracts are registered separately in `contract_registry.json`.
 Contracts define layer schemas, evolution policy, rule severity, thresholds,
 and engine compatibility. Expectation suites in phase 4 implement those rules;
 they do not redefine the contract.
+
+`validation_registry.json` is the phase-7 routing layer. Its immutable key is
+`dataset_id + layer + contract_version`; engine selects an implementation, while
+`file`, `api`, and `database` are compatibility metadata and never choose a
+different business suite. Streaming is disabled until a dataset declares an
+explicit micro-batch/window policy.

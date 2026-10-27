@@ -1,0 +1,43 @@
+{
+  "routes": [
+    {
+      "dataset_id": "education.teaching_progress", "layer": "silver", "contract_version": "1.0.0",
+      "data_asset_ref": "lakehouse.silver.teaching_progress",
+      "supported_source_kinds": ["file", "api", "database"],
+      "suites": {
+        "spark": [{"name": "teaching_progress_silver_core", "version": "1.0.0"}],
+        "sql": [{"name": "teaching_progress_silver_core", "version": "1.0.0"}]
+      }
+    },
+    {
+      "dataset_id": "education.teaching_progress", "layer": "gold", "contract_version": "1.0.0",
+      "data_asset_ref": "lakehouse.gold.teaching_progress_metrics",
+      "supported_source_kinds": ["file", "api", "database"],
+      "suites": {"sql": [{"name": "teaching_progress_gold_core", "version": "1.0.0"}]}
+    },
+    {
+      "dataset_id": "education.teaching_progress", "layer": "reconciliation", "contract_version": "1.0.0",
+      "data_asset_ref": "lakehouse.gold.teaching_progress_metrics",
+      "supported_source_kinds": ["file", "api", "database"],
+      "suites": {"sql": [{"name": "teaching_progress_silver_gold_reconciliation", "version": "1.0.0"}]}
+    },
+    {
+      "dataset_id": "education.learning_outcomes", "layer": "silver", "contract_version": "1.0.0",
+      "data_asset_ref": "lakehouse.silver.learning_outcomes",
+      "supported_source_kinds": ["file", "api", "database"],
+      "suites": {"sql": [{"name": "learning_outcomes_silver_core", "version": "1.0.0"}]}
+    },
+    {
+      "dataset_id": "education.learning_outcomes", "layer": "gold", "contract_version": "1.0.0",
+      "data_asset_ref": "lakehouse.gold.learning_outcomes_metrics",
+      "supported_source_kinds": ["file", "api", "database"],
+      "suites": {"sql": [{"name": "learning_outcomes_gold_core", "version": "1.0.0"}]}
+    },
+    {
+      "dataset_id": "education.learning_outcomes", "layer": "reconciliation", "contract_version": "1.0.0",
+      "data_asset_ref": "lakehouse.gold.learning_outcomes_metrics",
+      "supported_source_kinds": ["file", "api", "database"],
+      "suites": {"sql": [{"name": "learning_outcomes_silver_gold_reconciliation", "version": "1.0.0"}]}
+    }
+  ]
+}

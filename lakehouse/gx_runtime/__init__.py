@@ -3,6 +3,7 @@
 from .models import (
     ExecutionEngine,
     ExecutionMode,
+    SourceKind,
     SuiteReference,
     ValidationStatus,
     ValidationSummary,
@@ -14,10 +15,12 @@ from .snapshot_gate import (
     SnapshotAwareQualityGate,
     SnapshotIdentity,
 )
+from .validation_registry import DatasetValidationRegistry, ValidationPlan
 
 __all__ = [
     "ExecutionEngine",
     "ExecutionMode",
+    "SourceKind",
     "SuiteReference",
     "NessieSnapshotResolver",
     "SnapshotAwareQualityGate",
@@ -25,6 +28,8 @@ __all__ = [
     "ValidationPolicy",
     "ValidationStatus",
     "ValidationSummary",
+    "DatasetValidationRegistry",
+    "ValidationPlan",
     "validate_dataframe",
     "validate_table",
 ]

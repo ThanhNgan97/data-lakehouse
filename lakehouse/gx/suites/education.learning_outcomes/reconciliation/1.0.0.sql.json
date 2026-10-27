@@ -1,0 +1,24 @@
+{
+  "format": "lakehouse-sql-suite/v1",
+  "suite_name": "learning_outcomes_silver_gold_reconciliation",
+  "suite_version": "1.0.0",
+  "contract_version": "1.0.0",
+  "effective_from": "2026-10-27",
+  "expectations": [
+    {
+      "id": "learning.silver_gold.row_count", "type": "row_count_match", "severity": "critical",
+      "query": "SELECT abs((SELECT count(*) FROM lakehouse.silver.learning_outcomes) - (SELECT count(*) FROM lakehouse.gold.learning_outcomes_metrics))",
+      "success": {"operator": "eq", "value": 0}
+    },
+    {
+      "id": "learning.silver_gold.key_set", "type": "key_set_match", "severity": "critical",
+      "query": "SELECT count(*) FROM ((SELECT ma_chuong_trinh, nam_hoc, hoc_ky FROM lakehouse.silver.learning_outcomes EXCEPT SELECT ma_chuong_trinh, nam_hoc, hoc_ky FROM lakehouse.gold.learning_outcomes_metrics) UNION ALL (SELECT ma_chuong_trinh, nam_hoc, hoc_ky FROM lakehouse.gold.learning_outcomes_metrics EXCEPT SELECT ma_chuong_trinh, nam_hoc, hoc_ky FROM lakehouse.silver.learning_outcomes))",
+      "success": {"operator": "eq", "value": 0}
+    },
+    {
+      "id": "learning.silver_gold.lineage", "type": "column_reconciliation", "severity": "critical",
+      "query": "SELECT count(*) FROM lakehouse.silver.learning_outcomes s FULL OUTER JOIN lakehouse.gold.learning_outcomes_metrics g ON s.ma_chuong_trinh = g.ma_chuong_trinh AND s.nam_hoc = g.nam_hoc AND s.hoc_ky = g.hoc_ky WHERE s.ma_chuong_trinh IS NULL OR g.ma_chuong_trinh IS NULL OR s.ma_ban_ghi <> g.source_record_id OR s._record_checksum <> g.source_record_checksum",
+      "success": {"operator": "eq", "value": 0}
+    }
+  ]
+}

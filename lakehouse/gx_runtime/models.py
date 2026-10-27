@@ -21,6 +21,13 @@ class ExecutionMode(str, Enum):
     ENFORCE = "enforce"
 
 
+class SourceKind(str, Enum):
+    FILE = "file"
+    API = "api"
+    DATABASE = "database"
+    STREAMING = "streaming"
+
+
 class ValidationStatus(str, Enum):
     PASSED = "PASSED"
     WARNING = "WARNING"
@@ -52,6 +59,7 @@ class ValidationRequest:
     nessie_branch: str | None = None
     snapshot_id: str | None = None
     nessie_commit_hash: str | None = None
+    source_kind: SourceKind | None = None
 
     def __post_init__(self) -> None:
         required = {
@@ -134,6 +142,7 @@ class ValidationSummary:
     result_ids: tuple[str, ...]
     data_docs_url: str | None = None
     metrics: dict[str, Any] = field(default_factory=dict)
+    source_kind: SourceKind | None = None
 
     @property
     def validated_branch(self) -> str | None:
@@ -156,6 +165,9 @@ class ValidationSummary:
         payload["status"] = self.status.value
         payload["execution_engine"] = self.execution_engine.value
         payload["execution_mode"] = self.execution_mode.value
+        payload["source_kind"] = (
+            self.source_kind.value if self.source_kind is not None else None
+        )
         payload["suite_names"] = list(self.suite_names)
         payload["result_ids"] = list(self.result_ids)
         payload["critical_failures"] = [

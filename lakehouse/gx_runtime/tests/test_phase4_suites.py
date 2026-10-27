@@ -111,6 +111,15 @@ class VersionedSqlSuiteExecutorTest(unittest.TestCase):
             "teaching_progress_silver_gold_reconciliation",
             "lakehouse.gold.teaching_progress_metrics",
         ),
+        ("learning_outcomes_silver_core", "lakehouse.silver.learning_outcomes"),
+        (
+            "learning_outcomes_gold_core",
+            "lakehouse.gold.learning_outcomes_metrics",
+        ),
+        (
+            "learning_outcomes_silver_gold_reconciliation",
+            "lakehouse.gold.learning_outcomes_metrics",
+        ),
     )
 
     def _payload(self, name):

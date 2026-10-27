@@ -30,6 +30,36 @@
       "definitions": {
         "sql": "suites/education.teaching_progress/reconciliation/1.0.0.sql.json"
       }
+    },
+    {
+      "name": "learning_outcomes_silver_core",
+      "version": "1.0.0",
+      "supported_engines": ["sql"],
+      "contract_version": "1.0.0",
+      "effective_from": "2026-10-27",
+      "definitions": {
+        "sql": "suites/education.learning_outcomes/silver/core/1.0.0.sql.json"
+      }
+    },
+    {
+      "name": "learning_outcomes_gold_core",
+      "version": "1.0.0",
+      "supported_engines": ["sql"],
+      "contract_version": "1.0.0",
+      "effective_from": "2026-10-27",
+      "definitions": {
+        "sql": "suites/education.learning_outcomes/gold/core/1.0.0.sql.json"
+      }
+    },
+    {
+      "name": "learning_outcomes_silver_gold_reconciliation",
+      "version": "1.0.0",
+      "supported_engines": ["sql"],
+      "contract_version": "1.0.0",
+      "effective_from": "2026-10-27",
+      "definitions": {
+        "sql": "suites/education.learning_outcomes/reconciliation/1.0.0.sql.json"
+      }
     }
   ]
 }

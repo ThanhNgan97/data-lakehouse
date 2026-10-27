@@ -13,6 +13,8 @@ from api.routes.api_sources import (
     LoginAuthenticationRequest,
     SaveApiSourceRequest,
     _extract_token,
+    _bounded_gx_evidence,
+    _parse_airflow_xcom,
     _login_for_token,
     _persisted_metadata,
     configure_api_source_credentials,
@@ -20,6 +22,22 @@ from api.routes.api_sources import (
 )
 from core.security import decrypt_secret, encrypt_secret
 from db.models import ApiSource
+
+
+def test_gx_evidence_is_flattened_and_bounded_for_portal():
+    value = _parse_airflow_xcom('{"status":"PASSED","validation_id":"v-1",'
+        '"merge_allowed":true,"raw_rows":[1,2],"approval":{'
+        '"data_asset_ref":"lakehouse.silver.teaching_progress",'
+        '"validated_branch":"main","validated_snapshot_id":"42",'
+        '"validated_commit_hash":"commit-42","secret":"drop"}}')
+    evidence = _bounded_gx_evidence("gx_validate_silver", "Silver", value)
+
+    assert evidence["status"] == "PASSED"
+    assert evidence["snapshot_id"] == "42"
+    assert evidence["nessie_commit_hash"] == "commit-42"
+    assert "raw_rows" not in evidence
+    assert "approval" not in evidence
+    assert "secret" not in str(evidence)
 
 
 def test_api_source_metadata_is_normalized_for_persistence():

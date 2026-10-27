@@ -1,3 +1,5 @@
+import ast
+import json
 import uuid
 from typing import Any, Literal
 from urllib.parse import urlparse
@@ -87,6 +89,72 @@ def _airflow_auth():
             detail="AIRFLOW_ADMIN_PASSWORD chưa được cấu hình cho backend.",
         )
     return (AIRFLOW_API_USERNAME, AIRFLOW_API_PASSWORD)
+
+
+GX_API_TASKS = (
+    ("gx_validate_silver", "Silver"),
+    ("gx_validate_gold", "Gold"),
+    ("gx_reconcile_silver_gold", "Reconciliation"),
+)
+
+
+def _parse_airflow_xcom(value):
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except (TypeError, ValueError):
+            try:
+                value = ast.literal_eval(value)
+            except (SyntaxError, ValueError):
+                value = None
+    return value if isinstance(value, dict) else None
+
+
+def _bounded_gx_evidence(task_id: str, layer: str, value: dict[str, Any]):
+    approval = value.get("approval") if isinstance(value.get("approval"), dict) else {}
+    return {
+        "task_id": task_id,
+        "layer": layer,
+        "status": value.get("status", "RESULT_UNAVAILABLE"),
+        "dataset_id": value.get("dataset_id"),
+        "data_asset_ref": value.get("data_asset_ref") or approval.get("data_asset_ref"),
+        "source_kind": value.get("source_kind"),
+        "validation_id": value.get("validation_id"),
+        "validation_uri": value.get("validation_uri"),
+        "merge_allowed": value.get("merge_allowed"),
+        "nessie_branch": approval.get("validated_branch"),
+        "snapshot_id": approval.get("validated_snapshot_id"),
+        "nessie_commit_hash": approval.get("validated_commit_hash"),
+    }
+
+
+def _gx_evidence_for_run(airflow_base: str, tasks: list[dict[str, Any]]):
+    task_states = {item.get("task_id"): item.get("state") for item in tasks}
+    evidence = []
+    for task_id, layer in GX_API_TASKS:
+        response = requests.get(
+            f"{airflow_base}/taskInstances/{task_id}/xcomEntries/return_value",
+            auth=_airflow_auth(),
+            timeout=5,
+        )
+        value = (
+            _parse_airflow_xcom(response.json().get("value"))
+            if response.status_code == 200
+            else None
+        )
+        if value:
+            evidence.append(_bounded_gx_evidence(task_id, layer, value))
+            continue
+        state = task_states.get(task_id)
+        status_value = {
+            "failed": "FAILED",
+            "upstream_failed": "BLOCKED",
+            "running": "RUNNING",
+            "queued": "PENDING",
+            "success": "RESULT_UNAVAILABLE",
+        }.get(state, "PENDING" if state else "NOT_AVAILABLE")
+        evidence.append({"task_id": task_id, "layer": layer, "status": status_value})
+    return evidence
 
 
 def _mock_headers():
@@ -620,6 +688,13 @@ def get_api_dataset_pipeline_status(
             ]
 
         run = run_response.json()
+        try:
+            gx_validations = _gx_evidence_for_run(airflow_base, tasks)
+        except requests.RequestException:
+            gx_validations = [
+                {"task_id": task_id, "layer": layer, "status": "RESULT_UNAVAILABLE"}
+                for task_id, layer in GX_API_TASKS
+            ]
         return {
             "dag_id": AIRFLOW_API_DAG_ID,
             "dag_run_id": dag_run_id,
@@ -627,6 +702,7 @@ def get_api_dataset_pipeline_status(
             "start_date": run.get("start_date"),
             "end_date": run.get("end_date"),
             "tasks": tasks,
+            "gx_validations": gx_validations,
         }
     except HTTPException:
         raise

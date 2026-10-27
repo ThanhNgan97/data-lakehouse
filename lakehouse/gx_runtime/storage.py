@@ -33,6 +33,8 @@ class S3ResultStore:
     prefix: str = "gx/validation-results"
     endpoint_url: str | None = None
     region_name: str | None = None
+    access_key_id: str | None = None
+    secret_access_key: str | None = None
 
     def save(self, summary: ValidationSummary) -> str:
         import boto3
@@ -52,6 +54,8 @@ class S3ResultStore:
                 "s3",
                 endpoint_url=self.endpoint_url,
                 region_name=self.region_name,
+                aws_access_key_id=self.access_key_id,
+                aws_secret_access_key=self.secret_access_key,
             )
             client.put_object(
                 Bucket=self.bucket,
@@ -81,4 +85,6 @@ def result_store_from_env() -> ResultStore:
         prefix=os.getenv("GX_RESULT_STORE_PREFIX", "gx/validation-results"),
         endpoint_url=os.getenv("S3_ENDPOINT") or None,
         region_name=os.getenv("S3_REGION") or None,
+        access_key_id=os.getenv("S3_ACCESS_KEY") or None,
+        secret_access_key=os.getenv("S3_SECRET_KEY") or None,
     )

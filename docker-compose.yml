@@ -300,11 +300,14 @@ services:
       dockerfile: gx.Dockerfile
     image: lakehouse-gx-validator:1.24.0
     container_name: demo-gx-validator
-    restart: "no"
+    restart: unless-stopped
+    entrypoint: ["python", "-m", "gx_runtime.api"]
+    command: []
     environment:
       GX_ANALYTICS_ENABLED: 'false'
       GX_SUITE_REGISTRY: '/opt/gx/config/suite_registry.json'
       GX_CONTRACT_REGISTRY: '/opt/gx/config/contract_registry.json'
+      GX_CONFIG_ROOT: '/opt/gx/config'
       GX_RESULT_STORE_BACKEND: 's3'
       GX_RESULT_STORE_BUCKET: ${S3_BUCKET_NAME:-university-lakehouse}
       GX_RESULT_STORE_PREFIX: ${GX_RESULT_STORE_PREFIX:-gx/validation-results}
@@ -322,11 +325,19 @@ services:
       TRINO_USER: ${GX_TRINO_USER:-gx-validator}
       TRINO_CATALOG: ${GX_TRINO_CATALOG:-lakehouse}
       TRINO_SCHEMA: ${GX_TRINO_SCHEMA:-default}
+      GX_TRINO_NESSIE_BRANCH: ${GX_TRINO_NESSIE_BRANCH:-main}
+      GX_HTTP_PORT: '8090'
     depends_on:
       nessie:
         condition: service_started
       trino:
         condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
     networks:
       - lakehouse-network
 
@@ -440,6 +451,7 @@ services:
       TRINO_HOST: 'trino'
       TRINO_PORT: '8080'
       TRINO_HTTP_URL: 'http://trino:8080'
+      GX_SERVICE_URL: 'http://gx-validator:8090'
     volumes:
       - ./airflow_webserver_config.py:/opt/airflow/webserver_config.py:ro
       - ./lakehouse/dags:/opt/airflow/dags
@@ -491,6 +503,7 @@ services:
       TRINO_HOST: 'trino'
       TRINO_PORT: '8080'
       TRINO_HTTP_URL: 'http://trino:8080'
+      GX_SERVICE_URL: 'http://gx-validator:8090'
     volumes:
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark

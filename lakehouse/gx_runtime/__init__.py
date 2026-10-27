@@ -9,11 +9,19 @@ from .models import (
 )
 from .policy import ValidationPolicy
 from .service import validate_dataframe, validate_table
+from .snapshot_gate import (
+    NessieSnapshotResolver,
+    SnapshotAwareQualityGate,
+    SnapshotIdentity,
+)
 
 __all__ = [
     "ExecutionEngine",
     "ExecutionMode",
     "SuiteReference",
+    "NessieSnapshotResolver",
+    "SnapshotAwareQualityGate",
+    "SnapshotIdentity",
     "ValidationPolicy",
     "ValidationStatus",
     "ValidationSummary",

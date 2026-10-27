@@ -135,6 +135,22 @@ class ValidationSummary:
     data_docs_url: str | None = None
     metrics: dict[str, Any] = field(default_factory=dict)
 
+    @property
+    def validated_branch(self) -> str | None:
+        return self.nessie_branch
+
+    @property
+    def validated_snapshot_id(self) -> str | None:
+        return self.snapshot_id
+
+    @property
+    def validated_commit_hash(self) -> str | None:
+        return self.nessie_commit_hash
+
+    @property
+    def critical_failure_count(self) -> int:
+        return len(self.critical_failures)
+
     def as_dict(self) -> dict[str, Any]:
         payload = asdict(self)
         payload["status"] = self.status.value
@@ -148,6 +164,13 @@ class ValidationSummary:
         payload["warning_failures"] = [
             asdict(failure) for failure in self.warning_failures
         ]
+        # Phase-5 publish gates consume explicit validated identity names. Keep
+        # the original fields for phase-2 API compatibility.
+        payload["layer"] = self.data_layer
+        payload["validated_branch"] = self.validated_branch
+        payload["validated_snapshot_id"] = self.validated_snapshot_id
+        payload["validated_commit_hash"] = self.validated_commit_hash
+        payload["critical_failure_count"] = self.critical_failure_count
         return payload
 
 

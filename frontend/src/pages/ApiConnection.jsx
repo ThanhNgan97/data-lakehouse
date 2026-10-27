@@ -461,8 +461,8 @@ export default function ApiConnection() {
   function pipelineTaskState(index) {
     const taskGroups = [
       ["api_preflight", "ingest_bronze"],
-      ["validate_bronze", "process_silver", "validate_silver"],
-      ["process_gold", "validate_gold"],
+      ["validate_bronze", "process_silver", "validate_silver", "gx_validate_silver"],
+      ["prepare_gold", "process_gold", "validate_gold", "publish_gold", "gx_validate_gold"],
       ["trino_smoke_test"],
     ];
     const matches = pipeline.tasks.filter((task) => taskGroups[index].includes(task.task_id));

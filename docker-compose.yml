@@ -482,6 +482,9 @@ services:
       GX_DATABASE_GATE_MODE: ${GX_DATABASE_GATE_MODE:-enforce}
       GX_DATABASE_NESSIE_BRANCH: ${GX_DATABASE_NESSIE_BRANCH:-main}
       GX_DATABASE_GATE_TIMEOUT_SECONDS: ${GX_DATABASE_GATE_TIMEOUT_SECONDS:-300}
+      GX_GOLD_GATE_MODE: ${GX_GOLD_GATE_MODE:-enforce}
+      GX_GOLD_NESSIE_BRANCH: ${GX_GOLD_NESSIE_BRANCH:-main}
+      GX_GOLD_GATE_TIMEOUT_SECONDS: ${GX_GOLD_GATE_TIMEOUT_SECONDS:-300}
     volumes:
       - ./airflow_webserver_config.py:/opt/airflow/webserver_config.py:ro
       - ./lakehouse/dags:/opt/airflow/dags
@@ -540,6 +543,9 @@ services:
       GX_DATABASE_GATE_MODE: ${GX_DATABASE_GATE_MODE:-enforce}
       GX_DATABASE_NESSIE_BRANCH: ${GX_DATABASE_NESSIE_BRANCH:-main}
       GX_DATABASE_GATE_TIMEOUT_SECONDS: ${GX_DATABASE_GATE_TIMEOUT_SECONDS:-300}
+      GX_GOLD_GATE_MODE: ${GX_GOLD_GATE_MODE:-enforce}
+      GX_GOLD_NESSIE_BRANCH: ${GX_GOLD_NESSIE_BRANCH:-main}
+      GX_GOLD_GATE_TIMEOUT_SECONDS: ${GX_GOLD_GATE_TIMEOUT_SECONDS:-300}
     volumes:
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark

@@ -33,8 +33,11 @@ EXPECTED_TASKS = (
     "process_gold",
     "validate_gold",
     "publish_gold",
+    "gx_validate_gold",
     "trino_smoke_test",
 )
+
+GX_TASKS = {"gx_validate_silver", "gx_validate_gold"}
 
 EXPECTED_COMMANDS = (
     "api-preflight",
@@ -77,7 +80,7 @@ class ApiDatasetPipelineDagTest(
             )
         )
 
-    def test_exact_eleven_visible_tasks(self):
+    def test_exact_twelve_visible_tasks(self):
         self.assertEqual(
             tuple(
                 task.task_id
@@ -122,12 +125,12 @@ class ApiDatasetPipelineDagTest(
             )
 
     def test_gx_gate_uses_python_and_other_tasks_use_bash(self):
-        gx_task = self.dag.get_task("gx_validate_silver")
-        self.assertIsInstance(gx_task, PythonOperator)
+        for task_id in GX_TASKS:
+            self.assertIsInstance(self.dag.get_task(task_id), PythonOperator)
         self.assertTrue(all(
             isinstance(task, BashOperator)
             for task in self.dag.tasks
-            if task.task_id != "gx_validate_silver"
+            if task.task_id not in GX_TASKS
         ))
 
     def test_non_retryable_gx_failure_fails_immediately(self):
@@ -178,7 +181,7 @@ class ApiDatasetPipelineDagTest(
     ):
         bash_tasks = [
             task for task in self.dag.tasks
-            if task.task_id != "gx_validate_silver"
+            if task.task_id not in GX_TASKS
         ]
         for task, command in zip(
             bash_tasks,
@@ -205,7 +208,7 @@ class ApiDatasetPipelineDagTest(
         self,
     ):
         for task in self.dag.tasks:
-            if task.task_id == "gx_validate_silver":
+            if task.task_id in GX_TASKS:
                 continue
             self.assertIn(
                 "dag_run.conf.get('dataset_id'",
@@ -214,7 +217,7 @@ class ApiDatasetPipelineDagTest(
 
     def test_source_url_and_key_are_templated_from_run_config(self):
         for task in self.dag.tasks:
-            if task.task_id == "gx_validate_silver":
+            if task.task_id in GX_TASKS:
                 continue
             self.assertIn(
                 "dag_run.conf.get('source_api_url'",

@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.models.param import Param
 from airflow.operators.bash import BashOperator
+from airflow.operators.python import PythonOperator
 
 
 SPARK_DIR = "/opt/airflow/spark"
@@ -52,6 +53,28 @@ def runner_command(command: str) -> str:
         '--dataset-id "$DATASET_ID" '
         '--run-id "$AIRFLOW_RUN_ID"'
     )
+
+
+def run_gx_api_quality_gate(**context):
+    """Validate the selected API dataset's current Silver snapshot."""
+    from airflow.exceptions import AirflowException, AirflowFailException
+    from gx_airflow_adapter import GXAirflowError, NON_RETRYABLE
+    from gx_api_gate import validate_api_dataset
+
+    dag_run = context.get("dag_run")
+    dataset_id = dag_run.conf.get("dataset_id") if dag_run else None
+    dataset_id = dataset_id or context.get("params", {}).get("dataset_id")
+    if not dataset_id:
+        raise ValueError("dataset_id is required for the GX API gate")
+    try:
+        return validate_api_dataset(
+            dataset_id=str(dataset_id),
+            run_id=str(context.get("run_id") or ""),
+        )
+    except GXAirflowError as exc:
+        if exc.code in NON_RETRYABLE or not exc.retryable:
+            raise AirflowFailException(str(exc)) from exc
+        raise AirflowException(str(exc)) from exc
 
 
 with DAG(
@@ -128,6 +151,13 @@ with DAG(
         append_env=True,
     )
 
+    gx_validate_silver = PythonOperator(
+        task_id="gx_validate_silver",
+        python_callable=run_gx_api_quality_gate,
+        retries=1,
+        retry_delay=timedelta(minutes=1),
+    )
+
     prepare_gold = BashOperator(
         task_id="prepare_gold",
         bash_command=runner_command("prepare-gold"),
@@ -175,6 +205,7 @@ with DAG(
         >> validate_bronze
         >> process_silver
         >> validate_silver
+        >> gx_validate_silver
         >> prepare_gold
         >> process_gold
         >> validate_gold

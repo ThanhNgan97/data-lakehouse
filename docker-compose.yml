@@ -476,6 +476,9 @@ services:
       TRINO_PORT: '8080'
       TRINO_HTTP_URL: 'http://trino:8080'
       GX_SERVICE_URL: 'http://gx-validator:8090'
+      GX_API_GATE_MODE: ${GX_API_GATE_MODE:-enforce}
+      GX_API_NESSIE_BRANCH: ${GX_API_NESSIE_BRANCH:-main}
+      GX_API_GATE_TIMEOUT_SECONDS: ${GX_API_GATE_TIMEOUT_SECONDS:-300}
     volumes:
       - ./airflow_webserver_config.py:/opt/airflow/webserver_config.py:ro
       - ./lakehouse/dags:/opt/airflow/dags
@@ -528,6 +531,9 @@ services:
       TRINO_PORT: '8080'
       TRINO_HTTP_URL: 'http://trino:8080'
       GX_SERVICE_URL: 'http://gx-validator:8090'
+      GX_API_GATE_MODE: ${GX_API_GATE_MODE:-enforce}
+      GX_API_NESSIE_BRANCH: ${GX_API_NESSIE_BRANCH:-main}
+      GX_API_GATE_TIMEOUT_SECONDS: ${GX_API_GATE_TIMEOUT_SECONDS:-300}
     volumes:
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark

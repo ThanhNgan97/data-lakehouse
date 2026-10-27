@@ -48,6 +48,7 @@ class ApiDatasetConfig:
     silver_processor: str | None = None
     dbt_selector: str | None = None
     gold_table: str | None = None
+    gx_contract_version: str | None = None
 
     def __post_init__(self) -> None:
         """Fail fast when declarative dataset configuration is inconsistent."""
@@ -147,6 +148,7 @@ class ApiDatasetConfig:
             self.silver_processor,
             self.dbt_selector,
             self.gold_table,
+            self.gx_contract_version,
         )
         configured_orchestration_values = [
             value
@@ -216,6 +218,7 @@ class ApiDatasetConfig:
                 self.silver_processor,
                 self.dbt_selector,
                 self.gold_table,
+                self.gx_contract_version,
             )
         )
 
@@ -371,6 +374,7 @@ DATASETS = {
         gold_table=(
             "lakehouse.gold.learning_outcomes_metrics"
         ),
+        gx_contract_version="1.0.0",
     ),
     TEACHING_PROGRESS_DATASET: ApiDatasetConfig(
         dataset=TEACHING_PROGRESS_DATASET,
@@ -423,6 +427,7 @@ DATASETS = {
         gold_table=(
             "lakehouse.gold.teaching_progress_metrics"
         ),
+        gx_contract_version="1.0.0",
     ),
 }
 

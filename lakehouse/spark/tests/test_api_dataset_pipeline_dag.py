@@ -1,9 +1,13 @@
 from pathlib import Path
 import sys
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
+from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.models import DagBag
 from airflow.operators.bash import BashOperator
+from airflow.operators.python import PythonOperator
 
 
 DAG_DIR = Path("/opt/airflow/dags")
@@ -15,6 +19,7 @@ if SPARK_DIR not in sys.path:
     sys.path.insert(0, SPARK_DIR)
 
 from api_dataset_registry import DATASETS
+from gx_airflow_adapter import GXAirflowError
 
 
 EXPECTED_TASKS = (
@@ -23,6 +28,7 @@ EXPECTED_TASKS = (
     "validate_bronze",
     "process_silver",
     "validate_silver",
+    "gx_validate_silver",
     "prepare_gold",
     "process_gold",
     "validate_gold",
@@ -71,7 +77,7 @@ class ApiDatasetPipelineDagTest(
             )
         )
 
-    def test_exact_ten_visible_tasks(self):
+    def test_exact_eleven_visible_tasks(self):
         self.assertEqual(
             tuple(
                 task.task_id
@@ -115,16 +121,37 @@ class ApiDatasetPipelineDagTest(
                 expected_downstream,
             )
 
-    def test_all_tasks_use_bash_operator(self):
-        self.assertTrue(
-            all(
-                isinstance(
-                    task,
-                    BashOperator,
+    def test_gx_gate_uses_python_and_other_tasks_use_bash(self):
+        gx_task = self.dag.get_task("gx_validate_silver")
+        self.assertIsInstance(gx_task, PythonOperator)
+        self.assertTrue(all(
+            isinstance(task, BashOperator)
+            for task in self.dag.tasks
+            if task.task_id != "gx_validate_silver"
+        ))
+
+    def test_non_retryable_gx_failure_fails_immediately(self):
+        callable_ = self.dag.get_task("gx_validate_silver").python_callable
+        error = GXAirflowError("DATA_QUALITY_FAILED", "invalid", False)
+        with patch("gx_api_gate.validate_api_dataset", side_effect=error):
+            with self.assertRaises(AirflowFailException):
+                callable_(
+                    dag_run=SimpleNamespace(conf={"dataset_id": next(iter(DATASETS))}),
+                    run_id="manual__quality-failure",
+                    params={},
                 )
-                for task in self.dag.tasks
-            )
-        )
+
+    def test_retryable_gx_failure_uses_airflow_retry(self):
+        callable_ = self.dag.get_task("gx_validate_silver").python_callable
+        error = GXAirflowError("GX_EXECUTION_ERROR", "unavailable", True)
+        with patch("gx_api_gate.validate_api_dataset", side_effect=error):
+            with self.assertRaises(AirflowException) as raised:
+                callable_(
+                    dag_run=SimpleNamespace(conf={"dataset_id": next(iter(DATASETS))}),
+                    run_id="manual__service-failure",
+                    params={},
+                )
+        self.assertNotIsInstance(raised.exception, AirflowFailException)
 
     def test_ingest_bronze_uses_no_change_skip_code(
         self,
@@ -149,8 +176,12 @@ class ApiDatasetPipelineDagTest(
     def test_each_task_invokes_generic_runner(
         self,
     ):
+        bash_tasks = [
+            task for task in self.dag.tasks
+            if task.task_id != "gx_validate_silver"
+        ]
         for task, command in zip(
-            self.dag.tasks,
+            bash_tasks,
             EXPECTED_COMMANDS,
         ):
             self.assertIn(
@@ -174,6 +205,8 @@ class ApiDatasetPipelineDagTest(
         self,
     ):
         for task in self.dag.tasks:
+            if task.task_id == "gx_validate_silver":
+                continue
             self.assertIn(
                 "dag_run.conf.get('dataset_id'",
                 task.env["DATASET_ID"],
@@ -181,6 +214,8 @@ class ApiDatasetPipelineDagTest(
 
     def test_source_url_and_key_are_templated_from_run_config(self):
         for task in self.dag.tasks:
+            if task.task_id == "gx_validate_silver":
+                continue
             self.assertIn(
                 "dag_run.conf.get('source_api_url'",
                 task.env["SOURCE_API_URL"],

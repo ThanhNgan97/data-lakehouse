@@ -454,27 +454,6 @@ def provision_superset_dashboard_task(**context):
         raise RuntimeError(f"Không thể tạo dashboard Superset: {exc}") from exc
 
 
-def run_gx_file_quality_gate(**context):
-    """Call the standalone GX service for registered file-upload datasets."""
-    from gx_universal_gate import validate_file_upload
-
-    return validate_file_upload(**context)
-
-
-def run_gx_database_quality_gate(**context):
-    """Call GX for the Airbyte/database branch with fail-closed errors."""
-    from airflow.exceptions import AirflowException, AirflowFailException
-    from gx_airflow_adapter import GXAirflowError, NON_RETRYABLE
-    from gx_database_gate import validate_database_context
-
-    try:
-        return validate_database_context(**context)
-    except GXAirflowError as exc:
-        if exc.code in NON_RETRYABLE or not exc.retryable:
-            raise AirflowFailException(str(exc)) from exc
-        raise AirflowException(str(exc)) from exc
-
-
 # =====================================================================
 # DAG DEFINITION
 # =====================================================================
@@ -565,31 +544,15 @@ with DAG(
             ),
         )
 
-    # 6. GX gate for file uploads. Registered datasets fail closed; dynamic
-    # datasets return NOT_CONFIGURED and remain visibly outside GX coverage.
-    gx_validate_file_upload = PythonOperator(
-        task_id="gx_validate_file_upload",
-        python_callable=run_gx_file_quality_gate,
-        trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
-        retries=1,
-        retry_delay=timedelta(minutes=1),
-    )
-
-    gx_validate_database = PythonOperator(
-        task_id="gx_validate_database",
-        python_callable=run_gx_database_quality_gate,
-        retries=1,
-        retry_delay=timedelta(minutes=1),
-    )
-
-    # 7. Join & Smoke Test
+    # 6. Legacy join & smoke test. Governed file uploads run in the separate
+    # candidate-first DAG; this legacy DAG intentionally has no GX boundary.
     join_and_smoke_test = PythonOperator(
         task_id="join_and_smoke_test",
         python_callable=smoke_test_trino,
         trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
     )
 
-    # 8. Dynamic Superset Dashboard Provisioner (BI Plane)
+    # 7. Dynamic Superset Dashboard Provisioner (BI Plane)
     auto_provision_superset = PythonOperator(
         task_id="auto_provision_superset",
         python_callable=provision_superset_dashboard_task,
@@ -599,8 +562,11 @@ with DAG(
     # Wire DAG Dependencies
     ai_semantic_profiler >> branch_router
     branch_router >> [kpi_ingest_bronze, api_runner, process_dynamic, process_relational]
-    [kpi_predictive_analysis, api_runner, process_dynamic] >> gx_validate_file_upload
-    process_relational >> gx_validate_database
-    [gx_validate_file_upload, gx_validate_database] >> join_and_smoke_test
+    [
+        kpi_predictive_analysis,
+        api_runner,
+        process_dynamic,
+        process_relational,
+    ] >> join_and_smoke_test
     join_and_smoke_test >> auto_provision_superset
 

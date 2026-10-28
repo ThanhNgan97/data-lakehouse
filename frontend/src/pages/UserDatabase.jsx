@@ -22,7 +22,6 @@ const stages = [
   { id: "connect", label: "Kết nối nguồn", detail: "Airbyte đọc schema", icon: Network, taskIds: [] },
   { id: "ingest", label: "Đồng bộ dữ liệu", detail: "Database → Bronze", icon: CloudCog, taskIds: ["ai_semantic_profiler"] },
   { id: "process", label: "Chuẩn hóa", detail: "Silver & Gold", icon: Sparkles, taskIds: ["branch_router", "relational_flow.process_relational_context"] },
-  { id: "quality", label: "GX Quality", detail: "Kiểm tra chất lượng", icon: ShieldCheck, taskIds: ["gx_validate_database"] },
   { id: "visualize", label: "Trực quan hóa", detail: "Superset dashboard", icon: BarChart3, taskIds: ["join_and_smoke_test", "auto_provision_superset"] },
 ];
 

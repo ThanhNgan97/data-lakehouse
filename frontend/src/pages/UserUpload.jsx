@@ -80,7 +80,7 @@ const PIPELINE_TASKS = [
   {
     id: "quality",
     taskIds: [
-      "gx_validate_file_upload", "gx_validate_file_candidate",
+      "gx_validate_file_candidate",
       "gx_validate_gold_candidate", "gx_reconcile_candidate", "onboarding_required",
     ],
     label: "GX Quality",

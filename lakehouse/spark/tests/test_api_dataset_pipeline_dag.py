@@ -33,15 +33,15 @@ EXPECTED_TASKS = (
     "prepare_gold",
     "process_gold",
     "validate_gold",
-    "publish_gold",
     "gx_validate_gold",
     "gx_reconcile_silver_gold",
+    "publish_gold",
     "trino_smoke_test",
 )
 
 GX_TASKS = {
     "gx_validate_silver", "publish_silver_candidate",
-    "gx_validate_gold", "gx_reconcile_silver_gold",
+    "gx_validate_gold", "gx_reconcile_silver_gold", "publish_gold",
 }
 
 EXPECTED_COMMANDS = (
@@ -53,7 +53,6 @@ EXPECTED_COMMANDS = (
     "prepare-gold",
     "process-gold",
     "validate-gold",
-    "publish-gold",
     "trino-smoke-test",
 )
 
@@ -139,13 +138,14 @@ class ApiDatasetPipelineDagTest(
         self.assertIn(publish.task_id, gx.downstream_task_ids)
         self.assertIn(validate.task_id, publish.downstream_task_ids)
 
-    def test_phase_a_characterizes_gold_gx_as_post_publish(self):
-        """Document that the current GX Gold task cannot block publication."""
+    def test_gold_candidate_requires_both_gx_gates_before_publish(self):
         publish = self.dag.get_task("publish_gold")
         gx = self.dag.get_task("gx_validate_gold")
+        reconciliation = self.dag.get_task("gx_reconcile_silver_gold")
 
-        self.assertIn(gx.task_id, publish.downstream_task_ids)
-        self.assertIn(publish.task_id, gx.upstream_task_ids)
+        self.assertIn(reconciliation.task_id, gx.downstream_task_ids)
+        self.assertIn(publish.task_id, reconciliation.downstream_task_ids)
+        self.assertIn(reconciliation.task_id, publish.upstream_task_ids)
 
     def test_gx_gate_uses_python_and_other_tasks_use_bash(self):
         for task_id in GX_TASKS:

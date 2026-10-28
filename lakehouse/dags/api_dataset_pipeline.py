@@ -101,10 +101,10 @@ def publish_gx_approved_silver_candidate(**context):
 
 
 def run_gx_gold_quality_gate(**context):
-    """Validate the Gold snapshot created by the dbt CAS publication."""
+    """Validate the sealed dbt Gold candidate before publication."""
     from airflow.exceptions import AirflowException, AirflowFailException
     from gx_airflow_adapter import GXAirflowError, NON_RETRYABLE
-    from gx_gold_gate import validate_published_gold
+    from gx_dbt_candidate_gate import validate_dbt_gold_candidate
 
     dag_run = context.get("dag_run")
     dataset_id = dag_run.conf.get("dataset_id") if dag_run else None
@@ -112,10 +112,9 @@ def run_gx_gold_quality_gate(**context):
     if not dataset_id:
         raise ValueError("dataset_id is required for the GX Gold gate")
     try:
-        return validate_published_gold(
+        return validate_dbt_gold_candidate(
             dataset_id=str(dataset_id),
             run_id=str(context.get("run_id") or ""),
-            source_kind="api",
         )
     except GXAirflowError as exc:
         if exc.code in NON_RETRYABLE or not exc.retryable:
@@ -124,10 +123,10 @@ def run_gx_gold_quality_gate(**context):
 
 
 def run_gx_reconciliation_gate(**context):
-    """Require Silver and Gold values/lineage to reconcile."""
+    """Reconcile Silver with the sealed dbt Gold candidate."""
     from airflow.exceptions import AirflowException, AirflowFailException
     from gx_airflow_adapter import GXAirflowError, NON_RETRYABLE
-    from gx_reconciliation_gate import validate_silver_gold_reconciliation
+    from gx_dbt_candidate_gate import reconcile_dbt_gold_candidate
 
     dag_run = context.get("dag_run")
     dataset_id = dag_run.conf.get("dataset_id") if dag_run else None
@@ -135,15 +134,45 @@ def run_gx_reconciliation_gate(**context):
     if not dataset_id:
         raise ValueError("dataset_id is required for GX reconciliation")
     try:
-        return validate_silver_gold_reconciliation(
+        return reconcile_dbt_gold_candidate(
             dataset_id=str(dataset_id),
             run_id=str(context.get("run_id") or ""),
-            source_kind="api",
         )
     except GXAirflowError as exc:
         if exc.code in NON_RETRYABLE or not exc.retryable:
             raise AirflowFailException(str(exc)) from exc
         raise AirflowException(str(exc)) from exc
+
+
+def publish_gx_approved_gold_candidate(**context):
+    """Publish only the dbt candidate approved by both GX candidate gates."""
+    from airflow.exceptions import AirflowFailException
+    from api_dataset_registry import get_dataset_config
+    from dbt_gold_runtime import publish
+
+    dag_run = context.get("dag_run")
+    dataset_id = dag_run.conf.get("dataset_id") if dag_run else None
+    dataset_id = dataset_id or context.get("params", {}).get("dataset_id")
+    if not dataset_id:
+        raise AirflowFailException("dataset_id is required for Gold publication")
+    ti = context["ti"]
+    gold_result = ti.xcom_pull(task_ids="gx_validate_gold")
+    reconciliation_result = ti.xcom_pull(task_ids="gx_reconcile_silver_gold")
+    try:
+        publish(
+            get_dataset_config(str(dataset_id)),
+            str(context.get("run_id") or ""),
+            gx_gold_result=gold_result,
+            gx_reconciliation_result=reconciliation_result,
+        )
+    except RuntimeError as exc:
+        raise AirflowFailException(str(exc)) from exc
+    return {
+        "status": "PUBLISHED",
+        "dataset_id": str(dataset_id),
+        "gold_validation_id": gold_result["validation_id"],
+        "reconciliation_validation_id": reconciliation_result["validation_id"],
+    }
 
 
 with DAG(
@@ -258,13 +287,6 @@ with DAG(
         append_env=True,
     )
 
-    publish_gold = BashOperator(
-        task_id="publish_gold",
-        bash_command=runner_command("publish-gold"),
-        env=COMMON_ENV,
-        append_env=True,
-    )
-
     gx_validate_gold = PythonOperator(
         task_id="gx_validate_gold",
         python_callable=run_gx_gold_quality_gate,
@@ -277,6 +299,12 @@ with DAG(
         python_callable=run_gx_reconciliation_gate,
         retries=1,
         retry_delay=timedelta(minutes=1),
+    )
+
+    publish_gold = PythonOperator(
+        task_id="publish_gold",
+        python_callable=publish_gx_approved_gold_candidate,
+        retries=0,
     )
 
     trino_smoke_test = BashOperator(
@@ -299,8 +327,8 @@ with DAG(
         >> prepare_gold
         >> process_gold
         >> validate_gold
-        >> publish_gold
         >> gx_validate_gold
         >> gx_reconcile_silver_gold
+        >> publish_gold
         >> trino_smoke_test
     )

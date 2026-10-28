@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 
 import dbt_gold_runtime as runtime
 from dbt_gold_contract import identity, outputs, SQL_VALIDATION_CONTRACT, require_config
+from gx_candidate_binding import dbt_gold_candidate_binding
 
 
 CONFIG = SimpleNamespace(dataset="education.learning_outcomes", dbt_selector="agg_learning_outcomes_by_period",
@@ -32,6 +33,33 @@ def worker(s):
     return {"artifact_sha256": s["artifact_sha256"], "validation_contract": SQL_VALIDATION_CONTRACT,
             "dataset": s["dataset"], "build_ref_hash": "built",
             "candidate_contents": s["candidate_contents"], "source_content": s["source_content"]}
+
+
+def approvals(s):
+    binding = dbt_gold_candidate_binding(s["dataset"], s["run_id"], CONFIG.gold_table)
+    output_name = CONFIG.gold_table.rsplit(".", 1)[-1]
+    snapshot_id = s["candidate_contents"][output_name]["snapshotId"]
+    results = []
+    for layer in ("gold", "reconciliation"):
+        validation_id = f"{layer}-validation"
+        results.append({
+            "data_layer": layer,
+            "data_asset_ref": CONFIG.gold_table,
+            "physical_data_asset_ref": binding.physical_asset_ref,
+            "candidate_branch": s["ref"],
+            "candidate_hash": s["validated_hash"],
+            "validation_id": validation_id,
+            "merge_allowed": True,
+            "approval": {
+                "validation_id": validation_id,
+                "merge_allowed": True,
+                "data_asset_ref": binding.physical_asset_ref,
+                "validated_branch": s["ref"],
+                "validated_snapshot_id": str(snapshot_id),
+                "validated_commit_hash": s["validated_hash"],
+            },
+        })
+    return tuple(results)
 
 
 class GoldRuntimeTest(unittest.TestCase):
@@ -146,7 +174,18 @@ class GoldRuntimeTest(unittest.TestCase):
         for phase, target_hash in [("built", "base"), ("validated", "newer")]:
             s = state(phase)
             with patch.object(runtime, "load", return_value=s), patch.object(runtime, "worker_result", return_value=worker(s)), patch.object(runtime, "head", side_effect=lambda ref: "valid" if ref == s["ref"] else target_hash), patch.object(runtime, "content", return_value=None), patch.object(runtime, "api") as api:
-                with self.assertRaises(RuntimeError): runtime.publish(CONFIG, "unit-run")
+                with self.assertRaises(RuntimeError): runtime.publish(CONFIG, "unit-run", *approvals(s))
+                api.assert_not_called()
+
+    def test_missing_or_stale_gx_approval_never_commits(self):
+        s = state()
+        gold, reconciliation = approvals(s)
+        stale = copy.deepcopy(reconciliation)
+        stale["approval"]["validated_commit_hash"] = "stale"
+        for receipts in ((None, None), (gold, stale)):
+            with self.subTest(receipts=receipts), patch.object(runtime, "load", return_value=s), patch.object(runtime, "api") as api:
+                with self.assertRaisesRegex(RuntimeError, "GX .* approval"):
+                    runtime.publish(CONFIG, "unit-run", *receipts)
                 api.assert_not_called()
 
     def test_fact_mart_publish_is_one_cas_commit(self):
@@ -154,8 +193,12 @@ class GoldRuntimeTest(unittest.TestCase):
         def content(ref, key, hash_value=None):
             return s["candidate_contents"][key.split(".")[-1]] if hash_value == "committed" else None
         with patch.object(runtime, "load", return_value=s), patch.object(runtime, "worker_result", return_value=worker(s)), patch.object(runtime, "head", side_effect=lambda ref: "valid" if ref == s["ref"] else "base"), patch.object(runtime, "content", side_effect=content), patch.object(runtime, "api", return_value={"hash": "committed"}) as api, patch.object(runtime, "save"):
-            runtime.publish(CONFIG, "unit-run")
+            runtime.publish(CONFIG, "unit-run", *approvals(s))
             self.assertEqual(s["phase"], "published")
+            self.assertEqual(
+                s["gx_approvals"],
+                {"gold": "gold-validation", "reconciliation": "reconciliation-validation"},
+            )
             api.assert_called_once()
             self.assertEqual(api.call_args.kwargs["params"], {"expectedHash": "base"})
             self.assertEqual(len(api.call_args.kwargs["json"]["operations"]), 2)
@@ -168,7 +211,7 @@ class GoldRuntimeTest(unittest.TestCase):
     def test_successful_commit_with_unsaved_state_recovers_whole_bundle(self):
         s = state()
         with patch.object(runtime, "load", return_value=s), patch.object(runtime, "worker_result", return_value=worker(s)), patch.object(runtime, "head", side_effect=lambda ref: "valid" if ref == s["ref"] else "already_committed"), patch.object(runtime, "content", side_effect=lambda ref, key, hash_value=None: s["candidate_contents"][key.split(".")[-1]]), patch.object(runtime, "api") as api, patch.object(runtime, "save"):
-            runtime.publish(CONFIG, "unit-run")
+            runtime.publish(CONFIG, "unit-run", *approvals(s))
             self.assertEqual(s["phase"], "published")
             api.assert_not_called()
 
@@ -177,5 +220,5 @@ class GoldRuntimeTest(unittest.TestCase):
         def content(ref, key, hash_value=None):
             return s["candidate_contents"]["learning_outcomes_metrics"] if key.endswith("learning_outcomes_metrics") else None
         with patch.object(runtime, "load", return_value=s), patch.object(runtime, "worker_result", return_value=worker(s)), patch.object(runtime, "head", side_effect=lambda ref: "valid" if ref == s["ref"] else "partial_commit"), patch.object(runtime, "content", side_effect=content), patch.object(runtime, "api") as api, self.assertRaises(RuntimeError):
-            runtime.publish(CONFIG, "unit-run")
+            runtime.publish(CONFIG, "unit-run", *approvals(s))
         api.assert_not_called()

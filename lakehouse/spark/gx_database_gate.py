@@ -7,8 +7,8 @@ import os
 from pathlib import Path
 from typing import Any
 
-from api_dataset_registry import get_dataset_config
 from gx_airflow_adapter import execute_quality_gate
+from gx_route_resolver import GXRouteNotFoundError, resolve_route
 from gx_universal_gate import SnapshotIdentity, resolve_snapshot_identity
 
 
@@ -60,21 +60,20 @@ def validate_database_context(**context) -> dict[str, Any]:
             decision = json.load(handle)
     data_asset_ref = decision.get("target_silver_table")
 
-    if not dataset_id:
-        return _not_configured(
-            dataset_id=None,
-            data_asset_ref=data_asset_ref,
-            reason="Airbyte relational context has no registered GX dataset route",
-        )
     try:
-        config = get_dataset_config(str(dataset_id))
-    except ValueError:
-        return _not_configured(
-            dataset_id=str(dataset_id),
-            data_asset_ref=data_asset_ref,
-            reason="Database dataset is not present in the local GX routing registry",
+        route = resolve_route(
+            dataset_id=str(dataset_id or ""),
+            data_layer="silver",
+            source_kind="database",
+            execution_engine="sql",
         )
-    if data_asset_ref != config.silver_table:
+    except GXRouteNotFoundError:
+        return _not_configured(
+            dataset_id=str(dataset_id) if dataset_id else None,
+            data_asset_ref=data_asset_ref,
+            reason="Airbyte relational context has no effective GX validation route",
+        )
+    if data_asset_ref != route.data_asset_ref:
         return _not_configured(
             dataset_id=str(dataset_id),
             data_asset_ref=data_asset_ref,
@@ -83,16 +82,13 @@ def validate_database_context(**context) -> dict[str, Any]:
                 "explicit canonical mapping is required"
             ),
         )
-    if not config.gx_contract_version:
-        raise RuntimeError(f"Dataset '{dataset_id}' has no GX contract version")
-
     branch = os.getenv("GX_DATABASE_NESSIE_BRANCH", "main")
     identity = resolve_snapshot_identity(data_asset_ref, branch)
     result = execute_quality_gate(
         build_database_validation_request(
             dataset_id=str(dataset_id),
             run_id=str(context.get("run_id") or ""),
-            contract_version=config.gx_contract_version,
+            contract_version=route.contract_version,
             identity=identity,
         ),
         service_url=os.getenv("GX_SERVICE_URL", "http://gx-validator:8090"),

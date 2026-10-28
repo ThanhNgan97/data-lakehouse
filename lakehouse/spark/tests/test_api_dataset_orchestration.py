@@ -51,7 +51,6 @@ class ApiDatasetOrchestrationTest(
                     "lakehouse.gold."
                 )
             )
-            self.assertEqual(config.gx_contract_version, "1.0.0")
 
     def test_learning_route(self):
         config = get_dataset_config(

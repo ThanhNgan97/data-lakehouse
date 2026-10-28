@@ -6,8 +6,8 @@ import json
 import os
 from typing import Any
 
-from api_dataset_registry import get_dataset_config
 from gx_airflow_adapter import execute_quality_gate
+from gx_route_resolver import resolve_route
 from gx_universal_gate import SnapshotIdentity, resolve_snapshot_identity
 
 
@@ -33,16 +33,19 @@ def validate_published_gold(
     *, dataset_id: str, run_id: str, source_kind: str = "api",
 ) -> dict[str, Any]:
     """Validate the immutable Gold identity produced by dbt publication."""
-    config = get_dataset_config(dataset_id)
-    if not config.gx_contract_version:
-        raise RuntimeError(f"Dataset '{dataset_id}' has no GX contract version")
+    route = resolve_route(
+        dataset_id=dataset_id,
+        data_layer="gold",
+        source_kind=source_kind,
+        execution_engine="sql",
+    )
     branch = os.getenv("GX_GOLD_NESSIE_BRANCH", "main")
-    identity = resolve_snapshot_identity(config.gold_table, branch)
+    identity = resolve_snapshot_identity(route.data_asset_ref, branch)
     result = execute_quality_gate(
         build_gold_validation_request(
             dataset_id=dataset_id,
             run_id=run_id,
-            contract_version=config.gx_contract_version,
+            contract_version=route.contract_version,
             source_kind=source_kind,
             identity=identity,
         ),
@@ -53,7 +56,7 @@ def validate_published_gold(
     result.update({
         "integration_status": "PASSED",
         "dataset_id": dataset_id,
-        "data_asset_ref": config.gold_table,
+        "data_asset_ref": route.data_asset_ref,
         "data_layer": "gold",
         "source_kind": source_kind,
     })

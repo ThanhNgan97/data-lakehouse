@@ -6,8 +6,8 @@ import json
 import os
 from typing import Any
 
-from api_dataset_registry import get_dataset_config
 from gx_airflow_adapter import execute_quality_gate
+from gx_route_resolver import resolve_route
 from gx_universal_gate import SnapshotIdentity, resolve_snapshot_identity
 
 
@@ -33,18 +33,27 @@ def validate_silver_gold_reconciliation(
     *, dataset_id: str, run_id: str, source_kind: str = "api",
 ) -> dict[str, Any]:
     """Reconcile the registered Silver and Gold assets at one Nessie head."""
-    config = get_dataset_config(dataset_id)
-    if not config.gx_contract_version:
-        raise RuntimeError(f"Dataset '{dataset_id}' has no GX contract version")
+    route = resolve_route(
+        dataset_id=dataset_id,
+        data_layer="reconciliation",
+        source_kind=source_kind,
+        execution_engine="sql",
+    )
+    silver_route = resolve_route(
+        dataset_id=dataset_id,
+        data_layer="silver",
+        source_kind=source_kind,
+        execution_engine="sql",
+    )
     branch = os.getenv("GX_RECONCILIATION_NESSIE_BRANCH", "main")
     # Reconciliation routes use Gold as their identity anchor while suite SQL
     # compares both Silver and Gold under the same Nessie branch/commit.
-    identity = resolve_snapshot_identity(config.gold_table, branch)
+    identity = resolve_snapshot_identity(route.data_asset_ref, branch)
     result = execute_quality_gate(
         build_reconciliation_request(
             dataset_id=dataset_id,
             run_id=run_id,
-            contract_version=config.gx_contract_version,
+            contract_version=route.contract_version,
             source_kind=source_kind,
             identity=identity,
         ),
@@ -57,11 +66,11 @@ def validate_silver_gold_reconciliation(
     result.update({
         "integration_status": "PASSED",
         "dataset_id": dataset_id,
-        "data_asset_ref": config.gold_table,
+        "data_asset_ref": route.data_asset_ref,
         "data_layer": "reconciliation",
         "source_kind": source_kind,
-        "silver_asset_ref": config.silver_table,
-        "gold_asset_ref": config.gold_table,
+        "silver_asset_ref": silver_route.data_asset_ref,
+        "gold_asset_ref": route.data_asset_ref,
     })
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return result

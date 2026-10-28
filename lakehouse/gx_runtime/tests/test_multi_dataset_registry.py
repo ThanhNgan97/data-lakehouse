@@ -26,6 +26,18 @@ def registry():
 
 
 class MultiDatasetRoutingTest(unittest.TestCase):
+    def test_contract_version_can_be_discovered_from_effective_routes(self):
+        plan = registry().resolve(
+            dataset_id="education.teaching_progress",
+            data_layer="silver",
+            contract_version=None,
+            execution_engine=ExecutionEngine.SQL,
+            source_kind=SourceKind.FILE,
+        )
+
+        self.assertEqual(plan.contract_version, "1.0.0")
+        self.assertEqual(plan.data_asset_ref, "lakehouse.silver.teaching_progress")
+
     def test_two_datasets_resolve_by_dataset_layer_and_contract(self):
         routes = registry()
         teaching = routes.resolve(

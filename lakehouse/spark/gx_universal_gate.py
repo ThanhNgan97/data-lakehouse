@@ -10,11 +10,7 @@ from urllib.parse import quote
 from urllib.request import urlopen
 
 from gx_airflow_adapter import execute_quality_gate
-
-
-REGISTERED_FILE_DATASETS = frozenset(
-    {"education.teaching_progress", "education.learning_outcomes"}
-)
+from gx_route_resolver import GXRouteNotFoundError, resolve_route
 
 
 @dataclass(frozen=True)
@@ -51,12 +47,13 @@ def resolve_snapshot_identity(
 
 
 def build_file_validation_request(
-    *, dataset_id: str, run_id: str, identity: SnapshotIdentity
+    *, dataset_id: str, run_id: str, contract_version: str,
+    identity: SnapshotIdentity
 ) -> dict[str, Any]:
     return {
         "dataset_id": dataset_id,
         "data_layer": "silver",
-        "contract_version": "1.0.0",
+        "contract_version": contract_version,
         "source_kind": "file",
         "run_id": run_id,
         "nessie_branch": identity.branch,
@@ -77,7 +74,14 @@ def validate_file_upload(**context) -> dict[str, Any]:
         task_ids="ai_semantic_profiler", key="target_silver_table"
     )
     run_id = str(context.get("run_id") or "")
-    if not dataset_id or dataset_id not in REGISTERED_FILE_DATASETS:
+    try:
+        route = resolve_route(
+            dataset_id=str(dataset_id or ""),
+            data_layer="silver",
+            source_kind="file",
+            execution_engine="sql",
+        )
+    except GXRouteNotFoundError:
         result = {
             "status": "NOT_CONFIGURED",
             "reason": "No GX contract route for this dynamically uploaded dataset",
@@ -87,14 +91,20 @@ def validate_file_upload(**context) -> dict[str, Any]:
         }
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return result
-    if not data_asset_ref:
-        raise RuntimeError("Registered upload did not resolve a Silver table")
+    if data_asset_ref != route.data_asset_ref:
+        raise RuntimeError(
+            "Registered upload asset does not match the effective GX route: "
+            f"{data_asset_ref!r} != {route.data_asset_ref!r}"
+        )
 
     branch = os.getenv("GX_FILE_NESSIE_BRANCH", "main")
     identity = resolve_snapshot_identity(data_asset_ref, branch)
     result = execute_quality_gate(
         build_file_validation_request(
-            dataset_id=dataset_id, run_id=run_id, identity=identity
+            dataset_id=route.dataset_id,
+            run_id=run_id,
+            contract_version=route.contract_version,
+            identity=identity,
         ),
         service_url=os.getenv("GX_SERVICE_URL", "http://gx-validator:8090"),
         timeout_seconds=float(os.getenv("GX_FILE_GATE_TIMEOUT_SECONDS", "300")),

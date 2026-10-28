@@ -78,16 +78,36 @@ class DatasetValidationRegistry:
         *,
         dataset_id: str,
         data_layer: str,
-        contract_version: str,
+        contract_version: str | None,
         execution_engine: ExecutionEngine,
         source_kind: SourceKind,
     ) -> ValidationPlan:
-        try:
-            route = self._routes[(dataset_id, data_layer, contract_version)]
-        except KeyError as exc:
+        candidates = [
+            route
+            for (route_dataset, route_layer, route_contract), route in self._routes.items()
+            if route_dataset == dataset_id
+            and route_layer == data_layer
+            and (contract_version is None or route_contract == contract_version)
+        ]
+        if contract_version is None:
+            effective = self.contract_registry.effective_versions(dataset_id)
+            candidates = [
+                route
+                for route in candidates
+                if str(route["contract_version"]) in effective
+            ]
+        if not candidates:
             raise ValidationConfigurationError(
                 f"No validation route for {dataset_id}/{data_layer}@{contract_version}"
-            ) from exc
+            )
+        if contract_version is None:
+            route = max(
+                candidates,
+                key=lambda item: _version_key(str(item["contract_version"])),
+            )
+            contract_version = str(route["contract_version"])
+        else:
+            route = candidates[0]
         supported_sources = frozenset(
             SourceKind(value) for value in route["supported_source_kinds"]
         )
@@ -129,3 +149,10 @@ class DatasetValidationRegistry:
             suites=suites,
             source_kind=source_kind,
         )
+
+
+def _version_key(value: str) -> tuple[tuple[int, object], ...]:
+    return tuple(
+        (0, int(part)) if part.isdigit() else (1, part.lower())
+        for part in value.replace("-", ".").split(".")
+    )

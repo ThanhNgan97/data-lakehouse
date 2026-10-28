@@ -492,6 +492,7 @@ services:
       - ./airflow_webserver_config.py:/opt/airflow/webserver_config.py:ro
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark
+      - ./lakehouse/gx:/opt/airflow/gx-config:ro
       - ./.env:/opt/airflow/.env
       - airflow_logs:/opt/airflow/logs
     command: webserver
@@ -555,6 +556,7 @@ services:
     volumes:
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark
+      - ./lakehouse/gx:/opt/airflow/gx-config:ro
       - ./.env:/opt/airflow/.env
       - airflow_logs:/opt/airflow/logs
     command: scheduler

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -62,6 +63,28 @@ class ContractRegistry:
             raise ValidationConfigurationError(
                 f"Unable to load contract registry {self.registry_path}"
             ) from exc
+        if len(self._entries) != len(payload["contracts"]):
+            raise ValidationConfigurationError(
+                "Contracts must be unique by dataset and version"
+            )
+
+    def effective_versions(
+        self, dataset_id: str, *, as_of: date | None = None
+    ) -> frozenset[str]:
+        today = as_of or date.today()
+        versions: set[str] = set()
+        try:
+            for (entry_dataset, version), entry in self._entries.items():
+                if (
+                    entry_dataset == dataset_id
+                    and date.fromisoformat(entry["effective_from"]) <= today
+                ):
+                    versions.add(version)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValidationConfigurationError(
+                f"Invalid contract effective date in {self.registry_path}"
+            ) from exc
+        return frozenset(versions)
 
     def resolve(self, dataset_id: str, contract_version: str) -> DataContract:
         try:

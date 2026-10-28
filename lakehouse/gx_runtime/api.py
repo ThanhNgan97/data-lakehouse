@@ -144,7 +144,7 @@ class TableValidationApplication:
 
     def _validate(self, body: dict[str, Any]) -> tuple[dict[str, Any], Any]:
         required = {
-            "dataset_id", "data_layer", "contract_version", "source_kind",
+            "dataset_id", "data_layer", "source_kind",
             "run_id", "nessie_branch", "snapshot_id", "nessie_commit_hash",
         }
         missing = sorted(required - body.keys())
@@ -175,7 +175,11 @@ class TableValidationApplication:
         plan = self.routes.resolve(
             dataset_id=str(body["dataset_id"]),
             data_layer=str(body["data_layer"]),
-            contract_version=str(body["contract_version"]),
+            contract_version=(
+                str(body["contract_version"])
+                if body.get("contract_version") is not None
+                else None
+            ),
             execution_engine=engine,
             source_kind=source_kind,
         )

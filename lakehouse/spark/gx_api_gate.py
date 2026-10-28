@@ -6,8 +6,8 @@ import json
 import os
 from typing import Any
 
-from api_dataset_registry import get_dataset_config
 from gx_airflow_adapter import execute_quality_gate
+from gx_route_resolver import resolve_route
 from gx_universal_gate import SnapshotIdentity, resolve_snapshot_identity
 
 
@@ -31,18 +31,20 @@ def build_api_validation_request(
 
 def validate_api_dataset(*, dataset_id: str, run_id: str) -> dict[str, Any]:
     """Validate the API-produced Silver snapshot before Gold processing."""
-    config = get_dataset_config(dataset_id)
-    contract_version = config.gx_contract_version
-    if not contract_version:
-        raise RuntimeError(f"Dataset '{dataset_id}' has no GX contract version")
+    route = resolve_route(
+        dataset_id=dataset_id,
+        data_layer="silver",
+        source_kind="api",
+        execution_engine="sql",
+    )
 
     branch = os.getenv("GX_API_NESSIE_BRANCH", "main")
-    identity = resolve_snapshot_identity(config.silver_table, branch)
+    identity = resolve_snapshot_identity(route.data_asset_ref, branch)
     result = execute_quality_gate(
         build_api_validation_request(
             dataset_id=dataset_id,
             run_id=run_id,
-            contract_version=contract_version,
+            contract_version=route.contract_version,
             identity=identity,
         ),
         service_url=os.getenv("GX_SERVICE_URL", "http://gx-validator:8090"),
@@ -52,7 +54,7 @@ def validate_api_dataset(*, dataset_id: str, run_id: str) -> dict[str, Any]:
     result.update({
         "integration_status": "PASSED",
         "dataset_id": dataset_id,
-        "data_asset_ref": config.silver_table,
+        "data_asset_ref": route.data_asset_ref,
         "source_kind": "api",
     })
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))

@@ -24,6 +24,8 @@ def success():
         "validation_id": "validation-1",
         "validation_uri": "s3://bucket/result.json",
         "merge_allowed": True,
+        "coverage": "BASELINE",
+        "contract_status": "MISSING",
         "approval": {
             "validated_branch": "candidate",
             "validated_snapshot_id": "1",
@@ -55,6 +57,8 @@ class GXAirflowAdapterTest(unittest.TestCase):
         self.assertLessEqual(len(json.dumps(result).encode("utf-8")), 4096)
         self.assertNotIn("large_summary_that_must_not_enter_xcom", result)
         self.assertEqual(result["validation_uri"], "s3://bucket/result.json")
+        self.assertEqual(result["coverage"], "BASELINE")
+        self.assertEqual(result["contract_status"], "MISSING")
 
     def test_snapshot_mismatch_refreshes_once_then_revalidates(self):
         requests = []

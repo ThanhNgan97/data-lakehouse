@@ -1,10 +1,12 @@
 """Standalone, stateless Great Expectations validation runtime."""
 
 from .models import (
+    ContractStatus,
     ExecutionEngine,
     ExecutionMode,
     SourceKind,
     SuiteReference,
+    ValidationCoverage,
     ValidationStatus,
     ValidationSummary,
 )
@@ -23,6 +25,7 @@ from .snapshot_gate import (
 from .validation_registry import DatasetValidationRegistry, ValidationPlan
 
 __all__ = [
+    "ContractStatus",
     "ExecutionEngine",
     "ExecutionMode",
     "SourceKind",
@@ -32,6 +35,7 @@ __all__ = [
     "SnapshotAwareQualityGate",
     "SnapshotIdentity",
     "ValidationPolicy",
+    "ValidationCoverage",
     "ValidationStatus",
     "ValidationSummary",
     "ValidationMetadataEvent",

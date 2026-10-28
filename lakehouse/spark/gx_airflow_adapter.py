@@ -84,6 +84,8 @@ def execute_quality_gate(
                     "validation_uri",
                     "merge_allowed",
                     "approval",
+                    "coverage",
+                    "contract_status",
                 )
             }
             if len(json.dumps(xcom).encode("utf-8")) > MAX_XCOM_BYTES:

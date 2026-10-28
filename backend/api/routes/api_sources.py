@@ -122,6 +122,8 @@ def _bounded_gx_evidence(task_id: str, layer: str, value: dict[str, Any]):
         "validation_id": value.get("validation_id"),
         "validation_uri": value.get("validation_uri"),
         "merge_allowed": value.get("merge_allowed"),
+        "coverage": value.get("coverage"),
+        "contract_status": value.get("contract_status"),
         "nessie_branch": approval.get("validated_branch"),
         "snapshot_id": approval.get("validated_snapshot_id"),
         "nessie_commit_hash": approval.get("validated_commit_hash"),

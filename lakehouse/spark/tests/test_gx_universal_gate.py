@@ -35,23 +35,25 @@ class GXUniversalGateTest(unittest.TestCase):
         self.assertEqual(identity.commit_hash, "commit-1")
         self.assertIn("silver.teaching_progress", opener.call_args_list[1].args[0])
 
-    def test_unregistered_dynamic_upload_is_not_reported_as_passed(self):
-        ti = MagicMock()
-        ti.xcom_pull.side_effect = [None, "lakehouse.silver.dynamic_table"]
-        result = gate.validate_file_upload(ti=ti, run_id="run-1")
-        self.assertEqual(result["status"], "NOT_CONFIGURED")
-        self.assertIsNone(result["merge_allowed"])
-
     @patch("gx_universal_gate.execute_quality_gate")
-    def test_unregistered_dynamic_upload_currently_bypasses_gx(self, execute):
-        """Characterize the phase-A gap: dynamic uploads receive no baseline GX."""
+    @patch("gx_universal_gate.resolve_snapshot_identity")
+    def test_unregistered_dynamic_upload_runs_baseline_gx(self, resolve, execute):
+        resolve.return_value = gate.SnapshotIdentity("main", "7", "commit-7")
+        execute.return_value = {
+            "status": "PASSED", "validation_id": "baseline-7",
+            "validation_uri": "s3://bucket/baseline.json", "merge_allowed": True,
+            "approval": {}, "coverage": "BASELINE", "contract_status": "MISSING",
+        }
         ti = MagicMock()
         ti.xcom_pull.side_effect = [None, "lakehouse.silver.dynamic_table"]
 
         result = gate.validate_file_upload(ti=ti, run_id="run-1")
 
-        execute.assert_not_called()
-        self.assertEqual(result["status"], "NOT_CONFIGURED")
+        payload = execute.call_args.args[0]
+        self.assertEqual(payload["coverage"], "BASELINE")
+        self.assertEqual(payload["contract_version"], "baseline-1.0.0")
+        self.assertEqual(payload["data_asset_ref"], "lakehouse.silver.dynamic_table")
+        self.assertEqual(result["contract_status"], "MISSING")
 
     @patch("gx_universal_gate.execute_quality_gate")
     @patch("gx_universal_gate.resolve_snapshot_identity")
@@ -104,6 +106,7 @@ class GXUniversalGateTest(unittest.TestCase):
         self.assertEqual(payload["source_kind"], "file")
         self.assertEqual(payload["snapshot_id"], "42")
         self.assertEqual(payload["execution_mode"], "enforce")
+        self.assertEqual(payload["coverage"], "CONTRACT")
         self.assertEqual(result["integration_status"], "PASSED")
 
 

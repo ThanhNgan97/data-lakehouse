@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import signal
 from time import perf_counter
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -22,7 +23,15 @@ from .errors import (
     ValidationExecutionError,
     ValidationPersistenceError,
 )
-from .models import ExecutionEngine, ExecutionMode, SourceKind
+from .models import (
+    ContractStatus,
+    ExecutionEngine,
+    ExecutionMode,
+    SourceKind,
+    SuiteReference,
+    ValidationCoverage,
+)
+from .validation_registry import ValidationPlan
 from .metadata_export import (
     MetadataExportOutcome,
     export_validation_metadata,
@@ -36,6 +45,11 @@ from .snapshot_gate import NessieSnapshotResolver, SnapshotAwareQualityGate
 from .storage import result_store_from_env
 from .suite_registry import SuiteRegistry
 from .validation_registry import DatasetValidationRegistry
+
+
+_BASELINE_ASSET_PATTERN = re.compile(
+    r"^lakehouse\.silver\.[A-Za-z_][A-Za-z0-9_]*$"
+)
 
 
 class CapturingStore:
@@ -172,17 +186,47 @@ class TableValidationApplication:
                 "Requested branch is not mounted by this Trino-backed GX service; "
                 "deploy it with GX_TRINO_NESSIE_BRANCH matching the candidate"
             )
-        plan = self.routes.resolve(
-            dataset_id=str(body["dataset_id"]),
-            data_layer=str(body["data_layer"]),
-            contract_version=(
-                str(body["contract_version"])
-                if body.get("contract_version") is not None
-                else None
-            ),
-            execution_engine=engine,
-            source_kind=source_kind,
-        )
+        try:
+            coverage = ValidationCoverage(
+                str(body.get("coverage", "CONTRACT")).upper()
+            )
+        except ValueError as exc:
+            raise ValidationConfigurationError(
+                f"Invalid validation coverage: {body.get('coverage')}"
+            ) from exc
+        if coverage is ValidationCoverage.BASELINE:
+            if str(body["data_layer"]) != "silver":
+                raise ValidationConfigurationError(
+                    "Baseline table validation currently supports Silver only"
+                )
+            asset = str(body.get("data_asset_ref") or "")
+            if not _BASELINE_ASSET_PATTERN.fullmatch(asset):
+                raise ValidationConfigurationError(
+                    "Baseline data_asset_ref must target lakehouse.silver"
+                )
+            plan = ValidationPlan(
+                dataset_id=str(body["dataset_id"]),
+                data_layer="silver",
+                contract_version="baseline-1.0.0",
+                data_asset_ref=asset,
+                execution_engine=engine,
+                suites=(SuiteReference("lakehouse_baseline_silver", "1.0.0"),),
+                source_kind=source_kind,
+            )
+            contract_status = ContractStatus.MISSING
+        else:
+            plan = self.routes.resolve(
+                dataset_id=str(body["dataset_id"]),
+                data_layer=str(body["data_layer"]),
+                contract_version=(
+                    str(body["contract_version"])
+                    if body.get("contract_version") is not None
+                    else None
+                ),
+                execution_engine=engine,
+                source_kind=source_kind,
+            )
+            contract_status = ContractStatus.APPROVED
         current = self.resolver.resolve(plan.data_asset_ref, requested_branch)
         requested_identity = (
             str(body["snapshot_id"]),
@@ -222,6 +266,8 @@ class TableValidationApplication:
             execution_mode=execution_mode,
             source_kind=plan.source_kind,
             suite_revision=self.production.suite_revision,
+            coverage=coverage,
+            contract_status=contract_status,
         )
         approval = self.gate.verify_current(summary, self.resolver)
         if not summary.merge_allowed:
@@ -239,6 +285,8 @@ class TableValidationApplication:
             "validation_id": summary.validation_id,
             "validation_uri": store.uri,
             "merge_allowed": summary.merge_allowed,
+            "coverage": summary.coverage.value,
+            "contract_status": summary.contract_status.value,
             "approval": approval.as_dict(),
             "metadata_export": {
                 "enabled": metadata.enabled,

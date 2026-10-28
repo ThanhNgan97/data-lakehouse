@@ -168,6 +168,27 @@ class VersionedSqlSuiteExecutorTest(unittest.TestCase):
                 self.assertTrue(result.success)
                 self.assertEqual(result.evaluated_expectations, len(expectations))
 
+    def test_shared_baseline_suite_runs_for_an_unregistered_silver_asset(self):
+        request = ValidationRequest(
+            data_asset_ref="lakehouse.silver.dynamic_students",
+            dataset_id="dynamic.dynamic_students",
+            data_layer="silver",
+            execution_engine=ExecutionEngine.SQL,
+            contract_version="baseline-1.0.0",
+            suites=(SuiteReference("lakehouse_baseline_silver", "1.0.0"),),
+            run_id="baseline-dynamic",
+            nessie_branch="main",
+            snapshot_id="7",
+            nessie_commit_hash="commit-7",
+        )
+        sqlalchemy_engine = MagicMock()
+        sqlalchemy_engine.connect.return_value = FakeConnection([1, 10, 0])
+
+        result = VersionedSqlSuiteExecutor(REGISTRY, sqlalchemy_engine)(request)
+
+        self.assertTrue(result.success)
+        self.assertEqual(result.evaluated_expectations, 3)
+
     def test_unsafe_asset_identifier_is_rejected_before_query_execution(self):
         request = sql_request(
             "teaching_progress_silver_core",

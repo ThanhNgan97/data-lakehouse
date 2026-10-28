@@ -34,6 +34,16 @@ class ValidationStatus(str, Enum):
     FAILED = "FAILED"
 
 
+class ValidationCoverage(str, Enum):
+    BASELINE = "BASELINE"
+    CONTRACT = "CONTRACT"
+
+
+class ContractStatus(str, Enum):
+    MISSING = "MISSING"
+    APPROVED = "APPROVED"
+
+
 @dataclass(frozen=True)
 class SuiteReference:
     name: str
@@ -61,6 +71,8 @@ class ValidationRequest:
     nessie_commit_hash: str | None = None
     source_kind: SourceKind | None = None
     suite_revision: str | None = None
+    coverage: ValidationCoverage = ValidationCoverage.CONTRACT
+    contract_status: ContractStatus = ContractStatus.APPROVED
 
     def __post_init__(self) -> None:
         required = {
@@ -145,6 +157,8 @@ class ValidationSummary:
     metrics: dict[str, Any] = field(default_factory=dict)
     source_kind: SourceKind | None = None
     suite_revision: str | None = None
+    coverage: ValidationCoverage = ValidationCoverage.CONTRACT
+    contract_status: ContractStatus = ContractStatus.APPROVED
 
     @property
     def validated_branch(self) -> str | None:
@@ -170,6 +184,8 @@ class ValidationSummary:
         payload["source_kind"] = (
             self.source_kind.value if self.source_kind is not None else None
         )
+        payload["coverage"] = self.coverage.value
+        payload["contract_status"] = self.contract_status.value
         payload["suite_names"] = list(self.suite_names)
         payload["result_ids"] = list(self.result_ids)
         payload["critical_failures"] = [

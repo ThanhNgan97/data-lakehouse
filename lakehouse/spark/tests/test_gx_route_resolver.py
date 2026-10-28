@@ -6,7 +6,12 @@ import unittest
 from datetime import date
 from pathlib import Path
 
-from gx_route_resolver import GXRouteNotFoundError, resolve_route
+from gx_route_resolver import (
+    GXRouteConfigurationError,
+    GXRouteNotFoundError,
+    resolve_route,
+    resolve_route_or_baseline,
+)
 
 
 class GXRouteResolverTest(unittest.TestCase):
@@ -98,6 +103,34 @@ class GXRouteResolverTest(unittest.TestCase):
                 dataset_id="example.data", data_layer="silver",
                 source_kind="file", execution_engine="sql",
                 config_root=root, as_of=date(2026, 10, 28),
+            )
+
+    def test_unknown_dataset_receives_shared_baseline_plan(self):
+        temporary, root = self._root(contracts=[], routes=[])
+
+        with temporary:
+            plan = resolve_route_or_baseline(
+                dataset_id=None,
+                data_asset_ref="lakehouse.silver.dynamic_students",
+                source_kind="file",
+                config_root=root,
+                as_of=date(2026, 10, 28),
+            )
+
+        self.assertEqual(plan.coverage, "BASELINE")
+        self.assertEqual(plan.contract_status, "MISSING")
+        self.assertEqual(plan.dataset_id, "dynamic.dynamic_students")
+
+    def test_baseline_rejects_asset_outside_silver_namespace(self):
+        temporary, root = self._root(contracts=[], routes=[])
+
+        with temporary, self.assertRaises(GXRouteConfigurationError):
+            resolve_route_or_baseline(
+                dataset_id=None,
+                data_asset_ref="lakehouse.gold.unsafe",
+                source_kind="file",
+                config_root=root,
+                as_of=date(2026, 10, 28),
             )
 
 

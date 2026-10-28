@@ -1,6 +1,16 @@
 {
   "suites": [
     {
+      "name": "lakehouse_baseline_silver",
+      "version": "1.0.0",
+      "supported_engines": ["sql"],
+      "contract_version": "baseline-1.0.0",
+      "effective_from": "2026-10-28",
+      "definitions": {
+        "sql": "suites/_baseline/silver/1.0.0.sql.json"
+      }
+    },
+    {
       "name": "teaching_progress_silver_core",
       "version": "1.0.0",
       "supported_engines": ["spark", "sql"],

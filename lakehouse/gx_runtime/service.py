@@ -11,6 +11,8 @@ from .models import (
     ExecutionMode,
     SourceKind,
     SuiteReference,
+    ContractStatus,
+    ValidationCoverage,
     ValidationRequest,
 )
 from .policy import ValidationPolicy
@@ -58,6 +60,8 @@ def validate_dataframe(
     policy: ValidationPolicy | None = None,
     source_kind: SourceKind | None = None,
     suite_revision: str | None = None,
+    coverage: ValidationCoverage = ValidationCoverage.CONTRACT,
+    contract_status: ContractStatus = ContractStatus.APPROVED,
 ):
     request = ValidationRequest(
         data_asset_ref=data_asset_ref,
@@ -73,6 +77,8 @@ def validate_dataframe(
         nessie_commit_hash=nessie_commit_hash,
         source_kind=source_kind,
         suite_revision=suite_revision,
+        coverage=coverage,
+        contract_status=contract_status,
     )
     return _run(
         request,
@@ -100,6 +106,8 @@ def validate_table(
     policy: ValidationPolicy | None = None,
     source_kind: SourceKind | None = None,
     suite_revision: str | None = None,
+    coverage: ValidationCoverage = ValidationCoverage.CONTRACT,
+    contract_status: ContractStatus = ContractStatus.APPROVED,
 ):
     request = ValidationRequest(
         data_asset_ref=data_asset_ref,
@@ -115,6 +123,8 @@ def validate_table(
         nessie_commit_hash=nessie_commit_hash,
         source_kind=source_kind,
         suite_revision=suite_revision,
+        coverage=coverage,
+        contract_status=contract_status,
     )
     if request.execution_engine is not ExecutionEngine.SQL:
         raise ValidationConfigurationError("Table validation requires SQL engine")

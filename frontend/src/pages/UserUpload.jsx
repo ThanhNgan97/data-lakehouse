@@ -1166,8 +1166,12 @@ const UserUpload = () => {
 
             {activePipeline.gx_validation && (
               <div className={`mt-5 rounded-xl border p-4 ${
-                activePipeline.gx_validation.status === "PASSED"
+                activePipeline.gx_validation.status === "PASSED" && activePipeline.gx_validation.coverage !== "BASELINE"
                   ? "border-emerald-200 bg-emerald-50"
+                  : activePipeline.gx_validation.status === "PASSED" && activePipeline.gx_validation.coverage === "BASELINE"
+                    ? "border-amber-200 bg-amber-50"
+                  : activePipeline.gx_validation.status === "WARNING"
+                    ? "border-amber-200 bg-amber-50"
                   : activePipeline.gx_validation.status === "NOT_CONFIGURED"
                     ? "border-amber-200 bg-amber-50"
                     : ["RUNNING", "PENDING"].includes(activePipeline.gx_validation.status)
@@ -1180,10 +1184,14 @@ const UserUpload = () => {
                   <div>
                     <p className="text-sm font-extrabold text-navy-950">Great Expectations Quality Gate</p>
                     <p className="mt-1 text-xs text-ink-600">
-                      {activePipeline.gx_validation.status === "NOT_CONFIGURED"
+                      {activePipeline.gx_validation.status === "PASSED" && activePipeline.gx_validation.coverage === "BASELINE"
+                        ? "Dữ liệu đã vượt qua kiểm tra kỹ thuật baseline; chưa có contract nghiệp vụ được duyệt."
+                        : activePipeline.gx_validation.status === "NOT_CONFIGURED"
                         ? "Dataset này chưa có GX contract; kết quả không được xem là GX PASS."
                         : activePipeline.gx_validation.status === "PASSED"
                           ? "Snapshot đã vượt qua kiểm tra GX và được phép tiếp tục."
+                          : activePipeline.gx_validation.status === "WARNING"
+                            ? "GX hoàn tất với cảnh báo; xem coverage và contract trước khi coi đây là dữ liệu governed."
                           : activePipeline.gx_validation.status === "FAILED"
                             ? "GX phát hiện lỗi chất lượng; các bước xuất bản phía sau đã bị chặn."
                             : activePipeline.gx_validation.status === "NOT_AVAILABLE"
@@ -1197,7 +1205,11 @@ const UserUpload = () => {
                     )}
                   </div>
                   <Badge tone={
-                    activePipeline.gx_validation.status === "PASSED"
+                    activePipeline.gx_validation.status === "PASSED" && activePipeline.gx_validation.coverage === "BASELINE"
+                      ? "warn"
+                      : activePipeline.gx_validation.status === "WARNING"
+                        ? "warn"
+                      : activePipeline.gx_validation.status === "PASSED"
                       ? "success"
                       : activePipeline.gx_validation.status === "NOT_CONFIGURED"
                         ? "warn"
@@ -1207,7 +1219,7 @@ const UserUpload = () => {
                             ? "ink"
                           : "danger"
                   }>
-                    {activePipeline.gx_validation.status}
+                    {activePipeline.gx_validation.status}{activePipeline.gx_validation.coverage ? ` · ${activePipeline.gx_validation.coverage}` : ""}
                   </Badge>
                 </div>
                 <dl className="mt-4 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
@@ -1215,6 +1227,7 @@ const UserUpload = () => {
                   <div><dt className="font-semibold text-ink-500">Nguồn</dt><dd className="mt-1 font-data text-navy-950">{activePipeline.gx_validation.source_kind || "—"}</dd></div>
                   <div><dt className="font-semibold text-ink-500">Validation ID</dt><dd className="mt-1 break-all font-data text-navy-950">{activePipeline.gx_validation.validation_id || "—"}</dd></div>
                   <div><dt className="font-semibold text-ink-500">Quyết định publish</dt><dd className="mt-1 font-bold text-navy-950">{activePipeline.gx_validation.merge_allowed === true ? "ALLOWED" : activePipeline.gx_validation.merge_allowed === false ? "BLOCKED" : "CHƯA ÁP DỤNG"}</dd></div>
+                  <div><dt className="font-semibold text-ink-500">Contract</dt><dd className="mt-1 font-data text-navy-950">{activePipeline.gx_validation.contract_status || "—"}</dd></div>
                 </dl>
               </div>
             )}

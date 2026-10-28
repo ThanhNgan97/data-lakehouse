@@ -177,6 +177,7 @@ def _gx_from_xcom(dag_run_id: str):
     allowed = {
         "status", "integration_status", "reason", "dataset_id", "data_asset_ref",
         "source_kind", "validation_id", "validation_uri", "merge_allowed",
+        "coverage", "contract_status",
     }
     return {key: value[key] for key in allowed if key in value}
 

@@ -123,4 +123,6 @@ class ValidationPolicy:
             metrics=technical.metrics,
             source_kind=request.source_kind,
             suite_revision=request.suite_revision,
+            coverage=request.coverage,
+            contract_status=request.contract_status,
         )

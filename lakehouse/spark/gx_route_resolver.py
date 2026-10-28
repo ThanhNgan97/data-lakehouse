@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -31,6 +32,8 @@ class GXRoutePlan:
     data_asset_ref: str
     source_kind: str
     execution_engine: str
+    coverage: str = "CONTRACT"
+    contract_status: str = "APPROVED"
 
 
 def default_config_root() -> Path:
@@ -132,3 +135,52 @@ def resolve_route(
         source_kind=source_kind,
         execution_engine=execution_engine,
     )
+
+
+_SILVER_ASSET_PATTERN = re.compile(
+    r"^lakehouse\.silver\.[A-Za-z_][A-Za-z0-9_]*$"
+)
+
+
+def resolve_route_or_baseline(
+    *,
+    dataset_id: str | None,
+    data_asset_ref: str | None,
+    source_kind: str,
+    execution_engine: str = "sql",
+    config_root: str | Path | None = None,
+    as_of: date | None = None,
+) -> GXRoutePlan:
+    """Resolve governed coverage, falling back to the shared Silver baseline."""
+    asset = str(data_asset_ref or "")
+    try:
+        route = resolve_route(
+            dataset_id=str(dataset_id or ""),
+            data_layer="silver",
+            source_kind=source_kind,
+            execution_engine=execution_engine,
+            config_root=config_root,
+            as_of=as_of,
+        )
+    except GXRouteNotFoundError:
+        if not _SILVER_ASSET_PATTERN.fullmatch(asset):
+            raise GXRouteConfigurationError(
+                f"Baseline GX requires a safe Silver asset, received {asset!r}"
+            )
+        fallback_id = str(dataset_id or f"dynamic.{asset.rsplit('.', 1)[-1]}")
+        return GXRoutePlan(
+            dataset_id=fallback_id,
+            data_layer="silver",
+            contract_version="baseline-1.0.0",
+            data_asset_ref=asset,
+            source_kind=source_kind,
+            execution_engine=execution_engine,
+            coverage="BASELINE",
+            contract_status="MISSING",
+        )
+    if asset != route.data_asset_ref:
+        raise GXRouteConfigurationError(
+            "Routed Silver asset does not match the approved GX route: "
+            f"{asset!r} != {route.data_asset_ref!r}"
+        )
+    return route

@@ -190,6 +190,7 @@ class VersionedSqlSuiteExecutor:
             raise ValidationExecutionError(
                 f"Unsafe SQL data_asset_ref {request.data_asset_ref!r}"
             )
+        _catalog, asset_schema, asset_table = request.data_asset_ref.split(".")
         evaluated = successful = 0
         failures: list[ExpectationFailure] = []
         result_ids: list[str] = []
@@ -227,6 +228,8 @@ class VersionedSqlSuiteExecutor:
                         query = expectation["query"].replace(
                             "{data_asset_ref}", request.data_asset_ref
                         )
+                        query = query.replace("{data_asset_schema}", asset_schema)
+                        query = query.replace("{data_asset_table}", asset_table)
                         observed = connection.execute(text(query)).scalar_one()
                         result_ids.append(
                             str(

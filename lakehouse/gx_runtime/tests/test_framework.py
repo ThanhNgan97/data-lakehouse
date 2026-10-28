@@ -15,12 +15,14 @@ from gx_runtime.errors import (
     ValidationPersistenceError,
 )
 from gx_runtime.models import (
+    ContractStatus,
     EngineValidationResult,
     ExecutionEngine,
     ExecutionMode,
     ExpectationFailure,
     SuiteReference,
     ValidationRequest,
+    ValidationCoverage,
     ValidationStatus,
 )
 from gx_runtime.service import validate_dataframe, validate_table
@@ -78,6 +80,28 @@ def dataframe_kwargs(engine, store, mode=ExecutionMode.ENFORCE):
 
 
 class ValidationServiceTest(unittest.TestCase):
+    def test_baseline_coverage_is_preserved_in_summary(self):
+        summary = validate_table(
+            data_asset_ref="lakehouse.silver.dynamic_students",
+            dataset_id="dynamic.dynamic_students",
+            data_layer="silver",
+            contract_version="baseline-1.0.0",
+            suite_names=("lakehouse_baseline_silver",),
+            suite_versions={"lakehouse_baseline_silver": "1.0.0"},
+            run_id="baseline-run",
+            nessie_branch="main",
+            snapshot_id="7",
+            nessie_commit_hash="commit-7",
+            validator=FakeTableEngine(PASS_RESULT),
+            result_store=InMemoryResultStore(),
+            coverage=ValidationCoverage.BASELINE,
+            contract_status=ContractStatus.MISSING,
+        )
+
+        payload = summary.as_dict()
+        self.assertEqual(payload["coverage"], "BASELINE")
+        self.assertEqual(payload["contract_status"], "MISSING")
+
     def test_enforce_pass_preserves_traceability_metadata(self):
         engine = FakeDataFrameEngine(PASS_RESULT)
         store = InMemoryResultStore()

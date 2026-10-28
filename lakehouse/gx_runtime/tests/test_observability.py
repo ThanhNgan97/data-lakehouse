@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 
 from gx_runtime.api import _caused_by_timeout
 from gx_runtime.errors import ValidationExecutionError
@@ -22,6 +23,11 @@ class ObservabilityTest(unittest.TestCase):
         metrics.record_engine_error("spark")
         metrics.record_retry("spark")
         metrics.record_quality_failure("silver", "spark")
+        metrics.record_not_configured("silver", "file")
+        metrics.record_quarantine("silver", "NOT_CONFIGURED")
+        metrics.record_onboarding("REVIEW_REQUIRED")
+        metrics.record_auth_failure("forbidden")
+        metrics.begin_validation()
 
         output = metrics.render()
         for name in (
@@ -32,6 +38,11 @@ class ObservabilityTest(unittest.TestCase):
             "gx_engine_error_total",
             "gx_retry_total",
             "gx_quality_failure_total",
+            "gx_not_configured_total",
+            "gx_quarantine_total",
+            "gx_onboarding_proposal_total",
+            "gx_auth_failure_total",
+            "gx_active_validations",
         ):
             self.assertIn(name, output)
         self.assertNotIn("run_id", output)
@@ -72,6 +83,20 @@ class ObservabilityTest(unittest.TestCase):
                 raise ValidationExecutionError("engine failed") from exc
         except ValidationExecutionError as error:
             self.assertTrue(_caused_by_timeout(error))
+
+    def test_metrics_remain_consistent_under_concurrent_validations(self):
+        metrics = GXMetrics()
+
+        def record(_index):
+            metrics.begin_validation()
+            metrics.record_not_configured("silver", "api")
+            metrics.end_validation()
+
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            list(pool.map(record, range(100)))
+        output = metrics.render()
+        self.assertIn('gx_not_configured_total{layer="silver",source_kind="api"} 100', output)
+        self.assertIn("gx_active_validations 0", output)
 
 
 if __name__ == "__main__":

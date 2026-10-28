@@ -60,6 +60,25 @@ remains the only component allowed to merge the candidate. A rejected candidate
 may instead transition to `DISCARDED`. Updates use the object ETag as an
 optimistic concurrency guard.
 
+## Production operations
+
+Start the optional monitoring profile with:
+
+`docker compose --profile gx-observability up -d`
+
+Prometheus scrapes the GX runtime and loads `monitoring/gx/gx-alerts.yml`;
+Grafana provisions the `GX Production Overview` dashboard. Production must
+replace the example Grafana password before exposing the port.
+
+Object retention is deliberately dry-run by default. Review the JSON report:
+
+`docker compose --profile gx run --rm --entrypoint python gx-validator -m gx_runtime.retention`
+
+Only after confirming the configured `gx/` prefixes should an operator set
+`GX_RETENTION_DRY_RUN=false`. Each execution is capped by
+`GX_RETENTION_MAX_DELETE`; scheduling belongs to the platform scheduler so the
+cleanup policy remains observable and separately authorized.
+
 `validation_registry.json` is the phase-7 routing layer. Its immutable key is
 `dataset_id + layer + contract_version`; engine selects an implementation, while
 `file`, `api`, and `database` are compatibility metadata and never choose a

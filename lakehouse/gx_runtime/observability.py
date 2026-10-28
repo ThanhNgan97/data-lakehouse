@@ -30,6 +30,11 @@ class GXMetrics:
         self._engine_errors: dict[str, int] = defaultdict(int)
         self._retries: dict[str, int] = defaultdict(int)
         self._quality_failures: dict[tuple[str, str], int] = defaultdict(int)
+        self._not_configured: dict[tuple[str, str], int] = defaultdict(int)
+        self._quarantines: dict[tuple[str, str], int] = defaultdict(int)
+        self._onboarding: dict[str, int] = defaultdict(int)
+        self._auth_failures: dict[str, int] = defaultdict(int)
+        self._active_validations = 0
 
     def observe_validation(
         self,
@@ -64,6 +69,30 @@ class GXMetrics:
         with self._lock:
             self._quality_failures[(layer, engine)] += 1
 
+    def begin_validation(self) -> None:
+        with self._lock:
+            self._active_validations += 1
+
+    def end_validation(self) -> None:
+        with self._lock:
+            self._active_validations = max(0, self._active_validations - 1)
+
+    def record_not_configured(self, layer: str, source_kind: str) -> None:
+        with self._lock:
+            self._not_configured[(layer, source_kind)] += 1
+
+    def record_quarantine(self, layer: str, reason: str) -> None:
+        with self._lock:
+            self._quarantines[(layer, reason)] += 1
+
+    def record_onboarding(self, status: str) -> None:
+        with self._lock:
+            self._onboarding[status] += 1
+
+    def record_auth_failure(self, reason: str) -> None:
+        with self._lock:
+            self._auth_failures[reason] += 1
+
     def render(self) -> str:
         with self._lock:
             durations = {key: tuple(values) for key, values in self._durations.items()}
@@ -73,6 +102,11 @@ class GXMetrics:
             errors = dict(self._engine_errors)
             retries = dict(self._retries)
             failures = dict(self._quality_failures)
+            not_configured = dict(self._not_configured)
+            quarantines = dict(self._quarantines)
+            onboarding = dict(self._onboarding)
+            auth_failures = dict(self._auth_failures)
+            active = self._active_validations
 
         lines = [
             "# HELP gx_validation_duration_seconds GX validation wall-clock duration.",
@@ -107,6 +141,11 @@ class GXMetrics:
         lines.extend(self._render_counter("gx_engine_error_total", errors))
         lines.extend(self._render_counter("gx_retry_total", retries))
         lines.extend(self._render_counter("gx_quality_failure_total", failures))
+        lines.extend(self._render_counter("gx_not_configured_total", not_configured, ("layer", "source_kind")))
+        lines.extend(self._render_counter("gx_quarantine_total", quarantines, ("layer", "reason")))
+        lines.extend(self._render_counter("gx_onboarding_proposal_total", onboarding, ("status",)))
+        lines.extend(self._render_counter("gx_auth_failure_total", auth_failures, ("reason",)))
+        lines.extend(("# TYPE gx_active_validations gauge", f"gx_active_validations {active}"))
         return "\n".join(lines) + "\n"
 
     @staticmethod
@@ -117,13 +156,19 @@ class GXMetrics:
         return lines
 
     @staticmethod
-    def _render_counter(name: str, values: dict) -> list[str]:
+    def _render_counter(
+        name: str, values: dict, label_names: tuple[str, ...] | None = None
+    ) -> list[str]:
         lines = [f"# TYPE {name} counter"]
         for key, value in sorted(values.items(), key=lambda item: str(item[0])):
-            labels = (
-                {"layer": key[0], "engine": key[1]}
-                if isinstance(key, tuple)
-                else {"engine": key}
-            )
+            if label_names:
+                parts = key if isinstance(key, tuple) else (key,)
+                labels = dict(zip(label_names, parts))
+            else:
+                labels = (
+                    {"layer": key[0], "engine": key[1]}
+                    if isinstance(key, tuple)
+                    else {"engine": key}
+                )
             lines.append(name + _labels(**labels) + f" {value}")
         return lines

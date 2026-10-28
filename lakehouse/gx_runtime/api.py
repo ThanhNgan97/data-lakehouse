@@ -142,6 +142,7 @@ class TableValidationApplication:
         self.http_security.authorize_governance(caller)
         proposal = OnboardingProposal.from_mapping(body, submitted_by=caller)
         uri = self.onboarding.save(proposal)
+        self.metrics.record_onboarding(proposal.status)
         return {
             "status": proposal.status,
             "proposal_id": proposal.proposal_id,
@@ -214,6 +215,7 @@ class TableValidationApplication:
             raise ValidationConfigurationError("retry_attempt must be an integer") from exc
         if retry_attempt > 0:
             metrics.record_retry(engine)
+        metrics.begin_validation()
         try:
             response, summary = self._validate(body)
             status = summary.status.value
@@ -248,6 +250,7 @@ class TableValidationApplication:
                     "trino_bytes_scanned",
                 ),
             )
+            metrics.end_validation()
 
     def _validate(self, body: dict[str, Any]) -> tuple[dict[str, Any], Any]:
         try:
@@ -268,6 +271,7 @@ class TableValidationApplication:
         requested_branch = request.nessie_branch
         validator = self._validator_for_branch(requested_branch)
         if coverage is ValidationCoverage.BASELINE:
+            self.metrics.record_not_configured("silver", source_kind.value)
             plan = ValidationPlan(
                 dataset_id=request.dataset_id,
                 data_layer="silver",
@@ -368,6 +372,7 @@ class TableValidationApplication:
             )
             exc.quarantine_id = manifest.quarantine_id
             exc.quarantine_uri = self.quarantine.save(manifest)
+            self.metrics.record_quarantine(summary.data_layer, manifest.reason)
             raise
         metadata = MetadataExportOutcome(False, 0, 0)
         if self.metadata_exporter is not None:
@@ -498,12 +503,14 @@ class Handler(BaseHTTPRequestHandler):
         try:
             self.gx_caller = self.application.http_security.authenticate(self.headers)
         except GXAuthenticationError as exc:
+            self.application.metrics.record_auth_failure("unauthenticated")
             self._send(
                 401,
                 {"error_code": "GX_UNAUTHENTICATED", "message": str(exc), "retryable": False},
             )
             return
         except GXAuthorizationError as exc:
+            self.application.metrics.record_auth_failure("forbidden")
             self._send(
                 403,
                 {"error_code": "GX_FORBIDDEN", "message": str(exc), "retryable": False},

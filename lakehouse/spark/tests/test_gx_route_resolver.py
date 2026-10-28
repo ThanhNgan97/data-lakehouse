@@ -18,8 +18,18 @@ class GXRouteResolverTest(unittest.TestCase):
     def _root(self, *, contracts, routes):
         temporary = tempfile.TemporaryDirectory(dir=Path.cwd())
         root = Path(temporary.name)
+        governed = [
+            {
+                "status": "active",
+                "owner": "test-owner",
+                "approved_by": "test-approver",
+                "approved_at": "2026-01-01T00:00:00+00:00",
+                **contract,
+            }
+            for contract in contracts
+        ]
         (root / "contract_registry.json").write_text(
-            json.dumps({"contracts": contracts}), encoding="utf-8"
+            json.dumps({"contracts": governed}), encoding="utf-8"
         )
         (root / "validation_registry.json").write_text(
             json.dumps({"routes": routes}), encoding="utf-8"

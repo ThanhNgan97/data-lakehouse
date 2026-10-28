@@ -69,6 +69,10 @@ class ProductionSettings:
                     "Production requires a non-default GX_SERVICE_TOKEN "
                     "with at least 32 characters"
                 )
+            if _boolean("GX_ALLOW_PILOT_CONTRACTS", True):
+                raise ValidationConfigurationError(
+                    "GX_ALLOW_PILOT_CONTRACTS must be false in production"
+                )
         return cls(environment, revision, retention, redaction)
 
     def validate_mode(self, mode: ExecutionMode) -> None:

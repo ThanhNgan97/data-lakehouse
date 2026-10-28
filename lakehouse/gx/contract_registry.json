@@ -3,12 +3,16 @@
     {
       "dataset_id": "education.teaching_progress",
       "contract_version": "1.0.0",
+      "status": "pilot",
+      "owner": "data-platform",
       "effective_from": "2026-10-27",
       "definition": "contracts/education.teaching_progress/1.0.0.json"
     },
     {
       "dataset_id": "education.learning_outcomes",
       "contract_version": "1.0.0",
+      "status": "pilot",
+      "owner": "data-platform",
       "effective_from": "2026-10-27",
       "definition": "contracts/education.learning_outcomes/1.0.0.json"
     }

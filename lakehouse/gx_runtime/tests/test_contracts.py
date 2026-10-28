@@ -5,7 +5,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from gx_runtime.contracts import ContractRegistry, load_contract
+from unittest.mock import patch
+
+from gx_runtime.contracts import (
+    ContractRegistry,
+    load_contract,
+    validate_contract_compatibility,
+)
 from gx_runtime.errors import ValidationConfigurationError
 from gx_runtime.models import ExecutionEngine
 
@@ -87,6 +93,56 @@ class TeachingProgressContractTest(unittest.TestCase):
             path.write_text(json.dumps(payload), encoding="utf-8")
             with self.assertRaisesRegex(ValidationConfigurationError, "between 0 and 1"):
                 load_contract(path)
+
+    def test_pilot_contract_can_be_disabled_for_governed_runtime(self):
+        registry = ContractRegistry(REGISTRY_PATH)
+        with patch.dict("os.environ", {"GX_ALLOW_PILOT_CONTRACTS": "false"}):
+            with self.assertRaisesRegex(ValidationConfigurationError, "not active"):
+                registry.resolve("education.teaching_progress", "1.0.0")
+
+    def test_active_registration_requires_approval_evidence(self):
+        payload = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
+        payload["status"] = "active"
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
+            root = Path(directory)
+            definition = root / "contract.json"
+            definition.write_text(json.dumps(payload), encoding="utf-8")
+            registry = root / "contract_registry.json"
+            registry.write_text(
+                json.dumps(
+                    {
+                        "contracts": [
+                            {
+                                "dataset_id": payload["dataset_id"],
+                                "contract_version": payload["contract_version"],
+                                "status": "active",
+                                "owner": payload["owner"],
+                                "effective_from": "2026-01-01",
+                                "definition": "contract.json",
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValidationConfigurationError, "requires approved"):
+                ContractRegistry(registry)
+
+    def test_breaking_change_requires_new_major_version(self):
+        old_payload = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
+        new_payload = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
+        new_payload["contract_version"] = "1.1.0"
+        del new_payload["layers"]["silver"]["columns"]["ma_ban_ghi"]
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
+            root = Path(directory)
+            old_path = root / "old.json"
+            new_path = root / "new.json"
+            old_path.write_text(json.dumps(old_payload), encoding="utf-8")
+            new_path.write_text(json.dumps(new_payload), encoding="utf-8")
+            with self.assertRaisesRegex(ValidationConfigurationError, "new major"):
+                validate_contract_compatibility(
+                    load_contract(old_path), load_contract(new_path)
+                )
 
 
 if __name__ == "__main__":

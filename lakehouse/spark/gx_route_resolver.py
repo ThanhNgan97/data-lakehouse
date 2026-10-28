@@ -78,17 +78,27 @@ def resolve_route(
     contracts = _load(root / "contract_registry.json", "contracts")
     routes = _load(root / "validation_registry.json", "routes")
     today = as_of or date.today()
+    allow_pilot = os.getenv("GX_ALLOW_PILOT_CONTRACTS", "true").strip().lower() == "true"
 
     effective_contracts: dict[tuple[str, str], dict[str, Any]] = {}
     for contract in contracts:
         try:
             key = (str(contract["dataset_id"]), str(contract["contract_version"]))
             effective = date.fromisoformat(str(contract["effective_from"]))
+            status = str(contract["status"])
+            effective_to = (
+                date.fromisoformat(str(contract["effective_to"]))
+                if contract.get("effective_to")
+                else None
+            )
         except (KeyError, TypeError, ValueError) as exc:
             raise GXRouteConfigurationError("Invalid GX contract registry entry") from exc
         if key in effective_contracts:
             raise GXRouteConfigurationError(f"Duplicate GX contract {key[0]}@{key[1]}")
-        if effective <= today:
+        resolvable = status in {"active", "deprecated"} or (
+            status == "pilot" and allow_pilot
+        )
+        if effective <= today and (effective_to is None or today <= effective_to) and resolvable:
             effective_contracts[key] = contract
 
     candidates: list[dict[str, Any]] = []

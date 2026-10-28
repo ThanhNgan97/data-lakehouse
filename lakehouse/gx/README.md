@@ -22,6 +22,23 @@ Contracts define layer schemas, evolution policy, rule severity, thresholds,
 and engine compatibility. Expectation suites in phase 4 implement those rules;
 they do not redefine the contract.
 
+## Contract lifecycle
+
+Every registry entry and contract definition must agree on `dataset_id`,
+`contract_version`, `status`, `owner`, and `effective_from`. Supported states are:
+
+`draft -> review -> pilot -> active -> deprecated -> retired`
+
+Only `active` and unexpired `deprecated` contracts are production-routable.
+`pilot` is allowed only when `GX_ALLOW_PILOT_CONTRACTS=true`, which the GX
+runtime refuses in production. Activating a contract requires immutable
+`approved_by` and timezone-aware `approved_at` evidence in the registry.
+
+Every version after the first declares `supersedes`. Breaking schema or grain
+changes require a higher major version; compatible additions may use a minor or
+patch version. `effective_to` can close the routing window without deleting
+historical contract evidence.
+
 `validation_registry.json` is the phase-7 routing layer. Its immutable key is
 `dataset_id + layer + contract_version`; engine selects an implementation, while
 `file`, `api`, and `database` are compatibility metadata and never choose a

@@ -71,6 +71,22 @@ class ProductionReadinessTest(unittest.TestCase):
         with self.assertRaisesRegex(ValidationConfigurationError, "non-default"):
             ProductionSettings.from_env()
 
+    @patch.dict(
+        os.environ,
+        {
+            "GX_ENVIRONMENT": "production",
+            "GX_SUITE_REVISION": "git-sha",
+            "GX_REDACT_OBSERVED_VALUES": "true",
+            "GX_APPROVAL_SECRET": "production-approval-secret-with-32-characters",
+            "GX_SERVICE_TOKEN": "production-service-token-with-32-characters",
+            "GX_ALLOW_PILOT_CONTRACTS": "true",
+        },
+        clear=True,
+    )
+    def test_production_refuses_pilot_contracts(self):
+        with self.assertRaisesRegex(ValidationConfigurationError, "must be false"):
+            ProductionSettings.from_env()
+
     def test_summary_redacts_observed_values(self):
         item = summary()
         object.__setattr__(

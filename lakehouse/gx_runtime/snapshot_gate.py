@@ -9,7 +9,11 @@ from urllib.parse import quote, urlencode
 from urllib.request import urlopen
 
 from .errors import QualityGateRejectedError, SnapshotMismatchError
-from .models import ValidationSummary
+from .models import ContractStatus, ValidationCoverage, ValidationSummary
+try:
+    from gx_approval_receipt import sign_approval_receipt
+except ModuleNotFoundError:  # Repository tests import through lakehouse.
+    from spark.gx_approval_receipt import sign_approval_receipt
 
 
 @dataclass(frozen=True)
@@ -39,6 +43,18 @@ class QualityGateApproval:
     validated_branch: str
     validated_snapshot_id: str
     validated_commit_hash: str
+    dataset_id: str
+    data_layer: str
+    contract_version: str
+    run_id: str
+    source_kind: str
+    candidate_hash: str
+    audience: str
+    suite_revision: str | None
+    issued_at: str
+    expires_at: str
+    receipt_version: str
+    signature: str
     merge_allowed: bool = True
 
     def as_dict(self) -> dict[str, Any]:
@@ -60,6 +76,17 @@ class SnapshotAwareQualityGate:
         if not summary.merge_allowed:
             raise QualityGateRejectedError(
                 f"Validation {summary.validation_id} does not allow publish"
+            )
+        if (
+            summary.coverage is not ValidationCoverage.CONTRACT
+            or summary.contract_status is not ContractStatus.APPROVED
+        ):
+            raise QualityGateRejectedError(
+                "A missing/baseline contract cannot authorize publication"
+            )
+        if summary.source_kind is None:
+            raise QualityGateRejectedError(
+                "Validation summary lacks source_kind required for publication"
             )
         validated = {
             "data_asset_ref": summary.data_asset_ref,
@@ -83,13 +110,24 @@ class SnapshotAwareQualityGate:
             raise SnapshotMismatchError(
                 f"SNAPSHOT_MISMATCH ({fields}); run GX again before publish"
             )
-        return QualityGateApproval(
-            validation_id=summary.validation_id,
-            data_asset_ref=current.data_asset_ref,
-            validated_branch=current.nessie_branch,
-            validated_snapshot_id=current.snapshot_id,
-            validated_commit_hash=current.nessie_commit_hash,
+        signed = sign_approval_receipt(
+            {
+                "validation_id": summary.validation_id,
+                "dataset_id": summary.dataset_id,
+                "data_layer": summary.data_layer,
+                "contract_version": summary.contract_version,
+                "run_id": summary.run_id,
+                "source_kind": summary.source_kind.value,
+                "data_asset_ref": current.data_asset_ref,
+                "validated_branch": current.nessie_branch,
+                "validated_snapshot_id": current.snapshot_id,
+                "validated_commit_hash": current.nessie_commit_hash,
+                "candidate_hash": current.nessie_commit_hash,
+                "audience": f"{summary.data_layer}-publisher",
+                "suite_revision": summary.suite_revision,
+            }
         )
+        return QualityGateApproval(**signed)
 
     def verify_current(
         self,

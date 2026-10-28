@@ -222,6 +222,8 @@ def _validate_sql(config, run_id, state):
 
 def _require_gx_approval(result, state, config, data_layer):
     from gx_candidate_binding import dbt_gold_candidate_binding
+    from gx_approval_receipt import GXApprovalReceiptError, verify_approval_receipt
+    from gx_route_resolver import resolve_route
 
     canonical = config.gold_table
     binding = dbt_gold_candidate_binding(state["dataset"], state["run_id"], canonical)
@@ -243,17 +245,31 @@ def _require_gx_approval(result, state, config, data_layer):
         != str(approval.get("validation_id") or "")
     ):
         raise RuntimeError(f"Refuse publish: valid GX {data_layer} approval is required")
+    route = resolve_route(
+        dataset_id=state["dataset"], data_layer=data_layer,
+        source_kind=str(result.get("source_kind") or "api"),
+        execution_engine="sql",
+    )
     expected = {
+        "validation_id": result.get("validation_id"),
+        "dataset_id": state["dataset"],
+        "data_layer": data_layer,
+        "contract_version": route.contract_version,
+        "run_id": state["run_id"],
+        "source_kind": str(result.get("source_kind") or "api"),
+        "audience": f"{data_layer}-publisher",
         "data_asset_ref": binding.physical_asset_ref,
         "validated_branch": state["ref"],
         "validated_snapshot_id": str(candidate.get("snapshotId") or ""),
         "validated_commit_hash": state["validated_hash"],
+        "candidate_hash": state["validated_hash"],
     }
-    if not str(approval.get("validation_id") or "").strip() or any(
-        str(approval.get(key) or "") != str(value) for key, value in expected.items()
-    ):
-        raise RuntimeError(f"Refuse publish: stale GX {data_layer} approval")
-    return approval
+    try:
+        return verify_approval_receipt(approval, expected=expected)
+    except GXApprovalReceiptError as exc:
+        raise RuntimeError(
+            f"Refuse publish: stale GX {data_layer} approval: {exc}"
+        ) from exc
 
 
 def publish(

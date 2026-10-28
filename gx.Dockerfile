@@ -35,6 +35,7 @@ RUN pyspark --version >/dev/null \
 COPY --chown=gx:gx lakehouse/gx_runtime /opt/gx/gx_runtime
 COPY --chown=gx:gx lakehouse/spark/gx_validation_request.py /opt/gx/gx_validation_request.py
 COPY --chown=gx:gx lakehouse/spark/gx_candidate_binding.py /opt/gx/gx_candidate_binding.py
+COPY --chown=gx:gx lakehouse/spark/gx_approval_receipt.py /opt/gx/gx_approval_receipt.py
 COPY --chown=gx:gx lakehouse/gx /opt/gx/config
 
 WORKDIR /opt/gx

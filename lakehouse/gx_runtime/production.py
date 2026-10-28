@@ -51,6 +51,15 @@ class ProductionSettings:
                 raise ValidationConfigurationError(
                     "GX_REDACT_OBSERVED_VALUES must be true in production"
                 )
+            approval_secret = os.getenv("GX_APPROVAL_SECRET", "").strip()
+            if (
+                len(approval_secret) < 32
+                or approval_secret == "development-only-gx-approval-secret-change-me"
+            ):
+                raise ValidationConfigurationError(
+                    "Production requires a non-default GX_APPROVAL_SECRET "
+                    "with at least 32 characters"
+                )
         return cls(environment, revision, retention, redaction)
 
     def validate_mode(self, mode: ExecutionMode) -> None:

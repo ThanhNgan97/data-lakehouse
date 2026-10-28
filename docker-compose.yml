@@ -332,6 +332,8 @@ services:
       GX_SPARK_MASTER: ${GX_SPARK_MASTER:-local[2]}
       GX_HTTP_PORT: '8090'
       GX_ENVIRONMENT: ${GX_ENVIRONMENT:-development}
+      GX_APPROVAL_SECRET: ${GX_APPROVAL_SECRET:-development-only-gx-approval-secret-change-me}
+      GX_APPROVAL_TTL_SECONDS: ${GX_APPROVAL_TTL_SECONDS:-900}
       GX_SUITE_REVISION: ${GX_SUITE_REVISION:-}
       GX_RESULT_RETENTION_DAYS: ${GX_RESULT_RETENTION_DAYS:-90}
       GX_REDACT_OBSERVED_VALUES: ${GX_REDACT_OBSERVED_VALUES:-true}
@@ -478,6 +480,7 @@ services:
       TRINO_PORT: '8080'
       TRINO_HTTP_URL: 'http://trino:8080'
       GX_SERVICE_URL: 'http://gx-validator:8090'
+      GX_APPROVAL_SECRET: ${GX_APPROVAL_SECRET:-development-only-gx-approval-secret-change-me}
       GX_API_GATE_MODE: ${GX_API_GATE_MODE:-enforce}
       GX_API_NESSIE_BRANCH: ${GX_API_NESSIE_BRANCH:-main}
       GX_API_GATE_TIMEOUT_SECONDS: ${GX_API_GATE_TIMEOUT_SECONDS:-300}
@@ -543,6 +546,7 @@ services:
       TRINO_PORT: '8080'
       TRINO_HTTP_URL: 'http://trino:8080'
       GX_SERVICE_URL: 'http://gx-validator:8090'
+      GX_APPROVAL_SECRET: ${GX_APPROVAL_SECRET:-development-only-gx-approval-secret-change-me}
       GX_API_GATE_MODE: ${GX_API_GATE_MODE:-enforce}
       GX_API_NESSIE_BRANCH: ${GX_API_NESSIE_BRANCH:-main}
       GX_API_GATE_TIMEOUT_SECONDS: ${GX_API_GATE_TIMEOUT_SECONDS:-300}

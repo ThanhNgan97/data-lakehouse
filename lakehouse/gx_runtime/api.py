@@ -129,7 +129,9 @@ class TableValidationApplication:
         """Stop admitting work and release pooled client connections."""
         self.accepting_requests = False
         self.sqlalchemy_engine.dispose()
-        self.candidate_sessions.close()
+        candidate_sessions = getattr(self, "candidate_sessions", None)
+        if candidate_sessions is not None:
+            candidate_sessions.close()
 
     def _validator_for_branch(self, requested_branch: str):
         catalog_branch = os.getenv("GX_TRINO_NESSIE_BRANCH", "main")

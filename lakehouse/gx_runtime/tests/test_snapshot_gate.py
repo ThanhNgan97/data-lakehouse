@@ -3,14 +3,19 @@ from __future__ import annotations
 import io
 import json
 import unittest
+from dataclasses import replace
+from unittest.mock import patch
 
 from gx_runtime.errors import QualityGateRejectedError, SnapshotMismatchError
 from gx_runtime.models import (
     EngineValidationResult,
     ExecutionEngine,
     ExecutionMode,
+    ContractStatus,
     SuiteReference,
+    SourceKind,
     ValidationRequest,
+    ValidationCoverage,
 )
 from gx_runtime.policy import ValidationPolicy
 from gx_runtime.snapshot_gate import (
@@ -33,6 +38,7 @@ def summary(*, executed=True, merge_allowed=True):
         nessie_branch="candidate_phase5",
         snapshot_id="123456",
         nessie_commit_hash="abc123",
+        source_kind=SourceKind.API,
     )
     result = None
     if executed:
@@ -59,6 +65,14 @@ def identity(**overrides):
 
 
 class SnapshotAwareQualityGateTest(unittest.TestCase):
+    def setUp(self):
+        self.environment = patch.dict(
+            "os.environ",
+            {"GX_APPROVAL_SECRET": "unit-test-secret-that-is-at-least-32-chars"},
+        )
+        self.environment.start()
+        self.addCleanup(self.environment.stop)
+
     def test_exact_identity_returns_publish_approval_receipt(self):
         approval = SnapshotAwareQualityGate.verify(summary(), identity())
 
@@ -66,6 +80,18 @@ class SnapshotAwareQualityGateTest(unittest.TestCase):
         self.assertEqual(approval.validated_snapshot_id, "123456")
         self.assertEqual(approval.validated_commit_hash, "abc123")
         self.assertEqual(approval.validation_id, summary().validation_id)
+        self.assertEqual(approval.dataset_id, "education.teaching_progress")
+        self.assertEqual(approval.audience, "silver-publisher")
+        self.assertTrue(approval.signature)
+
+    def test_baseline_missing_contract_cannot_authorize_publish(self):
+        baseline = replace(
+            summary(),
+            coverage=ValidationCoverage.BASELINE,
+            contract_status=ContractStatus.MISSING,
+        )
+        with self.assertRaisesRegex(QualityGateRejectedError, "cannot authorize"):
+            SnapshotAwareQualityGate.verify(baseline, identity())
 
     def test_snapshot_change_invalidates_old_validation(self):
         with self.assertRaisesRegex(SnapshotMismatchError, "SNAPSHOT_MISMATCH"):

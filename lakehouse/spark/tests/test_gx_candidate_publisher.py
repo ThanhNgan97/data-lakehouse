@@ -13,6 +13,7 @@ from gx_candidate_publisher import (
     publish_file_candidate,
 )
 from gx_candidate_state import CandidateAssetIdentity, CandidateState
+from gx_approval_receipt import sign_approval_receipt
 from gx_universal_gate import SnapshotIdentity
 
 
@@ -45,15 +46,22 @@ def candidate_state():
 
 
 def gx_result(**approval_overrides):
-    approval = {
+    approval = sign_approval_receipt({
         "validation_id": "validation-1",
+        "dataset_id": "education.teaching_progress",
+        "data_layer": "silver",
+        "contract_version": "1.0.0",
+        "run_id": "manual__12",
+        "source_kind": "api",
+        "audience": "silver-publisher",
         "data_asset_ref": PRIMARY,
         "validated_branch": "gx_api_silver_0123456789abcdef",
         "validated_snapshot_id": "snapshot-1",
         "validated_commit_hash": "candidate-1",
-        "merge_allowed": True,
-    }
-    approval.update(approval_overrides)
+        "candidate_hash": "candidate-1",
+    })
+    if approval_overrides:
+        approval.update(approval_overrides)
     return {
         "validation_id": approval["validation_id"],
         "merge_allowed": True,
@@ -67,9 +75,16 @@ def identity(asset, branch, snapshot, commit):
 
 class CandidatePublisherTest(unittest.TestCase):
     def setUp(self):
+        self.secret = patch.dict(
+            "os.environ", {"GX_APPROVAL_SECRET": "unit-test-secret-that-is-at-least-32-chars"}
+        )
+        self.secret.start()
+        self.addCleanup(self.secret.stop)
         self.route = patch(
             "gx_candidate_publisher.resolve_route",
-            return_value=SimpleNamespace(data_asset_ref=PRIMARY),
+            return_value=SimpleNamespace(
+                data_asset_ref=PRIMARY, contract_version="1.0.0"
+            ),
         )
         self.load = patch(
             "gx_candidate_publisher.load_candidate_state",
@@ -143,7 +158,23 @@ class CandidatePublisherTest(unittest.TestCase):
             result = publish_file_candidate(
                 dataset_id=file_state.dataset_id,
                 run_id=file_state.run_id,
-                gx_result=gx_result(),
+                gx_result={
+                    **gx_result(),
+                    "approval": sign_approval_receipt({
+                        "validation_id": "validation-1",
+                        "dataset_id": file_state.dataset_id,
+                        "data_layer": "silver",
+                        "contract_version": "1.0.0",
+                        "run_id": file_state.run_id,
+                        "source_kind": "file",
+                        "audience": "silver-publisher",
+                        "data_asset_ref": PRIMARY,
+                        "validated_branch": file_state.candidate_branch,
+                        "validated_snapshot_id": "snapshot-1",
+                        "validated_commit_hash": file_state.candidate_hash,
+                        "candidate_hash": file_state.candidate_hash,
+                    }),
+                },
                 opener=MagicMock(),
             )
         self.assertEqual(result["status"], "ALREADY_PUBLISHED")
@@ -163,7 +194,7 @@ class CandidatePublisherTest(unittest.TestCase):
             )
 
     def test_mismatched_approval_is_rejected_before_nessie(self):
-        with self.assertRaisesRegex(CandidatePublishError, "does not match"):
+        with self.assertRaisesRegex(CandidatePublishError, "signature is invalid"):
             publish_api_candidate(
                 dataset_id="education.teaching_progress",
                 run_id="manual__12",

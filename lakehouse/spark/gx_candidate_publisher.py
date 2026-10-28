@@ -10,6 +10,7 @@ from urllib import error, request
 from urllib.parse import quote
 
 from gx_candidate_state import CandidateState, candidate_state_path, load_candidate_state
+from gx_approval_receipt import GXApprovalReceiptError, verify_approval_receipt
 from gx_route_resolver import resolve_route
 from gx_universal_gate import resolve_snapshot_identity
 
@@ -42,7 +43,8 @@ def _all_assets_match(state: CandidateState, branch: str) -> tuple[bool, str]:
 
 
 def _require_approval(
-    result: dict[str, Any], state: CandidateState, primary_asset: str
+    result: dict[str, Any], state: CandidateState, primary_asset: str,
+    contract_version: str,
 ) -> dict[str, Any]:
     if result.get("merge_allowed") is not True:
         raise CandidatePublishError("GX result does not allow candidate publication")
@@ -54,21 +56,23 @@ def _require_approval(
     ):
         raise CandidatePublishError("GX result and approval validation_id differ")
     expected = {
+        "validation_id": result.get("validation_id"),
+        "dataset_id": state.dataset_id,
+        "data_layer": "silver",
+        "contract_version": contract_version,
+        "run_id": state.run_id,
+        "source_kind": state.source_kind,
+        "audience": "silver-publisher",
         "data_asset_ref": primary_asset,
         "validated_branch": state.candidate_branch,
         "validated_snapshot_id": state.asset(primary_asset).snapshot_id,
         "validated_commit_hash": state.candidate_hash,
+        "candidate_hash": state.candidate_hash,
     }
-    mismatches = [
-        key for key, value in expected.items() if str(approval.get(key) or "") != value
-    ]
-    if mismatches:
-        raise CandidatePublishError(
-            "GX approval does not match candidate state: " + ", ".join(mismatches)
-        )
-    if not str(approval.get("validation_id") or "").strip():
-        raise CandidatePublishError("GX approval lacks validation_id")
-    return approval
+    try:
+        return verify_approval_receipt(approval, expected=expected)
+    except GXApprovalReceiptError as exc:
+        raise CandidatePublishError(str(exc)) from exc
 
 
 def _merge_candidate(
@@ -127,7 +131,9 @@ def publish_candidate(
         dataset_id, run_id, source_kind
     ):
         raise CandidatePublishError("Candidate state does not match dataset/run/source")
-    approval = _require_approval(gx_result, state, route.data_asset_ref)
+    approval = _require_approval(
+        gx_result, state, route.data_asset_ref, route.contract_version
+    )
 
     candidate_matches, candidate_hash = _all_assets_match(
         state, state.candidate_branch

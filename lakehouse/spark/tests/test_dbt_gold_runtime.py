@@ -9,6 +9,7 @@ from unittest.mock import Mock, patch
 import dbt_gold_runtime as runtime
 from dbt_gold_contract import identity, outputs, SQL_VALIDATION_CONTRACT, require_config
 from gx_candidate_binding import dbt_gold_candidate_binding
+from gx_approval_receipt import sign_approval_receipt
 
 
 CONFIG = SimpleNamespace(dataset="education.learning_outcomes", dbt_selector="agg_learning_outcomes_by_period",
@@ -49,15 +50,22 @@ def approvals(s):
             "candidate_branch": s["ref"],
             "candidate_hash": s["validated_hash"],
             "validation_id": validation_id,
+            "source_kind": "api",
             "merge_allowed": True,
-            "approval": {
+            "approval": sign_approval_receipt({
                 "validation_id": validation_id,
-                "merge_allowed": True,
+                "dataset_id": s["dataset"],
+                "data_layer": layer,
+                "contract_version": "1.0.0",
+                "run_id": s["run_id"],
+                "source_kind": "api",
+                "audience": f"{layer}-publisher",
                 "data_asset_ref": binding.physical_asset_ref,
                 "validated_branch": s["ref"],
                 "validated_snapshot_id": str(snapshot_id),
                 "validated_commit_hash": s["validated_hash"],
-            },
+                "candidate_hash": s["validated_hash"],
+            }),
         })
     return tuple(results)
 
@@ -74,6 +82,14 @@ def publish(s, gold=None, reconciliation=None):
 
 
 class GoldRuntimeTest(unittest.TestCase):
+    def setUp(self):
+        self.environment = patch.dict(
+            os.environ,
+            {"GX_APPROVAL_SECRET": "unit-test-secret-that-is-at-least-32-chars"},
+        )
+        self.environment.start()
+        self.addCleanup(self.environment.stop)
+
     def test_build_submits_pinned_head_and_retry_does_not_resubmit(self):
         s = state("prepared")
         response = Mock()

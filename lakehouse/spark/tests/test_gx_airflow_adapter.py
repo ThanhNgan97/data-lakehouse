@@ -3,7 +3,9 @@ from __future__ import annotations
 import io
 import json
 import socket
+import os
 import unittest
+from unittest.mock import patch
 from urllib.error import HTTPError
 
 import gx_airflow_adapter as adapter
@@ -46,19 +48,43 @@ def http_error(payload, status=409):
 
 
 class GXAirflowAdapterTest(unittest.TestCase):
+    def setUp(self):
+        self.environment = patch.dict(
+            os.environ,
+            {
+                "GX_SERVICE_TOKEN": "unit-test-service-token-that-is-at-least-32-chars",
+                "GX_CALLER_ID": "airflow",
+            },
+        )
+        self.environment.start()
+        self.addCleanup(self.environment.stop)
+
     def test_success_returns_bounded_reference_not_full_summary(self):
+        calls = []
+        def opener(call, **_kwargs):
+            calls.append(call)
+            return Response(json.dumps(success()).encode("utf-8"))
         result = adapter.execute_quality_gate(
             {"snapshot_id": "1"},
             service_url="http://gx",
-            opener=lambda *_args, **_kwargs: Response(
-                json.dumps(success()).encode("utf-8")
-            ),
+            opener=opener,
         )
         self.assertLessEqual(len(json.dumps(result).encode("utf-8")), 4096)
         self.assertNotIn("large_summary_that_must_not_enter_xcom", result)
         self.assertEqual(result["validation_uri"], "s3://bucket/result.json")
         self.assertEqual(result["coverage"], "BASELINE")
         self.assertEqual(result["contract_status"], "MISSING")
+        self.assertEqual(
+            calls[0].get_header("Authorization"),
+            "Bearer unit-test-service-token-that-is-at-least-32-chars",
+        )
+        self.assertEqual(calls[0].get_header("X-gx-caller"), "airflow")
+
+    def test_missing_service_credentials_fail_before_network(self):
+        with patch.dict(os.environ, {"GX_SERVICE_TOKEN": ""}), self.assertRaisesRegex(
+            adapter.GXAirflowError, "credentials"
+        ):
+            adapter.execute_quality_gate({}, service_url="http://gx")
 
     def test_snapshot_mismatch_refreshes_once_then_revalidates(self):
         requests = []

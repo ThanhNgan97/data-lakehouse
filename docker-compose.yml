@@ -334,6 +334,9 @@ services:
       GX_ENVIRONMENT: ${GX_ENVIRONMENT:-development}
       GX_APPROVAL_SECRET: ${GX_APPROVAL_SECRET:-development-only-gx-approval-secret-change-me}
       GX_APPROVAL_TTL_SECONDS: ${GX_APPROVAL_TTL_SECONDS:-900}
+      GX_SERVICE_TOKEN: ${GX_SERVICE_TOKEN:-development-only-gx-service-token-change-me}
+      GX_ALLOWED_CALLERS: ${GX_ALLOWED_CALLERS:-airflow}
+      GX_MAX_REQUEST_BYTES: ${GX_MAX_REQUEST_BYTES:-65536}
       GX_SUITE_REVISION: ${GX_SUITE_REVISION:-}
       GX_RESULT_RETENTION_DAYS: ${GX_RESULT_RETENTION_DAYS:-90}
       GX_REDACT_OBSERVED_VALUES: ${GX_REDACT_OBSERVED_VALUES:-true}
@@ -481,6 +484,8 @@ services:
       TRINO_HTTP_URL: 'http://trino:8080'
       GX_SERVICE_URL: 'http://gx-validator:8090'
       GX_APPROVAL_SECRET: ${GX_APPROVAL_SECRET:-development-only-gx-approval-secret-change-me}
+      GX_SERVICE_TOKEN: ${GX_SERVICE_TOKEN:-development-only-gx-service-token-change-me}
+      GX_CALLER_ID: airflow
       GX_API_GATE_MODE: ${GX_API_GATE_MODE:-enforce}
       GX_API_NESSIE_BRANCH: ${GX_API_NESSIE_BRANCH:-main}
       GX_API_GATE_TIMEOUT_SECONDS: ${GX_API_GATE_TIMEOUT_SECONDS:-300}
@@ -547,6 +552,8 @@ services:
       TRINO_HTTP_URL: 'http://trino:8080'
       GX_SERVICE_URL: 'http://gx-validator:8090'
       GX_APPROVAL_SECRET: ${GX_APPROVAL_SECRET:-development-only-gx-approval-secret-change-me}
+      GX_SERVICE_TOKEN: ${GX_SERVICE_TOKEN:-development-only-gx-service-token-change-me}
+      GX_CALLER_ID: airflow
       GX_API_GATE_MODE: ${GX_API_GATE_MODE:-enforce}
       GX_API_NESSIE_BRANCH: ${GX_API_NESSIE_BRANCH:-main}
       GX_API_GATE_TIMEOUT_SECONDS: ${GX_API_GATE_TIMEOUT_SECONDS:-300}

@@ -33,10 +33,22 @@ def _post_json(
     timeout_seconds: float,
     opener: Callable[..., Any] = request.urlopen,
 ) -> dict[str, Any]:
+    token = os.getenv("GX_SERVICE_TOKEN", "").strip()
+    caller = os.getenv("GX_CALLER_ID", "airflow").strip()
+    if len(token) < 32 or not caller:
+        raise GXAirflowError(
+            "GX_CONFIGURATION_ERROR",
+            "GX service credentials are not configured",
+            False,
+        )
     call = request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+            "X-GX-Caller": caller,
+        },
         method="POST",
     )
     try:

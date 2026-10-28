@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import os
 import signal
+import uuid
+import re
 from time import perf_counter
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
@@ -61,6 +63,11 @@ from .metadata_export import (
 )
 from .observability import GXMetrics
 from .production import ProductionSettings
+from .http_security import (
+    GXAuthenticationError,
+    GXAuthorizationError,
+    HTTPBoundarySecurity,
+)
 from .revocation import SnapshotRevocation, revocation_store_from_env
 from .service import validate_table
 from .snapshot_gate import NessieSnapshotResolver, SnapshotAwareQualityGate
@@ -122,6 +129,7 @@ class TableValidationApplication:
         )
         self.metrics = GXMetrics()
         self.production = ProductionSettings.from_env()
+        self.http_security = HTTPBoundarySecurity.from_env()
         self.revocations = revocation_store_from_env()
         self.accepting_requests = True
 
@@ -359,8 +367,25 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(raw)))
+        request_id = getattr(self, "request_id", None)
+        if request_id:
+            self.send_header("X-Request-ID", request_id)
         self.end_headers()
         self.wfile.write(raw)
+        if self.command == "POST":
+            print(
+                json.dumps(
+                    {
+                        "event": "gx_http_request",
+                        "request_id": request_id,
+                        "caller": getattr(self, "gx_caller", None),
+                        "path": self.path,
+                        "status": status,
+                    },
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
 
     def do_GET(self) -> None:
         if self.path == "/health/live":
@@ -381,8 +406,30 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, {"error_code": "NOT_FOUND"})
 
     def do_POST(self) -> None:
+        supplied_request_id = str(self.headers.get("X-Request-ID") or "").strip()
+        self.request_id = (
+            supplied_request_id
+            if 0 < len(supplied_request_id) <= 128
+            and re.fullmatch(r"[A-Za-z0-9_.:-]+", supplied_request_id)
+            else str(uuid.uuid4())
+        )
+        self.gx_caller = None
         if self.path != "/v1/validate/table":
             self._send(404, {"error_code": "NOT_FOUND"})
+            return
+        try:
+            self.gx_caller = self.application.http_security.authenticate(self.headers)
+        except GXAuthenticationError as exc:
+            self._send(
+                401,
+                {"error_code": "GX_UNAUTHENTICATED", "message": str(exc), "retryable": False},
+            )
+            return
+        except GXAuthorizationError as exc:
+            self._send(
+                403,
+                {"error_code": "GX_FORBIDDEN", "message": str(exc), "retryable": False},
+            )
             return
         if not self.application.accepting_requests:
             self._send(
@@ -391,9 +438,26 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
         try:
-            length = int(self.headers.get("Content-Length", "0"))
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                self._send(400, {"error_code": "GX_INVALID_REQUEST", "retryable": False})
+                return
+            if length < 1 or length > self.application.http_security.max_request_bytes:
+                self._send(
+                    413,
+                    {"error_code": "GX_REQUEST_TOO_LARGE", "retryable": False},
+                )
+                return
             body = json.loads(self.rfile.read(length))
+            if not isinstance(body, dict):
+                raise ValueError("JSON body must be an object")
             self._send(200, self.application.validate(body))
+        except (json.JSONDecodeError, ValueError) as exc:
+            self._send(
+                400,
+                {"error_code": "GX_INVALID_REQUEST", "message": str(exc), "retryable": False},
+            )
         except Exception as exc:
             for error_type, code, status, retryable in ERRORS:
                 if isinstance(exc, error_type):

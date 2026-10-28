@@ -60,6 +60,15 @@ class ProductionSettings:
                     "Production requires a non-default GX_APPROVAL_SECRET "
                     "with at least 32 characters"
                 )
+            service_token = os.getenv("GX_SERVICE_TOKEN", "").strip()
+            if (
+                len(service_token) < 32
+                or service_token == "development-only-gx-service-token-change-me"
+            ):
+                raise ValidationConfigurationError(
+                    "Production requires a non-default GX_SERVICE_TOKEN "
+                    "with at least 32 characters"
+                )
         return cls(environment, revision, retention, redaction)
 
     def validate_mode(self, mode: ExecutionMode) -> None:

@@ -15,12 +15,29 @@ qua Nessie (branch / merge / tag) trong các pipeline Spark.
 """
 
 from datetime import datetime
+from urllib.parse import quote
 
 import requests
 from env_config import NESSIE_API_URL
 
 CATALOG_NAME = "lakehouse"  # trùng với spark.sql.catalog.lakehouse
 QUY_DANH_GIA_UNKNOWN = "UNKNOWN_KY"
+
+
+def get_nessie_reference_hash(reference: str) -> str:
+    """Resolve one Nessie reference hash and reject missing/non-branch refs."""
+    safe_reference = str(reference or "").strip()
+    if not safe_reference:
+        raise ValueError("Nessie reference must not be empty")
+    response = requests.get(
+        f"{NESSIE_API_URL.rstrip('/')}/trees/tree/{quote(safe_reference, safe='')}",
+        timeout=15,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    if payload.get("type") != "BRANCH" or not payload.get("hash"):
+        raise RuntimeError(f"Invalid Nessie branch identity for {safe_reference!r}")
+    return str(payload["hash"])
 
 
 def delete_nessie_orphaned_key(table_name: str, branch_name: str = "main"):

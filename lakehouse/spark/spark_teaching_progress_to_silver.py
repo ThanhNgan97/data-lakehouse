@@ -394,6 +394,7 @@ def process_teaching_progress_batch(
     spark: SparkSession,
     batch_id: str,
     merge_to_main: bool = True,
+    candidate_branch: str | None = None,
 ):
     """Process one Teaching demo Bronze batch on an isolated Nessie branch."""
     branch_name = None
@@ -410,7 +411,7 @@ def process_teaching_progress_batch(
             QUARANTINE_TABLE
         ).count()
 
-        branch_name = make_branch_name(
+        branch_name = candidate_branch or make_branch_name(
             "ctu_ioc_teaching_progress"
         )
 

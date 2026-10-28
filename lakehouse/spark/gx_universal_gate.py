@@ -36,15 +36,17 @@ def resolve_snapshot_identity(
     base = (nessie_url or os.getenv("NESSIE_API_URL", "http://nessie:19120/api/v1")).rstrip("/")
     key = ".".join(data_asset_ref.split(".")[-2:])
     reference = _read_json(f"{base}/trees/tree/{quote(branch, safe='')}", opener)
-    content = _read_json(
-        f"{base}/contents/{quote(key, safe='.')}?ref={quote(branch, safe='')}",
-        opener,
-    )
     if reference.get("type") != "BRANCH" or not reference.get("hash"):
         raise RuntimeError(f"Nessie branch identity is invalid for {branch}")
+    commit_hash = str(reference["hash"])
+    content = _read_json(
+        f"{base}/contents/{quote(key, safe='.')}?ref={quote(branch, safe='')}"
+        f"&hashOnRef={quote(commit_hash, safe='')}",
+        opener,
+    )
     if content.get("type") != "ICEBERG_TABLE" or content.get("snapshotId") is None:
         raise RuntimeError(f"Nessie content is not an Iceberg table: {key}@{branch}")
-    return SnapshotIdentity(branch, str(content["snapshotId"]), str(reference["hash"]))
+    return SnapshotIdentity(branch, str(content["snapshotId"]), commit_hash)
 
 
 def validate_file_upload(**context) -> dict[str, Any]:

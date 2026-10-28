@@ -34,6 +34,7 @@ class GXUniversalGateTest(unittest.TestCase):
         self.assertEqual(identity.snapshot_id, "42")
         self.assertEqual(identity.commit_hash, "commit-1")
         self.assertIn("silver.teaching_progress", opener.call_args_list[1].args[0])
+        self.assertIn("hashOnRef=commit-1", opener.call_args_list[1].args[0])
 
     @patch("gx_universal_gate.execute_quality_gate")
     @patch("gx_universal_gate.resolve_snapshot_identity")

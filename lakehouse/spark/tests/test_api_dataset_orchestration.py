@@ -1,5 +1,7 @@
 import hashlib
 import unittest
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 from api_dataset_registry import (
     DATASETS,
@@ -9,6 +11,7 @@ from api_dataset_registry import (
 )
 from api_dataset_orchestration import (
     COMMANDS,
+    command_prepare_silver_candidate,
     deterministic_batch_id,
     require_orchestration_config,
     source_api_url,
@@ -181,7 +184,7 @@ class ApiDatasetOrchestrationTest(
             expected,
         )
 
-    def test_exact_ten_commands(self):
+    def test_exact_eleven_commands(self):
         self.assertEqual(
             tuple(COMMANDS),
             (
@@ -189,6 +192,7 @@ class ApiDatasetOrchestrationTest(
                 "ingest-bronze",
                 "validate-bronze",
                 "process-silver",
+                "prepare-silver-candidate",
                 "validate-silver",
                 "prepare-gold",
                 "process-gold",
@@ -227,6 +231,46 @@ class ApiDatasetOrchestrationTest(
         self.assertFalse(
             teaching.delete_supported
         )
+
+    @patch("api_dataset_orchestration.save_candidate_state")
+    @patch("api_dataset_orchestration.resolve_snapshot_identity")
+    @patch("api_dataset_orchestration.get_nessie_reference_hash")
+    @patch("api_dataset_orchestration._latest_committed_batch_id")
+    @patch("api_dataset_orchestration._load_callable")
+    @patch("api_dataset_orchestration.get_spark_session")
+    def test_prepare_candidate_does_not_merge_and_persists_exact_identity(
+        self,
+        get_spark,
+        load_callable,
+        latest_batch,
+        reference_hash,
+        resolve_identity,
+        save_state,
+    ):
+        config = get_dataset_config(TEACHING_PROGRESS_DATASET)
+        spark = MagicMock()
+        get_spark.return_value = spark
+        latest_batch.return_value = "batch-7"
+        processor = MagicMock(return_value={"branch_silver_count": 4})
+        load_callable.return_value = processor
+        reference_hash.return_value = "base-hash"
+        resolve_identity.side_effect = (
+            SimpleNamespace(snapshot_id="silver-7", commit_hash="candidate-hash"),
+            SimpleNamespace(snapshot_id="quarantine-7", commit_hash="candidate-hash"),
+        )
+        save_state.return_value = "/state/candidate.json"
+
+        command_prepare_silver_candidate(config, "manual__7")
+
+        processor.assert_called_once()
+        arguments = processor.call_args.kwargs
+        self.assertFalse(arguments["merge_to_main"])
+        self.assertTrue(arguments["candidate_branch"].startswith("gx_api_silver_"))
+        saved = save_state.call_args.args[0]
+        self.assertEqual(saved.base_hash, "base-hash")
+        self.assertEqual(saved.candidate_hash, "candidate-hash")
+        self.assertEqual(len(saved.assets), 2)
+        self.assertEqual(saved.assets[0].snapshot_id, "silver-7")
 
 
 if __name__ == "__main__":

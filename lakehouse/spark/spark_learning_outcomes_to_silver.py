@@ -456,6 +456,7 @@ def process_learning_outcomes_batch(
     spark: SparkSession,
     batch_id: str,
     merge_to_main: bool = True,
+    candidate_branch: str | None = None,
 ):
     """Process one Bronze CTU IOC batch through Silver on a Nessie branch."""
 
@@ -473,7 +474,7 @@ def process_learning_outcomes_batch(
             QUARANTINE_TABLE
         ).count()
 
-        branch_name = make_branch_name(
+        branch_name = candidate_branch or make_branch_name(
             "ctu_ioc_learning_outcomes"
         )
 

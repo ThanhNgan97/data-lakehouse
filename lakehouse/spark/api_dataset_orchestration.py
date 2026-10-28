@@ -13,6 +13,7 @@ import hashlib
 import importlib
 import json
 import os
+from pathlib import Path
 from typing import Any
 from urllib import request
 
@@ -31,7 +32,15 @@ from incremental_ingestion import (
 )
 from bronze_writer import read_parquet_object
 from checkpoint_store import OzoneCheckpointStore
-from nessie_catalog_utils import use_main
+from gx_candidate_state import (
+    CandidateAssetIdentity,
+    CandidateState,
+    candidate_state_path,
+    retry_stable_branch_name,
+    save_candidate_state,
+)
+from gx_universal_gate import resolve_snapshot_identity
+from nessie_catalog_utils import get_nessie_reference_hash, use_main
 from spark_bronze_to_silver import get_spark_session
 
 
@@ -448,6 +457,75 @@ def command_process_silver(
             spark.stop()
 
 
+def command_prepare_silver_candidate(
+    config: ApiDatasetConfig,
+    run_id: str,
+) -> None:
+    """Write registered Silver data to a durable candidate without publishing."""
+    batch_id = _latest_committed_batch_id(config.dataset)
+    processor = _load_callable(str(config.silver_processor))
+    branch = retry_stable_branch_name("gx_api_silver", config.dataset, run_id)
+    spark = get_spark_session()
+    spark.sparkContext.setLogLevel("WARN")
+
+    try:
+        use_main(spark)
+        # Candidate cutover is allowed only after bootstrap has created both
+        # tables. Otherwise a hidden initialization commit could change main.
+        spark.table(config.silver_table).limit(0).collect()
+        spark.table(config.quarantine_table).limit(0).collect()
+        base_hash = get_nessie_reference_hash("main")
+        result = processor(
+            spark,
+            batch_id,
+            merge_to_main=False,
+            candidate_branch=branch,
+        )
+        identities = tuple(
+            resolve_snapshot_identity(asset, branch)
+            for asset in (config.silver_table, config.quarantine_table)
+        )
+        candidate_hashes = {identity.commit_hash for identity in identities}
+        if len(candidate_hashes) != 1:
+            raise RuntimeError("Candidate assets did not resolve at one Nessie head")
+        state = CandidateState(
+            dataset_id=config.dataset,
+            source_kind="api",
+            run_id=run_id,
+            candidate_branch=branch,
+            base_reference="main",
+            base_hash=base_hash,
+            candidate_hash=identities[0].commit_hash,
+            assets=tuple(
+                CandidateAssetIdentity(asset, identity.snapshot_id)
+                for asset, identity in zip(
+                    (config.silver_table, config.quarantine_table), identities
+                )
+            ),
+        )
+        root = Path(
+            os.getenv("GX_CANDIDATE_STATE_ROOT", "/opt/airflow/logs/gx-candidates")
+        )
+        state_file = save_candidate_state(
+            state,
+            candidate_state_path(root, config.dataset, run_id),
+        )
+
+        print(f"DATASET_ID={config.dataset}")
+        print(f"SILVER_BATCH_ID={batch_id}")
+        print(f"CANDIDATE_BRANCH={branch}")
+        print(f"CANDIDATE_BASE_HASH={base_hash}")
+        print(f"CANDIDATE_HASH={state.candidate_hash}")
+        print(f"CANDIDATE_STATE_PATH={state_file}")
+        _print_primitive_result("SILVER", result)
+        print("PREPARE_SILVER_CANDIDATE_PASS=True")
+    finally:
+        try:
+            use_main(spark)
+        finally:
+            spark.stop()
+
+
 def command_validate_silver(
     config: ApiDatasetConfig,
     run_id: str,
@@ -632,6 +710,7 @@ COMMANDS = {
     "ingest-bronze": command_ingest_bronze,
     "validate-bronze": command_validate_bronze,
     "process-silver": command_process_silver,
+    "prepare-silver-candidate": command_prepare_silver_candidate,
     "validate-silver": command_validate_silver,
     "prepare-gold": command_prepare_gold,
     "process-gold": command_process_gold,

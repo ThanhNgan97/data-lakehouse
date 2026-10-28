@@ -43,6 +43,44 @@ class GXUniversalGateTest(unittest.TestCase):
         self.assertIsNone(result["merge_allowed"])
 
     @patch("gx_universal_gate.execute_quality_gate")
+    def test_unregistered_dynamic_upload_currently_bypasses_gx(self, execute):
+        """Characterize the phase-A gap: dynamic uploads receive no baseline GX."""
+        ti = MagicMock()
+        ti.xcom_pull.side_effect = [None, "lakehouse.silver.dynamic_table"]
+
+        result = gate.validate_file_upload(ti=ti, run_id="run-1")
+
+        execute.assert_not_called()
+        self.assertEqual(result["status"], "NOT_CONFIGURED")
+
+    @patch("gx_universal_gate.execute_quality_gate")
+    @patch("gx_universal_gate.resolve_snapshot_identity")
+    def test_registered_file_upload_currently_resolves_main_by_default(
+        self, resolve, execute
+    ):
+        """Characterize the phase-A gap: upload GX is post-write on main."""
+        resolve.return_value = gate.SnapshotIdentity("main", "42", "commit-1")
+        execute.return_value = {
+            "status": "PASSED",
+            "validation_id": "validation-1",
+            "validation_uri": "s3://bucket/result.json",
+            "merge_allowed": True,
+            "approval": {"approved": True},
+        }
+        ti = MagicMock()
+        ti.xcom_pull.side_effect = [
+            "education.teaching_progress",
+            "lakehouse.silver.teaching_progress",
+        ]
+
+        with patch.dict(os.environ, {}, clear=True):
+            gate.validate_file_upload(ti=ti, run_id="run-1")
+
+        resolve.assert_called_once_with(
+            "lakehouse.silver.teaching_progress", "main"
+        )
+
+    @patch("gx_universal_gate.execute_quality_gate")
     @patch("gx_universal_gate.resolve_snapshot_identity")
     def test_registered_file_upload_calls_gx_with_snapshot_identity(
         self, resolve, execute

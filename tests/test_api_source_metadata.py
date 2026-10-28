@@ -40,6 +40,19 @@ def test_gx_evidence_is_flattened_and_bounded_for_portal():
     assert "secret" not in str(evidence)
 
 
+def test_skipped_gx_task_is_not_reported_as_pending(monkeypatch):
+    class MissingXCom:
+        status_code = 404
+
+    monkeypatch.setattr(api_sources.requests, "get", lambda *args, **kwargs: MissingXCom())
+    evidence = api_sources._gx_evidence_for_run("http://airflow/run", [
+        {"task_id": "gx_validate_silver", "state": "skipped"},
+        {"task_id": "gx_validate_gold", "state": "skipped"},
+        {"task_id": "gx_reconcile_silver_gold", "state": "skipped"},
+    ])
+    assert {item["status"] for item in evidence} == {"SKIPPED"}
+
+
 def test_api_source_metadata_is_normalized_for_persistence():
     request = SaveApiSourceRequest(
         name="Learning Outcome",

@@ -127,6 +127,22 @@ class ApiDatasetPipelineDagTest(
                 expected_downstream,
             )
 
+    def test_phase_a_characterizes_silver_gx_as_post_process(self):
+        """Document the unsafe ordering that candidate cutover must replace."""
+        process = self.dag.get_task("process_silver")
+        gx = self.dag.get_task("gx_validate_silver")
+
+        self.assertIn("validate_silver", process.downstream_task_ids)
+        self.assertIn("validate_silver", gx.upstream_task_ids)
+
+    def test_phase_a_characterizes_gold_gx_as_post_publish(self):
+        """Document that the current GX Gold task cannot block publication."""
+        publish = self.dag.get_task("publish_gold")
+        gx = self.dag.get_task("gx_validate_gold")
+
+        self.assertIn(gx.task_id, publish.downstream_task_ids)
+        self.assertIn(publish.task_id, gx.upstream_task_ids)
+
     def test_gx_gate_uses_python_and_other_tasks_use_bash(self):
         for task_id in GX_TASKS:
             self.assertIsInstance(self.dag.get_task(task_id), PythonOperator)

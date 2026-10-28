@@ -152,6 +152,7 @@ def _gx_evidence_for_run(airflow_base: str, tasks: list[dict[str, Any]]):
             "running": "RUNNING",
             "queued": "PENDING",
             "success": "RESULT_UNAVAILABLE",
+            "skipped": "SKIPPED",
         }.get(state, "PENDING" if state else "NOT_AVAILABLE")
         evidence.append({"task_id": task_id, "layer": layer, "status": status_value})
     return evidence

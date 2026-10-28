@@ -256,7 +256,13 @@ def _require_gx_approval(result, state, config, data_layer):
     return approval
 
 
-def publish(config, run_id, gx_gold_result=None, gx_reconciliation_result=None):
+def publish(
+    config,
+    run_id,
+    *,
+    gx_gold_result,
+    gx_reconciliation_result,
+):
     state = load(config, run_id)
     if state["phase"] == "published":
         return

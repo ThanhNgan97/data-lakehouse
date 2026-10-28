@@ -62,6 +62,17 @@ def approvals(s):
     return tuple(results)
 
 
+def publish(s, gold=None, reconciliation=None):
+    if gold is None or reconciliation is None:
+        gold, reconciliation = approvals(s)
+    return runtime.publish(
+        CONFIG,
+        "unit-run",
+        gx_gold_result=gold,
+        gx_reconciliation_result=reconciliation,
+    )
+
+
 class GoldRuntimeTest(unittest.TestCase):
     def test_build_submits_pinned_head_and_retry_does_not_resubmit(self):
         s = state("prepared")
@@ -174,7 +185,7 @@ class GoldRuntimeTest(unittest.TestCase):
         for phase, target_hash in [("built", "base"), ("validated", "newer")]:
             s = state(phase)
             with patch.object(runtime, "load", return_value=s), patch.object(runtime, "worker_result", return_value=worker(s)), patch.object(runtime, "head", side_effect=lambda ref: "valid" if ref == s["ref"] else target_hash), patch.object(runtime, "content", return_value=None), patch.object(runtime, "api") as api:
-                with self.assertRaises(RuntimeError): runtime.publish(CONFIG, "unit-run", *approvals(s))
+                with self.assertRaises(RuntimeError): publish(s)
                 api.assert_not_called()
 
     def test_missing_or_stale_gx_approval_never_commits(self):
@@ -182,18 +193,22 @@ class GoldRuntimeTest(unittest.TestCase):
         gold, reconciliation = approvals(s)
         stale = copy.deepcopy(reconciliation)
         stale["approval"]["validated_commit_hash"] = "stale"
-        for receipts in ((None, None), (gold, stale)):
-            with self.subTest(receipts=receipts), patch.object(runtime, "load", return_value=s), patch.object(runtime, "api") as api:
-                with self.assertRaisesRegex(RuntimeError, "GX .* approval"):
-                    runtime.publish(CONFIG, "unit-run", *receipts)
-                api.assert_not_called()
+        with patch.object(runtime, "load") as load, patch.object(runtime, "api") as api:
+            with self.assertRaises(TypeError):
+                runtime.publish(CONFIG, "unit-run")
+            load.assert_not_called()
+            api.assert_not_called()
+        with patch.object(runtime, "load", return_value=s), patch.object(runtime, "api") as api:
+            with self.assertRaisesRegex(RuntimeError, "stale GX reconciliation approval"):
+                publish(s, gold, stale)
+            api.assert_not_called()
 
     def test_fact_mart_publish_is_one_cas_commit(self):
         s = state()
         def content(ref, key, hash_value=None):
             return s["candidate_contents"][key.split(".")[-1]] if hash_value == "committed" else None
         with patch.object(runtime, "load", return_value=s), patch.object(runtime, "worker_result", return_value=worker(s)), patch.object(runtime, "head", side_effect=lambda ref: "valid" if ref == s["ref"] else "base"), patch.object(runtime, "content", side_effect=content), patch.object(runtime, "api", return_value={"hash": "committed"}) as api, patch.object(runtime, "save"):
-            runtime.publish(CONFIG, "unit-run", *approvals(s))
+            publish(s)
             self.assertEqual(s["phase"], "published")
             self.assertEqual(
                 s["gx_approvals"],
@@ -204,14 +219,15 @@ class GoldRuntimeTest(unittest.TestCase):
             self.assertEqual(len(api.call_args.kwargs["json"]["operations"]), 2)
 
     def test_published_retry_does_not_commit_again(self):
-        with patch.object(runtime, "load", return_value=state("published")), patch.object(runtime, "api") as api:
-            runtime.publish(CONFIG, "unit-run")
+        s = state("published")
+        with patch.object(runtime, "load", return_value=s), patch.object(runtime, "api") as api:
+            publish(s)
             api.assert_not_called()
 
     def test_successful_commit_with_unsaved_state_recovers_whole_bundle(self):
         s = state()
         with patch.object(runtime, "load", return_value=s), patch.object(runtime, "worker_result", return_value=worker(s)), patch.object(runtime, "head", side_effect=lambda ref: "valid" if ref == s["ref"] else "already_committed"), patch.object(runtime, "content", side_effect=lambda ref, key, hash_value=None: s["candidate_contents"][key.split(".")[-1]]), patch.object(runtime, "api") as api, patch.object(runtime, "save"):
-            runtime.publish(CONFIG, "unit-run", *approvals(s))
+            publish(s)
             self.assertEqual(s["phase"], "published")
             api.assert_not_called()
 
@@ -220,5 +236,5 @@ class GoldRuntimeTest(unittest.TestCase):
         def content(ref, key, hash_value=None):
             return s["candidate_contents"]["learning_outcomes_metrics"] if key.endswith("learning_outcomes_metrics") else None
         with patch.object(runtime, "load", return_value=s), patch.object(runtime, "worker_result", return_value=worker(s)), patch.object(runtime, "head", side_effect=lambda ref: "valid" if ref == s["ref"] else "partial_commit"), patch.object(runtime, "content", side_effect=content), patch.object(runtime, "api") as api, self.assertRaises(RuntimeError):
-            runtime.publish(CONFIG, "unit-run", *approvals(s))
+            publish(s)
         api.assert_not_called()

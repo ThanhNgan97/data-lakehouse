@@ -632,9 +632,10 @@ def command_validate_gold(config: ApiDatasetConfig, run_id: str) -> None:
 
 
 def command_publish_gold(config: ApiDatasetConfig, run_id: str) -> None:
-    from dbt_gold_runtime import publish
-    publish(config, run_id)
-    print("GOLD_ENGINE=dbt\nPUBLISH_GOLD_PASS=True")
+    raise RuntimeError(
+        "Direct publish-gold is disabled; use the Airflow Gold publisher with "
+        "GX Gold and reconciliation approval receipts"
+    )
 
 
 def _trino_scalar_count(

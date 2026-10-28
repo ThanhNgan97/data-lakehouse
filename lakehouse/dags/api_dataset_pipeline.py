@@ -56,10 +56,10 @@ def runner_command(command: str) -> str:
 
 
 def run_gx_api_quality_gate(**context):
-    """Validate the selected API dataset's current Silver snapshot."""
+    """Validate the selected API dataset's immutable Silver candidate."""
     from airflow.exceptions import AirflowException, AirflowFailException
     from gx_airflow_adapter import GXAirflowError, NON_RETRYABLE
-    from gx_api_gate import validate_api_dataset
+    from gx_api_gate import validate_api_candidate_dataset
 
     dag_run = context.get("dag_run")
     dataset_id = dag_run.conf.get("dataset_id") if dag_run else None
@@ -67,7 +67,7 @@ def run_gx_api_quality_gate(**context):
     if not dataset_id:
         raise ValueError("dataset_id is required for the GX API gate")
     try:
-        return validate_api_dataset(
+        return validate_api_candidate_dataset(
             dataset_id=str(dataset_id),
             run_id=str(context.get("run_id") or ""),
         )
@@ -75,6 +75,29 @@ def run_gx_api_quality_gate(**context):
         if exc.code in NON_RETRYABLE or not exc.retryable:
             raise AirflowFailException(str(exc)) from exc
         raise AirflowException(str(exc)) from exc
+
+
+def publish_gx_approved_silver_candidate(**context):
+    """CAS-publish only the exact Silver candidate approved by GX."""
+    from airflow.exceptions import AirflowFailException
+    from gx_candidate_publisher import CandidatePublishError, publish_api_candidate
+
+    dag_run = context.get("dag_run")
+    dataset_id = dag_run.conf.get("dataset_id") if dag_run else None
+    dataset_id = dataset_id or context.get("params", {}).get("dataset_id")
+    if not dataset_id:
+        raise AirflowFailException("dataset_id is required for candidate publication")
+    gx_result = context["ti"].xcom_pull(task_ids="gx_validate_silver")
+    if not isinstance(gx_result, dict):
+        raise AirflowFailException("GX Silver approval XCom is missing")
+    try:
+        return publish_api_candidate(
+            dataset_id=str(dataset_id),
+            run_id=str(context.get("run_id") or ""),
+            gx_result=gx_result,
+        )
+    except CandidatePublishError as exc:
+        raise AirflowFailException(str(exc)) from exc
 
 
 def run_gx_gold_quality_gate(**context):
@@ -182,16 +205,7 @@ with DAG(
     process_silver = BashOperator(
         task_id="process_silver",
         bash_command=runner_command(
-            "process-silver"
-        ),
-        env=COMMON_ENV,
-        append_env=True,
-    )
-
-    validate_silver = BashOperator(
-        task_id="validate_silver",
-        bash_command=runner_command(
-            "validate-silver"
+            "prepare-silver-candidate"
         ),
         env=COMMON_ENV,
         append_env=True,
@@ -202,6 +216,21 @@ with DAG(
         python_callable=run_gx_api_quality_gate,
         retries=1,
         retry_delay=timedelta(minutes=1),
+    )
+
+    publish_silver_candidate = PythonOperator(
+        task_id="publish_silver_candidate",
+        python_callable=publish_gx_approved_silver_candidate,
+        retries=0,
+    )
+
+    validate_silver = BashOperator(
+        task_id="validate_silver",
+        bash_command=runner_command(
+            "validate-silver"
+        ),
+        env=COMMON_ENV,
+        append_env=True,
     )
 
     prepare_gold = BashOperator(
@@ -264,8 +293,9 @@ with DAG(
         >> ingest_bronze
         >> validate_bronze
         >> process_silver
-        >> validate_silver
         >> gx_validate_silver
+        >> publish_silver_candidate
+        >> validate_silver
         >> prepare_gold
         >> process_gold
         >> validate_gold

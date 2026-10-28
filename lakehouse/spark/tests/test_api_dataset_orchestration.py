@@ -253,7 +253,7 @@ class ApiDatasetOrchestrationTest(
         latest_batch.return_value = "batch-7"
         processor = MagicMock(return_value={"branch_silver_count": 4})
         load_callable.return_value = processor
-        reference_hash.return_value = "base-hash"
+        reference_hash.side_effect = (None, "base-hash")
         resolve_identity.side_effect = (
             SimpleNamespace(snapshot_id="silver-7", commit_hash="candidate-hash"),
             SimpleNamespace(snapshot_id="quarantine-7", commit_hash="candidate-hash"),

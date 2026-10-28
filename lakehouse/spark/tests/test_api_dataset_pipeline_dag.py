@@ -27,8 +27,9 @@ EXPECTED_TASKS = (
     "ingest_bronze",
     "validate_bronze",
     "process_silver",
-    "validate_silver",
     "gx_validate_silver",
+    "publish_silver_candidate",
+    "validate_silver",
     "prepare_gold",
     "process_gold",
     "validate_gold",
@@ -39,14 +40,15 @@ EXPECTED_TASKS = (
 )
 
 GX_TASKS = {
-    "gx_validate_silver", "gx_validate_gold", "gx_reconcile_silver_gold",
+    "gx_validate_silver", "publish_silver_candidate",
+    "gx_validate_gold", "gx_reconcile_silver_gold",
 }
 
 EXPECTED_COMMANDS = (
     "api-preflight",
     "ingest-bronze",
     "validate-bronze",
-    "process-silver",
+    "prepare-silver-candidate",
     "validate-silver",
     "prepare-gold",
     "process-gold",
@@ -83,7 +85,7 @@ class ApiDatasetPipelineDagTest(
             )
         )
 
-    def test_exact_thirteen_visible_tasks(self):
+    def test_exact_fourteen_visible_tasks(self):
         self.assertEqual(
             tuple(
                 task.task_id
@@ -127,13 +129,15 @@ class ApiDatasetPipelineDagTest(
                 expected_downstream,
             )
 
-    def test_phase_a_characterizes_silver_gx_as_post_process(self):
-        """Document the unsafe ordering that candidate cutover must replace."""
+    def test_silver_candidate_is_validated_before_publish_and_main_readback(self):
         process = self.dag.get_task("process_silver")
         gx = self.dag.get_task("gx_validate_silver")
+        publish = self.dag.get_task("publish_silver_candidate")
+        validate = self.dag.get_task("validate_silver")
 
-        self.assertIn("validate_silver", process.downstream_task_ids)
-        self.assertIn("validate_silver", gx.upstream_task_ids)
+        self.assertIn(gx.task_id, process.downstream_task_ids)
+        self.assertIn(publish.task_id, gx.downstream_task_ids)
+        self.assertIn(validate.task_id, publish.downstream_task_ids)
 
     def test_phase_a_characterizes_gold_gx_as_post_publish(self):
         """Document that the current GX Gold task cannot block publication."""
@@ -155,7 +159,7 @@ class ApiDatasetPipelineDagTest(
     def test_non_retryable_gx_failure_fails_immediately(self):
         callable_ = self.dag.get_task("gx_validate_silver").python_callable
         error = GXAirflowError("DATA_QUALITY_FAILED", "invalid", False)
-        with patch("gx_api_gate.validate_api_dataset", side_effect=error):
+        with patch("gx_api_gate.validate_api_candidate_dataset", side_effect=error):
             with self.assertRaises(AirflowFailException):
                 callable_(
                     dag_run=SimpleNamespace(conf={"dataset_id": next(iter(DATASETS))}),
@@ -166,7 +170,7 @@ class ApiDatasetPipelineDagTest(
     def test_retryable_gx_failure_uses_airflow_retry(self):
         callable_ = self.dag.get_task("gx_validate_silver").python_callable
         error = GXAirflowError("GX_EXECUTION_ERROR", "unavailable", True)
-        with patch("gx_api_gate.validate_api_dataset", side_effect=error):
+        with patch("gx_api_gate.validate_api_candidate_dataset", side_effect=error):
             with self.assertRaises(AirflowException) as raised:
                 callable_(
                     dag_run=SimpleNamespace(conf={"dataset_id": next(iter(DATASETS))}),

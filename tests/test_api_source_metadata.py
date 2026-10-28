@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -51,6 +52,33 @@ def test_skipped_gx_task_is_not_reported_as_pending(monkeypatch):
         {"task_id": "gx_reconcile_silver_gold", "state": "skipped"},
     ])
     assert {item["status"] for item in evidence} == {"SKIPPED"}
+
+
+def test_silver_publication_evidence_is_bounded(monkeypatch):
+    class PublicationXCom:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"value": json.dumps({
+                "status": "PUBLISHED",
+                "dataset_id": "education.teaching_progress",
+                "candidate_branch": "candidate-1",
+                "candidate_hash": "candidate-hash",
+                "publication_hash": "published-hash",
+                "validation_id": "validation-1",
+                "candidate_state_path": "/private/path",
+            })}
+
+    monkeypatch.setattr(
+        api_sources.requests, "get", lambda *args, **kwargs: PublicationXCom()
+    )
+    evidence = api_sources._silver_publication_evidence(
+        "http://airflow/run", []
+    )
+    assert evidence["status"] == "PUBLISHED"
+    assert evidence["publication_hash"] == "published-hash"
+    assert "candidate_state_path" not in evidence
 
 
 def test_api_source_metadata_is_normalized_for_persistence():

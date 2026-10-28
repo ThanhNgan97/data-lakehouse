@@ -36,6 +36,7 @@ from gx_candidate_state import (
     CandidateAssetIdentity,
     CandidateState,
     candidate_state_path,
+    load_candidate_state,
     retry_stable_branch_name,
     save_candidate_state,
 )
@@ -465,6 +466,26 @@ def command_prepare_silver_candidate(
     batch_id = _latest_committed_batch_id(config.dataset)
     processor = _load_callable(str(config.silver_processor))
     branch = retry_stable_branch_name("gx_api_silver", config.dataset, run_id)
+    root = Path(
+        os.getenv("GX_CANDIDATE_STATE_ROOT", "/opt/airflow/logs/gx-candidates")
+    )
+    state_file = candidate_state_path(root, config.dataset, run_id)
+    if state_file.is_file():
+        existing = load_candidate_state(state_file)
+        if (
+            existing.dataset_id != config.dataset
+            or existing.run_id != run_id
+            or existing.source_kind != "api"
+            or existing.candidate_branch != branch
+        ):
+            raise RuntimeError("Existing candidate state does not match this API run")
+        print(f"CANDIDATE_STATE_PATH={state_file}")
+        print("PREPARE_SILVER_CANDIDATE_REPLAY=True")
+        return
+    if get_nessie_reference_hash(branch, missing_ok=True) is not None:
+        raise RuntimeError(
+            "Candidate branch exists without durable state; refuse unsafe retry"
+        )
     spark = get_spark_session()
     spark.sparkContext.setLogLevel("WARN")
 
@@ -502,9 +523,6 @@ def command_prepare_silver_candidate(
                     (config.silver_table, config.quarantine_table), identities
                 )
             ),
-        )
-        root = Path(
-            os.getenv("GX_CANDIDATE_STATE_ROOT", "/opt/airflow/logs/gx-candidates")
         )
         state_file = save_candidate_state(
             state,

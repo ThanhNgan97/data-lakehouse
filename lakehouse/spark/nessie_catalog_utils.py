@@ -24,7 +24,7 @@ CATALOG_NAME = "lakehouse"  # trùng với spark.sql.catalog.lakehouse
 QUY_DANH_GIA_UNKNOWN = "UNKNOWN_KY"
 
 
-def get_nessie_reference_hash(reference: str) -> str:
+def get_nessie_reference_hash(reference: str, *, missing_ok: bool = False) -> str | None:
     """Resolve one Nessie reference hash and reject missing/non-branch refs."""
     safe_reference = str(reference or "").strip()
     if not safe_reference:
@@ -33,6 +33,8 @@ def get_nessie_reference_hash(reference: str) -> str:
         f"{NESSIE_API_URL.rstrip('/')}/trees/tree/{quote(safe_reference, safe='')}",
         timeout=15,
     )
+    if missing_ok and response.status_code == 404:
+        return None
     response.raise_for_status()
     payload = response.json()
     if payload.get("type") != "BRANCH" or not payload.get("hash"):

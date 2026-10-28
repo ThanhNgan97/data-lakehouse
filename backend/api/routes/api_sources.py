@@ -160,6 +160,43 @@ def _gx_evidence_for_run(airflow_base: str, tasks: list[dict[str, Any]]):
     return evidence
 
 
+def _silver_publication_evidence(airflow_base: str, tasks: list[dict[str, Any]]):
+    task_id = "publish_silver_candidate"
+    response = requests.get(
+        f"{airflow_base}/taskInstances/{task_id}/xcomEntries/return_value",
+        auth=_airflow_auth(),
+        timeout=5,
+    )
+    value = (
+        _parse_airflow_xcom(response.json().get("value"))
+        if response.status_code == 200
+        else None
+    )
+    if value:
+        return {
+            "task_id": task_id,
+            "status": value.get("status", "RESULT_UNAVAILABLE"),
+            "dataset_id": value.get("dataset_id"),
+            "candidate_branch": value.get("candidate_branch"),
+            "candidate_hash": value.get("candidate_hash"),
+            "publication_hash": value.get("publication_hash"),
+            "validation_id": value.get("validation_id"),
+        }
+    state = next(
+        (item.get("state") for item in tasks if item.get("task_id") == task_id),
+        None,
+    )
+    status = {
+        "failed": "FAILED",
+        "upstream_failed": "BLOCKED",
+        "running": "RUNNING",
+        "queued": "PENDING",
+        "success": "RESULT_UNAVAILABLE",
+        "skipped": "SKIPPED",
+    }.get(state, "PENDING" if state else "NOT_AVAILABLE")
+    return {"task_id": task_id, "status": status}
+
+
 def _mock_headers():
     return {"Authorization": f"Bearer {MOCK_API_KEY}"} if MOCK_API_KEY else {}
 
@@ -698,6 +735,13 @@ def get_api_dataset_pipeline_status(
                 {"task_id": task_id, "layer": layer, "status": "RESULT_UNAVAILABLE"}
                 for task_id, layer in GX_API_TASKS
             ]
+        try:
+            silver_publication = _silver_publication_evidence(airflow_base, tasks)
+        except requests.RequestException:
+            silver_publication = {
+                "task_id": "publish_silver_candidate",
+                "status": "RESULT_UNAVAILABLE",
+            }
         return {
             "dag_id": AIRFLOW_API_DAG_ID,
             "dag_run_id": dag_run_id,
@@ -706,6 +750,7 @@ def get_api_dataset_pipeline_status(
             "end_date": run.get("end_date"),
             "tasks": tasks,
             "gx_validations": gx_validations,
+            "silver_publication": silver_publication,
         }
     except HTTPException:
         raise

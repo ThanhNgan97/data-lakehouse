@@ -68,7 +68,11 @@ class SnapshotAwareQualityGateTest(unittest.TestCase):
     def setUp(self):
         self.environment = patch.dict(
             "os.environ",
-            {"GX_APPROVAL_SECRET": "unit-test-secret-that-is-at-least-32-chars"},
+            {
+                "GX_APPROVAL_SIGNING_KEY_ID": "test-key",
+                "GX_APPROVAL_PRIVATE_KEY": "mhhz/j9TRR3mbxkFcd8Alqxr7N4NBZUtj6gXGn7xt+Y=",
+                "GX_APPROVAL_PUBLIC_KEYS": '{"test-key":"7VfexdIjq7grSVgW/4x+kP4d1wg+296V+txcBCOhHOA="}',
+            },
         )
         self.environment.start()
         self.addCleanup(self.environment.stop)

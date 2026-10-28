@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import os
+import base64
+import json
 from dataclasses import dataclass
 
 from .errors import ValidationConfigurationError
 from .models import ExecutionMode
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 
 def _boolean(name: str, default: bool) -> bool:
@@ -51,14 +55,45 @@ class ProductionSettings:
                 raise ValidationConfigurationError(
                     "GX_REDACT_OBSERVED_VALUES must be true in production"
                 )
-            approval_secret = os.getenv("GX_APPROVAL_SECRET", "").strip()
+            signing_key_id = os.getenv("GX_APPROVAL_SIGNING_KEY_ID", "").strip()
+            private_key = os.getenv("GX_APPROVAL_PRIVATE_KEY", "").strip()
+            public_keys = os.getenv("GX_APPROVAL_PUBLIC_KEYS", "").strip()
             if (
-                len(approval_secret) < 32
-                or approval_secret == "development-only-gx-approval-secret-change-me"
+                not signing_key_id
+                or signing_key_id == "development"
+                or not private_key
+                or not public_keys
             ):
                 raise ValidationConfigurationError(
-                    "Production requires a non-default GX_APPROVAL_SECRET "
-                    "with at least 32 characters"
+                    "Production requires non-development Ed25519 approval keys"
+                )
+            try:
+                private = Ed25519PrivateKey.from_private_bytes(
+                    base64.b64decode(private_key, validate=True)
+                )
+                keyring = json.loads(public_keys)
+                configured_public = base64.b64decode(
+                    str(keyring[signing_key_id]), validate=True
+                )
+                derived_public = private.public_key().public_bytes(
+                    Encoding.Raw, PublicFormat.Raw
+                )
+            except Exception as exc:
+                raise ValidationConfigurationError(
+                    "Production Ed25519 approval key material is invalid"
+                ) from exc
+            if configured_public != derived_public:
+                raise ValidationConfigurationError(
+                    "Production approval private/public keys do not match"
+                )
+            revoked = {
+                item.strip()
+                for item in os.getenv("GX_APPROVAL_REVOKED_KEY_IDS", "").split(",")
+                if item.strip()
+            }
+            if signing_key_id in revoked:
+                raise ValidationConfigurationError(
+                    "Production approval signing key is revoked"
                 )
             service_token = os.getenv("GX_SERVICE_TOKEN", "").strip()
             if (

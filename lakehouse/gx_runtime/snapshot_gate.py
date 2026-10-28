@@ -54,6 +54,8 @@ class QualityGateApproval:
     issued_at: str
     expires_at: str
     receipt_version: str
+    algorithm: str
+    key_id: str
     signature: str
     merge_allowed: bool = True
 

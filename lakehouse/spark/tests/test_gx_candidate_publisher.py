@@ -76,7 +76,11 @@ def identity(asset, branch, snapshot, commit):
 class CandidatePublisherTest(unittest.TestCase):
     def setUp(self):
         self.secret = patch.dict(
-            "os.environ", {"GX_APPROVAL_SECRET": "unit-test-secret-that-is-at-least-32-chars"}
+            "os.environ", {
+                "GX_APPROVAL_SIGNING_KEY_ID": "test-key",
+                "GX_APPROVAL_PRIVATE_KEY": "mhhz/j9TRR3mbxkFcd8Alqxr7N4NBZUtj6gXGn7xt+Y=",
+                "GX_APPROVAL_PUBLIC_KEYS": '{"test-key":"7VfexdIjq7grSVgW/4x+kP4d1wg+296V+txcBCOhHOA="}',
+            }
         )
         self.secret.start()
         self.addCleanup(self.secret.stop)

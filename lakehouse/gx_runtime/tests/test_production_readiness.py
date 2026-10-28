@@ -48,12 +48,14 @@ class ProductionReadinessTest(unittest.TestCase):
             "GX_ENVIRONMENT": "production",
             "GX_SUITE_REVISION": "git-sha",
             "GX_REDACT_OBSERVED_VALUES": "true",
-            "GX_APPROVAL_SECRET": "development-only-gx-approval-secret-change-me",
+            "GX_APPROVAL_SIGNING_KEY_ID": "development",
+            "GX_APPROVAL_PRIVATE_KEY": "mhhz/j9TRR3mbxkFcd8Alqxr7N4NBZUtj6gXGn7xt+Y=",
+            "GX_APPROVAL_PUBLIC_KEYS": '{"development":"7VfexdIjq7grSVgW/4x+kP4d1wg+296V+txcBCOhHOA="}',
         },
         clear=True,
     )
-    def test_production_refuses_default_approval_secret(self):
-        with self.assertRaisesRegex(ValidationConfigurationError, "non-default"):
+    def test_production_refuses_development_approval_key(self):
+        with self.assertRaisesRegex(ValidationConfigurationError, "Ed25519"):
             ProductionSettings.from_env()
 
     @patch.dict(
@@ -62,7 +64,9 @@ class ProductionReadinessTest(unittest.TestCase):
             "GX_ENVIRONMENT": "production",
             "GX_SUITE_REVISION": "git-sha",
             "GX_REDACT_OBSERVED_VALUES": "true",
-            "GX_APPROVAL_SECRET": "production-approval-secret-with-32-characters",
+            "GX_APPROVAL_SIGNING_KEY_ID": "production-2026-10",
+            "GX_APPROVAL_PRIVATE_KEY": "mhhz/j9TRR3mbxkFcd8Alqxr7N4NBZUtj6gXGn7xt+Y=",
+            "GX_APPROVAL_PUBLIC_KEYS": '{"production-2026-10":"7VfexdIjq7grSVgW/4x+kP4d1wg+296V+txcBCOhHOA="}',
             "GX_SERVICE_TOKEN": "development-only-gx-service-token-change-me",
         },
         clear=True,
@@ -77,7 +81,9 @@ class ProductionReadinessTest(unittest.TestCase):
             "GX_ENVIRONMENT": "production",
             "GX_SUITE_REVISION": "git-sha",
             "GX_REDACT_OBSERVED_VALUES": "true",
-            "GX_APPROVAL_SECRET": "production-approval-secret-with-32-characters",
+            "GX_APPROVAL_SIGNING_KEY_ID": "production-2026-10",
+            "GX_APPROVAL_PRIVATE_KEY": "mhhz/j9TRR3mbxkFcd8Alqxr7N4NBZUtj6gXGn7xt+Y=",
+            "GX_APPROVAL_PUBLIC_KEYS": '{"production-2026-10":"7VfexdIjq7grSVgW/4x+kP4d1wg+296V+txcBCOhHOA="}',
             "GX_SERVICE_TOKEN": "production-service-token-with-32-characters",
             "GX_ALLOW_PILOT_CONTRACTS": "true",
         },

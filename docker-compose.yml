@@ -332,7 +332,10 @@ services:
       GX_SPARK_MASTER: ${GX_SPARK_MASTER:-local[2]}
       GX_HTTP_PORT: '8090'
       GX_ENVIRONMENT: ${GX_ENVIRONMENT:-development}
-      GX_APPROVAL_SECRET: ${GX_APPROVAL_SECRET:-development-only-gx-approval-secret-change-me}
+      GX_APPROVAL_SIGNING_KEY_ID: ${GX_APPROVAL_SIGNING_KEY_ID:-development}
+      GX_APPROVAL_PRIVATE_KEY: ${GX_APPROVAL_PRIVATE_KEY:-mhhz/j9TRR3mbxkFcd8Alqxr7N4NBZUtj6gXGn7xt+Y=}
+      GX_APPROVAL_PUBLIC_KEYS: '${GX_APPROVAL_PUBLIC_KEYS:-{"development":"7VfexdIjq7grSVgW/4x+kP4d1wg+296V+txcBCOhHOA="}}'
+      GX_APPROVAL_REVOKED_KEY_IDS: ${GX_APPROVAL_REVOKED_KEY_IDS:-}
       GX_APPROVAL_TTL_SECONDS: ${GX_APPROVAL_TTL_SECONDS:-900}
       GX_SERVICE_TOKEN: ${GX_SERVICE_TOKEN:-development-only-gx-service-token-change-me}
       GX_ALLOWED_CALLERS: ${GX_ALLOWED_CALLERS:-airflow,gx-admin}
@@ -489,7 +492,8 @@ services:
       TRINO_PORT: '8080'
       TRINO_HTTP_URL: 'http://trino:8080'
       GX_SERVICE_URL: 'http://gx-validator:8090'
-      GX_APPROVAL_SECRET: ${GX_APPROVAL_SECRET:-development-only-gx-approval-secret-change-me}
+      GX_APPROVAL_PUBLIC_KEYS: '${GX_APPROVAL_PUBLIC_KEYS:-{"development":"7VfexdIjq7grSVgW/4x+kP4d1wg+296V+txcBCOhHOA="}}'
+      GX_APPROVAL_REVOKED_KEY_IDS: ${GX_APPROVAL_REVOKED_KEY_IDS:-}
       GX_SERVICE_TOKEN: ${GX_SERVICE_TOKEN:-development-only-gx-service-token-change-me}
       GX_CALLER_ID: airflow
       GX_ALLOW_PILOT_CONTRACTS: ${GX_ALLOW_PILOT_CONTRACTS:-true}
@@ -558,7 +562,8 @@ services:
       TRINO_PORT: '8080'
       TRINO_HTTP_URL: 'http://trino:8080'
       GX_SERVICE_URL: 'http://gx-validator:8090'
-      GX_APPROVAL_SECRET: ${GX_APPROVAL_SECRET:-development-only-gx-approval-secret-change-me}
+      GX_APPROVAL_PUBLIC_KEYS: '${GX_APPROVAL_PUBLIC_KEYS:-{"development":"7VfexdIjq7grSVgW/4x+kP4d1wg+296V+txcBCOhHOA="}}'
+      GX_APPROVAL_REVOKED_KEY_IDS: ${GX_APPROVAL_REVOKED_KEY_IDS:-}
       GX_SERVICE_TOKEN: ${GX_SERVICE_TOKEN:-development-only-gx-service-token-change-me}
       GX_CALLER_ID: airflow
       GX_ALLOW_PILOT_CONTRACTS: ${GX_ALLOW_PILOT_CONTRACTS:-true}

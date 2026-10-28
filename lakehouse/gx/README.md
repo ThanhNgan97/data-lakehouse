@@ -60,6 +60,18 @@ remains the only component allowed to merge the candidate. A rejected candidate
 may instead transition to `DISCARDED`. Updates use the object ETag as an
 optimistic concurrency guard.
 
+## Publication receipt keys
+
+GX publication approvals use Ed25519 (`gx-approval/v2`). Only the standalone
+GX validator receives `GX_APPROVAL_PRIVATE_KEY`; Airflow publishers receive the
+JSON public-key ring in `GX_APPROVAL_PUBLIC_KEYS`. Every receipt carries a
+`key_id`, algorithm, issue/expiry timestamps, and the exact candidate identity.
+
+Rotate keys by adding the new public key to the key ring, switching
+`GX_APPROVAL_SIGNING_KEY_ID` and the validator private key, waiting for the old
+receipt TTL, then removing the old public key. Emergency revocation uses
+`GX_APPROVAL_REVOKED_KEY_IDS`; revoked keys cannot sign or authorize publish.
+
 ## Production operations
 
 Start the optional monitoring profile with:

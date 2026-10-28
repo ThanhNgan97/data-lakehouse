@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+import os
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
@@ -15,7 +16,11 @@ class GXApprovalReceiptTest(unittest.TestCase):
     def setUp(self):
         self.environment = patch.dict(
             "os.environ",
-            {"GX_APPROVAL_SECRET": "unit-test-secret-that-is-at-least-32-chars"},
+            {
+                "GX_APPROVAL_SIGNING_KEY_ID": "test-key",
+                "GX_APPROVAL_PRIVATE_KEY": "mhhz/j9TRR3mbxkFcd8Alqxr7N4NBZUtj6gXGn7xt+Y=",
+                "GX_APPROVAL_PUBLIC_KEYS": '{"test-key":"7VfexdIjq7grSVgW/4x+kP4d1wg+296V+txcBCOhHOA="}',
+            },
         )
         self.environment.start()
         self.addCleanup(self.environment.stop)
@@ -40,7 +45,9 @@ class GXApprovalReceiptTest(unittest.TestCase):
         verified = verify_approval_receipt(
             receipt, expected=self.claims, now=self.now + timedelta(seconds=30)
         )
-        self.assertEqual(verified["receipt_version"], "gx-approval/v1")
+        self.assertEqual(verified["receipt_version"], "gx-approval/v2")
+        self.assertEqual(verified["algorithm"], "Ed25519")
+        self.assertEqual(verified["key_id"], "test-key")
 
     def test_tampering_and_expiration_fail_closed(self):
         receipt = sign_approval_receipt(self.claims, now=self.now, ttl_seconds=60)
@@ -51,6 +58,25 @@ class GXApprovalReceiptTest(unittest.TestCase):
             verify_approval_receipt(
                 receipt, expected=self.claims, now=self.now + timedelta(seconds=60)
             )
+
+    def test_unknown_and_revoked_keys_fail_closed(self):
+        receipt = sign_approval_receipt(self.claims, now=self.now, ttl_seconds=60)
+        with patch.dict(os.environ, {"GX_APPROVAL_PUBLIC_KEYS": '{"other":"7VfexdIjq7grSVgW/4x+kP4d1wg+296V+txcBCOhHOA="}'}), self.assertRaisesRegex(
+            GXApprovalReceiptError, "not trusted"
+        ):
+            verify_approval_receipt(receipt, expected=self.claims, now=self.now)
+
+    def test_publisher_can_verify_but_cannot_sign_with_public_key_only(self):
+        receipt = sign_approval_receipt(self.claims, now=self.now, ttl_seconds=60)
+        with patch.dict(os.environ, {"GX_APPROVAL_PRIVATE_KEY": ""}):
+            verified = verify_approval_receipt(receipt, expected=self.claims, now=self.now)
+            self.assertEqual(verified["key_id"], "test-key")
+            with self.assertRaisesRegex(GXApprovalReceiptError, "not configured"):
+                sign_approval_receipt(self.claims, now=self.now, ttl_seconds=60)
+        with patch.dict(os.environ, {"GX_APPROVAL_REVOKED_KEY_IDS": "test-key"}), self.assertRaisesRegex(
+            GXApprovalReceiptError, "revoked"
+        ):
+            verify_approval_receipt(receipt, expected=self.claims, now=self.now)
 
 
 if __name__ == "__main__":

@@ -8,25 +8,8 @@ from typing import Any
 
 from gx_airflow_adapter import execute_quality_gate
 from gx_route_resolver import resolve_route
-from gx_universal_gate import SnapshotIdentity, resolve_snapshot_identity
-
-
-def build_reconciliation_request(
-    *, dataset_id: str, run_id: str, contract_version: str,
-    source_kind: str, identity: SnapshotIdentity,
-) -> dict[str, Any]:
-    return {
-        "dataset_id": dataset_id,
-        "data_layer": "reconciliation",
-        "contract_version": contract_version,
-        "source_kind": source_kind,
-        "run_id": run_id,
-        "nessie_branch": identity.branch,
-        "snapshot_id": identity.snapshot_id,
-        "nessie_commit_hash": identity.commit_hash,
-        "execution_engine": "sql",
-        "execution_mode": os.getenv("GX_RECONCILIATION_GATE_MODE", "enforce"),
-    }
+from gx_universal_gate import resolve_snapshot_identity
+from gx_validation_request import GXTableValidationRequest
 
 
 def validate_silver_gold_reconciliation(
@@ -50,13 +33,18 @@ def validate_silver_gold_reconciliation(
     # compares both Silver and Gold under the same Nessie branch/commit.
     identity = resolve_snapshot_identity(route.data_asset_ref, branch)
     result = execute_quality_gate(
-        build_reconciliation_request(
+        GXTableValidationRequest(
             dataset_id=dataset_id,
+            data_layer="reconciliation",
             run_id=run_id,
             contract_version=route.contract_version,
             source_kind=source_kind,
-            identity=identity,
-        ),
+            data_asset_ref=route.data_asset_ref,
+            nessie_branch=identity.branch,
+            snapshot_id=identity.snapshot_id,
+            nessie_commit_hash=identity.commit_hash,
+            execution_mode=os.getenv("GX_RECONCILIATION_GATE_MODE", "enforce"),
+        ).as_payload(),
         service_url=os.getenv("GX_SERVICE_URL", "http://gx-validator:8090"),
         timeout_seconds=float(
             os.getenv("GX_RECONCILIATION_GATE_TIMEOUT_SECONDS", "300")

@@ -8,19 +8,6 @@ from gx_universal_gate import SnapshotIdentity
 
 
 class GXGoldGateTest(unittest.TestCase):
-    def test_request_targets_gold_with_exact_identity(self):
-        payload = gate.build_gold_validation_request(
-            dataset_id=LEARNING_OUTCOMES_DATASET,
-            run_id="portal_api__learning",
-            contract_version="1.0.0",
-            source_kind="api",
-            identity=SnapshotIdentity("main", "gold-snapshot", "gold-commit"),
-        )
-        self.assertEqual(payload["data_layer"], "gold")
-        self.assertEqual(payload["source_kind"], "api")
-        self.assertEqual(payload["snapshot_id"], "gold-snapshot")
-        self.assertEqual(payload["nessie_commit_hash"], "gold-commit")
-
     @patch("gx_gold_gate.execute_quality_gate")
     @patch("gx_gold_gate.resolve_snapshot_identity")
     def test_published_gold_is_validated_and_bounded(self, resolve, execute):
@@ -42,6 +29,7 @@ class GXGoldGateTest(unittest.TestCase):
         )
         payload = execute.call_args.args[0]
         self.assertEqual(payload["data_layer"], "gold")
+        self.assertEqual(payload["data_asset_ref"], "lakehouse.gold.learning_outcomes_metrics")
         self.assertEqual(payload["execution_mode"], "enforce")
         self.assertEqual(result["data_asset_ref"], "lakehouse.gold.learning_outcomes_metrics")
         self.assertEqual(result["integration_status"], "PASSED")

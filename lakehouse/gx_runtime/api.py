@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import signal
 from time import perf_counter
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -12,6 +11,17 @@ from threading import Thread
 from typing import Any
 
 from sqlalchemy import create_engine
+
+try:
+    from gx_validation_request import (
+        GXTableValidationRequest,
+        GXValidationRequestError,
+    )
+except ModuleNotFoundError:  # Local repository tests import through lakehouse.
+    from spark.gx_validation_request import (
+        GXTableValidationRequest,
+        GXValidationRequestError,
+    )
 
 from .contracts import ContractRegistry
 from .engines import SqlAlchemyTableEngine, VersionedSqlSuiteExecutor
@@ -45,11 +55,6 @@ from .snapshot_gate import NessieSnapshotResolver, SnapshotAwareQualityGate
 from .storage import result_store_from_env
 from .suite_registry import SuiteRegistry
 from .validation_registry import DatasetValidationRegistry
-
-
-_BASELINE_ASSET_PATTERN = re.compile(
-    r"^lakehouse\.silver\.[A-Za-z_][A-Za-z0-9_]*$"
-)
 
 
 class CapturingStore:
@@ -157,58 +162,34 @@ class TableValidationApplication:
             )
 
     def _validate(self, body: dict[str, Any]) -> tuple[dict[str, Any], Any]:
-        required = {
-            "dataset_id", "data_layer", "source_kind",
-            "run_id", "nessie_branch", "snapshot_id", "nessie_commit_hash",
-        }
-        missing = sorted(required - body.keys())
-        if missing:
-            raise ValidationConfigurationError(
-                "Validation request is missing: " + ", ".join(missing)
-            )
         try:
-            engine = ExecutionEngine(body.get("execution_engine", "sql"))
-            source_kind = SourceKind(body["source_kind"])
-            execution_mode = ExecutionMode(body.get("execution_mode", "enforce"))
-        except ValueError as exc:
+            request = GXTableValidationRequest.from_mapping(body)
+            engine = ExecutionEngine(request.execution_engine)
+            source_kind = SourceKind(request.source_kind)
+            execution_mode = ExecutionMode(request.execution_mode)
+            coverage = ValidationCoverage(request.coverage)
+        except (GXValidationRequestError, ValueError) as exc:
             raise ValidationConfigurationError(
-                f"Invalid validation enum: {exc}"
+                f"Invalid GX table validation request: {exc}"
             ) from exc
         self.production.validate_mode(execution_mode)
         if engine is not ExecutionEngine.SQL:
             raise ValidationConfigurationError(
                 "HTTP table validation currently supports the SQL engine only"
             )
-        requested_branch = str(body["nessie_branch"])
+        requested_branch = request.nessie_branch
         catalog_branch = os.getenv("GX_TRINO_NESSIE_BRANCH", "main")
         if requested_branch != catalog_branch:
             raise ValidationConfigurationError(
                 "Requested branch is not mounted by this Trino-backed GX service; "
                 "deploy it with GX_TRINO_NESSIE_BRANCH matching the candidate"
             )
-        try:
-            coverage = ValidationCoverage(
-                str(body.get("coverage", "CONTRACT")).upper()
-            )
-        except ValueError as exc:
-            raise ValidationConfigurationError(
-                f"Invalid validation coverage: {body.get('coverage')}"
-            ) from exc
         if coverage is ValidationCoverage.BASELINE:
-            if str(body["data_layer"]) != "silver":
-                raise ValidationConfigurationError(
-                    "Baseline table validation currently supports Silver only"
-                )
-            asset = str(body.get("data_asset_ref") or "")
-            if not _BASELINE_ASSET_PATTERN.fullmatch(asset):
-                raise ValidationConfigurationError(
-                    "Baseline data_asset_ref must target lakehouse.silver"
-                )
             plan = ValidationPlan(
-                dataset_id=str(body["dataset_id"]),
+                dataset_id=request.dataset_id,
                 data_layer="silver",
                 contract_version="baseline-1.0.0",
-                data_asset_ref=asset,
+                data_asset_ref=request.data_asset_ref,
                 execution_engine=engine,
                 suites=(SuiteReference("lakehouse_baseline_silver", "1.0.0"),),
                 source_kind=source_kind,
@@ -216,21 +197,22 @@ class TableValidationApplication:
             contract_status = ContractStatus.MISSING
         else:
             plan = self.routes.resolve(
-                dataset_id=str(body["dataset_id"]),
-                data_layer=str(body["data_layer"]),
-                contract_version=(
-                    str(body["contract_version"])
-                    if body.get("contract_version") is not None
-                    else None
-                ),
+                dataset_id=request.dataset_id,
+                data_layer=request.data_layer,
+                contract_version=request.contract_version,
                 execution_engine=engine,
                 source_kind=source_kind,
             )
+            if request.data_asset_ref != plan.data_asset_ref:
+                raise ValidationConfigurationError(
+                    "GX request asset does not match the canonical route: "
+                    f"{request.data_asset_ref!r} != {plan.data_asset_ref!r}"
+                )
             contract_status = ContractStatus.APPROVED
         current = self.resolver.resolve(plan.data_asset_ref, requested_branch)
         requested_identity = (
-            str(body["snapshot_id"]),
-            str(body["nessie_commit_hash"]),
+            request.snapshot_id,
+            request.nessie_commit_hash,
         )
         if requested_identity != (current.snapshot_id, current.nessie_commit_hash):
             self.revocations.save(
@@ -257,7 +239,7 @@ class TableValidationApplication:
             contract_version=plan.contract_version,
             suite_names=tuple(suite.name for suite in plan.suites),
             suite_versions={suite.name: suite.version for suite in plan.suites},
-            run_id=str(body["run_id"]),
+            run_id=request.run_id,
             nessie_branch=current.nessie_branch,
             snapshot_id=current.snapshot_id,
             nessie_commit_hash=current.nessie_commit_hash,

@@ -33,6 +33,7 @@ RUN pyspark --version >/dev/null \
     && rm -rf /home/gx/.ivy2 /tmp/resolve_spark_dependencies.py
 
 COPY --chown=gx:gx lakehouse/gx_runtime /opt/gx/gx_runtime
+COPY --chown=gx:gx lakehouse/spark/gx_validation_request.py /opt/gx/gx_validation_request.py
 COPY --chown=gx:gx lakehouse/gx /opt/gx/config
 
 WORKDIR /opt/gx

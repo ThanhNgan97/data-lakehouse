@@ -36,7 +36,10 @@ class AirflowApiContractTest(unittest.TestCase):
 
     def test_malformed_request_is_configuration_error(self):
         application = TableValidationApplication.__new__(TableValidationApplication)
-        with self.assertRaisesRegex(ValidationConfigurationError, "missing"):
+        with self.assertRaisesRegex(
+            ValidationConfigurationError,
+            "Invalid GX table validation request",
+        ):
             application.validate({})
 
 

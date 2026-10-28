@@ -28,8 +28,9 @@ with DAG(
             type="object",
             title="Snapshot-aware GX validation request",
             required=[
-                "dataset_id", "data_layer", "contract_version", "source_kind",
-                "run_id", "nessie_branch", "snapshot_id", "nessie_commit_hash",
+                "dataset_id", "data_layer", "source_kind", "run_id",
+                "data_asset_ref", "nessie_branch", "snapshot_id",
+                "nessie_commit_hash",
             ],
         )
     },

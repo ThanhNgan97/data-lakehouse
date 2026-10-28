@@ -77,6 +77,24 @@ class GXTableValidationRequestTest(unittest.TestCase):
         value = request(contract_version=None)
         self.assertIsNone(value.as_payload()["contract_version"])
 
+    def test_physical_asset_round_trip_preserves_canonical_contract_identity(self):
+        physical = "lakehouse.gold.metrics_0123456789abcdef01234567"
+        original = request(
+            data_layer="gold",
+            data_asset_ref="lakehouse.gold.metrics",
+            physical_data_asset_ref=physical,
+        )
+        restored = GXTableValidationRequest.from_mapping(original.as_payload())
+
+        self.assertEqual(restored, original)
+        self.assertEqual(restored.data_asset_ref, "lakehouse.gold.metrics")
+        self.assertEqual(restored.execution_asset_ref, physical)
+        self.assertEqual(request().execution_asset_ref, request().data_asset_ref)
+
+    def test_unsafe_physical_asset_is_rejected(self):
+        with self.assertRaises(GXValidationRequestError):
+            request(physical_data_asset_ref="lakehouse.gold.x; DROP TABLE y")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

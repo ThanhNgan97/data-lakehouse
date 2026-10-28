@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
 from gx_runtime.candidate_engine import CandidateSparkSqlSuiteExecutor
@@ -70,6 +71,26 @@ def request(branch="candidate_1"):
 
 
 class CandidateSparkSqlSuiteExecutorTest(unittest.TestCase):
+    def test_reconciliation_query_targets_gold_alias_and_candidate_silver(self):
+        digest = "0123456789abcdef01234567"
+        candidate_request = replace(
+            request(),
+            data_asset_ref=f"lakehouse.gold.teaching_progress_metrics_{digest}",
+        )
+        value = CandidateSparkSqlSuiteExecutor._candidate_query(
+            "SELECT * FROM lakehouse.gold.teaching_progress_metrics "
+            "JOIN lakehouse.silver.teaching_progress USING (ma_ban_ghi)",
+            candidate_request,
+            "gx_candidate_1",
+        )
+
+        self.assertIn(
+            f"gx_candidate_1.gold.teaching_progress_metrics_{digest}", value
+        )
+        self.assertIn("gx_candidate_1.silver.teaching_progress", value)
+        self.assertNotIn("lakehouse.gold", value)
+        self.assertNotIn("lakehouse.silver", value)
+
     def test_executes_sql_suite_on_request_scoped_catalog(self):
         spark = FakeSpark((0.0, 0, 4, 1, 0))
         executor = CandidateSparkSqlSuiteExecutor(

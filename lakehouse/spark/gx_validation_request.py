@@ -42,6 +42,7 @@ class GXTableValidationRequest:
     execution_engine: str = "sql"
     execution_mode: str = "enforce"
     coverage: str = "CONTRACT"
+    physical_data_asset_ref: str | None = None
 
     def __post_init__(self) -> None:
         text_fields = (
@@ -58,6 +59,12 @@ class GXTableValidationRequest:
                 "contract_version",
                 _required_text("contract_version", self.contract_version),
             )
+        if self.physical_data_asset_ref is not None:
+            object.__setattr__(
+                self,
+                "physical_data_asset_ref",
+                _required_text("physical_data_asset_ref", self.physical_data_asset_ref),
+            )
         object.__setattr__(self, "coverage", self.coverage.upper())
         object.__setattr__(self, "execution_engine", self.execution_engine.lower())
         object.__setattr__(self, "execution_mode", self.execution_mode.lower())
@@ -69,6 +76,13 @@ class GXTableValidationRequest:
         if not _ASSET_PATTERN.fullmatch(self.data_asset_ref):
             raise GXValidationRequestError(
                 f"Unsafe GX data_asset_ref {self.data_asset_ref!r}"
+            )
+        if (
+            self.physical_data_asset_ref is not None
+            and not _ASSET_PATTERN.fullmatch(self.physical_data_asset_ref)
+        ):
+            raise GXValidationRequestError(
+                f"Unsafe GX physical_data_asset_ref {self.physical_data_asset_ref!r}"
             )
         if self.data_layer not in _LAYERS:
             raise GXValidationRequestError(f"Unsupported data_layer {self.data_layer!r}")
@@ -111,6 +125,7 @@ class GXTableValidationRequest:
             execution_engine=payload.get("execution_engine", "sql"),
             execution_mode=payload.get("execution_mode", "enforce"),
             coverage=payload.get("coverage", "CONTRACT"),
+            physical_data_asset_ref=payload.get("physical_data_asset_ref"),
         )
 
     def as_payload(self) -> dict[str, Any]:
@@ -127,4 +142,9 @@ class GXTableValidationRequest:
             "execution_engine": self.execution_engine,
             "execution_mode": self.execution_mode,
             "coverage": self.coverage,
+            "physical_data_asset_ref": self.physical_data_asset_ref,
         }
+
+    @property
+    def execution_asset_ref(self) -> str:
+        return self.physical_data_asset_ref or self.data_asset_ref

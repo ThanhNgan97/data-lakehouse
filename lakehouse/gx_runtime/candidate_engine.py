@@ -56,6 +56,11 @@ class CandidateSparkSqlSuiteExecutor:
         value = query.replace("{data_asset_ref}", candidate_asset)
         value = value.replace("{data_asset_schema}", schema)
         value = value.replace("{data_asset_table}", table)
+        alias_match = re.fullmatch(r"(.+)_([0-9a-f]{24})", table)
+        if schema == "gold" and alias_match:
+            canonical = f"lakehouse.gold.{alias_match.group(1)}"
+            value = value.replace(canonical, candidate_asset)
+        value = value.replace("lakehouse.silver.", f"{catalog}.silver.")
         value = _DATE_DIFF_HOUR.sub(r"timestampdiff(HOUR, \1, current_timestamp())", value)
         return value.replace("lakehouse.information_schema", f"{catalog}.information_schema")
 

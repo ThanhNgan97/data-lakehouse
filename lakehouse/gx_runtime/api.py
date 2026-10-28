@@ -22,6 +22,16 @@ except ModuleNotFoundError:  # Local repository tests import through lakehouse.
         GXTableValidationRequest,
         GXValidationRequestError,
     )
+try:
+    from gx_candidate_binding import (
+        CandidateBindingError,
+        dbt_gold_candidate_binding,
+    )
+except ModuleNotFoundError:
+    from spark.gx_candidate_binding import (
+        CandidateBindingError,
+        dbt_gold_candidate_binding,
+    )
 
 from .contracts import ContractRegistry
 from .candidate_engine import CandidateSparkSqlSuiteExecutor
@@ -224,7 +234,26 @@ class TableValidationApplication:
                     f"{request.data_asset_ref!r} != {plan.data_asset_ref!r}"
                 )
             contract_status = ContractStatus.APPROVED
-        current = self.resolver.resolve(plan.data_asset_ref, requested_branch)
+        execution_asset_ref = request.execution_asset_ref
+        if execution_asset_ref != plan.data_asset_ref:
+            try:
+                binding = dbt_gold_candidate_binding(
+                    request.dataset_id,
+                    request.run_id,
+                    plan.data_asset_ref,
+                )
+            except CandidateBindingError as exc:
+                raise ValidationConfigurationError(str(exc)) from exc
+            if (
+                plan.data_layer not in {"gold", "reconciliation"}
+                or request.source_kind != "api"
+                or requested_branch != binding.candidate_branch
+                or execution_asset_ref != binding.physical_asset_ref
+            ):
+                raise ValidationConfigurationError(
+                    "Physical GX asset does not match the authorized dbt candidate binding"
+                )
+        current = self.resolver.resolve(execution_asset_ref, requested_branch)
         requested_identity = (
             request.snapshot_id,
             request.nessie_commit_hash,
@@ -248,7 +277,7 @@ class TableValidationApplication:
             raise error
         store = CapturingStore(result_store_from_env())
         summary = validate_table(
-            data_asset_ref=plan.data_asset_ref,
+            data_asset_ref=execution_asset_ref,
             dataset_id=plan.dataset_id,
             data_layer=plan.data_layer,
             contract_version=plan.contract_version,

@@ -116,14 +116,18 @@ def _is_airbyte_pipeline_run(dag_run_id: str) -> bool:
 
 def _dashboard_from_xcom(dag_run_id: str):
     airflow_base = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/{AIRFLOW_FILE_DAG_ID}/dagRuns/{dag_run_id}"
-    response = requests.get(
-        f"{airflow_base}/taskInstances/auto_provision_superset/xcomEntries/return_value",
-        auth=("airflow", "airflow"),
-        timeout=5,
-    )
-    if response.status_code != 200:
+    value = None
+    for task_id in ("provision_superset", "auto_provision_superset"):
+        response = requests.get(
+            f"{airflow_base}/taskInstances/{task_id}/xcomEntries/return_value",
+            auth=(AIRFLOW_API_USERNAME, AIRFLOW_API_PASSWORD),
+            timeout=5,
+        )
+        if response.status_code == 200:
+            value = response.json().get("value")
+            break
+    if value is None:
         return None
-    value = response.json().get("value")
     if isinstance(value, str):
         try:
             import json
@@ -162,7 +166,12 @@ def _gx_from_xcom(dag_run_id: str):
         f"/dagRuns/{dag_run_id}"
     )
     value = None
-    for task_id in ("gx_validate_database", "gx_validate_file_upload"):
+    for task_id in (
+        "gx_validate_file_candidate",
+        "onboarding_required",
+        "gx_validate_database",
+        "gx_validate_file_upload",
+    ):
         response = requests.get(
             f"{airflow_base}/taskInstances/{task_id}/xcomEntries/return_value",
             auth=(AIRFLOW_API_USERNAME, AIRFLOW_API_PASSWORD),
@@ -187,7 +196,10 @@ def _gx_task_state(tasks):
         (
             item for item in tasks
             if item.get("task_id") in {
-                "gx_validate_database", "gx_validate_file_upload",
+                "gx_validate_file_candidate",
+                "onboarding_required",
+                "gx_validate_database",
+                "gx_validate_file_upload",
             }
             and item.get("state") != "skipped"
         ),

@@ -16,7 +16,7 @@ from gx_validation_request import GXTableValidationRequest
 
 
 def _validate_candidate(
-    *, dataset_id: str, run_id: str, data_layer: str
+    *, dataset_id: str, run_id: str, data_layer: str, source_kind: str
 ) -> dict[str, Any]:
     if data_layer not in {"gold", "reconciliation"}:
         raise ValueError("dbt candidate GX supports Gold or reconciliation only")
@@ -27,7 +27,7 @@ def _validate_candidate(
     route = resolve_route(
         dataset_id=dataset_id,
         data_layer=data_layer,
-        source_kind="api",
+        source_kind=source_kind,
         execution_engine="sql",
     )
     binding = dbt_gold_candidate_binding(dataset_id, run_id, route.data_asset_ref)
@@ -55,7 +55,7 @@ def _validate_candidate(
         GXTableValidationRequest(
             dataset_id=dataset_id,
             data_layer=data_layer,
-            source_kind="api",
+            source_kind=source_kind,
             run_id=run_id,
             contract_version=route.contract_version,
             data_asset_ref=route.data_asset_ref,
@@ -79,19 +79,26 @@ def _validate_candidate(
         "physical_data_asset_ref": binding.physical_asset_ref,
         "candidate_branch": binding.candidate_branch,
         "candidate_hash": identity.commit_hash,
-        "source_kind": "api",
+        "source_kind": source_kind,
     })
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return result
 
 
-def validate_dbt_gold_candidate(*, dataset_id: str, run_id: str) -> dict[str, Any]:
+def validate_dbt_gold_candidate(
+    *, dataset_id: str, run_id: str, source_kind: str = "api"
+) -> dict[str, Any]:
     return _validate_candidate(
-        dataset_id=dataset_id, run_id=run_id, data_layer="gold"
+        dataset_id=dataset_id, run_id=run_id, data_layer="gold", source_kind=source_kind
     )
 
 
-def reconcile_dbt_gold_candidate(*, dataset_id: str, run_id: str) -> dict[str, Any]:
+def reconcile_dbt_gold_candidate(
+    *, dataset_id: str, run_id: str, source_kind: str = "api"
+) -> dict[str, Any]:
     return _validate_candidate(
-        dataset_id=dataset_id, run_id=run_id, data_layer="reconciliation"
+        dataset_id=dataset_id,
+        run_id=run_id,
+        data_layer="reconciliation",
+        source_kind=source_kind,
     )

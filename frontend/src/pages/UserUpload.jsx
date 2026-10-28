@@ -51,7 +51,10 @@ const PIPELINE_TASKS = [
   },
   {
     id: "transform",
-    taskIds: ["branch_router", "kpi_flow.bronze_to_silver", "generic_flow.process_dynamic_silver_gold"],
+    taskIds: [
+      "branch_router", "kpi_flow.bronze_to_silver", "generic_flow.process_dynamic_silver_gold",
+      "branch_contract_status", "prepare_file_silver_candidate", "build_gold_candidate",
+    ],
     label: "Transform",
     sub: "Chuẩn hóa dữ liệu",
     icon: "refresh",
@@ -64,6 +67,7 @@ const PIPELINE_TASKS = [
     id: "load",
     taskIds: [
       "kpi_flow.silver_to_gold", "join_and_smoke_test",
+      "publish_file_silver_candidate", "publish_gold_candidate", "trino_smoke_test",
     ],
     label: "Load",
     sub: "Nạp vào Lakehouse",
@@ -75,7 +79,10 @@ const PIPELINE_TASKS = [
   },
   {
     id: "quality",
-    taskIds: ["gx_validate_file_upload"],
+    taskIds: [
+      "gx_validate_file_upload", "gx_validate_file_candidate",
+      "gx_validate_gold_candidate", "gx_reconcile_candidate", "onboarding_required",
+    ],
     label: "GX Quality",
     sub: "Kiểm tra chất lượng dữ liệu",
     icon: "checkCircle",
@@ -86,7 +93,7 @@ const PIPELINE_TASKS = [
   },
   {
     id: "analyze",
-    taskIds: ["kpi_flow.predictive_analysis", "auto_provision_superset"],
+    taskIds: ["kpi_flow.predictive_analysis", "auto_provision_superset", "provision_superset", "archive_source"],
     label: "Analyze",
     sub: "Phân tích dữ liệu",
     icon: "analyze",

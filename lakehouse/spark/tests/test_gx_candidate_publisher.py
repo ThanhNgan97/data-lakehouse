@@ -3,10 +3,15 @@ from __future__ import annotations
 import io
 import json
 import unittest
+from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from gx_candidate_publisher import CandidatePublishError, publish_api_candidate
+from gx_candidate_publisher import (
+    CandidatePublishError,
+    publish_api_candidate,
+    publish_file_candidate,
+)
 from gx_candidate_state import CandidateAssetIdentity, CandidateState
 from gx_universal_gate import SnapshotIdentity
 
@@ -122,6 +127,26 @@ class CandidatePublisherTest(unittest.TestCase):
         )
         self.assertEqual(result["status"], "ALREADY_PUBLISHED")
         opener.assert_not_called()
+
+    @patch("gx_candidate_publisher.resolve_snapshot_identity")
+    def test_file_source_uses_the_same_guarded_publisher(self, resolve):
+        file_state = replace(candidate_state(), source_kind="file")
+        resolve.side_effect = (
+            identity(PRIMARY, file_state.candidate_branch, "snapshot-1", "candidate-1"),
+            identity(QUARANTINE, file_state.candidate_branch, "snapshot-q", "candidate-1"),
+            identity(PRIMARY, "main", "snapshot-1", "published-1"),
+            identity(QUARANTINE, "main", "snapshot-q", "published-1"),
+        )
+        with patch(
+            "gx_candidate_publisher.load_candidate_state", return_value=file_state
+        ):
+            result = publish_file_candidate(
+                dataset_id=file_state.dataset_id,
+                run_id=file_state.run_id,
+                gx_result=gx_result(),
+                opener=MagicMock(),
+            )
+        self.assertEqual(result["status"], "ALREADY_PUBLISHED")
 
     @patch("gx_candidate_publisher.resolve_snapshot_identity")
     def test_main_change_blocks_merge(self, resolve):

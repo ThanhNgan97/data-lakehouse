@@ -106,24 +106,25 @@ def _merge_candidate(
     return value
 
 
-def publish_api_candidate(
+def publish_candidate(
     *,
     dataset_id: str,
     run_id: str,
+    source_kind: str,
     gx_result: dict[str, Any],
     opener: Callable[..., Any] = request.urlopen,
 ) -> dict[str, Any]:
-    """Publish exactly one approved API Silver candidate using optimistic CAS."""
+    """Publish one approved Silver candidate using optimistic CAS."""
     route = resolve_route(
         dataset_id=dataset_id,
         data_layer="silver",
-        source_kind="api",
+        source_kind=source_kind,
         execution_engine="sql",
     )
     state_file = candidate_state_path(_state_root(), dataset_id, run_id)
     state = load_candidate_state(state_file)
     if (state.dataset_id, state.run_id, state.source_kind) != (
-        dataset_id, run_id, "api"
+        dataset_id, run_id, source_kind
     ):
         raise CandidatePublishError("Candidate state does not match dataset/run/source")
     approval = _require_approval(gx_result, state, route.data_asset_ref)
@@ -163,3 +164,27 @@ def publish_api_candidate(
         "validation_id": approval["validation_id"],
         "candidate_state_path": str(state_file),
     }
+
+
+def publish_api_candidate(
+    *, dataset_id: str, run_id: str, gx_result: dict[str, Any], opener=request.urlopen
+) -> dict[str, Any]:
+    return publish_candidate(
+        dataset_id=dataset_id,
+        run_id=run_id,
+        source_kind="api",
+        gx_result=gx_result,
+        opener=opener,
+    )
+
+
+def publish_file_candidate(
+    *, dataset_id: str, run_id: str, gx_result: dict[str, Any], opener=request.urlopen
+) -> dict[str, Any]:
+    return publish_candidate(
+        dataset_id=dataset_id,
+        run_id=run_id,
+        source_kind="file",
+        gx_result=gx_result,
+        opener=opener,
+    )

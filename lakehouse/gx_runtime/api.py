@@ -246,7 +246,6 @@ class TableValidationApplication:
                 raise ValidationConfigurationError(str(exc)) from exc
             if (
                 plan.data_layer not in {"gold", "reconciliation"}
-                or request.source_kind != "api"
                 or requested_branch != binding.candidate_branch
                 or execution_asset_ref != binding.physical_asset_ref
             ):

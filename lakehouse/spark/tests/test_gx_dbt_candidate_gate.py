@@ -90,7 +90,10 @@ class GXDbtCandidateGateTest(unittest.TestCase):
         validate.return_value = {"status": "PASSED"}
         gate.reconcile_dbt_gold_candidate(dataset_id=DATASET, run_id=RUN_ID)
         validate.assert_called_once_with(
-            dataset_id=DATASET, run_id=RUN_ID, data_layer="reconciliation"
+            dataset_id=DATASET,
+            run_id=RUN_ID,
+            data_layer="reconciliation",
+            source_kind="api",
         )
 
 

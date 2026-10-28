@@ -11,6 +11,7 @@ from time import perf_counter
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 from typing import Any
+from urllib.parse import unquote
 
 from sqlalchemy import create_engine
 
@@ -69,6 +70,8 @@ from .http_security import (
     HTTPBoundarySecurity,
 )
 from .revocation import SnapshotRevocation, revocation_store_from_env
+from .onboarding import OnboardingProposal, onboarding_store_from_env
+from .quarantine import QuarantineManifest, quarantine_store_from_env
 from .service import validate_table
 from .snapshot_gate import NessieSnapshotResolver, SnapshotAwareQualityGate
 from .storage import result_store_from_env
@@ -131,7 +134,52 @@ class TableValidationApplication:
         self.production = ProductionSettings.from_env()
         self.http_security = HTTPBoundarySecurity.from_env()
         self.revocations = revocation_store_from_env()
+        self.quarantine = quarantine_store_from_env()
+        self.onboarding = onboarding_store_from_env()
         self.accepting_requests = True
+
+    def propose_onboarding(self, body: dict[str, Any], *, caller: str) -> dict[str, Any]:
+        self.http_security.authorize_governance(caller)
+        proposal = OnboardingProposal.from_mapping(body, submitted_by=caller)
+        uri = self.onboarding.save(proposal)
+        return {
+            "status": proposal.status,
+            "proposal_id": proposal.proposal_id,
+            "proposal_uri": uri,
+            "dataset_id": proposal.dataset_id,
+            "contract_version": proposal.contract_version,
+        }
+
+    def get_governance_resource(self, path: str, *, caller: str) -> dict[str, Any]:
+        self.http_security.authorize_governance(caller)
+        parts = [unquote(item) for item in path.strip("/").split("/")]
+        if len(parts) == 4 and parts[:3] == ["v1", "onboarding", "proposals"]:
+            return self.onboarding.load(parts[3]).as_dict()
+        if len(parts) == 4 and parts[:2] == ["v1", "quarantine"]:
+            manifest, _etag = self.quarantine.load(parts[2], parts[3])
+            return manifest.as_dict()
+        raise ValidationConfigurationError("Unknown governance resource")
+
+    def transition_quarantine(
+        self, path: str, body: dict[str, Any], *, caller: str
+    ) -> dict[str, Any]:
+        self.http_security.authorize_governance(caller)
+        parts = [unquote(item) for item in path.strip("/").split("/")]
+        if len(parts) != 5 or parts[:2] != ["v1", "quarantine"]:
+            raise ValidationConfigurationError("Invalid quarantine action")
+        manifest, etag = self.quarantine.load(parts[2], parts[3])
+        if parts[4] == "revalidate":
+            updated = manifest.request_revalidation(caller)
+        elif parts[4] == "release":
+            updated = manifest.approve_for_release(
+                caller, dict(body.get("approval") or {})
+            )
+        elif parts[4] == "discard":
+            updated = manifest.discard(caller)
+        else:
+            raise ValidationConfigurationError("Unknown quarantine action")
+        uri = self.quarantine.save(updated, if_match=etag)
+        return {**updated.as_dict(), "quarantine_uri": uri}
 
     def close(self) -> None:
         """Stop admitting work and release pooled client connections."""
@@ -304,9 +352,23 @@ class TableValidationApplication:
             coverage=coverage,
             contract_status=contract_status,
         )
-        approval = self.gate.verify_current(summary, self.resolver)
-        if not summary.merge_allowed:
-            raise QualityGateRejectedError("DATA_QUALITY_FAILED")
+        try:
+            approval = self.gate.verify_current(summary, self.resolver)
+            if not summary.merge_allowed:
+                raise QualityGateRejectedError("DATA_QUALITY_FAILED")
+        except QualityGateRejectedError as exc:
+            manifest = QuarantineManifest.from_summary(
+                summary,
+                str(store.uri),
+                reason=(
+                    "NOT_CONFIGURED"
+                    if summary.contract_status is ContractStatus.MISSING
+                    else "DATA_QUALITY_FAILED"
+                ),
+            )
+            exc.quarantine_id = manifest.quarantine_id
+            exc.quarantine_uri = self.quarantine.save(manifest)
+            raise
         metadata = MetadataExportOutcome(False, 0, 0)
         if self.metadata_exporter is not None:
             metadata = export_validation_metadata(
@@ -402,6 +464,21 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(raw)))
             self.end_headers()
             self.wfile.write(raw)
+        elif self.path.startswith("/v1/onboarding/proposals/") or self.path.startswith("/v1/quarantine/"):
+            try:
+                self.gx_caller = self.application.http_security.authenticate(self.headers)
+                self._send(
+                    200,
+                    self.application.get_governance_resource(
+                        self.path, caller=self.gx_caller
+                    ),
+                )
+            except GXAuthenticationError as exc:
+                self._send(401, {"error_code": "GX_UNAUTHENTICATED", "message": str(exc)})
+            except GXAuthorizationError as exc:
+                self._send(403, {"error_code": "GX_FORBIDDEN", "message": str(exc)})
+            except (ValidationConfigurationError, ValidationPersistenceError) as exc:
+                self._send(404, {"error_code": "GX_RESOURCE_NOT_FOUND", "message": str(exc)})
         else:
             self._send(404, {"error_code": "NOT_FOUND"})
 
@@ -414,7 +491,8 @@ class Handler(BaseHTTPRequestHandler):
             else str(uuid.uuid4())
         )
         self.gx_caller = None
-        if self.path != "/v1/validate/table":
+        quarantine_action = self.path.startswith("/v1/quarantine/")
+        if self.path not in {"/v1/validate/table", "/v1/onboarding/proposals"} and not quarantine_action:
             self._send(404, {"error_code": "NOT_FOUND"})
             return
         try:
@@ -452,7 +530,20 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(length))
             if not isinstance(body, dict):
                 raise ValueError("JSON body must be an object")
-            self._send(200, self.application.validate(body))
+            if self.path == "/v1/onboarding/proposals":
+                self._send(
+                    202,
+                    self.application.propose_onboarding(body, caller=self.gx_caller),
+                )
+            elif self.path == "/v1/validate/table":
+                self._send(200, self.application.validate(body))
+            else:
+                self._send(
+                    200,
+                    self.application.transition_quarantine(
+                        self.path, body, caller=self.gx_caller
+                    ),
+                )
         except (json.JSONDecodeError, ValueError) as exc:
             self._send(
                 400,
@@ -473,6 +564,9 @@ class Handler(BaseHTTPRequestHandler):
                             "snapshot_id": current.snapshot_id,
                             "nessie_commit_hash": current.nessie_commit_hash,
                         }
+                    if getattr(exc, "quarantine_uri", None):
+                        payload["quarantine_id"] = exc.quarantine_id
+                        payload["quarantine_uri"] = exc.quarantine_uri
                     self._send(status, payload)
                     return
             self._send(

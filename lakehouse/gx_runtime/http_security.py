@@ -27,6 +27,7 @@ class HTTPBoundarySecurity:
     token: str
     allowed_callers: frozenset[str]
     max_request_bytes: int
+    governance_callers: frozenset[str]
 
     @classmethod
     def from_env(cls) -> "HTTPBoundarySecurity":
@@ -52,7 +53,16 @@ class HTTPBoundarySecurity:
             raise ValidationConfigurationError(
                 "GX_MAX_REQUEST_BYTES must be between 1024 and 1048576"
             )
-        return cls(token, callers, maximum)
+        governance = frozenset(
+            value.strip()
+            for value in os.getenv("GX_GOVERNANCE_CALLERS", "gx-admin").split(",")
+            if value.strip()
+        )
+        if not governance or not governance <= callers:
+            raise ValidationConfigurationError(
+                "GX_GOVERNANCE_CALLERS must be a non-empty subset of GX_ALLOWED_CALLERS"
+            )
+        return cls(token, callers, maximum, governance)
 
     def authenticate(self, headers: Mapping[str, str]) -> str:
         authorization = str(headers.get("Authorization") or "")
@@ -65,3 +75,7 @@ class HTTPBoundarySecurity:
         if not _CALLER.fullmatch(caller) or caller not in self.allowed_callers:
             raise GXAuthorizationError("GX caller is not authorized")
         return caller
+
+    def authorize_governance(self, caller: str) -> None:
+        if caller not in self.governance_callers:
+            raise GXAuthorizationError("GX caller cannot manage governance resources")

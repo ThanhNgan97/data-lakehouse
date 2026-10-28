@@ -312,6 +312,17 @@ def load_contract(path: str | Path) -> DataContract:
     contract_path = Path(path)
     try:
         payload = json.loads(contract_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValidationConfigurationError(
+            f"Unable to load data contract {contract_path}"
+        ) from exc
+    return validate_contract_payload(payload, source=str(contract_path))
+
+
+def validate_contract_payload(
+    payload: dict[str, Any], *, source: str = "onboarding proposal"
+) -> DataContract:
+    try:
         layer_rules = [
             rule
             for layer in payload["layers"].values()
@@ -321,9 +332,9 @@ def load_contract(path: str | Path) -> DataContract:
             _parse_rule(rule)
             for rule in layer_rules + payload.get("reconciliation_rules", [])
         )
-    except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
+    except (KeyError, TypeError) as exc:
         raise ValidationConfigurationError(
-            f"Unable to load data contract {contract_path}"
+            f"Unable to load data contract {source}"
         ) from exc
     rule_ids = [rule.rule_id for rule in rules]
     if len(rule_ids) != len(set(rule_ids)):

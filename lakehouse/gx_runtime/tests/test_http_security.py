@@ -19,6 +19,7 @@ class HTTPBoundarySecurityTest(unittest.TestCase):
             {
                 "GX_SERVICE_TOKEN": "unit-test-service-token-that-is-at-least-32-chars",
                 "GX_ALLOWED_CALLERS": "airflow,release-controller",
+                "GX_GOVERNANCE_CALLERS": "release-controller",
                 "GX_MAX_REQUEST_BYTES": "4096",
             },
         )
@@ -35,6 +36,9 @@ class HTTPBoundarySecurityTest(unittest.TestCase):
         )
         self.assertEqual(caller, "airflow")
         self.assertEqual(policy.max_request_bytes, 4096)
+        policy.authorize_governance("release-controller")
+        with self.assertRaises(GXAuthorizationError):
+            policy.authorize_governance("airflow")
 
     def test_invalid_token_and_unknown_caller_are_rejected(self):
         policy = HTTPBoundarySecurity.from_env()

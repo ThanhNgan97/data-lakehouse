@@ -39,6 +39,27 @@ changes require a higher major version; compatible additions may use a minor or
 patch version. `effective_to` can close the routing window without deleting
 historical contract evidence.
 
+## Onboarding and candidate quarantine
+
+`POST /v1/onboarding/proposals` accepts a complete draft/review contract plus
+canonical Silver/Gold assets and allowed source kinds. GX validates contract
+semantics and stores an immutable, content-addressed proposal in object storage.
+It never edits the mounted Git-backed registries; activation still requires a
+reviewed repository change and lifecycle approval evidence.
+
+Failed contract validations and `NOT_CONFIGURED` baseline observations create a
+candidate-level quarantine manifest containing dataset, run, contract, branch,
+snapshot, commit, validation result, and failure reason. Governance callers can
+inspect manifests and request these transitions:
+
+`QUARANTINED -> REVALIDATION_REQUESTED -> APPROVED_FOR_RELEASE`
+
+Release requires a fresh signed GX receipt bound to the exact candidate.
+`APPROVED_FOR_RELEASE` does not publish data itself; the guarded publisher
+remains the only component allowed to merge the candidate. A rejected candidate
+may instead transition to `DISCARDED`. Updates use the object ETag as an
+optimistic concurrency guard.
+
 `validation_registry.json` is the phase-7 routing layer. Its immutable key is
 `dataset_id + layer + contract_version`; engine selects an implementation, while
 `file`, `api`, and `database` are compatibility metadata and never choose a

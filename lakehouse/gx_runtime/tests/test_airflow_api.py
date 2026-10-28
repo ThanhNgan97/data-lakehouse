@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from gx_runtime.api import CapturingStore, ERRORS, TableValidationApplication
 from gx_runtime.errors import ValidationConfigurationError
@@ -12,6 +13,32 @@ class DelegateStore:
 
 
 class AirflowApiContractTest(unittest.TestCase):
+    def test_runtime_routes_main_to_trino_and_candidate_to_spark(self):
+        application = TableValidationApplication.__new__(TableValidationApplication)
+        application.validator = object()
+        application.candidate_validator = object()
+        with patch.dict(
+            "os.environ",
+            {"GX_TRINO_NESSIE_BRANCH": "main", "GX_CANDIDATE_SPARK_ENABLED": "true"},
+            clear=False,
+        ):
+            self.assertIs(application._validator_for_branch("main"), application.validator)
+            self.assertIs(
+                application._validator_for_branch("candidate_1"),
+                application.candidate_validator,
+            )
+
+    def test_disabled_candidate_runtime_fails_closed(self):
+        application = TableValidationApplication.__new__(TableValidationApplication)
+        application.validator = object()
+        application.candidate_validator = object()
+        with patch.dict(
+            "os.environ",
+            {"GX_TRINO_NESSIE_BRANCH": "main", "GX_CANDIDATE_SPARK_ENABLED": "false"},
+            clear=False,
+        ), self.assertRaisesRegex(ValidationConfigurationError, "disabled"):
+            application._validator_for_branch("candidate_1")
+
     def test_capturing_store_exposes_only_durable_result_uri(self):
         store = CapturingStore(DelegateStore())
         uri = store.save("validation-id")

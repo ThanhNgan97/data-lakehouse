@@ -24,6 +24,8 @@ except ModuleNotFoundError:  # Local repository tests import through lakehouse.
     )
 
 from .contracts import ContractRegistry
+from .candidate_engine import CandidateSparkSqlSuiteExecutor
+from .candidate_spark import CandidateSparkSessions
 from .engines import SqlAlchemyTableEngine, VersionedSqlSuiteExecutor
 from .errors import (
     MetadataExportError,
@@ -93,6 +95,13 @@ class TableValidationApplication:
         self.validator = SqlAlchemyTableEngine(
             VersionedSqlSuiteExecutor(self.suites, self.sqlalchemy_engine)
         )
+        self.candidate_sessions = CandidateSparkSessions()
+        self.candidate_validator = SqlAlchemyTableEngine(
+            CandidateSparkSqlSuiteExecutor(
+                self.suites,
+                self.candidate_sessions.for_branch,
+            )
+        )
         self.resolver = NessieSnapshotResolver(
             os.getenv("NESSIE_API_URL", "http://nessie:19120/api/v1")
         )
@@ -110,6 +119,17 @@ class TableValidationApplication:
         """Stop admitting work and release pooled client connections."""
         self.accepting_requests = False
         self.sqlalchemy_engine.dispose()
+        self.candidate_sessions.close()
+
+    def _validator_for_branch(self, requested_branch: str):
+        catalog_branch = os.getenv("GX_TRINO_NESSIE_BRANCH", "main")
+        if requested_branch == catalog_branch:
+            return self.validator
+        if os.getenv("GX_CANDIDATE_SPARK_ENABLED", "true").lower() != "true":
+            raise ValidationConfigurationError(
+                "Candidate branch validation is disabled in this GX runtime"
+            )
+        return self.candidate_validator
 
     def validate(self, body: dict[str, Any]) -> dict[str, Any]:
         started = perf_counter()
@@ -178,12 +198,7 @@ class TableValidationApplication:
                 "HTTP table validation currently supports the SQL engine only"
             )
         requested_branch = request.nessie_branch
-        catalog_branch = os.getenv("GX_TRINO_NESSIE_BRANCH", "main")
-        if requested_branch != catalog_branch:
-            raise ValidationConfigurationError(
-                "Requested branch is not mounted by this Trino-backed GX service; "
-                "deploy it with GX_TRINO_NESSIE_BRANCH matching the candidate"
-            )
+        validator = self._validator_for_branch(requested_branch)
         if coverage is ValidationCoverage.BASELINE:
             plan = ValidationPlan(
                 dataset_id=request.dataset_id,
@@ -243,7 +258,7 @@ class TableValidationApplication:
             nessie_branch=current.nessie_branch,
             snapshot_id=current.snapshot_id,
             nessie_commit_hash=current.nessie_commit_hash,
-            validator=self.validator,
+            validator=validator,
             result_store=store,
             execution_mode=execution_mode,
             source_kind=plan.source_kind,

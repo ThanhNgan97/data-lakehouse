@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 
 from pyspark.sql import functions as F
+from pyspark.sql.types import ArrayType, StructType
 
 from ai_dataset_router import RoutingDecision
 from api_dataset_orchestration import _load_callable
@@ -31,6 +32,16 @@ from spark_generic_dynamic_processor import read_input_dataset, standardize_data
 def _batch_id(dataset_id: str, run_id: str) -> str:
     digest = hashlib.sha256(f"{dataset_id}\n{run_id}".encode()).hexdigest()[:20]
     return f"file_upload_{digest}"
+
+
+def _unwrap_data_envelope(raw):
+    """Read API-style JSON uploads whose records are nested under ``data``."""
+    data_field = next((field for field in raw.schema.fields if field.name == "data"), None)
+    if isinstance(getattr(data_field, "dataType", None), ArrayType) and isinstance(
+        data_field.dataType.elementType, StructType
+    ):
+        return raw.select(F.explode("data").alias("record")).select("record.*")
+    return raw
 
 
 def prepare_file_candidate(
@@ -57,7 +68,9 @@ def prepare_file_candidate(
     spark.sparkContext.setLogLevel("WARN")
     try:
         use_main(spark)
-        raw = standardize_dataframe_columns(read_input_dataset(spark, input_path))
+        raw = standardize_dataframe_columns(
+            _unwrap_data_envelope(read_input_dataset(spark, input_path))
+        )
         for source, canonical in config.source_to_canonical.items():
             if source not in raw.columns and canonical in raw.columns:
                 raw = raw.withColumnRenamed(canonical, source)

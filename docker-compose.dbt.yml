@@ -1,9 +1,5 @@
 # Opt-in overlay; use together with the two newdirection Compose files.
 services:
-  trino:
-    volumes:
-      - ./lakehouse/trino/config.properties:/etc/trino/config.properties:ro
-
   dbt-worker:
     profiles: [dbt]
     image: lakehouse-dbt-runtime:core1.9.8-trino1.9.3

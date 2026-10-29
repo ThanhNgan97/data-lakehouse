@@ -70,18 +70,22 @@ def record_receipt_consumption(
     }
     s3 = client or _client()
     try:
+        s3.head_object(Bucket=bucket, Key=key)
+        return f"s3://{bucket}/{key}"
+    except Exception as exc:
+        response = getattr(exc, "response", {})
+        code = str(response.get("Error", {}).get("Code", ""))
+        status_code = response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+        if code not in {"NoSuchKey", "404", "NotFound"} and status_code != 404:
+            raise ReceiptAuditError("Unable to check GX receipt audit") from exc
+    try:
         s3.put_object(
             Bucket=bucket,
             Key=key,
             Body=json.dumps(payload, sort_keys=True).encode("utf-8"),
             ContentType="application/json",
-            IfNoneMatch="*",
             Tagging="gx-artifact=receipt-consumption&gx-status=published",
         )
     except Exception as exc:
-        response = getattr(exc, "response", {})
-        code = str(response.get("Error", {}).get("Code", ""))
-        status_code = response.get("ResponseMetadata", {}).get("HTTPStatusCode")
-        if code not in {"PreconditionFailed", "412"} and status_code != 412:
-            raise ReceiptAuditError("Unable to persist GX receipt audit") from exc
+        raise ReceiptAuditError("Unable to persist GX receipt audit") from exc
     return f"s3://{bucket}/{key}"

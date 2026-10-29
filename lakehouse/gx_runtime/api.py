@@ -71,7 +71,7 @@ from .http_security import (
 )
 from .revocation import SnapshotRevocation, revocation_store_from_env
 from .onboarding import OnboardingProposal, onboarding_store_from_env
-from .quarantine import QuarantineManifest, quarantine_store_from_env
+from .quarantine import QuarantineManifest, QuarantineStatus, quarantine_store_from_env
 from .service import validate_table
 from .snapshot_gate import NessieSnapshotResolver, SnapshotAwareQualityGate
 from .storage import result_store_from_env
@@ -170,7 +170,50 @@ class TableValidationApplication:
             raise ValidationConfigurationError("Invalid quarantine action")
         manifest, etag = self.quarantine.load(parts[2], parts[3])
         if parts[4] == "revalidate":
-            updated = manifest.request_revalidation(caller)
+            pending = manifest.request_revalidation(caller)
+            self.quarantine.save(pending, if_match=etag)
+            pending, pending_etag = self.quarantine.load(parts[2], parts[3])
+            plan = self.routes.resolve(
+                dataset_id=pending.dataset_id,
+                data_layer=pending.data_layer,
+                contract_version=pending.contract_version,
+                execution_engine=ExecutionEngine.SQL,
+                source_kind=SourceKind(str(pending.source_kind)),
+            )
+            request = {
+                "dataset_id": pending.dataset_id,
+                "data_layer": pending.data_layer,
+                "source_kind": pending.source_kind,
+                "run_id": pending.run_id,
+                "contract_version": pending.contract_version,
+                "data_asset_ref": plan.data_asset_ref,
+                "coverage": "CONTRACT",
+                "nessie_branch": pending.candidate_branch,
+                "snapshot_id": pending.candidate_snapshot_id,
+                "nessie_commit_hash": pending.candidate_hash,
+                "execution_mode": "enforce",
+                "execution_engine": "sql",
+            }
+            if pending.data_asset_ref != plan.data_asset_ref:
+                request["physical_data_asset_ref"] = pending.data_asset_ref
+            try:
+                result = self.validate(request, persist_quarantine=False)
+                updated = pending.approve_for_release(
+                    caller, dict(result.get("approval") or {})
+                )
+            except Exception:
+                current, current_etag = self.quarantine.load(parts[2], parts[3])
+                if current.status is QuarantineStatus.REVALIDATION_REQUESTED:
+                    self.quarantine.save(
+                        current.revalidation_failed(caller), if_match=current_etag
+                    )
+                raise
+            uri = self.quarantine.save(updated, if_match=pending_etag)
+            return {
+                **updated.as_dict(),
+                "quarantine_uri": uri,
+                "revalidation": result,
+            }
         elif parts[4] == "release":
             updated = manifest.approve_for_release(
                 caller, dict(body.get("approval") or {})
@@ -200,7 +243,9 @@ class TableValidationApplication:
             )
         return self.candidate_validator
 
-    def validate(self, body: dict[str, Any]) -> dict[str, Any]:
+    def validate(
+        self, body: dict[str, Any], *, persist_quarantine: bool = True
+    ) -> dict[str, Any]:
         started = perf_counter()
         layer = str(body.get("data_layer", "unknown"))
         engine = str(body.get("execution_engine", "sql"))
@@ -217,7 +262,9 @@ class TableValidationApplication:
             metrics.record_retry(engine)
         metrics.begin_validation()
         try:
-            response, summary = self._validate(body)
+            response, summary = self._validate(
+                body, persist_quarantine=persist_quarantine
+            )
             status = summary.status.value
             return response
         except QualityGateRejectedError:
@@ -252,7 +299,9 @@ class TableValidationApplication:
             )
             metrics.end_validation()
 
-    def _validate(self, body: dict[str, Any]) -> tuple[dict[str, Any], Any]:
+    def _validate(
+        self, body: dict[str, Any], *, persist_quarantine: bool = True
+    ) -> tuple[dict[str, Any], Any]:
         try:
             request = GXTableValidationRequest.from_mapping(body)
             engine = ExecutionEngine(request.execution_engine)
@@ -371,7 +420,8 @@ class TableValidationApplication:
                 ),
             )
             exc.quarantine_id = manifest.quarantine_id
-            exc.quarantine_uri = self.quarantine.save(manifest)
+            if persist_quarantine:
+                exc.quarantine_uri = self.quarantine.save(manifest)
             self.metrics.record_quarantine(summary.data_layer, manifest.reason)
             raise
         metadata = MetadataExportOutcome(False, 0, 0)

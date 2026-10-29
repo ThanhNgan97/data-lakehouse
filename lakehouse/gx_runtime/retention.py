@@ -29,7 +29,7 @@ class CleanupReport:
 def configured_prefixes() -> tuple[str, ...]:
     raw = os.getenv(
         "GX_RETENTION_PREFIXES",
-        "gx/validation-results,gx/revocations,gx/quarantine,gx/onboarding-proposals",
+        "gx/validation-results,gx/revocations,gx/quarantine,gx/onboarding-proposals,gx/receipt-consumption",
     )
     prefixes = tuple(sorted({item.strip().strip("/") for item in raw.split(",") if item.strip()}))
     if not prefixes or any(not item.startswith("gx/") or ".." in item for item in prefixes):
@@ -51,6 +51,19 @@ def cleanup(
     prefixes = configured_prefixes()
     current = now or datetime.now(timezone.utc)
     cutoff = current - timedelta(days=retention_days)
+    try:
+        active_quarantine_days = int(
+            os.getenv("GX_QUARANTINE_ACTIVE_RETENTION_DAYS", "365")
+        )
+    except ValueError as exc:
+        raise ValidationConfigurationError(
+            "GX_QUARANTINE_ACTIVE_RETENTION_DAYS must be an integer"
+        ) from exc
+    if active_quarantine_days < retention_days or active_quarantine_days > 3650:
+        raise ValidationConfigurationError(
+            "Active quarantine retention must be between result retention and 3650 days"
+        )
+    active_quarantine_cutoff = current - timedelta(days=active_quarantine_days)
     eligible: list[dict[str, str]] = []
     scanned = 0
     try:
@@ -60,8 +73,20 @@ def cleanup(
                 for item in page.get("Contents", []):
                     scanned += 1
                     modified = item.get("LastModified")
-                    if modified is not None and modified.astimezone(timezone.utc) < cutoff:
-                        eligible.append({"Key": str(item["Key"])})
+                    key = str(item["Key"])
+                    if modified is None:
+                        continue
+                    item_cutoff = cutoff
+                    if key.startswith("gx/quarantine/"):
+                        response = client.get_object(Bucket=bucket, Key=key)
+                        payload = json.loads(response["Body"].read())
+                        status = str(payload.get("status") or "")
+                        if status in {"QUARANTINED", "REVALIDATION_REQUESTED"}:
+                            item_cutoff = active_quarantine_cutoff
+                        elif status not in {"APPROVED_FOR_RELEASE", "DISCARDED"}:
+                            continue
+                    if modified.astimezone(timezone.utc) < item_cutoff:
+                        eligible.append({"Key": key})
         selected = eligible[:max_delete]
         if selected and not dry_run:
             for offset in range(0, len(selected), 1000):

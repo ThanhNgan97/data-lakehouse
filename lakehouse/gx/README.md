@@ -60,6 +60,22 @@ remains the only component allowed to merge the candidate. A rejected candidate
 may instead transition to `DISCARDED`. Updates use the object ETag as an
 optimistic concurrency guard.
 
+The `revalidate` transition executes GX again against the branch, snapshot and
+commit stored in the manifest; callers cannot replace that identity in the
+request body. A passing revalidation stores the fresh receipt and moves the
+manifest to `APPROVED_FOR_RELEASE`. A failed attempt returns it to
+`QUARANTINED`. Initial manifests use S3 `If-None-Match: *`, while transitions
+use `If-Match`, so neither creation nor concurrent updates silently overwrite
+governance evidence.
+
+After a guarded publisher observes the exact snapshots on `main`, it writes an
+immutable receipt-consumption record below `gx/receipt-consumption` and deletes
+the published candidate branch at its expected hash. A retry remains
+idempotent: it recognizes the snapshots already on `main`, recreates no data,
+and treats an existing audit object as the same consumption event. Active
+quarantines use `GX_QUARANTINE_ACTIVE_RETENTION_DAYS`, which must be no shorter
+than ordinary result retention.
+
 ## Publication receipt keys
 
 GX publication approvals use Ed25519 (`gx-approval/v2`). Only the standalone

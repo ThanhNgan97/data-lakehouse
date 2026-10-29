@@ -123,6 +123,18 @@ class QuarantineManifest:
             updated_at=datetime.now(timezone.utc).isoformat(),
         )
 
+    def revalidation_failed(self, caller: str) -> "QuarantineManifest":
+        if self.status is not QuarantineStatus.REVALIDATION_REQUESTED:
+            raise ValidationConfigurationError(
+                "Only a pending revalidation may return to quarantine"
+            )
+        return replace(
+            self,
+            status=QuarantineStatus.QUARANTINED,
+            requested_by=caller,
+            updated_at=datetime.now(timezone.utc).isoformat(),
+        )
+
     def discard(self, caller: str) -> "QuarantineManifest":
         if self.status is QuarantineStatus.APPROVED_FOR_RELEASE:
             raise ValidationConfigurationError("Approved candidate cannot be discarded")
@@ -166,6 +178,8 @@ class S3QuarantineStore:
             )
             if if_match:
                 arguments["IfMatch"] = if_match
+            else:
+                arguments["IfNoneMatch"] = "*"
             self._client().put_object(**arguments)
         except Exception as exc:
             raise ValidationPersistenceError("Unable to persist quarantine manifest") from exc

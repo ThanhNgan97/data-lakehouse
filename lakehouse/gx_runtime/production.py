@@ -103,6 +103,14 @@ class ProductionSettings:
             from .http_security import HTTPBoundarySecurity
 
             HTTPBoundarySecurity.from_env()
+            if not _boolean("GX_RECEIPT_AUDIT_ENABLED", False):
+                raise ValidationConfigurationError(
+                    "GX_RECEIPT_AUDIT_ENABLED must be true in production"
+                )
+            if not _boolean("GX_DELETE_PUBLISHED_CANDIDATE_BRANCH", False):
+                raise ValidationConfigurationError(
+                    "GX_DELETE_PUBLISHED_CANDIDATE_BRANCH must be true in production"
+                )
             if _boolean("GX_ALLOW_PILOT_CONTRACTS", True):
                 raise ValidationConfigurationError(
                     "GX_ALLOW_PILOT_CONTRACTS must be false in production"

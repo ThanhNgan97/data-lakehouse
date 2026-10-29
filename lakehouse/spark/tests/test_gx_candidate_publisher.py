@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 
 from gx_candidate_publisher import (
     CandidatePublishError,
+    _delete_candidate_branch,
     publish_api_candidate,
     publish_file_candidate,
 )
@@ -102,9 +103,9 @@ class CandidatePublisherTest(unittest.TestCase):
     @patch("gx_candidate_publisher.resolve_snapshot_identity")
     def test_exact_approval_merges_with_base_and_candidate_hash_cas(self, resolve):
         resolve.side_effect = (
+            identity(PRIMARY, "main", "old-snapshot", "base-1"),
             identity(PRIMARY, "gx_api_silver_0123456789abcdef", "snapshot-1", "candidate-1"),
             identity(QUARANTINE, "gx_api_silver_0123456789abcdef", "snapshot-q", "candidate-1"),
-            identity(PRIMARY, "main", "old-snapshot", "base-1"),
             identity(PRIMARY, "main", "snapshot-1", "published-1"),
             identity(QUARANTINE, "main", "snapshot-q", "published-1"),
         )
@@ -132,8 +133,6 @@ class CandidatePublisherTest(unittest.TestCase):
     @patch("gx_candidate_publisher.resolve_snapshot_identity")
     def test_retry_after_success_is_idempotent(self, resolve):
         resolve.side_effect = (
-            identity(PRIMARY, "gx_api_silver_0123456789abcdef", "snapshot-1", "candidate-1"),
-            identity(QUARANTINE, "gx_api_silver_0123456789abcdef", "snapshot-q", "candidate-1"),
             identity(PRIMARY, "main", "snapshot-1", "published-1"),
             identity(QUARANTINE, "main", "snapshot-q", "published-1"),
         )
@@ -151,8 +150,6 @@ class CandidatePublisherTest(unittest.TestCase):
     def test_file_source_uses_the_same_guarded_publisher(self, resolve):
         file_state = replace(candidate_state(), source_kind="file")
         resolve.side_effect = (
-            identity(PRIMARY, file_state.candidate_branch, "snapshot-1", "candidate-1"),
-            identity(QUARANTINE, file_state.candidate_branch, "snapshot-q", "candidate-1"),
             identity(PRIMARY, "main", "snapshot-1", "published-1"),
             identity(QUARANTINE, "main", "snapshot-q", "published-1"),
         )
@@ -186,8 +183,6 @@ class CandidatePublisherTest(unittest.TestCase):
     @patch("gx_candidate_publisher.resolve_snapshot_identity")
     def test_main_change_blocks_merge(self, resolve):
         resolve.side_effect = (
-            identity(PRIMARY, "gx_api_silver_0123456789abcdef", "snapshot-1", "candidate-1"),
-            identity(QUARANTINE, "gx_api_silver_0123456789abcdef", "snapshot-q", "candidate-1"),
             identity(PRIMARY, "main", "other-snapshot", "other-main"),
         )
         with self.assertRaisesRegex(CandidatePublishError, "Main changed"):
@@ -204,6 +199,19 @@ class CandidatePublisherTest(unittest.TestCase):
                 run_id="manual__12",
                 gx_result=gx_result(validated_commit_hash="candidate-other"),
             )
+
+    def test_published_candidate_cleanup_uses_expected_hash(self):
+        opener = MagicMock(return_value=Response(b"{}"))
+        with patch.dict(
+            "os.environ", {"GX_DELETE_PUBLISHED_CANDIDATE_BRANCH": "true"}
+        ):
+            _delete_candidate_branch(candidate_state(), opener=opener)
+        call = opener.call_args.args[0]
+        self.assertEqual(call.get_method(), "DELETE")
+        self.assertIn(
+            "/trees/branch/gx_api_silver_0123456789abcdef/candidate-1",
+            call.full_url,
+        )
 
 
 if __name__ == "__main__":

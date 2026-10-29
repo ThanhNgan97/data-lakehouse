@@ -91,6 +91,8 @@ class ProductionReadinessTest(unittest.TestCase):
                 '"expires_at":"2099-01-01T00:00:00Z"}}'
             ),
             "GX_GOVERNANCE_CALLERS": "gx-admin",
+            "GX_RECEIPT_AUDIT_ENABLED": "true",
+            "GX_DELETE_PUBLISHED_CANDIDATE_BRANCH": "true",
             "GX_ALLOW_PILOT_CONTRACTS": "true",
         },
         clear=True,

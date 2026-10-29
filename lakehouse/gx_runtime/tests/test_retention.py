@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import io
+import json
 import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
@@ -48,6 +50,27 @@ class GXRetentionTest(unittest.TestCase):
             ValidationConfigurationError
         ):
             cleanup(self.client, bucket="quality", retention_days=90)
+
+    def test_active_quarantine_uses_longer_retention(self):
+        self.client.get_paginator.return_value.paginate.side_effect = lambda **kwargs: [
+            {
+                "Contents": [
+                    {
+                        "Key": "gx/quarantine/dataset/item.json",
+                        "LastModified": self.now - timedelta(days=100),
+                    }
+                ]
+            }
+        ] if kwargs["Prefix"] == "gx/quarantine/" else [{"Contents": []}]
+        self.client.get_object.return_value = {
+            "Body": io.BytesIO(json.dumps({"status": "QUARANTINED"}).encode())
+        }
+        with patch.dict(os.environ, {"GX_QUARANTINE_ACTIVE_RETENTION_DAYS": "365"}):
+            report = cleanup(
+                self.client, bucket="quality", retention_days=90, dry_run=False, now=self.now
+            )
+        self.assertEqual(report.eligible, 0)
+        self.client.delete_objects.assert_not_called()
 
 
 if __name__ == "__main__":

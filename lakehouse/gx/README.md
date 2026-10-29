@@ -30,6 +30,23 @@ semantic reconciliation remain in Silver, Gold and reconciliation suites. A
 dataset without an effective Bronze contract route is `NOT_CONFIGURED` and must
 enter onboarding; GX does not infer a schema and return PASS.
 
+## Candidate-first generic and database ingestion
+
+Registered generic files and single-entity database extracts use the same
+candidate-state contract as registered APIs. Writers create a retry-stable
+Nessie branch from the recorded `main` hash, run Bronze validation before
+Silver, write Silver plus its row quarantine on that branch, and seal every
+asset snapshot in an immutable candidate-state file. Silver GX validates that
+sealed branch with snapshot refresh disabled. Only the shared CAS publisher may
+merge it, and only with an exact signed receipt.
+
+`generic_candidate_writer.py` dispatches file and database sources to those
+governed writers. It does not fall back to the old dynamic main writer. An
+unmapped dataset, multi-entity relational context without a governed mapping,
+or unsupported source returns `NOT_CONFIGURED` for onboarding. The legacy
+Universal DAG is switched to this dispatcher separately so component migration
+and orchestration migration remain independently testable.
+
 Versioned data contracts are registered separately in `contract_registry.json`.
 Contracts define layer schemas, evolution policy, rule severity, thresholds,
 and engine compatibility. Expectation suites in phase 4 implement those rules;

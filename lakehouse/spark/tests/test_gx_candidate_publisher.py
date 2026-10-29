@@ -11,6 +11,7 @@ from gx_candidate_publisher import (
     CandidatePublishError,
     _delete_candidate_branch,
     publish_api_candidate,
+    publish_database_candidate,
     publish_file_candidate,
 )
 from gx_candidate_state import CandidateAssetIdentity, CandidateState
@@ -175,6 +176,42 @@ class CandidatePublisherTest(unittest.TestCase):
                         "validated_commit_hash": file_state.candidate_hash,
                         "candidate_hash": file_state.candidate_hash,
                     }),
+                },
+                opener=MagicMock(),
+            )
+        self.assertEqual(result["status"], "ALREADY_PUBLISHED")
+
+    @patch("gx_candidate_publisher.resolve_snapshot_identity")
+    def test_database_source_uses_the_same_guarded_publisher(self, resolve):
+        database_state = replace(candidate_state(), source_kind="database")
+        resolve.side_effect = (
+            identity(PRIMARY, "main", "snapshot-1", "published-1"),
+            identity(QUARANTINE, "main", "snapshot-q", "published-1"),
+        )
+        approval = sign_approval_receipt({
+            "validation_id": "validation-1",
+            "dataset_id": database_state.dataset_id,
+            "data_layer": "silver",
+            "contract_version": "1.0.0",
+            "run_id": database_state.run_id,
+            "source_kind": "database",
+            "audience": "silver-publisher",
+            "data_asset_ref": PRIMARY,
+            "validated_branch": database_state.candidate_branch,
+            "validated_snapshot_id": "snapshot-1",
+            "validated_commit_hash": database_state.candidate_hash,
+            "candidate_hash": database_state.candidate_hash,
+        })
+        with patch(
+            "gx_candidate_publisher.load_candidate_state", return_value=database_state
+        ):
+            result = publish_database_candidate(
+                dataset_id=database_state.dataset_id,
+                run_id=database_state.run_id,
+                gx_result={
+                    "validation_id": "validation-1",
+                    "merge_allowed": True,
+                    "approval": approval,
                 },
                 opener=MagicMock(),
             )

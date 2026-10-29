@@ -239,3 +239,15 @@ def publish_file_candidate(
         gx_result=gx_result,
         opener=opener,
     )
+
+
+def publish_database_candidate(
+    *, dataset_id: str, run_id: str, gx_result: dict[str, Any], opener=request.urlopen
+) -> dict[str, Any]:
+    return publish_candidate(
+        dataset_id=dataset_id,
+        run_id=run_id,
+        source_kind="database",
+        gx_result=gx_result,
+        opener=opener,
+    )

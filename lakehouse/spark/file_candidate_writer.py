@@ -38,7 +38,9 @@ def prepare_file_candidate(
 ) -> CandidateState:
     decision = RoutingDecision(**json.loads(Path(decision_file).read_text(encoding="utf-8")))
     if decision.route_target != "registered_api" or not decision.registered_dataset_id:
-        raise RuntimeError("File upload is not mapped to an active registered dataset")
+        raise RuntimeError(
+            "NOT_CONFIGURED: file upload is not mapped to an active registered dataset"
+        )
     config = get_dataset_config(decision.registered_dataset_id)
     branch = retry_stable_branch_name("gx_file_silver", config.dataset, run_id)
     root = Path(os.getenv("GX_CANDIDATE_STATE_ROOT", "/opt/airflow/logs/gx-candidates"))

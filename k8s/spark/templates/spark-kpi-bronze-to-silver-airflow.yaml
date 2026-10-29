@@ -23,7 +23,12 @@ spec:
     spark.hadoop.fs.s3a.path.style.access: "true"
     spark.hadoop.fs.s3a.connection.ssl.enabled: "false"
     spark.hadoop.fs.s3a.aws.credentials.provider: com.amazonaws.auth.EnvironmentVariableCredentialsProvider
-    spark.sql.shuffle.partitions: "4"
+    spark.sql.shuffle.partitions: "12"
+    spark.dynamicAllocation.enabled: "true"
+    spark.dynamicAllocation.minExecutors: "2"
+    spark.dynamicAllocation.initialExecutors: "2"
+    spark.dynamicAllocation.maxExecutors: "6"
+    spark.dynamicAllocation.shuffleTracking.enabled: "true"
   driver: &driver
     labels:
       app.kubernetes.io/managed-by: airflow
@@ -48,7 +53,6 @@ spec:
   executor: &executor
     labels:
       app.kubernetes.io/managed-by: airflow
-    instances: 2
     cores: 1
     memory: 1g
     env:

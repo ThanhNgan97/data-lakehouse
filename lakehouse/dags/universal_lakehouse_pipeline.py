@@ -4,11 +4,9 @@
 This DAG dynamically ingests ANY incoming dataset:
 1. Samples incoming files or payloads
 2. Leverages Gemini AI (Control Plane) to profile schema and determine routing
-3. Routes dynamically via BranchPythonOperator:
-   - Branch A: Legacy KPI Document Pipeline (DOCX/PDF)
-   - Branch B: Registered Education APIs (CTU IOC)
-   - Branch C: Generic Autonomous Lakehouse (Any CSV/JSON/DB dump -> Iceberg Silver/Gold)
-4. Smoke tests Trino query engine to ensure instant Superset visualization readiness
+3. Resolves the registered dataset contract and source kind
+4. Builds immutable Silver/Gold candidates and enforces GX before each publish
+5. Smoke tests Trino query engine after governed publication
 """
 
 from __future__ import annotations
@@ -40,6 +38,11 @@ default_args = {
     "email_on_retry": False,
     "retries": 0,
     "retry_delay": timedelta(minutes=1),
+}
+
+UNIVERSAL_API_ENV = {
+    "SOURCE_API_URL": "{{ dag_run.conf.get('source_api_url', '') if dag_run else '' }}",
+    "SOURCE_API_KEY": "{{ dag_run.conf.get('source_api_key', '') if dag_run else '' }}",
 }
 
 
@@ -212,6 +215,24 @@ def run_ai_semantic_profiling(**context):
     clean_run_id = "".join(c if c.isalnum() else "_" for c in run_id)
     decision_file_path = str(decisions_dir / f"decision_{clean_run_id}.json")
 
+    # Persist the same resolved identity consumed by candidate writers. Without
+    # this, an explicitly mapped upload/database run could be routed correctly
+    # by Airflow while the immutable-candidate process still saw an unmapped
+    # decision file and failed later with a misleading NOT_CONFIGURED result.
+    registered_dataset_id = conf.get("dataset_id") or decision.registered_dataset_id
+    source_kind = str(conf.get("source_kind") or "").strip().lower()
+    if not source_kind:
+        source_kind = "database" if is_airbyte_relational_run else "file"
+    if registered_dataset_id:
+        decision.registered_dataset_id = str(registered_dataset_id)
+        from api_dataset_registry import get_dataset_config
+        governed_config = get_dataset_config(str(registered_dataset_id))
+        decision.target_silver_table = governed_config.silver_table
+        if governed_config.gold_table:
+            decision.target_gold_table = governed_config.gold_table
+        if source_kind == "file":
+            decision.route_target = "registered_api"
+
     with open(decision_file_path, "w", encoding="utf-8") as f:
         f.write(decision.model_dump_json(indent=2))
 
@@ -228,7 +249,11 @@ def run_ai_semantic_profiling(**context):
     ti.xcom_push(key="context_id", value=context_id)
     ti.xcom_push(key="context_manifest", value=context_manifest_file)
     ti.xcom_push(key="dataset_entity", value=decision.dataset_entity)
-    ti.xcom_push(key="registered_dataset_id", value=decision.registered_dataset_id)
+    # Explicit trigger metadata wins over semantic inference.  This lets API and
+    # database producers identify themselves without teaching the router about
+    # every future dataset, while the contract registry remains authoritative.
+    ti.xcom_push(key="registered_dataset_id", value=registered_dataset_id)
+    ti.xcom_push(key="source_kind", value=source_kind)
     ti.xcom_push(key="target_silver_table", value=decision.target_silver_table)
     ti.xcom_push(key="target_gold_table", value=decision.target_gold_table)
 
@@ -238,29 +263,143 @@ def run_ai_semantic_profiling(**context):
 # =====================================================================
 
 def determine_branch(**context):
-    """Đọc XCom và trả về Task ID của nhánh được chọn."""
+    """Route only registered datasets into a governed candidate flow."""
     ti = context["ti"]
-    route_target = ti.xcom_pull(task_ids="ai_semantic_profiler", key="route_target")
-    input_path = ti.xcom_pull(task_ids="ai_semantic_profiler", key="input_path") or ""
-    print(f"🔀 [Branch Router] Route target nhận được từ AI: '{route_target}'")
+    dataset_id = ti.xcom_pull(
+        task_ids="ai_semantic_profiler", key="registered_dataset_id"
+    )
+    source_kind = str(
+        ti.xcom_pull(task_ids="ai_semantic_profiler", key="source_kind") or "file"
+    ).lower()
+    print(f"🔀 [Branch Router] dataset={dataset_id!r}, source_kind={source_kind!r}")
+    if not dataset_id:
+        return "onboarding_required"
+    return {
+        "api": "api_flow.api_preflight",
+        "database": "database_flow.prepare_silver_candidate",
+        "file": "file_flow.gx_validate_bronze",
+    }.get(source_kind, "onboarding_required")
 
-    if route_target == "legacy_kpi":
-        # Legacy KPI is an OCR/document flow. Structured KPI files are already
-        # parsed datasets and belong in the generic Spark transformation flow.
-        extension = Path(input_path).suffix.lower()
-        if extension in {".pdf", ".doc", ".docx"}:
-            return "kpi_flow.ingest_bronze"
-        print(
-            f"Structured KPI input '{extension or 'unknown'}' detected; "
-            "routing to generic processor instead of document OCR."
-        )
-        return "generic_flow.process_dynamic_silver_gold"
-    elif route_target == "registered_api":
-        return "api_flow.run_registered_api"
-    elif route_target == "relational_context":
-        return "relational_flow.process_relational_context"
-    else:
-        return "generic_flow.process_dynamic_silver_gold"
+
+def onboarding_required(**context):
+    """Fail closed when no active contract route exists."""
+    from airflow.exceptions import AirflowFailException
+
+    ti = context["ti"]
+    dataset_id = ti.xcom_pull(
+        task_ids="ai_semantic_profiler", key="registered_dataset_id"
+    )
+    source_kind = ti.xcom_pull(task_ids="ai_semantic_profiler", key="source_kind")
+    raise AirflowFailException(
+        "NOT_CONFIGURED: dataset must be onboarded with an active GX contract "
+        f"before publication (dataset_id={dataset_id!r}, source_kind={source_kind!r})"
+    )
+
+
+def _universal_dataset_id(context) -> str:
+    dataset_id = context["ti"].xcom_pull(
+        task_ids="ai_semantic_profiler", key="registered_dataset_id"
+    )
+    if not dataset_id:
+        raise RuntimeError("NOT_CONFIGURED: registered_dataset_id is missing")
+    return str(dataset_id)
+
+
+def validate_universal_bronze(**context):
+    from gx_bronze_gate import validate_file_bronze
+
+    ti = context["ti"]
+    input_path = ti.xcom_pull(task_ids="ai_semantic_profiler", key="input_path")
+    source_path = ti.xcom_pull(task_ids="ai_semantic_profiler", key="s3_staging_key")
+    return validate_file_bronze(
+        dataset_id=_universal_dataset_id(context),
+        run_id=str(context["run_id"]),
+        path=str(input_path),
+        artifact_ref=str(source_path or input_path),
+    )
+
+
+def validate_universal_silver(*, source_kind: str, **context):
+    dataset_id = _universal_dataset_id(context)
+    run_id = str(context["run_id"])
+    if source_kind == "file":
+        from gx_file_gate import validate_file_candidate
+        return validate_file_candidate(dataset_id=dataset_id, run_id=run_id)
+    if source_kind == "api":
+        from gx_api_gate import validate_api_candidate_dataset
+        return validate_api_candidate_dataset(dataset_id=dataset_id, run_id=run_id)
+    if source_kind == "database":
+        from gx_database_gate import validate_database_candidate
+        return validate_database_candidate(dataset_id=dataset_id, run_id=run_id)
+    raise RuntimeError(f"NOT_CONFIGURED: unsupported source kind {source_kind!r}")
+
+
+def publish_universal_silver(*, source_kind: str, validation_task_id: str, **context):
+    from gx_candidate_publisher import (
+        publish_api_candidate, publish_database_candidate, publish_file_candidate,
+    )
+
+    publishers = {
+        "api": publish_api_candidate,
+        "database": publish_database_candidate,
+        "file": publish_file_candidate,
+    }
+    result = context["ti"].xcom_pull(task_ids=validation_task_id)
+    if not isinstance(result, dict):
+        raise RuntimeError("GX Silver approval XCom is missing")
+    return publishers[source_kind](
+        dataset_id=_universal_dataset_id(context),
+        run_id=str(context["run_id"]),
+        gx_result=result,
+    )
+
+
+def validate_universal_gold(*, source_kind: str, **context):
+    from gx_dbt_candidate_gate import validate_dbt_gold_candidate
+    return validate_dbt_gold_candidate(
+        dataset_id=_universal_dataset_id(context),
+        run_id=str(context["run_id"]),
+        source_kind=source_kind,
+    )
+
+
+def reconcile_universal_gold(*, source_kind: str, **context):
+    from gx_dbt_candidate_gate import reconcile_dbt_gold_candidate
+    return reconcile_dbt_gold_candidate(
+        dataset_id=_universal_dataset_id(context),
+        run_id=str(context["run_id"]),
+        source_kind=source_kind,
+    )
+
+
+def publish_universal_gold(
+    *, gold_task_id: str, reconciliation_task_id: str, **context
+):
+    from api_dataset_registry import get_dataset_config
+    from dbt_gold_runtime import publish
+
+    ti = context["ti"]
+    dataset_id = _universal_dataset_id(context)
+    gold_result = ti.xcom_pull(task_ids=gold_task_id)
+    reconciliation_result = ti.xcom_pull(task_ids=reconciliation_task_id)
+    publish(
+        get_dataset_config(dataset_id),
+        str(context["run_id"]),
+        gx_gold_result=gold_result,
+        gx_reconciliation_result=reconciliation_result,
+    )
+    return {"status": "PUBLISHED", "dataset_id": dataset_id}
+
+
+def _orchestration_command(command: str) -> str:
+    return (
+        "cd /opt/airflow/spark && python api_dataset_orchestration.py "
+        f"{command} "
+        "--dataset-id "
+        "'{{ task_instance.xcom_pull(task_ids=\"ai_semantic_profiler\", "
+        "key=\"registered_dataset_id\") }}' "
+        "--run-id '{{ run_id }}'"
+    )
 
 
 # =====================================================================
@@ -485,67 +624,158 @@ with DAG(
         python_callable=determine_branch,
     )
 
-    # 3. Branch A: Legacy KPI Document Pipeline
-    with TaskGroup("kpi_flow", tooltip="Xử lý tài liệu KPI CUSC (Word/PDF)") as kpi_flow:
-        kpi_ingest_bronze = BashOperator(
+    onboarding = PythonOperator(
+        task_id="onboarding_required",
+        python_callable=onboarding_required,
+    )
+
+    # Registered API: the existing API ingestion path now publishes only sealed
+    # candidates carrying valid GX approvals.
+    with TaskGroup("api_flow", tooltip="Governed API candidate flow") as api_flow:
+        api_preflight = BashOperator(
+            task_id="api_preflight",
+            bash_command=_orchestration_command("api-preflight"),
+            env=UNIVERSAL_API_ENV,
+            append_env=True,
+        )
+        api_ingest = BashOperator(
             task_id="ingest_bronze",
-            bash_command="cd /opt/airflow/spark && python spark_ingest_bronze.py --run_id {{ run_id }}",
+            bash_command=_orchestration_command("ingest-bronze"),
+            env=UNIVERSAL_API_ENV,
+            append_env=True,
+            skip_on_exit_code=99,
         )
-        kpi_bronze_to_silver = BashOperator(
-            task_id="bronze_to_silver",
-            bash_command="cd /opt/airflow/spark && python spark_bronze_to_silver.py --run_id {{ run_id }}",
+        api_bronze = BashOperator(
+            task_id="gx_validate_bronze",
+            bash_command=_orchestration_command("validate-bronze"),
+            env=UNIVERSAL_API_ENV,
+            append_env=True,
         )
-        kpi_silver_to_gold = BashOperator(
-            task_id="silver_to_gold",
-            bash_command="cd /opt/airflow/spark && python spark_silver_to_gold.py",
+        api_prepare_silver = BashOperator(
+            task_id="prepare_silver_candidate",
+            bash_command=_orchestration_command("prepare-silver-candidate"),
         )
-        kpi_predictive_analysis = BashOperator(
-            task_id="predictive_analysis",
-            bash_command="cd /opt/airflow/spark && python spark_predictive_analysis.py",
+        api_gx_silver = PythonOperator(
+            task_id="gx_validate_silver",
+            python_callable=validate_universal_silver,
+            op_kwargs={"source_kind": "api"},
         )
-        kpi_ingest_bronze >> kpi_bronze_to_silver >> kpi_silver_to_gold >> kpi_predictive_analysis
+        api_publish_silver = PythonOperator(
+            task_id="publish_silver_candidate",
+            python_callable=publish_universal_silver,
+            op_kwargs={
+                "source_kind": "api",
+                "validation_task_id": "api_flow.gx_validate_silver",
+            },
+        )
+        api_validate_silver = BashOperator(
+            task_id="validate_published_silver",
+            bash_command=_orchestration_command("validate-silver"),
+        )
+        api_preflight >> api_ingest >> api_bronze >> api_prepare_silver
+        api_prepare_silver >> api_gx_silver >> api_publish_silver >> api_validate_silver
 
-    # 4. Branch B: Registered Education APIs
-    with TaskGroup("api_flow", tooltip="Xử lý API giáo dục đã đăng ký") as api_flow:
-        api_runner = BashOperator(
-            task_id="run_registered_api",
+    with TaskGroup("file_flow", tooltip="Governed file candidate flow") as file_flow:
+        file_bronze = PythonOperator(
+            task_id="gx_validate_bronze", python_callable=validate_universal_bronze
+        )
+        file_prepare_silver = BashOperator(
+            task_id="prepare_silver_candidate",
             bash_command=(
-                "cd /opt/airflow/spark && "
-                "python api_dataset_orchestration.py process-silver "
-                '--dataset-id "{{ task_instance.xcom_pull(task_ids=\'ai_semantic_profiler\', key=\'registered_dataset_id\') }}" '
-                '--run-id "{{ run_id }}"'
+                "cd /opt/airflow/spark && python generic_candidate_writer.py "
+                "--source-kind file "
+                "--input '{{ task_instance.xcom_pull(task_ids=\"ai_semantic_profiler\", key=\"input_path\") }}' "
+                "--decision-file '{{ task_instance.xcom_pull(task_ids=\"ai_semantic_profiler\", key=\"decision_file\") }}' "
+                "--run-id '{{ run_id }}'"
             ),
         )
+        file_gx_silver = PythonOperator(
+            task_id="gx_validate_silver",
+            python_callable=validate_universal_silver,
+            op_kwargs={"source_kind": "file"},
+        )
+        file_publish_silver = PythonOperator(
+            task_id="publish_silver_candidate",
+            python_callable=publish_universal_silver,
+            op_kwargs={
+                "source_kind": "file",
+                "validation_task_id": "file_flow.gx_validate_silver",
+            },
+        )
+        file_bronze >> file_prepare_silver >> file_gx_silver >> file_publish_silver
 
-    # 5. Branch C: Generic Autonomous Lakehouse (Any Dataset)
-    with TaskGroup("generic_flow", tooltip="Xử lý dữ liệu đa nguồn linh hoạt (Generic Engine)") as generic_flow:
-        process_dynamic = BashOperator(
-            task_id="process_dynamic_silver_gold",
+    with TaskGroup("database_flow", tooltip="Governed database candidate flow") as database_flow:
+        database_prepare_silver = BashOperator(
+            task_id="prepare_silver_candidate",
             bash_command=(
-                "cd /opt/airflow/spark && "
-                "python -u service_preflight.py && "
-                "python -u spark_generic_dynamic_processor.py "
-                '--input "{{ task_instance.xcom_pull(task_ids=\'ai_semantic_profiler\', key=\'input_path\') }}" '
-                '--decision-file "{{ task_instance.xcom_pull(task_ids=\'ai_semantic_profiler\', key=\'decision_file\') }}" '
-                '--run-id "{{ run_id }}"'
+                "cd /opt/airflow/spark && python generic_candidate_writer.py "
+                "--source-kind database "
+                "--manifest '{{ task_instance.xcom_pull(task_ids=\"ai_semantic_profiler\", key=\"context_manifest\") }}' "
+                "--decision-file '{{ task_instance.xcom_pull(task_ids=\"ai_semantic_profiler\", key=\"decision_file\") }}' "
+                "--run-id '{{ run_id }}'"
             ),
         )
-
-    # 5.1 Branch D: Multi-table Airbyte relational context
-    with TaskGroup("relational_flow", tooltip="Xử lý context quan hệ nhiều bảng từ Airbyte") as relational_flow:
-        process_relational = BashOperator(
-            task_id="process_relational_context",
-            bash_command=(
-                "cd /opt/airflow/spark && "
-                "python spark_relational_context_processor.py "
-                '--manifest "{{ task_instance.xcom_pull(task_ids=\'ai_semantic_profiler\', key=\'context_manifest\') }}" '
-                '--decision-file "{{ task_instance.xcom_pull(task_ids=\'ai_semantic_profiler\', key=\'decision_file\') }}" '
-                '--run-id "{{ run_id }}"'
-            ),
+        database_gx_silver = PythonOperator(
+            task_id="gx_validate_silver",
+            python_callable=validate_universal_silver,
+            op_kwargs={"source_kind": "database"},
         )
+        database_publish_silver = PythonOperator(
+            task_id="publish_silver_candidate",
+            python_callable=publish_universal_silver,
+            op_kwargs={
+                "source_kind": "database",
+                "validation_task_id": "database_flow.gx_validate_silver",
+            },
+        )
+        database_prepare_silver >> database_gx_silver >> database_publish_silver
 
-    # 6. Legacy join & smoke test. Governed file uploads run in the separate
-    # candidate-first DAG; this legacy DAG intentionally has no GX boundary.
+    # Each source converges on the same contract-driven Gold gates. They are
+    # separate task instances only to preserve branch isolation and source_kind.
+    publish_ends = []
+    for source_kind, upstream in (
+        ("api", api_validate_silver),
+        ("file", file_publish_silver),
+        ("database", database_publish_silver),
+    ):
+        with TaskGroup(
+            f"{source_kind}_gold", tooltip=f"Governed {source_kind} Gold candidate"
+        ):
+            prepare_gold = BashOperator(
+                task_id="prepare_candidate",
+                bash_command=_orchestration_command("prepare-gold"),
+            )
+            build_gold = BashOperator(
+                task_id="build_candidate",
+                bash_command=_orchestration_command("process-gold"),
+            )
+            validate_gold = BashOperator(
+                task_id="validate_candidate",
+                bash_command=_orchestration_command("validate-gold"),
+            )
+            gx_gold = PythonOperator(
+                task_id="gx_validate",
+                python_callable=validate_universal_gold,
+                op_kwargs={"source_kind": source_kind},
+            )
+            gx_reconcile = PythonOperator(
+                task_id="gx_reconcile",
+                python_callable=reconcile_universal_gold,
+                op_kwargs={"source_kind": source_kind},
+            )
+            publish_gold = PythonOperator(
+                task_id="publish",
+                python_callable=publish_universal_gold,
+                op_kwargs={
+                    "gold_task_id": f"{source_kind}_gold.gx_validate",
+                    "reconciliation_task_id": f"{source_kind}_gold.gx_reconcile",
+                },
+            )
+            prepare_gold >> build_gold >> validate_gold >> gx_gold >> gx_reconcile >> publish_gold
+        upstream >> prepare_gold
+        publish_ends.append(publish_gold)
+
+    # Trino and Superset run only after one governed branch has published.
     join_and_smoke_test = PythonOperator(
         task_id="join_and_smoke_test",
         python_callable=smoke_test_trino,
@@ -561,12 +791,7 @@ with DAG(
 
     # Wire DAG Dependencies
     ai_semantic_profiler >> branch_router
-    branch_router >> [kpi_ingest_bronze, api_runner, process_dynamic, process_relational]
-    [
-        kpi_predictive_analysis,
-        api_runner,
-        process_dynamic,
-        process_relational,
-    ] >> join_and_smoke_test
+    branch_router >> [api_preflight, file_bronze, database_prepare_silver, onboarding]
+    publish_ends >> join_and_smoke_test
     join_and_smoke_test >> auto_provision_superset
 

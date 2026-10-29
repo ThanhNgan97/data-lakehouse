@@ -6,7 +6,7 @@ metadata:
 spec:
   type: Python
   mode: cluster
-  image: docker.io/tdang2202/cusc-datalakehouse:spark-3.5.0-v3
+  image: docker.io/tdang2202/cusc-datalakehouse:spark-3.5.0-v4
   imagePullPolicy: Always
   mainApplicationFile: local:///opt/lakehouse/spark/spark_iceberg_smoke_test.py
   sparkVersion: "3.5.0"

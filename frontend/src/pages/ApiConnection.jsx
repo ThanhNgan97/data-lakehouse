@@ -35,6 +35,17 @@ const AIRFLOW_ORIGIN = import.meta.env.VITE_AIRFLOW_URL || "http://localhost:808
 const AIRFLOW_DAG_URL = `${AIRFLOW_ORIGIN}/dags/api_dataset_pipeline/grid`;
 const SUPERSET_ORIGIN = import.meta.env.VITE_SUPERSET_URL || "http://localhost:8088";
 const authHeader = () => ({ Authorization: `Bearer ${localStorage.getItem("token")}` });
+const PIPELINE_STEPS = [
+  { label: "API Ingestion", tasks: ["api_preflight", "ingest_bronze"] },
+  { label: "Silver Candidate", tasks: ["validate_bronze", "process_silver"] },
+  { label: "GX Silver", tasks: ["gx_validate_silver"] },
+  { label: "Silver Publish", tasks: ["publish_silver_candidate", "validate_silver"] },
+  { label: "dbt Gold Build", tasks: ["prepare_gold", "process_gold", "validate_gold"] },
+  { label: "GX Gold Candidate", tasks: ["gx_validate_gold"] },
+  { label: "Candidate Reconciliation", tasks: ["gx_reconcile_silver_gold"] },
+  { label: "Gold Publish", tasks: ["publish_gold"] },
+  { label: "Trino Ready", tasks: ["trino_smoke_test"] },
+];
 const normalizeSource = (source) => ({
   id: source.id,
   datasetId: source.dataset_id,
@@ -94,7 +105,7 @@ export default function ApiConnection() {
   const [paginationOpen, setPaginationOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("history");
   const [dashboardRevision, setDashboardRevision] = useState(0);
-  const [pipeline, setPipeline] = useState({ runId: "", state: "idle", tasks: [], error: "" });
+  const [pipeline, setPipeline] = useState({ runId: "", state: "idle", tasks: [], gxValidations: [], silverPublication: null, error: "" });
   const [preview, setPreview] = useState({ loading: false, data: [], metadata: null, error: "" });
   const [saveState, setSaveState] = useState({ loading: false, message: "", error: "" });
   const [form, setForm] = useState({
@@ -162,6 +173,8 @@ export default function ApiConnection() {
           ...current,
           state: response.data.state || "unknown",
           tasks: response.data.tasks || [],
+          gxValidations: response.data.gx_validations || [],
+          silverPublication: response.data.silver_publication || null,
           error: "",
         }));
       } catch (error) {
@@ -459,15 +472,10 @@ export default function ApiConnection() {
   }
 
   function pipelineTaskState(index) {
-    const taskGroups = [
-      ["api_preflight", "ingest_bronze"],
-      ["validate_bronze", "process_silver", "validate_silver"],
-      ["process_gold", "validate_gold"],
-      ["trino_smoke_test"],
-    ];
-    const matches = pipeline.tasks.filter((task) => taskGroups[index].includes(task.task_id));
+    const matches = pipeline.tasks.filter((task) => PIPELINE_STEPS[index].tasks.includes(task.task_id));
     if (matches.some((task) => ["failed", "upstream_failed"].includes(task.state))) return "failed";
     if (matches.some((task) => ["running", "queued", "scheduled"].includes(task.state))) return "running";
+    if (matches.length && matches.every((task) => ["success", "skipped"].includes(task.state)) && matches.some((task) => task.state === "skipped")) return "skipped";
     if (matches.length && matches.every((task) => task.state === "success")) return "success";
     return "waiting";
   }
@@ -640,15 +648,20 @@ export default function ApiConnection() {
               {pipeline.state === "failed" && (pipeline.error || "Pipeline thực thi thất bại.")}
               {pipeline.runId && <span className="mt-1 block break-all font-mono text-xs opacity-75">Run ID: {pipeline.runId}</span>}
             </div>
-            <h3 className="mb-3 mt-6 text-xs font-extrabold uppercase tracking-wider text-slate-500">Tiến trình thực thi chuẩn</h3>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {["Nhận dữ liệu", "Kiểm tra & chuẩn hóa", "Tổng hợp kết quả", "Kiểm tra báo cáo"].map((step, index) => {
+            <div className="mb-3 mt-6 flex flex-wrap items-end justify-between gap-2"><h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Tiến trình thực thi chuẩn</h3><p className="font-data text-[11px] text-slate-500">Orchestrator: Airflow · DAG: api_dataset_pipeline</p></div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-8">
+              {PIPELINE_STEPS.map((step, index) => {
                 const state = pipelineTaskState(index);
-                const stateLabel = { waiting: "Sẵn sàng", running: "Đang chạy", success: "Hoàn thành", failed: "Thất bại" }[state];
-                const stateClass = { waiting: "bg-slate-100 text-slate-500", running: "bg-blue-100 text-blue-700", success: "bg-emerald-100 text-emerald-700", failed: "bg-rose-100 text-rose-700" }[state];
-                return <div key={step} className={`rounded-xl border p-4 transition duration-300 hover:-translate-y-1 hover:shadow-md ${state === "running" ? "border-blue-300 bg-blue-50/50" : state === "failed" ? "border-rose-200" : "border-slate-200"}`}><div className="flex items-center justify-between"><span className="font-data text-xs font-bold text-blue-700">0{index + 1}</span><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${stateClass}`}>{stateLabel}</span></div><p className="mt-4 text-sm font-bold">{step}</p></div>;
+                const stateLabel = { waiting: "Sẵn sàng", running: "Đang chạy", success: "Hoàn thành", skipped: "Không có dữ liệu mới", failed: "Thất bại" }[state];
+                const stateClass = { waiting: "bg-slate-100 text-slate-500", running: "bg-blue-100 text-blue-700", success: "bg-emerald-100 text-emerald-700", skipped: "bg-amber-100 text-amber-700", failed: "bg-rose-100 text-rose-700" }[state];
+                return <div key={step.label} className={`rounded-xl border p-4 transition duration-300 hover:-translate-y-1 hover:shadow-md ${state === "running" ? "border-blue-300 bg-blue-50/50" : state === "failed" ? "border-rose-200" : state === "skipped" ? "border-amber-200 bg-amber-50/50" : "border-slate-200"}`}><div className="flex items-start justify-between gap-2"><span className="font-data text-xs font-bold text-blue-700">{String(index + 1).padStart(2, "0")}</span><span className={`rounded-full px-2 py-1 text-right text-[10px] font-bold ${stateClass}`}>{stateLabel}</span></div><p className="mt-4 text-sm font-bold">{step.label}</p></div>;
               })}
             </div>
+            {pipeline.gxValidations?.length > 0 && <div className="mt-5 grid gap-3 lg:grid-cols-3">
+              {pipeline.gxValidations.map((item) => { const passed = item.status === "PASSED"; const skipped = item.status === "SKIPPED"; const unavailable = ["PENDING", "RUNNING", "NOT_AVAILABLE", "RESULT_UNAVAILABLE"].includes(item.status); return <article key={item.task_id} className={`rounded-xl border p-4 ${passed ? "border-emerald-200 bg-emerald-50" : skipped ? "border-amber-200 bg-amber-50" : unavailable ? "border-slate-200 bg-slate-50" : "border-rose-200 bg-rose-50"}`}><div className="flex items-start justify-between gap-2"><div><p className="text-sm font-extrabold text-slate-950">GX {item.layer}</p><p className="mt-1 font-data text-[10px] text-slate-500">Airflow task: {item.task_id}</p></div><span className={`rounded-full px-2 py-1 text-[10px] font-extrabold ${passed ? "bg-emerald-100 text-emerald-700" : skipped ? "bg-amber-100 text-amber-700" : unavailable ? "bg-slate-200 text-slate-600" : "bg-rose-100 text-rose-700"}`}>{item.status}</span></div>{skipped && <p className="mt-3 text-xs font-semibold text-amber-800">Không có batch dữ liệu mới nên GX không chạy và không tạo validation evidence.</p>}<dl className="mt-4 grid grid-cols-2 gap-3 text-xs"><div><dt className="font-semibold text-slate-500">Validation ID</dt><dd className="mt-1 break-all font-data text-slate-900">{item.validation_id || "—"}</dd></div><div><dt className="font-semibold text-slate-500">Quyết định</dt><dd className="mt-1 font-bold text-slate-900">{item.merge_allowed === true ? "ALLOWED" : item.merge_allowed === false ? "BLOCKED" : skipped ? "KHÔNG ÁP DỤNG" : "—"}</dd></div><div><dt className="font-semibold text-slate-500">Snapshot</dt><dd className="mt-1 break-all font-data text-slate-900">{item.snapshot_id || "—"}</dd></div><div><dt className="font-semibold text-slate-500">Nessie commit</dt><dd className="mt-1 break-all font-data text-slate-900">{item.nessie_commit_hash || "—"}</dd></div></dl><p className="mt-3 border-t border-current/10 pt-3 font-data text-[10px] text-slate-500">{item.data_asset_ref || (skipped ? "Không tạo evidence vì incremental batch rỗng" : "Chưa có validation evidence")}</p></article>; })}
+            </div>}
+            {pipeline.silverPublication && <div className="mt-4 rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-xs text-indigo-950"><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-extrabold">Nessie Silver publication</p><span className="rounded-full bg-indigo-100 px-2 py-1 font-extrabold text-indigo-700">{pipeline.silverPublication.status}</span></div><dl className="mt-3 grid gap-3 sm:grid-cols-3"><div><dt className="font-semibold text-indigo-700">Candidate</dt><dd className="mt-1 break-all font-data">{pipeline.silverPublication.candidate_branch || "—"}</dd></div><div><dt className="font-semibold text-indigo-700">Candidate commit</dt><dd className="mt-1 break-all font-data">{pipeline.silverPublication.candidate_hash || "—"}</dd></div><div><dt className="font-semibold text-indigo-700">Publication commit</dt><dd className="mt-1 break-all font-data">{pipeline.silverPublication.publication_hash || "—"}</dd></div></dl></div>}
+            <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-800">GX kiểm tra Silver candidate, Gold candidate và đối soát Silver–Gold trước khi Nessie CAS publish. Gold chỉ được publish khi cả hai approval của candidate còn khớp branch, snapshot và commit đã niêm phong.</p>
             <div className="mt-6 border-b border-slate-200"><div className="flex gap-5 overflow-x-auto">{[{ id: "history", label: "Lịch sử cập nhật", icon: History }, { id: "report", label: "Báo cáo liên quan", icon: Table2 }].map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => setActiveTab(id)} className={`flex shrink-0 items-center gap-2 border-b-2 px-1 pb-3 text-sm font-semibold ${activeTab === id ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500"}`}><Icon size={16} />{label}</button>)}</div></div>
             {activeTab === "history" ? <div className="mt-4 grid min-h-28 place-items-center rounded-xl border border-dashed border-slate-200 text-center"><div><Clock3 size={22} className="mx-auto text-slate-400" /><p className="mt-2 text-sm font-semibold text-slate-600">Chưa có thông tin lịch sử cập nhật</p></div></div> : <div className="mt-4 flex flex-col gap-3 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-bold">Dashboard – {selectedSource.name}</p><p className="mt-1 text-xs text-slate-500">Báo cáo mở theo phân quyền tài khoản của bạn.</p></div><a href={`${SUPERSET_ORIGIN}/superset/dashboard/${encodeURIComponent(selectedSource.dashboardSlug)}/`} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold text-blue-700">Mở báo cáo</a></div>}
           </div>

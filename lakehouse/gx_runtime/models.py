@@ -21,10 +21,27 @@ class ExecutionMode(str, Enum):
     ENFORCE = "enforce"
 
 
+class SourceKind(str, Enum):
+    FILE = "file"
+    API = "api"
+    DATABASE = "database"
+    STREAMING = "streaming"
+
+
 class ValidationStatus(str, Enum):
     PASSED = "PASSED"
     WARNING = "WARNING"
     FAILED = "FAILED"
+
+
+class ValidationCoverage(str, Enum):
+    BASELINE = "BASELINE"
+    CONTRACT = "CONTRACT"
+
+
+class ContractStatus(str, Enum):
+    MISSING = "MISSING"
+    APPROVED = "APPROVED"
 
 
 @dataclass(frozen=True)
@@ -45,18 +62,24 @@ class ValidationRequest:
     dataset_id: str
     data_layer: str
     execution_engine: ExecutionEngine
+    contract_version: str
     suites: tuple[SuiteReference, ...]
     run_id: str
     execution_mode: ExecutionMode = ExecutionMode.ENFORCE
     nessie_branch: str | None = None
     snapshot_id: str | None = None
     nessie_commit_hash: str | None = None
+    source_kind: SourceKind | None = None
+    suite_revision: str | None = None
+    coverage: ValidationCoverage = ValidationCoverage.CONTRACT
+    contract_status: ContractStatus = ContractStatus.APPROVED
 
     def __post_init__(self) -> None:
         required = {
             "data_asset_ref": self.data_asset_ref,
             "dataset_id": self.dataset_id,
             "data_layer": self.data_layer,
+            "contract_version": self.contract_version,
             "run_id": self.run_id,
         }
         missing = [name for name, value in required.items() if not value.strip()]
@@ -116,6 +139,7 @@ class ValidationSummary:
     data_layer: str
     execution_engine: ExecutionEngine
     execution_mode: ExecutionMode
+    contract_version: str
     suite_names: tuple[str, ...]
     suite_versions: dict[str, str]
     run_id: str
@@ -131,12 +155,37 @@ class ValidationSummary:
     result_ids: tuple[str, ...]
     data_docs_url: str | None = None
     metrics: dict[str, Any] = field(default_factory=dict)
+    source_kind: SourceKind | None = None
+    suite_revision: str | None = None
+    coverage: ValidationCoverage = ValidationCoverage.CONTRACT
+    contract_status: ContractStatus = ContractStatus.APPROVED
 
-    def as_dict(self) -> dict[str, Any]:
+    @property
+    def validated_branch(self) -> str | None:
+        return self.nessie_branch
+
+    @property
+    def validated_snapshot_id(self) -> str | None:
+        return self.snapshot_id
+
+    @property
+    def validated_commit_hash(self) -> str | None:
+        return self.nessie_commit_hash
+
+    @property
+    def critical_failure_count(self) -> int:
+        return len(self.critical_failures)
+
+    def as_dict(self, *, redact_observed_values: bool = False) -> dict[str, Any]:
         payload = asdict(self)
         payload["status"] = self.status.value
         payload["execution_engine"] = self.execution_engine.value
         payload["execution_mode"] = self.execution_mode.value
+        payload["source_kind"] = (
+            self.source_kind.value if self.source_kind is not None else None
+        )
+        payload["coverage"] = self.coverage.value
+        payload["contract_status"] = self.contract_status.value
         payload["suite_names"] = list(self.suite_names)
         payload["result_ids"] = list(self.result_ids)
         payload["critical_failures"] = [
@@ -145,6 +194,17 @@ class ValidationSummary:
         payload["warning_failures"] = [
             asdict(failure) for failure in self.warning_failures
         ]
+        if redact_observed_values:
+            for failure in payload["critical_failures"] + payload["warning_failures"]:
+                if failure.get("observed_value") is not None:
+                    failure["observed_value"] = "[REDACTED]"
+        # Phase-5 publish gates consume explicit validated identity names. Keep
+        # the original fields for phase-2 API compatibility.
+        payload["layer"] = self.data_layer
+        payload["validated_branch"] = self.validated_branch
+        payload["validated_snapshot_id"] = self.validated_snapshot_id
+        payload["validated_commit_hash"] = self.validated_commit_hash
+        payload["critical_failure_count"] = self.critical_failure_count
         return payload
 
 

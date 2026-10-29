@@ -1,0 +1,37 @@
+{
+  "name": "teaching_progress_silver_core",
+  "id": null,
+  "expectations": [
+    {
+      "type": "expect_table_columns_to_match_set",
+      "kwargs": {
+        "column_set": ["ma_ban_ghi", "ma_don_vi", "ten_don_vi", "ma_lop_hoc_phan", "nam_hoc", "hoc_ky", "ty_le_tien_do_giang_day", "thoi_gian_cap_nhat_nguon", "_source_system", "_source_type", "_dataset", "_schema_version", "_ingestion_mode", "_batch_id", "_source_updated_at", "_ingested_at", "_record_checksum", "_silver_updated_at"],
+        "exact_match": false
+      },
+      "meta": {"rule_id": "silver.schema.required_columns"},
+      "severity": "critical"
+    },
+    {"type": "expect_column_values_to_not_be_null", "kwargs": {"column": "ma_ban_ghi"}, "meta": {"rule_id": "silver.required.null_ratio"}, "severity": "critical"},
+    {"type": "expect_column_values_to_not_be_null", "kwargs": {"column": "ma_don_vi"}, "meta": {"rule_id": "silver.required.null_ratio"}, "severity": "critical"},
+    {"type": "expect_column_values_to_not_be_null", "kwargs": {"column": "ma_lop_hoc_phan"}, "meta": {"rule_id": "silver.required.null_ratio"}, "severity": "critical"},
+    {"type": "expect_column_values_to_not_be_null", "kwargs": {"column": "nam_hoc"}, "meta": {"rule_id": "silver.required.null_ratio"}, "severity": "critical"},
+    {"type": "expect_column_values_to_not_be_null", "kwargs": {"column": "hoc_ky"}, "meta": {"rule_id": "silver.required.null_ratio"}, "severity": "critical"},
+    {"type": "expect_column_values_to_not_be_null", "kwargs": {"column": "ty_le_tien_do_giang_day"}, "meta": {"rule_id": "silver.required.null_ratio"}, "severity": "critical"},
+    {"type": "expect_column_values_to_not_be_null", "kwargs": {"column": "_source_updated_at"}, "meta": {"rule_id": "silver.required.null_ratio"}, "severity": "critical"},
+    {
+      "type": "expect_compound_columns_to_be_unique",
+      "kwargs": {"column_list": ["ma_lop_hoc_phan", "nam_hoc", "hoc_ky"]},
+      "meta": {"rule_id": "silver.candidate_key.duplicate_ratio"},
+      "severity": "warning"
+    },
+    {"type": "expect_table_row_count_to_be_between", "kwargs": {"min_value": 1}, "meta": {"rule_id": "silver.volume.non_empty"}, "severity": "critical"},
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {"column": "ty_le_tien_do_giang_day", "min_value": 0.0, "max_value": 100.0},
+      "meta": {"rule_id": "silver.progress.range"},
+      "severity": "critical"
+    }
+  ],
+  "meta": {"great_expectations_version": "1.24.0", "contract_version": "1.0.0"},
+  "notes": "Spark suite intentionally excludes dynamic freshness and cross-table reconciliation; those rules execute on SQL/Trino."
+}

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from pathlib import Path
 
@@ -19,6 +19,7 @@ class SuiteMetadata:
     contract_version: str
     effective_from: date
     definition_path: Path
+    definition_paths: dict[ExecutionEngine, Path]
 
 
 class SuiteRegistry:
@@ -32,6 +33,13 @@ class SuiteRegistry:
             ) from exc
         self._suites: dict[tuple[str, str], SuiteMetadata] = {}
         for item in payload.get("suites", []):
+            definitions = {
+                ExecutionEngine(engine): (
+                    self.registry_path.parent / path
+                ).resolve()
+                for engine, path in item.get("definitions", {}).items()
+            }
+            legacy_definition = item.get("definition")
             metadata = SuiteMetadata(
                 name=item["name"],
                 version=item["version"],
@@ -40,7 +48,12 @@ class SuiteRegistry:
                 ),
                 contract_version=item["contract_version"],
                 effective_from=date.fromisoformat(item["effective_from"]),
-                definition_path=(self.registry_path.parent / item["definition"]).resolve(),
+                definition_path=(
+                    (self.registry_path.parent / legacy_definition).resolve()
+                    if legacy_definition
+                    else Path()
+                ),
+                definition_paths=definitions,
             )
             self._suites[(metadata.name, metadata.version)] = metadata
 
@@ -57,8 +70,11 @@ class SuiteRegistry:
             raise ValidationConfigurationError(
                 f"Suite {suite.name}@{suite.version} does not support {engine.value}"
             )
-        if not metadata.definition_path.is_file():
+        definition_path = metadata.definition_paths.get(
+            engine, metadata.definition_path
+        )
+        if not definition_path.is_file():
             raise SuiteNotFoundError(
-                f"Suite definition not found: {metadata.definition_path}"
+                f"Suite definition not found: {definition_path}"
             )
-        return metadata
+        return replace(metadata, definition_path=definition_path)

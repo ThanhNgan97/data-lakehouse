@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -13,6 +14,8 @@ from api.routes.api_sources import (
     LoginAuthenticationRequest,
     SaveApiSourceRequest,
     _extract_token,
+    _bounded_gx_evidence,
+    _parse_airflow_xcom,
     _login_for_token,
     _persisted_metadata,
     configure_api_source_credentials,
@@ -20,6 +23,62 @@ from api.routes.api_sources import (
 )
 from core.security import decrypt_secret, encrypt_secret
 from db.models import ApiSource
+
+
+def test_gx_evidence_is_flattened_and_bounded_for_portal():
+    value = _parse_airflow_xcom('{"status":"PASSED","validation_id":"v-1",'
+        '"merge_allowed":true,"raw_rows":[1,2],"approval":{'
+        '"data_asset_ref":"lakehouse.silver.teaching_progress",'
+        '"validated_branch":"main","validated_snapshot_id":"42",'
+        '"validated_commit_hash":"commit-42","secret":"drop"}}')
+    evidence = _bounded_gx_evidence("gx_validate_silver", "Silver", value)
+
+    assert evidence["status"] == "PASSED"
+    assert evidence["snapshot_id"] == "42"
+    assert evidence["nessie_commit_hash"] == "commit-42"
+    assert "raw_rows" not in evidence
+    assert "approval" not in evidence
+    assert "secret" not in str(evidence)
+
+
+def test_skipped_gx_task_is_not_reported_as_pending(monkeypatch):
+    class MissingXCom:
+        status_code = 404
+
+    monkeypatch.setattr(api_sources.requests, "get", lambda *args, **kwargs: MissingXCom())
+    evidence = api_sources._gx_evidence_for_run("http://airflow/run", [
+        {"task_id": "gx_validate_silver", "state": "skipped"},
+        {"task_id": "gx_validate_gold", "state": "skipped"},
+        {"task_id": "gx_reconcile_silver_gold", "state": "skipped"},
+    ])
+    assert {item["status"] for item in evidence} == {"SKIPPED"}
+
+
+def test_silver_publication_evidence_is_bounded(monkeypatch):
+    class PublicationXCom:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"value": json.dumps({
+                "status": "PUBLISHED",
+                "dataset_id": "education.teaching_progress",
+                "candidate_branch": "candidate-1",
+                "candidate_hash": "candidate-hash",
+                "publication_hash": "published-hash",
+                "validation_id": "validation-1",
+                "candidate_state_path": "/private/path",
+            })}
+
+    monkeypatch.setattr(
+        api_sources.requests, "get", lambda *args, **kwargs: PublicationXCom()
+    )
+    evidence = api_sources._silver_publication_evidence(
+        "http://airflow/run", []
+    )
+    assert evidence["status"] == "PUBLISHED"
+    assert evidence["publication_hash"] == "published-hash"
+    assert "candidate_state_path" not in evidence
 
 
 def test_api_source_metadata_is_normalized_for_persistence():

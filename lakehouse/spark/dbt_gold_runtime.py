@@ -220,12 +220,74 @@ def _validate_sql(config, run_id, state):
     save(config, run_id, state)
 
 
-def publish(config, run_id):
+def _require_gx_approval(result, state, config, data_layer):
+    from gx_candidate_binding import dbt_gold_candidate_binding
+    from gx_approval_receipt import GXApprovalReceiptError, verify_approval_receipt
+    from gx_route_resolver import resolve_route
+
+    canonical = config.gold_table
+    binding = dbt_gold_candidate_binding(state["dataset"], state["run_id"], canonical)
+    output_name = canonical.rsplit(".", 1)[-1]
+    candidate = state["candidate_contents"].get(output_name)
+    approval = result.get("approval") if isinstance(result, dict) else None
+    if (
+        not isinstance(result, dict)
+        or result.get("data_layer") != data_layer
+        or result.get("merge_allowed") is not True
+        or result.get("data_asset_ref") != canonical
+        or result.get("physical_data_asset_ref") != binding.physical_asset_ref
+        or result.get("candidate_branch") != state["ref"]
+        or result.get("candidate_hash") != state["validated_hash"]
+        or not isinstance(candidate, dict)
+        or not isinstance(approval, dict)
+        or approval.get("merge_allowed") is not True
+        or str(result.get("validation_id") or "")
+        != str(approval.get("validation_id") or "")
+    ):
+        raise RuntimeError(f"Refuse publish: valid GX {data_layer} approval is required")
+    route = resolve_route(
+        dataset_id=state["dataset"], data_layer=data_layer,
+        source_kind=str(result.get("source_kind") or "api"),
+        execution_engine="sql",
+    )
+    expected = {
+        "validation_id": result.get("validation_id"),
+        "dataset_id": state["dataset"],
+        "data_layer": data_layer,
+        "contract_version": route.contract_version,
+        "run_id": state["run_id"],
+        "source_kind": str(result.get("source_kind") or "api"),
+        "audience": f"{data_layer}-publisher",
+        "data_asset_ref": binding.physical_asset_ref,
+        "validated_branch": state["ref"],
+        "validated_snapshot_id": str(candidate.get("snapshotId") or ""),
+        "validated_commit_hash": state["validated_hash"],
+        "candidate_hash": state["validated_hash"],
+    }
+    try:
+        return verify_approval_receipt(approval, expected=expected)
+    except GXApprovalReceiptError as exc:
+        raise RuntimeError(
+            f"Refuse publish: stale GX {data_layer} approval: {exc}"
+        ) from exc
+
+
+def publish(
+    config,
+    run_id,
+    *,
+    gx_gold_result,
+    gx_reconciliation_result,
+):
     state = load(config, run_id)
     if state["phase"] == "published":
         return
     if state["phase"] != "validated":
         raise RuntimeError("Refuse publish: Gold has not passed validation")
+    gold_approval = _require_gx_approval(gx_gold_result, state, config, "gold")
+    reconciliation_approval = _require_gx_approval(
+        gx_reconciliation_result, state, config, "reconciliation"
+    )
     if worker_result(state)["artifact_sha256"] != state["artifact_sha256"] or head(state["ref"]) != state["validated_hash"]:
         raise RuntimeError("Validated candidate changed; publish refused")
     target = state["target_ref"]
@@ -237,7 +299,14 @@ def publish(config, run_id):
     current = {name: content(target, "gold." + name, target_hash) for name in entries}
     # Recover only when the whole bundle is already promoted, never a partial bundle.
     if all(current[name] and current[name].get("metadataLocation") == candidates[name]["metadataLocation"] for name in entries):
-        state.update(phase="published", published_hash=target_hash)
+        state.update(
+            phase="published",
+            published_hash=target_hash,
+            gx_approvals={
+                "gold": gold_approval["validation_id"],
+                "reconciliation": reconciliation_approval["validation_id"],
+            },
+        )
         save(config, run_id, state)
         return
     if target_hash != state["base_hash"] or any(current[name] != entries[name]["original_content"] for name in entries):
@@ -260,5 +329,12 @@ def publish(config, run_id):
     for name, candidate in candidates.items():
         if content(target, "gold." + name, committed["hash"])["metadataLocation"] != candidate["metadataLocation"]:
             raise RuntimeError("Gold publish readback mismatch")
-    state.update(phase="published", published_hash=committed["hash"])
+    state.update(
+        phase="published",
+        published_hash=committed["hash"],
+        gx_approvals={
+            "gold": gold_approval["validation_id"],
+            "reconciliation": reconciliation_approval["validation_id"],
+        },
+    )
     save(config, run_id, state)

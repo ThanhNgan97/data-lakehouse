@@ -15,6 +15,10 @@ from pyspark.sql import functions as F
 
 import dbt_gold_runtime as gold
 from dbt_gold_contract import identity
+from gx_dbt_candidate_gate import (
+    reconcile_dbt_gold_candidate,
+    validate_dbt_gold_candidate,
+)
 from api_dataset_registry import get_dataset_config
 from env_config import NESSIE_API_URL, S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET_NAME
 
@@ -173,6 +177,16 @@ def main():
             save()
         state = gold.load(config, run_id)
         result = gold.worker_result(state)
+        gold_approval = validate_dbt_gold_candidate(
+            dataset_id=config.dataset, run_id=run_id
+        )
+        reconciliation_approval = reconcile_dbt_gold_candidate(
+            dataset_id=config.dataset, run_id=run_id
+        )
+        publish_args = {
+            "gx_gold_result": gold_approval,
+            "gx_reconciliation_result": reconciliation_approval,
+        }
         if result['source_content'] != report['silver_sources'][name]:
             raise RuntimeError('Worker did not use the pinned Silver snapshot')
         if label == 'changed_candidate':
@@ -183,7 +197,7 @@ def main():
                                            'content': {'type': 'NAMESPACE', 'elements': [marker], 'properties': {}}}]})
             target_before = gold.head(target)
             try:
-                gold.publish(config, run_id)
+                gold.publish(config, run_id, **publish_args)
             except RuntimeError as exc:
                 if 'Validated candidate changed' not in str(exc):
                     raise
@@ -195,7 +209,7 @@ def main():
             case['status'] = 'expected_refusal'
         else:
             start = time.monotonic()
-            gold.publish(config, run_id)
+            gold.publish(config, run_id, **publish_args)
             case['timings']['publish'] = time.monotonic() - start
             published = gold.load(config, run_id)
             published_head = gold.head(target)
@@ -203,7 +217,7 @@ def main():
             gold.prepare(config, run_id)
             gold.build(config, run_id)
             gold.validate(config, run_id)
-            gold.publish(config, run_id)
+            gold.publish(config, run_id, **publish_args)
             after = gold.load(config, run_id)
             if gold.head(target) != published_head or after['artifact_sha256'] != published['artifact_sha256']:
                 raise RuntimeError('Retry changed build artifact or published target')

@@ -1,0 +1,27 @@
+{
+  "format": "lakehouse-sql-suite/v1",
+  "suite_name": "teaching_progress_silver_gold_reconciliation",
+  "suite_version": "1.0.0",
+  "contract_version": "1.0.0",
+  "effective_from": "2026-10-27",
+  "expectations": [
+    {
+      "id": "silver_gold.row_count", "type": "row_count_match", "severity": "critical",
+      "description": "Silver and Gold row counts match.",
+      "query": "SELECT abs((SELECT count(*) FROM lakehouse.silver.teaching_progress) - (SELECT count(*) FROM lakehouse.gold.teaching_progress_metrics))",
+      "success": {"operator": "eq", "value": 0}
+    },
+    {
+      "id": "silver_gold.candidate_key_set", "type": "key_set_match", "severity": "critical",
+      "description": "Silver and Gold candidate key sets match in both directions.",
+      "query": "SELECT count(*) FROM ((SELECT ma_lop_hoc_phan, nam_hoc, hoc_ky FROM lakehouse.silver.teaching_progress EXCEPT SELECT ma_lop_hoc_phan, nam_hoc, hoc_ky FROM lakehouse.gold.teaching_progress_metrics) UNION ALL (SELECT ma_lop_hoc_phan, nam_hoc, hoc_ky FROM lakehouse.gold.teaching_progress_metrics EXCEPT SELECT ma_lop_hoc_phan, nam_hoc, hoc_ky FROM lakehouse.silver.teaching_progress))",
+      "success": {"operator": "eq", "value": 0}
+    },
+    {
+      "id": "silver_gold.value_and_lineage", "type": "column_reconciliation", "severity": "critical",
+      "description": "Progress values and lineage fields reconcile at the candidate grain.",
+      "query": "SELECT count(*) FROM lakehouse.silver.teaching_progress s FULL OUTER JOIN lakehouse.gold.teaching_progress_metrics g ON s.ma_lop_hoc_phan = g.ma_lop_hoc_phan AND s.nam_hoc = g.nam_hoc AND s.hoc_ky = g.hoc_ky WHERE s.ma_lop_hoc_phan IS NULL OR g.ma_lop_hoc_phan IS NULL OR s.ma_ban_ghi <> g.source_record_id OR s.ty_le_tien_do_giang_day <> g.ty_le_tien_do_giang_day OR s._record_checksum <> g.source_record_checksum",
+      "success": {"operator": "eq", "value": 0}
+    }
+  ]
+}

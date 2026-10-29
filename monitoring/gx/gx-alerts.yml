@@ -1,0 +1,37 @@
+groups:
+  - name: gx-production
+    rules:
+      - alert: GXValidatorUnavailable
+        expr: up{job="gx-validator"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: "GX validator is unavailable"
+      - alert: GXExecutionErrors
+        expr: increase(gx_engine_error_total[10m]) > 0
+        for: 5m
+        labels: {severity: critical}
+        annotations:
+          summary: "GX validation engine errors detected"
+      - alert: GXValidationTimeouts
+        expr: increase(gx_validation_timeout_total[10m]) > 2
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "GX validation timeouts exceed threshold"
+      - alert: GXNotConfiguredDatasets
+        expr: increase(gx_not_configured_total[30m]) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "Dataset reached GX without an active contract"
+      - alert: GXAuthenticationFailures
+        expr: increase(gx_auth_failure_total[10m]) > 5
+        labels: {severity: warning}
+        annotations:
+          summary: "Repeated unauthorized GX service calls"
+      - alert: GXValidationLatencyP95High
+        expr: histogram_quantile(0.95, sum by (le) (rate(gx_validation_duration_seconds_bucket[10m]))) > 60
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "GX p95 validation latency exceeds 60 seconds"

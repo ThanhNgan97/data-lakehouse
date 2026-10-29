@@ -1,0 +1,33 @@
+{
+  "format": "lakehouse-sql-suite/v1",
+  "suite_name": "lakehouse_baseline_silver",
+  "suite_version": "1.0.0",
+  "contract_version": "baseline-1.0.0",
+  "effective_from": "2026-10-28",
+  "expectations": [
+    {
+      "id": "baseline.schema.has_columns",
+      "type": "schema",
+      "severity": "critical",
+      "description": "The Silver asset exists and exposes at least one column.",
+      "query": "SELECT count(*) FROM lakehouse.information_schema.columns WHERE table_schema = '{data_asset_schema}' AND table_name = '{data_asset_table}'",
+      "success": {"operator": "gte", "value": 1}
+    },
+    {
+      "id": "baseline.volume.non_empty",
+      "type": "volume",
+      "severity": "critical",
+      "description": "The Silver asset contains at least one row.",
+      "query": "SELECT count(*) FROM {data_asset_ref}",
+      "success": {"operator": "gte", "value": 1}
+    },
+    {
+      "id": "baseline.rows.exact_duplicates",
+      "type": "duplicate_ratio",
+      "severity": "warning",
+      "description": "The Silver asset contains no exact duplicate rows.",
+      "query": "SELECT count(*) - (SELECT count(*) FROM (SELECT DISTINCT * FROM {data_asset_ref})) FROM {data_asset_ref}",
+      "success": {"operator": "eq", "value": 0}
+    }
+  ]
+}

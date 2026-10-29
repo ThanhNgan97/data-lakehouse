@@ -3,3 +3,4 @@ pyspark==3.5.0
 SQLAlchemy==2.0.44
 trino[sqlalchemy]==0.336.0
 boto3==1.40.59
+cryptography==46.0.0

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.models.param import Param
 from airflow.operators.bash import BashOperator
-from airflow.operators.python import ShortCircuitOperator
+from airflow.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import (
     SparkKubernetesOperator,
 )
@@ -75,6 +75,126 @@ def api_preflight_should_continue(**context) -> bool:
     return has_changes
 
 
+def run_gx_api_quality_gate(**context):
+    """Validate the selected API dataset's immutable Silver candidate."""
+    from airflow.exceptions import AirflowException, AirflowFailException
+    from gx_airflow_adapter import GXAirflowError, NON_RETRYABLE
+    from gx_api_gate import validate_api_candidate_dataset
+
+    dag_run = context.get("dag_run")
+    dataset_id = dag_run.conf.get("dataset_id") if dag_run else None
+    dataset_id = dataset_id or context.get("params", {}).get("dataset_id")
+    if not dataset_id:
+        raise ValueError("dataset_id is required for the GX API gate")
+    try:
+        return validate_api_candidate_dataset(
+            dataset_id=str(dataset_id),
+            run_id=str(context.get("run_id") or ""),
+        )
+    except GXAirflowError as exc:
+        if exc.code in NON_RETRYABLE or not exc.retryable:
+            raise AirflowFailException(str(exc)) from exc
+        raise AirflowException(str(exc)) from exc
+
+
+def publish_gx_approved_silver_candidate(**context):
+    """CAS-publish only the exact Silver candidate approved by GX."""
+    from airflow.exceptions import AirflowFailException
+    from gx_candidate_publisher import CandidatePublishError, publish_api_candidate
+
+    dag_run = context.get("dag_run")
+    dataset_id = dag_run.conf.get("dataset_id") if dag_run else None
+    dataset_id = dataset_id or context.get("params", {}).get("dataset_id")
+    if not dataset_id:
+        raise AirflowFailException("dataset_id is required for candidate publication")
+    gx_result = context["ti"].xcom_pull(task_ids="gx_validate_silver")
+    if not isinstance(gx_result, dict):
+        raise AirflowFailException("GX Silver approval XCom is missing")
+    try:
+        return publish_api_candidate(
+            dataset_id=str(dataset_id),
+            run_id=str(context.get("run_id") or ""),
+            gx_result=gx_result,
+        )
+    except CandidatePublishError as exc:
+        raise AirflowFailException(str(exc)) from exc
+
+
+def run_gx_gold_quality_gate(**context):
+    """Validate the sealed dbt Gold candidate before publication."""
+    from airflow.exceptions import AirflowException, AirflowFailException
+    from gx_airflow_adapter import GXAirflowError, NON_RETRYABLE
+    from gx_dbt_candidate_gate import validate_dbt_gold_candidate
+
+    dag_run = context.get("dag_run")
+    dataset_id = dag_run.conf.get("dataset_id") if dag_run else None
+    dataset_id = dataset_id or context.get("params", {}).get("dataset_id")
+    if not dataset_id:
+        raise ValueError("dataset_id is required for the GX Gold gate")
+    try:
+        return validate_dbt_gold_candidate(
+            dataset_id=str(dataset_id),
+            run_id=str(context.get("run_id") or ""),
+        )
+    except GXAirflowError as exc:
+        if exc.code in NON_RETRYABLE or not exc.retryable:
+            raise AirflowFailException(str(exc)) from exc
+        raise AirflowException(str(exc)) from exc
+
+
+def run_gx_reconciliation_gate(**context):
+    """Reconcile Silver with the sealed dbt Gold candidate."""
+    from airflow.exceptions import AirflowException, AirflowFailException
+    from gx_airflow_adapter import GXAirflowError, NON_RETRYABLE
+    from gx_dbt_candidate_gate import reconcile_dbt_gold_candidate
+
+    dag_run = context.get("dag_run")
+    dataset_id = dag_run.conf.get("dataset_id") if dag_run else None
+    dataset_id = dataset_id or context.get("params", {}).get("dataset_id")
+    if not dataset_id:
+        raise ValueError("dataset_id is required for GX reconciliation")
+    try:
+        return reconcile_dbt_gold_candidate(
+            dataset_id=str(dataset_id),
+            run_id=str(context.get("run_id") or ""),
+        )
+    except GXAirflowError as exc:
+        if exc.code in NON_RETRYABLE or not exc.retryable:
+            raise AirflowFailException(str(exc)) from exc
+        raise AirflowException(str(exc)) from exc
+
+
+def publish_gx_approved_gold_candidate(**context):
+    """Publish only the dbt candidate approved by both GX candidate gates."""
+    from airflow.exceptions import AirflowFailException
+    from api_dataset_registry import get_dataset_config
+    from dbt_gold_runtime import publish
+
+    dag_run = context.get("dag_run")
+    dataset_id = dag_run.conf.get("dataset_id") if dag_run else None
+    dataset_id = dataset_id or context.get("params", {}).get("dataset_id")
+    if not dataset_id:
+        raise AirflowFailException("dataset_id is required for Gold publication")
+    ti = context["ti"]
+    gold_result = ti.xcom_pull(task_ids="gx_validate_gold")
+    reconciliation_result = ti.xcom_pull(task_ids="gx_reconcile_silver_gold")
+    try:
+        publish(
+            get_dataset_config(str(dataset_id)),
+            str(context.get("run_id") or ""),
+            gx_gold_result=gold_result,
+            gx_reconciliation_result=reconciliation_result,
+        )
+    except RuntimeError as exc:
+        raise AirflowFailException(str(exc)) from exc
+    return {
+        "status": "PUBLISHED",
+        "dataset_id": str(dataset_id),
+        "gold_validation_id": gold_result["validation_id"],
+        "reconciliation_validation_id": reconciliation_result["validation_id"],
+    }
+
+
 with DAG(
     "api_dataset_pipeline",
     default_args=default_args,
@@ -131,35 +251,35 @@ with DAG(
         append_env=True,
     )
 
-    process_silver = SparkKubernetesOperator(
+    process_silver = BashOperator(
         task_id="process_silver",
-        application_file="spark-api-dataset-airflow.yaml",
-        params={"command": "process-silver"},
-        namespace="lakehouse-spark",
-        kubernetes_conn_id="kubernetes_default",
-        get_logs=True,
-        log_events_on_failure=True,
-        startup_timeout_seconds=600,
-        delete_on_termination=True,
-        pool="spark_k8s",
+        bash_command=runner_command(
+            "prepare-silver-candidate"
+        ),
+        env=COMMON_ENV,
+        append_env=True,
     )
 
-    validate_silver = SparkKubernetesOperator(
+    gx_validate_silver = PythonOperator(
+        task_id="gx_validate_silver",
+        python_callable=run_gx_api_quality_gate,
+        retries=1,
+        retry_delay=timedelta(minutes=1),
+    )
+
+    publish_silver_candidate = PythonOperator(
+        task_id="publish_silver_candidate",
+        python_callable=publish_gx_approved_silver_candidate,
+        retries=0,
+    )
+
+    validate_silver = BashOperator(
         task_id="validate_silver",
-        application_file="spark-api-dataset-airflow.yaml",
-        params={"command": "validate-silver"},
-        namespace="lakehouse-spark",
-        kubernetes_conn_id="kubernetes_default",
-        get_logs=True,
-        log_events_on_failure=True,
-        startup_timeout_seconds=600,
-        delete_on_termination=True,
-        pool="spark_k8s",
+        bash_command=runner_command("validate-silver"),
+        env=COMMON_ENV,
+        append_env=True,
     )
 
-<<<<<<< HEAD
-    process_gold = SparkKubernetesOperator(
-=======
     prepare_gold = BashOperator(
         task_id="prepare_gold",
         bash_command=runner_command("prepare-gold"),
@@ -168,37 +288,37 @@ with DAG(
     )
 
     process_gold = BashOperator(
->>>>>>> origin/develop
         task_id="process_gold",
-        application_file="spark-api-dataset-airflow.yaml",
-        params={"command": "process-gold"},
-        namespace="lakehouse-spark",
-        kubernetes_conn_id="kubernetes_default",
-        get_logs=True,
-        log_events_on_failure=True,
-        startup_timeout_seconds=600,
-        delete_on_termination=True,
-        pool="spark_k8s",
-    )
-
-    validate_gold = SparkKubernetesOperator(
-        task_id="validate_gold",
-        application_file="spark-api-dataset-airflow.yaml",
-        params={"command": "validate-gold"},
-        namespace="lakehouse-spark",
-        kubernetes_conn_id="kubernetes_default",
-        get_logs=True,
-        log_events_on_failure=True,
-        startup_timeout_seconds=600,
-        delete_on_termination=True,
-        pool="spark_k8s",
-    )
-
-    publish_gold = BashOperator(
-        task_id="publish_gold",
-        bash_command=runner_command("publish-gold"),
+        bash_command=runner_command("process-gold"),
         env=COMMON_ENV,
         append_env=True,
+    )
+
+    validate_gold = BashOperator(
+        task_id="validate_gold",
+        bash_command=runner_command("validate-gold"),
+        env=COMMON_ENV,
+        append_env=True,
+    )
+
+    gx_validate_gold = PythonOperator(
+        task_id="gx_validate_gold",
+        python_callable=run_gx_gold_quality_gate,
+        retries=1,
+        retry_delay=timedelta(minutes=1),
+    )
+
+    gx_reconcile_silver_gold = PythonOperator(
+        task_id="gx_reconcile_silver_gold",
+        python_callable=run_gx_reconciliation_gate,
+        retries=1,
+        retry_delay=timedelta(minutes=1),
+    )
+
+    publish_gold = PythonOperator(
+        task_id="publish_gold",
+        python_callable=publish_gx_approved_gold_candidate,
+        retries=0,
     )
 
     trino_smoke_test = BashOperator(
@@ -215,10 +335,14 @@ with DAG(
         >> ingest_bronze
         >> validate_bronze
         >> process_silver
+        >> gx_validate_silver
+        >> publish_silver_candidate
         >> validate_silver
         >> prepare_gold
         >> process_gold
         >> validate_gold
+        >> gx_validate_gold
+        >> gx_reconcile_silver_gold
         >> publish_gold
         >> trino_smoke_test
     )

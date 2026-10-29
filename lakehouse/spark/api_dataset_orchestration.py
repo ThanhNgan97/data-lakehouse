@@ -13,6 +13,7 @@ import hashlib
 import importlib
 import json
 import os
+from pathlib import Path
 from typing import Any
 from urllib import request
 
@@ -30,8 +31,18 @@ from incremental_ingestion import (
     run_incremental_ingestion,
 )
 from bronze_writer import read_parquet_object
+from env_config import S3_BUCKET_NAME
 from checkpoint_store import OzoneCheckpointStore
-from nessie_catalog_utils import use_main
+from gx_candidate_state import (
+    CandidateAssetIdentity,
+    CandidateState,
+    candidate_state_path,
+    load_candidate_state,
+    retry_stable_branch_name,
+    save_candidate_state,
+)
+from gx_universal_gate import resolve_snapshot_identity
+from nessie_catalog_utils import get_nessie_reference_hash, use_main
 from spark_bronze_to_silver import get_spark_session
 from env_config import IS_KUBERNETES
 
@@ -399,6 +410,27 @@ def command_validate_bronze(
             "Bronze contains null record checksums"
         )
 
+    from gx_bronze_gate import validate_bronze_metrics
+
+    gx_result = validate_bronze_metrics(
+        dataset_id=config.dataset,
+        source_kind="api",
+        run_id=run_id,
+        artifact_ref=f"s3://{S3_BUCKET_NAME}/{object_key}",
+        metrics={
+            "readable": True,
+            "row_count": row_count,
+            "corrupt_record_ratio": 0.0,
+            "metadata_complete": not missing_metadata,
+            "checksum_present": checksum_nulls == 0,
+            "duplicate_ingestion_count": 0,
+            "http_success": True,
+            "pagination_complete": True,
+        },
+    )
+    if gx_result.get("merge_allowed") is not True:
+        raise RuntimeError("GX Bronze gate denied Silver candidate creation")
+
     print(f"DATASET_ID={config.dataset}")
     print(f"BRONZE_BATCH_ID={batch_id}")
     print(f"BRONZE_OBJECT_KEY={object_key}")
@@ -412,6 +444,8 @@ def command_validate_bronze(
         f"{checksum_nulls}"
     )
     print("VALIDATE_BRONZE_PASS=True")
+    print(f"GX_BRONZE_VALIDATION_ID={gx_result['validation_id']}")
+    print(f"GX_BRONZE_VALIDATION_URI={gx_result['validation_uri']}")
 
 
 def command_process_silver(
@@ -446,6 +480,92 @@ def command_process_silver(
             result,
         )
         print("PROCESS_SILVER_PASS=True")
+    finally:
+        try:
+            use_main(spark)
+        finally:
+            spark.stop()
+
+
+def command_prepare_silver_candidate(
+    config: ApiDatasetConfig,
+    run_id: str,
+) -> None:
+    """Write registered Silver data to a durable candidate without publishing."""
+    batch_id = _latest_committed_batch_id(config.dataset)
+    processor = _load_callable(str(config.silver_processor))
+    branch = retry_stable_branch_name("gx_api_silver", config.dataset, run_id)
+    root = Path(
+        os.getenv("GX_CANDIDATE_STATE_ROOT", "/opt/airflow/logs/gx-candidates")
+    )
+    state_file = candidate_state_path(root, config.dataset, run_id)
+    if state_file.is_file():
+        existing = load_candidate_state(state_file)
+        if (
+            existing.dataset_id != config.dataset
+            or existing.run_id != run_id
+            or existing.source_kind != "api"
+            or existing.candidate_branch != branch
+        ):
+            raise RuntimeError("Existing candidate state does not match this API run")
+        print(f"CANDIDATE_STATE_PATH={state_file}")
+        print("PREPARE_SILVER_CANDIDATE_REPLAY=True")
+        return
+    if get_nessie_reference_hash(branch, missing_ok=True) is not None:
+        raise RuntimeError(
+            "Candidate branch exists without durable state; refuse unsafe retry"
+        )
+    spark = get_spark_session()
+    spark.sparkContext.setLogLevel("WARN")
+
+    try:
+        use_main(spark)
+        # Candidate cutover is allowed only after bootstrap has created both
+        # tables. Otherwise a hidden initialization commit could change main.
+        spark.table(config.silver_table).limit(0).collect()
+        spark.table(config.quarantine_table).limit(0).collect()
+        base_hash = get_nessie_reference_hash("main")
+        result = processor(
+            spark,
+            batch_id,
+            merge_to_main=False,
+            candidate_branch=branch,
+        )
+        identities = tuple(
+            resolve_snapshot_identity(asset, branch)
+            for asset in (config.silver_table, config.quarantine_table)
+        )
+        candidate_hashes = {identity.commit_hash for identity in identities}
+        if len(candidate_hashes) != 1:
+            raise RuntimeError("Candidate assets did not resolve at one Nessie head")
+        state = CandidateState(
+            dataset_id=config.dataset,
+            source_kind="api",
+            run_id=run_id,
+            candidate_branch=branch,
+            base_reference="main",
+            base_hash=base_hash,
+            candidate_hash=identities[0].commit_hash,
+            assets=tuple(
+                CandidateAssetIdentity(asset, identity.snapshot_id)
+                for asset, identity in zip(
+                    (config.silver_table, config.quarantine_table), identities
+                )
+            ),
+        )
+        state_file = save_candidate_state(
+            state,
+            candidate_state_path(root, config.dataset, run_id),
+        )
+
+        print(f"DATASET_ID={config.dataset}")
+        print(f"SILVER_BATCH_ID={batch_id}")
+        print(f"CANDIDATE_BRANCH={branch}")
+        print(f"CANDIDATE_BASE_HASH={base_hash}")
+        print(f"CANDIDATE_HASH={state.candidate_hash}")
+        print(f"CANDIDATE_STATE_PATH={state_file}")
+        _print_primitive_result("SILVER", result)
+        print("PREPARE_SILVER_CANDIDATE_PASS=True")
     finally:
         try:
             use_main(spark)
@@ -541,9 +661,10 @@ def command_validate_gold(config: ApiDatasetConfig, run_id: str) -> None:
 
 
 def command_publish_gold(config: ApiDatasetConfig, run_id: str) -> None:
-    from dbt_gold_runtime import publish
-    publish(config, run_id)
-    print("GOLD_ENGINE=dbt\nPUBLISH_GOLD_PASS=True")
+    raise RuntimeError(
+        "Direct publish-gold is disabled; use the Airflow Gold publisher with "
+        "GX Gold and reconciliation approval receipts"
+    )
 
 
 def _trino_scalar_count(
@@ -637,6 +758,7 @@ COMMANDS = {
     "ingest-bronze": command_ingest_bronze,
     "validate-bronze": command_validate_bronze,
     "process-silver": command_process_silver,
+    "prepare-silver-candidate": command_prepare_silver_candidate,
     "validate-silver": command_validate_silver,
     "prepare-gold": command_prepare_gold,
     "process-gold": command_process_gold,

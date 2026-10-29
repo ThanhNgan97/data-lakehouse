@@ -1,0 +1,39 @@
+{
+  "format": "lakehouse-sql-suite/v1",
+  "suite_name": "learning_outcomes_silver_core",
+  "suite_version": "1.0.0",
+  "contract_version": "1.0.0",
+  "effective_from": "2026-10-27",
+  "expectations": [
+    {
+      "id": "learning.silver.schema", "type": "schema", "severity": "critical",
+      "query": "SELECT count(*) FROM (VALUES 'ma_ban_ghi', 'ma_chuong_trinh', 'ten_chuong_trinh', 'nam_hoc', 'hoc_ky', 'so_sinh_vien', 'tong_luot_hoc_phan', '_source_updated_at', '_record_checksum') AS required(column_name) WHERE column_name NOT IN (SELECT column_name FROM lakehouse.information_schema.columns WHERE table_schema = 'silver' AND table_name = 'learning_outcomes')",
+      "success": {"operator": "eq", "value": 0}
+    },
+    {
+      "id": "learning.silver.required.null_ratio", "type": "null_ratio", "severity": "critical",
+      "query": "SELECT CAST(count_if(ma_ban_ghi IS NULL OR ma_chuong_trinh IS NULL OR nam_hoc IS NULL OR hoc_ky IS NULL OR _source_updated_at IS NULL) AS DOUBLE) / NULLIF(count(*), 0) FROM {data_asset_ref}",
+      "success": {"operator": "lte", "value": 0.0}
+    },
+    {
+      "id": "learning.silver.key.duplicate_ratio", "type": "duplicate_ratio", "severity": "warning",
+      "query": "SELECT count(*) FROM (SELECT 1 FROM {data_asset_ref} GROUP BY ma_chuong_trinh, nam_hoc, hoc_ky HAVING count(*) > 1)",
+      "success": {"operator": "lte", "value": 0}
+    },
+    {
+      "id": "learning.silver.volume", "type": "volume", "severity": "critical",
+      "query": "SELECT count(*) FROM {data_asset_ref}",
+      "success": {"operator": "gte", "value": 1}
+    },
+    {
+      "id": "learning.silver.freshness", "type": "freshness", "severity": "warning", "column": "_source_updated_at",
+      "query": "SELECT date_diff('hour', max(_source_updated_at), current_timestamp) FROM {data_asset_ref}",
+      "success": {"operator": "lte", "value": 8760}
+    },
+    {
+      "id": "learning.silver.non_negative", "type": "range", "severity": "critical",
+      "query": "SELECT count_if(so_sinh_vien < 0 OR tong_luot_hoc_phan < 0) FROM {data_asset_ref}",
+      "success": {"operator": "eq", "value": 0}
+    }
+  ]
+}

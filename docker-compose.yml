@@ -284,9 +284,19 @@ services:
       - "8081:8080"
     volumes:
       - ./lakehouse/trino/catalog:/etc/trino/catalog
+      # dbt builds create an isolated, per-run Iceberg catalog.
+      - ./lakehouse/trino/config.properties:/etc/trino/config.properties:ro
     depends_on:
       ozone-init:
         condition: service_completed_successfully
+    # The health-check bundled in Trino 435 builds an invalid curl URL in this
+    # container. Probe Trino's public status endpoint directly instead.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/v1/info >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
     networks:
       - lakehouse-network
 
@@ -294,16 +304,22 @@ services:
   # or mounted into Airflow; orchestration will call it through a stable
   # validation boundary in a later phase.
   gx-validator:
-    profiles: ["gx"]
+    profiles: ["gx", "gx-observability"]
     build:
       context: .
       dockerfile: gx.Dockerfile
     image: lakehouse-gx-validator:1.24.0
     container_name: demo-gx-validator
-    restart: "no"
+    restart: unless-stopped
+    stop_grace_period: 30s
+    init: true
+    entrypoint: ["python", "-m", "gx_runtime.api"]
+    command: []
     environment:
       GX_ANALYTICS_ENABLED: 'false'
       GX_SUITE_REGISTRY: '/opt/gx/config/suite_registry.json'
+      GX_CONTRACT_REGISTRY: '/opt/gx/config/contract_registry.json'
+      GX_CONFIG_ROOT: '/opt/gx/config'
       GX_RESULT_STORE_BACKEND: 's3'
       GX_RESULT_STORE_BUCKET: ${S3_BUCKET_NAME:-university-lakehouse}
       GX_RESULT_STORE_PREFIX: ${GX_RESULT_STORE_PREFIX:-gx/validation-results}
@@ -321,11 +337,59 @@ services:
       TRINO_USER: ${GX_TRINO_USER:-gx-validator}
       TRINO_CATALOG: ${GX_TRINO_CATALOG:-lakehouse}
       TRINO_SCHEMA: ${GX_TRINO_SCHEMA:-default}
+      GX_TRINO_NESSIE_BRANCH: ${GX_TRINO_NESSIE_BRANCH:-main}
+      GX_CANDIDATE_SPARK_ENABLED: ${GX_CANDIDATE_SPARK_ENABLED:-true}
+      GX_SPARK_MASTER: ${GX_SPARK_MASTER:-local[2]}
+      GX_HTTP_PORT: '8090'
+      GX_ENVIRONMENT: ${GX_ENVIRONMENT:-development}
+      GX_APPROVAL_SIGNING_KEY_ID: ${GX_APPROVAL_SIGNING_KEY_ID:-development}
+      GX_APPROVAL_PRIVATE_KEY: ${GX_APPROVAL_PRIVATE_KEY:-mhhz/j9TRR3mbxkFcd8Alqxr7N4NBZUtj6gXGn7xt+Y=}
+      GX_APPROVAL_PUBLIC_KEYS: '${GX_APPROVAL_PUBLIC_KEYS:-{"development":"7VfexdIjq7grSVgW/4x+kP4d1wg+296V+txcBCOhHOA="}}'
+      GX_APPROVAL_REVOKED_KEY_IDS: ${GX_APPROVAL_REVOKED_KEY_IDS:-}
+      GX_APPROVAL_TTL_SECONDS: ${GX_APPROVAL_TTL_SECONDS:-900}
+      GX_CALLER_CREDENTIALS: '${GX_CALLER_CREDENTIALS:-{"airflow":"development-airflow-token-change-me-123456789","gx-admin":"development-gx-admin-token-change-me-123456"}}'
+      GX_GOVERNANCE_CALLERS: ${GX_GOVERNANCE_CALLERS:-gx-admin}
+      GX_MAX_REQUEST_BYTES: ${GX_MAX_REQUEST_BYTES:-65536}
+      GX_ALLOW_PILOT_CONTRACTS: ${GX_ALLOW_PILOT_CONTRACTS:-true}
+      GX_ONBOARDING_PREFIX: ${GX_ONBOARDING_PREFIX:-gx/onboarding-proposals}
+      GX_QUARANTINE_PREFIX: ${GX_QUARANTINE_PREFIX:-gx/quarantine}
+      GX_RECEIPT_AUDIT_ENABLED: ${GX_RECEIPT_AUDIT_ENABLED:-true}
+      GX_RECEIPT_AUDIT_PREFIX: ${GX_RECEIPT_AUDIT_PREFIX:-gx/receipt-consumption}
+      GX_RETENTION_DRY_RUN: ${GX_RETENTION_DRY_RUN:-true}
+      GX_RETENTION_MAX_DELETE: ${GX_RETENTION_MAX_DELETE:-1000}
+      GX_QUARANTINE_ACTIVE_RETENTION_DAYS: ${GX_QUARANTINE_ACTIVE_RETENTION_DAYS:-365}
+      GX_SUITE_REVISION: ${GX_SUITE_REVISION:-}
+      GX_RESULT_RETENTION_DAYS: ${GX_RESULT_RETENTION_DAYS:-90}
+      GX_REDACT_OBSERVED_VALUES: ${GX_REDACT_OBSERVED_VALUES:-true}
+      GX_REVOCATION_PREFIX: ${GX_REVOCATION_PREFIX:-gx/revocations}
+      GX_HEALTHCHECK_TIMEOUT_SECONDS: '3'
+      GX_METRICS_PATH: '/metrics'
+      GX_OPENMETADATA_ENABLED: ${GX_OPENMETADATA_ENABLED:-false}
+      GX_OPENMETADATA_REQUIRED: ${GX_OPENMETADATA_REQUIRED:-false}
+      GX_OPENMETADATA_TIMEOUT_SECONDS: ${GX_OPENMETADATA_TIMEOUT_SECONDS:-10}
+      OPENMETADATA_HOST_PORT: ${OPENMETADATA_HOST_PORT:-http://openmetadata_server:8585}
+      OPENMETADATA_JWT_TOKEN: ${OPENMETADATA_JWT_TOKEN:-}
+      OPENMETADATA_SERVICE_NAME: ${OPENMETADATA_SERVICE_NAME:-lakehouse-trino}
+      GX_OPENMETADATA_API_STYLE: ${GX_OPENMETADATA_API_STYLE:-current}
     depends_on:
       nessie:
         condition: service_started
       trino:
         condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-m", "gx_runtime.healthcheck", "ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    deploy:
+      resources:
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+        limits:
+          cpus: '2.0'
+          memory: 4G
     networks:
       - lakehouse-network
 
@@ -388,8 +452,6 @@ services:
       dockerfile: airflow.Dockerfile
     image: custom-airflow:2.9.2
     container_name: demo-airflow-init
-    env_file:
-      - .env
     environment:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:${PG_PASSWORD}@postgres:5432/airflow_db
       _AIRFLOW_DB_UPGRADE: 'true'
@@ -412,8 +474,6 @@ services:
     container_name: demo-airflow-webserver
     ports:
       - "8080:8080"
-    env_file:
-      - .env
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:${PG_PASSWORD}@postgres:5432/airflow_db
@@ -426,6 +486,20 @@ services:
       # cookies unless Secure=true, which drops the session and breaks CSRF.
       AIRFLOW__WEBSERVER__SESSION_COOKIE_SAMESITE: 'Lax'
       AIRFLOW__WEBSERVER__SESSION_COOKIE_SECURE: 'False'
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_DOCUMENT_MODELS: ${GEMINI_DOCUMENT_MODELS:-gemini-3.5-flash-lite}
+      PG_HOST: postgres
+      PG_PORT: '5432'
+      PG_USER: ${PG_USER:-postgres}
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_DATABASE: ${PG_DATABASE:-university_db}
+      PG_MAINTENANCE_DB: ${PG_MAINTENANCE_DB:-postgres}
+      NESSIE_DB: ${NESSIE_DB:-nessie_db}
+      OPENMETADATA_HOST_PORT: ${OPENMETADATA_HOST_PORT:-http://openmetadata_server:8585}
+      OPENMETADATA_JWT_TOKEN: ${OPENMETADATA_JWT_TOKEN:-}
+      CTU_IOC_API_BASE_URL: ${CTU_IOC_API_BASE_URL:-}
+      CTU_IOC_API_KEY: ${CTU_IOC_API_KEY:-}
+      MOCK_API_KEY: ${MOCK_API_KEY:-}
       S3_ENDPOINT: 'http://s3g:9878'
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-lakehouse}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-lakehouse-secret}
@@ -443,12 +517,34 @@ services:
       TRINO_PORT: '8080'
       TRINO_HTTP_URL: 'http://trino:8080'
       SPARK_TEMPLATE_SEARCHPATH: ${SPARK_TEMPLATE_SEARCHPATH:-/opt/airflow/k8s/spark/templates}
+      GX_SERVICE_URL: 'http://gx-validator:8090'
+      GX_APPROVAL_PUBLIC_KEYS: '${GX_APPROVAL_PUBLIC_KEYS:-{"development":"7VfexdIjq7grSVgW/4x+kP4d1wg+296V+txcBCOhHOA="}}'
+      GX_APPROVAL_REVOKED_KEY_IDS: ${GX_APPROVAL_REVOKED_KEY_IDS:-}
+      GX_CALLER_TOKEN: ${GX_AIRFLOW_CALLER_TOKEN:-development-airflow-token-change-me-123456789}
+      GX_CALLER_ID: airflow
+      GX_RESULT_STORE_BUCKET: ${S3_BUCKET_NAME:-university-lakehouse}
+      GX_RECEIPT_AUDIT_ENABLED: ${GX_RECEIPT_AUDIT_ENABLED:-true}
+      GX_RECEIPT_AUDIT_PREFIX: ${GX_RECEIPT_AUDIT_PREFIX:-gx/receipt-consumption}
+      GX_DELETE_PUBLISHED_CANDIDATE_BRANCH: ${GX_DELETE_PUBLISHED_CANDIDATE_BRANCH:-true}
+      GX_ALLOW_PILOT_CONTRACTS: ${GX_ALLOW_PILOT_CONTRACTS:-true}
+      GX_API_GATE_MODE: ${GX_API_GATE_MODE:-enforce}
+      GX_API_NESSIE_BRANCH: ${GX_API_NESSIE_BRANCH:-main}
+      GX_API_GATE_TIMEOUT_SECONDS: ${GX_API_GATE_TIMEOUT_SECONDS:-300}
+      GX_DATABASE_GATE_MODE: ${GX_DATABASE_GATE_MODE:-enforce}
+      GX_DATABASE_GATE_TIMEOUT_SECONDS: ${GX_DATABASE_GATE_TIMEOUT_SECONDS:-300}
+      GX_GOLD_GATE_MODE: ${GX_GOLD_GATE_MODE:-enforce}
+      GX_GOLD_NESSIE_BRANCH: ${GX_GOLD_NESSIE_BRANCH:-main}
+      GX_GOLD_GATE_TIMEOUT_SECONDS: ${GX_GOLD_GATE_TIMEOUT_SECONDS:-300}
+      GX_RECONCILIATION_GATE_MODE: ${GX_RECONCILIATION_GATE_MODE:-enforce}
+      GX_RECONCILIATION_NESSIE_BRANCH: ${GX_RECONCILIATION_NESSIE_BRANCH:-main}
+      GX_RECONCILIATION_GATE_TIMEOUT_SECONDS: ${GX_RECONCILIATION_GATE_TIMEOUT_SECONDS:-300}
     volumes:
       - ./airflow_webserver_config.py:/opt/airflow/webserver_config.py:ro
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark
       - ./k8s:/opt/airflow/k8s:ro
       - ./.env:/opt/airflow/.env
+      - ./lakehouse/gx:/opt/airflow/gx-config:ro
       - airflow_logs:/opt/airflow/logs
     command: webserver
     depends_on:
@@ -466,8 +562,6 @@ services:
     restart: unless-stopped
     image: custom-airflow:2.9.2
     container_name: demo-airflow-scheduler
-    env_file:
-      - .env
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       # Spark runs in this LocalExecutor container. Keep unrelated DAG tasks
@@ -479,6 +573,20 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
       AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_WEBSERVER_SECRET_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_DOCUMENT_MODELS: ${GEMINI_DOCUMENT_MODELS:-gemini-3.5-flash-lite}
+      PG_HOST: postgres
+      PG_PORT: '5432'
+      PG_USER: ${PG_USER:-postgres}
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_DATABASE: ${PG_DATABASE:-university_db}
+      PG_MAINTENANCE_DB: ${PG_MAINTENANCE_DB:-postgres}
+      NESSIE_DB: ${NESSIE_DB:-nessie_db}
+      OPENMETADATA_HOST_PORT: ${OPENMETADATA_HOST_PORT:-http://openmetadata_server:8585}
+      OPENMETADATA_JWT_TOKEN: ${OPENMETADATA_JWT_TOKEN:-}
+      CTU_IOC_API_BASE_URL: ${CTU_IOC_API_BASE_URL:-}
+      CTU_IOC_API_KEY: ${CTU_IOC_API_KEY:-}
+      MOCK_API_KEY: ${MOCK_API_KEY:-}
       S3_ENDPOINT: 'http://s3g:9878'
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-lakehouse}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-lakehouse-secret}
@@ -496,11 +604,33 @@ services:
       TRINO_PORT: '8080'
       TRINO_HTTP_URL: 'http://trino:8080'
       SPARK_TEMPLATE_SEARCHPATH: ${SPARK_TEMPLATE_SEARCHPATH:-/opt/airflow/k8s/spark/templates}
+      GX_SERVICE_URL: 'http://gx-validator:8090'
+      GX_APPROVAL_PUBLIC_KEYS: '${GX_APPROVAL_PUBLIC_KEYS:-{"development":"7VfexdIjq7grSVgW/4x+kP4d1wg+296V+txcBCOhHOA="}}'
+      GX_APPROVAL_REVOKED_KEY_IDS: ${GX_APPROVAL_REVOKED_KEY_IDS:-}
+      GX_CALLER_TOKEN: ${GX_AIRFLOW_CALLER_TOKEN:-development-airflow-token-change-me-123456789}
+      GX_CALLER_ID: airflow
+      GX_RESULT_STORE_BUCKET: ${S3_BUCKET_NAME:-university-lakehouse}
+      GX_RECEIPT_AUDIT_ENABLED: ${GX_RECEIPT_AUDIT_ENABLED:-true}
+      GX_RECEIPT_AUDIT_PREFIX: ${GX_RECEIPT_AUDIT_PREFIX:-gx/receipt-consumption}
+      GX_DELETE_PUBLISHED_CANDIDATE_BRANCH: ${GX_DELETE_PUBLISHED_CANDIDATE_BRANCH:-true}
+      GX_ALLOW_PILOT_CONTRACTS: ${GX_ALLOW_PILOT_CONTRACTS:-true}
+      GX_API_GATE_MODE: ${GX_API_GATE_MODE:-enforce}
+      GX_API_NESSIE_BRANCH: ${GX_API_NESSIE_BRANCH:-main}
+      GX_API_GATE_TIMEOUT_SECONDS: ${GX_API_GATE_TIMEOUT_SECONDS:-300}
+      GX_DATABASE_GATE_MODE: ${GX_DATABASE_GATE_MODE:-enforce}
+      GX_DATABASE_GATE_TIMEOUT_SECONDS: ${GX_DATABASE_GATE_TIMEOUT_SECONDS:-300}
+      GX_GOLD_GATE_MODE: ${GX_GOLD_GATE_MODE:-enforce}
+      GX_GOLD_NESSIE_BRANCH: ${GX_GOLD_NESSIE_BRANCH:-main}
+      GX_GOLD_GATE_TIMEOUT_SECONDS: ${GX_GOLD_GATE_TIMEOUT_SECONDS:-300}
+      GX_RECONCILIATION_GATE_MODE: ${GX_RECONCILIATION_GATE_MODE:-enforce}
+      GX_RECONCILIATION_NESSIE_BRANCH: ${GX_RECONCILIATION_NESSIE_BRANCH:-main}
+      GX_RECONCILIATION_GATE_TIMEOUT_SECONDS: ${GX_RECONCILIATION_GATE_TIMEOUT_SECONDS:-300}
     volumes:
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark
       - ./k8s:/opt/airflow/k8s:ro
       - ./.env:/opt/airflow/.env
+      - ./lakehouse/gx:/opt/airflow/gx-config:ro
       - airflow_logs:/opt/airflow/logs
     command: scheduler
     depends_on:
@@ -578,6 +708,47 @@ services:
       - lakehouse-network
     mem_limit: 256m
 
+  gx-prometheus:
+    profiles: ["gx-observability"]
+    image: prom/prometheus:v2.54.1
+    container_name: gx-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d
+    volumes:
+      - ./monitoring/gx/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/gx/gx-alerts.yml:/etc/prometheus/gx-alerts.yml:ro
+    ports:
+      - "${GX_PROMETHEUS_PORT:-9090}:9090"
+    depends_on:
+      gx-validator:
+        condition: service_healthy
+    networks:
+      - lakehouse-network
+    mem_limit: 512m
+
+  gx-grafana:
+    profiles: ["gx-observability"]
+    image: grafana/grafana:11.2.0
+    container_name: gx-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GX_GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GX_GRAFANA_ADMIN_PASSWORD:-change-me}
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+    volumes:
+      - ./monitoring/gx/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/gx/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - gx_grafana_data:/var/lib/grafana
+    ports:
+      - "${GX_GRAFANA_PORT:-3001}:3000"
+    depends_on:
+      - gx-prometheus
+    networks:
+      - lakehouse-network
+    mem_limit: 512m
+
 volumes:
   airflow_logs:
   postgres_data:
@@ -589,6 +760,7 @@ volumes:
   ozone_datanode_3_data:
   superset_home:
   airbyte_db_data:
+  gx_grafana_data:
 
 networks:
   lakehouse-network:

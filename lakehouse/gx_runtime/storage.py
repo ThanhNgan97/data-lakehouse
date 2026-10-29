@@ -23,7 +23,9 @@ class InMemoryResultStore:
     records: dict[str, dict] = field(default_factory=dict)
 
     def save(self, summary: ValidationSummary) -> str:
-        self.records[summary.validation_id] = summary.as_dict()
+        self.records[summary.validation_id] = summary.as_dict(
+            redact_observed_values=_redaction_enabled()
+        )
         return f"memory://{summary.validation_id}"
 
 
@@ -33,6 +35,8 @@ class S3ResultStore:
     prefix: str = "gx/validation-results"
     endpoint_url: str | None = None
     region_name: str | None = None
+    access_key_id: str | None = None
+    secret_access_key: str | None = None
 
     def save(self, summary: ValidationSummary) -> str:
         import boto3
@@ -52,12 +56,25 @@ class S3ResultStore:
                 "s3",
                 endpoint_url=self.endpoint_url,
                 region_name=self.region_name,
+                aws_access_key_id=self.access_key_id,
+                aws_secret_access_key=self.secret_access_key,
             )
             client.put_object(
                 Bucket=self.bucket,
                 Key=key,
-                Body=json.dumps(summary.as_dict(), sort_keys=True).encode("utf-8"),
+                Body=json.dumps(
+                    summary.as_dict(redact_observed_values=_redaction_enabled()),
+                    sort_keys=True,
+                ).encode("utf-8"),
                 ContentType="application/json",
+                Metadata={
+                    "gx-suite-revision": summary.suite_revision or "unknown",
+                    "gx-retention-days": os.getenv("GX_RESULT_RETENTION_DAYS", "90"),
+                },
+                Tagging=(
+                    "gx-artifact=validation-result&gx-retention-days="
+                    + os.getenv("GX_RESULT_RETENTION_DAYS", "90")
+                ),
             )
         except Exception as exc:
             raise ValidationPersistenceError(
@@ -81,4 +98,10 @@ def result_store_from_env() -> ResultStore:
         prefix=os.getenv("GX_RESULT_STORE_PREFIX", "gx/validation-results"),
         endpoint_url=os.getenv("S3_ENDPOINT") or None,
         region_name=os.getenv("S3_REGION") or None,
+        access_key_id=os.getenv("S3_ACCESS_KEY") or None,
+        secret_access_key=os.getenv("S3_SECRET_KEY") or None,
     )
+
+
+def _redaction_enabled() -> bool:
+    return os.getenv("GX_REDACT_OBSERVED_VALUES", "true").strip().lower() != "false"

@@ -1,10 +1,13 @@
 from pathlib import Path
 import sys
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
+from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.models import DagBag
 from airflow.operators.bash import BashOperator
-from airflow.operators.python import ShortCircuitOperator
+from airflow.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import (
     SparkKubernetesOperator,
 )
@@ -19,6 +22,7 @@ if SPARK_DIR not in sys.path:
     sys.path.insert(0, SPARK_DIR)
 
 from api_dataset_registry import DATASETS
+from gx_airflow_adapter import GXAirflowError
 
 
 EXPECTED_TASKS = (
@@ -26,24 +30,32 @@ EXPECTED_TASKS = (
     "ingest_bronze",
     "validate_bronze",
     "process_silver",
+    "gx_validate_silver",
+    "publish_silver_candidate",
     "validate_silver",
     "prepare_gold",
     "process_gold",
     "validate_gold",
+    "gx_validate_gold",
+    "gx_reconcile_silver_gold",
     "publish_gold",
     "trino_smoke_test",
 )
+
+GX_TASKS = {
+    "gx_validate_silver", "publish_silver_candidate",
+    "gx_validate_gold", "gx_reconcile_silver_gold", "publish_gold",
+}
 
 EXPECTED_COMMANDS = (
     "api-preflight",
     "ingest-bronze",
     "validate-bronze",
-    "process-silver",
+    "prepare-silver-candidate",
     "validate-silver",
     "prepare-gold",
     "process-gold",
     "validate-gold",
-    "publish-gold",
     "trino-smoke-test",
 )
 
@@ -75,7 +87,7 @@ class ApiDatasetPipelineDagTest(
             )
         )
 
-    def test_exact_ten_visible_tasks(self):
+    def test_exact_fourteen_visible_tasks(self):
         self.assertEqual(
             tuple(
                 task.task_id
@@ -119,29 +131,72 @@ class ApiDatasetPipelineDagTest(
                 expected_downstream,
             )
 
-    def test_spark_tasks_use_kubernetes_operator(self):
-        spark_tasks = {
-            "ingest_bronze",
-            "process_silver",
-            "validate_silver",
-            "process_gold",
-            "validate_gold",
-        }
-        for task_id in spark_tasks:
-            task = self.dag.get_task(task_id)
-            self.assertIsInstance(task, SparkKubernetesOperator)
-            self.assertEqual(task.pool, "spark_k8s")
-            self.assertEqual(task.kubernetes_conn_id, "kubernetes_default")
+    def test_ingest_uses_kubernetes_operator(self):
+        task = self.dag.get_task("ingest_bronze")
+        self.assertIsInstance(task, SparkKubernetesOperator)
+        self.assertEqual(task.pool, "spark_k8s")
+        self.assertEqual(task.kubernetes_conn_id, "kubernetes_default")
 
     def test_preflight_short_circuits_no_change(self):
-        self.assertIsInstance(
-            self.dag.get_task("api_preflight"),
-            ShortCircuitOperator,
-        )
+        self.assertIsInstance(self.dag.get_task("api_preflight"), ShortCircuitOperator)
 
-    def test_non_spark_validation_tasks_remain_local(self):
+    def test_silver_candidate_is_validated_before_publish_and_main_readback(self):
+        process = self.dag.get_task("process_silver")
+        gx = self.dag.get_task("gx_validate_silver")
+        publish = self.dag.get_task("publish_silver_candidate")
+        validate = self.dag.get_task("validate_silver")
+
+        self.assertIn(gx.task_id, process.downstream_task_ids)
+        self.assertIn(publish.task_id, gx.downstream_task_ids)
+        self.assertIn(validate.task_id, publish.downstream_task_ids)
+
+    def test_gold_candidate_requires_both_gx_gates_before_publish(self):
+        publish = self.dag.get_task("publish_gold")
+        gx = self.dag.get_task("gx_validate_gold")
+        reconciliation = self.dag.get_task("gx_reconcile_silver_gold")
+
+        self.assertIn(reconciliation.task_id, gx.downstream_task_ids)
+        self.assertIn(publish.task_id, reconciliation.downstream_task_ids)
+        self.assertIn(reconciliation.task_id, publish.upstream_task_ids)
+
+    def test_gx_gate_uses_python_and_other_tasks_use_bash(self):
+        for task_id in GX_TASKS:
+            self.assertIsInstance(self.dag.get_task(task_id), PythonOperator)
+        for task in self.dag.tasks:
+            if task.task_id not in GX_TASKS | {"api_preflight", "ingest_bronze"}:
+                self.assertIsInstance(task, BashOperator)
+
+    def test_non_retryable_gx_failure_fails_immediately(self):
+        callable_ = self.dag.get_task("gx_validate_silver").python_callable
+        error = GXAirflowError("DATA_QUALITY_FAILED", "invalid", False)
+        with patch("gx_api_gate.validate_api_candidate_dataset", side_effect=error):
+            with self.assertRaises(AirflowFailException):
+                callable_(
+                    dag_run=SimpleNamespace(conf={"dataset_id": next(iter(DATASETS))}),
+                    run_id="manual__quality-failure",
+                    params={},
+                )
+
+    def test_retryable_gx_failure_uses_airflow_retry(self):
+        callable_ = self.dag.get_task("gx_validate_silver").python_callable
+        error = GXAirflowError("GX_EXECUTION_ERROR", "unavailable", True)
+        with patch("gx_api_gate.validate_api_candidate_dataset", side_effect=error):
+            with self.assertRaises(AirflowException) as raised:
+                callable_(
+                    dag_run=SimpleNamespace(conf={"dataset_id": next(iter(DATASETS))}),
+                    run_id="manual__service-failure",
+                    params={},
+                )
+        self.assertNotIsInstance(raised.exception, AirflowFailException)
+
+    def test_local_tasks_invoke_generic_runner(self):
         for task_id, command in (
             ("validate_bronze", "validate-bronze"),
+            ("process_silver", "prepare-silver-candidate"),
+            ("validate_silver", "validate-silver"),
+            ("prepare_gold", "prepare-gold"),
+            ("process_gold", "process-gold"),
+            ("validate_gold", "validate-gold"),
             ("trino_smoke_test", "trino-smoke-test"),
         ):
             task = self.dag.get_task(task_id)
@@ -164,7 +219,7 @@ class ApiDatasetPipelineDagTest(
             )
 
     def test_manual_config_parameter_is_templated(self):
-        for task_id in ("validate_bronze", "trino_smoke_test"):
+        for task_id in ("validate_bronze", "process_silver", "validate_silver", "prepare_gold", "process_gold", "validate_gold", "trino_smoke_test"):
             task = self.dag.get_task(task_id)
             self.assertIn(
                 "dag_run.conf.get('dataset_id'",
@@ -172,7 +227,7 @@ class ApiDatasetPipelineDagTest(
             )
 
     def test_source_url_and_key_are_templated_from_run_config(self):
-        for task_id in ("validate_bronze", "trino_smoke_test"):
+        for task_id in ("validate_bronze", "process_silver", "validate_silver", "prepare_gold", "process_gold", "validate_gold", "trino_smoke_test"):
             task = self.dag.get_task(task_id)
             self.assertIn(
                 "dag_run.conf.get('source_api_url'",

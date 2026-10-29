@@ -1,0 +1,39 @@
+{
+  "format": "lakehouse-sql-suite/v1",
+  "suite_name": "teaching_progress_gold_core",
+  "suite_version": "1.0.0",
+  "contract_version": "1.0.0",
+  "effective_from": "2026-10-27",
+  "expectations": [
+    {
+      "id": "gold.schema.required_columns", "type": "schema", "severity": "critical",
+      "description": "All contract columns exist in the Gold table.",
+      "query": "SELECT count(*) FROM (VALUES 'ma_don_vi', 'ten_don_vi', 'ma_lop_hoc_phan', 'nam_hoc', 'hoc_ky', 'ty_le_tien_do_giang_day', 'so_ban_ghi_theo_doi', 'source_record_id', 'source_updated_at', 'source_batch_id', 'source_record_checksum', '_gold_updated_at') AS required(column_name) WHERE column_name NOT IN (SELECT column_name FROM lakehouse.information_schema.columns WHERE table_schema = 'gold' AND table_name = 'teaching_progress_metrics')",
+      "success": {"operator": "eq", "value": 0}
+    },
+    {
+      "id": "gold.required.null_ratio", "type": "null_ratio", "severity": "critical",
+      "description": "Required Gold values have a zero null ratio.",
+      "query": "SELECT CAST(count_if(ma_lop_hoc_phan IS NULL OR nam_hoc IS NULL OR hoc_ky IS NULL OR ty_le_tien_do_giang_day IS NULL OR source_record_id IS NULL OR source_record_checksum IS NULL) AS DOUBLE) / NULLIF(count(*), 0) FROM {data_asset_ref}",
+      "success": {"operator": "lte", "value": 0.0}
+    },
+    {
+      "id": "gold.candidate_grain.duplicate_ratio", "type": "duplicate_ratio", "severity": "warning",
+      "description": "Candidate Gold grain has no duplicate groups.",
+      "query": "SELECT count(*) FROM (SELECT 1 FROM {data_asset_ref} GROUP BY ma_lop_hoc_phan, nam_hoc, hoc_ky HAVING count(*) > 1)",
+      "success": {"operator": "lte", "value": 0}
+    },
+    {
+      "id": "gold.volume.non_empty", "type": "volume", "severity": "critical",
+      "description": "Gold table is non-empty.",
+      "query": "SELECT count(*) FROM {data_asset_ref}",
+      "success": {"operator": "gte", "value": 1}
+    },
+    {
+      "id": "gold.source.freshness", "type": "freshness", "severity": "warning", "column": "source_updated_at",
+      "description": "Newest source row is no more than 8760 hours old.",
+      "query": "SELECT date_diff('hour', max(source_updated_at), current_timestamp) FROM {data_asset_ref}",
+      "success": {"operator": "lte", "value": 8760}
+    }
+  ]
+}

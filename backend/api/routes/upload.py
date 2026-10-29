@@ -1,4 +1,5 @@
 import logging
+import json
 import os
 import re
 import uuid
@@ -115,14 +116,18 @@ def _is_airbyte_pipeline_run(dag_run_id: str) -> bool:
 
 def _dashboard_from_xcom(dag_run_id: str):
     airflow_base = f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/{AIRFLOW_FILE_DAG_ID}/dagRuns/{dag_run_id}"
-    response = requests.get(
-        f"{airflow_base}/taskInstances/auto_provision_superset/xcomEntries/return_value",
-        auth=("airflow", "airflow"),
-        timeout=5,
-    )
-    if response.status_code != 200:
+    value = None
+    for task_id in ("provision_superset", "auto_provision_superset"):
+        response = requests.get(
+            f"{airflow_base}/taskInstances/{task_id}/xcomEntries/return_value",
+            auth=(AIRFLOW_API_USERNAME, AIRFLOW_API_PASSWORD),
+            timeout=5,
+        )
+        if response.status_code == 200:
+            value = response.json().get("value")
+            break
+    if value is None:
         return None
-    value = response.json().get("value")
     if isinstance(value, str):
         try:
             import json
@@ -139,6 +144,77 @@ def _dashboard_from_xcom(dag_run_id: str):
         "title": value.get("dashboard_title"),
         "uuid": value.get("dashboard_uuid"),
         "imported": bool(value.get("imported")),
+    }
+
+
+def _parse_xcom_mapping(value):
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except (TypeError, ValueError):
+            try:
+                value = ast.literal_eval(value)
+            except (SyntaxError, ValueError):
+                value = None
+    return value if isinstance(value, dict) else None
+
+
+def _gx_from_xcom(dag_run_id: str):
+    """Return the bounded GX result for this exact universal DAG run."""
+    airflow_base = (
+        f"{AIRFLOW_WEBSERVER_URL}/api/v1/dags/{AIRFLOW_FILE_DAG_ID}"
+        f"/dagRuns/{dag_run_id}"
+    )
+    value = None
+    for task_id in (
+        "gx_validate_file_candidate",
+        "onboarding_required",
+        "gx_validate_database",
+        "gx_validate_file_upload",
+    ):
+        response = requests.get(
+            f"{airflow_base}/taskInstances/{task_id}/xcomEntries/return_value",
+            auth=(AIRFLOW_API_USERNAME, AIRFLOW_API_PASSWORD),
+            timeout=5,
+        )
+        if response.status_code == 200:
+            value = _parse_xcom_mapping(response.json().get("value"))
+            if value:
+                break
+    if value is None:
+        return None
+    allowed = {
+        "status", "integration_status", "reason", "dataset_id", "data_asset_ref",
+        "source_kind", "validation_id", "validation_uri", "merge_allowed",
+        "coverage", "contract_status",
+    }
+    return {key: value[key] for key in allowed if key in value}
+
+
+def _gx_task_state(tasks):
+    task = next(
+        (
+            item for item in tasks
+            if item.get("task_id") in {
+                "gx_validate_file_candidate",
+                "onboarding_required",
+                "gx_validate_database",
+                "gx_validate_file_upload",
+            }
+            and item.get("state") != "skipped"
+        ),
+        None,
+    )
+    if not task:
+        return {"status": "NOT_AVAILABLE"}
+    state = task.get("state") or "pending"
+    return {
+        "status": {
+            "success": "RESULT_UNAVAILABLE",
+            "failed": "FAILED",
+            "upstream_failed": "BLOCKED",
+            "running": "RUNNING",
+        }.get(state, "PENDING"),
     }
 
 
@@ -516,6 +592,13 @@ async def get_pipeline_status(
                 dashboard = _stored_dashboard(record)
             else:
                 dashboard = xcom_dashboard
+
+        try:
+            gx_validation = _gx_from_xcom(dag_run_id)
+        except requests.RequestException:
+            gx_validation = None
+        if gx_validation is None:
+            gx_validation = _gx_task_state(tasks)
         
         # Đồng bộ trạng thái hiện tại từ Airflow. Một DAG run có thể được clear
         # và retry sau khi Spark đã ghi lỗi vào DB, vì vậy "failed" không được
@@ -577,6 +660,7 @@ async def get_pipeline_status(
             "error_message": error_message,
             "parsed_data": parsed_data,
             "dashboard": dashboard,
+            "gx_validation": gx_validation,
         }
     except HTTPException:
         raise

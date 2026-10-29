@@ -1,0 +1,45 @@
+{
+  "format": "lakehouse-sql-suite/v1",
+  "suite_name": "teaching_progress_silver_core",
+  "suite_version": "1.0.0",
+  "contract_version": "1.0.0",
+  "effective_from": "2026-10-27",
+  "expectations": [
+    {
+      "id": "silver.schema.required_columns", "type": "schema", "severity": "critical",
+      "description": "All contract columns exist in the Silver table.",
+      "query": "SELECT count(*) FROM (VALUES 'ma_ban_ghi', 'ma_don_vi', 'ten_don_vi', 'ma_lop_hoc_phan', 'nam_hoc', 'hoc_ky', 'ty_le_tien_do_giang_day', 'thoi_gian_cap_nhat_nguon', '_source_system', '_source_type', '_dataset', '_schema_version', '_ingestion_mode', '_batch_id', '_source_updated_at', '_ingested_at', '_record_checksum', '_silver_updated_at') AS required(column_name) WHERE column_name NOT IN (SELECT column_name FROM lakehouse.information_schema.columns WHERE table_schema = 'silver' AND table_name = 'teaching_progress')",
+      "success": {"operator": "eq", "value": 0}
+    },
+    {
+      "id": "silver.required.null_ratio", "type": "null_ratio", "severity": "critical",
+      "description": "Required Silver values have a zero null ratio.",
+      "query": "SELECT CAST(count_if(ma_ban_ghi IS NULL OR ma_don_vi IS NULL OR ma_lop_hoc_phan IS NULL OR nam_hoc IS NULL OR hoc_ky IS NULL OR ty_le_tien_do_giang_day IS NULL OR _source_updated_at IS NULL) AS DOUBLE) / NULLIF(count(*), 0) FROM {data_asset_ref}",
+      "success": {"operator": "lte", "value": 0.0}
+    },
+    {
+      "id": "silver.candidate_key.duplicate_ratio", "type": "duplicate_ratio", "severity": "warning",
+      "description": "Candidate business key has no duplicate groups.",
+      "query": "SELECT count(*) FROM (SELECT 1 FROM {data_asset_ref} GROUP BY ma_lop_hoc_phan, nam_hoc, hoc_ky HAVING count(*) > 1)",
+      "success": {"operator": "lte", "value": 0}
+    },
+    {
+      "id": "silver.volume.non_empty", "type": "volume", "severity": "critical",
+      "description": "Silver table is non-empty.",
+      "query": "SELECT count(*) FROM {data_asset_ref}",
+      "success": {"operator": "gte", "value": 1}
+    },
+    {
+      "id": "silver.source.freshness", "type": "freshness", "severity": "warning", "column": "_source_updated_at",
+      "description": "Newest source row is no more than 8760 hours old.",
+      "query": "SELECT date_diff('hour', max(_source_updated_at), current_timestamp) FROM {data_asset_ref}",
+      "success": {"operator": "lte", "value": 8760}
+    },
+    {
+      "id": "silver.progress.range", "type": "range", "severity": "critical", "column": "ty_le_tien_do_giang_day",
+      "description": "Teaching progress remains between 0 and 100.",
+      "query": "SELECT count_if(ty_le_tien_do_giang_day < 0 OR ty_le_tien_do_giang_day > 100) FROM {data_asset_ref}",
+      "success": {"operator": "eq", "value": 0}
+    }
+  ]
+}

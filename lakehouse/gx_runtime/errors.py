@@ -19,3 +19,15 @@ class ValidationPersistenceError(ValidationFrameworkError):
 
 class SuiteNotFoundError(ValidationConfigurationError):
     """A requested versioned suite is absent from the Git suite registry."""
+
+
+class QualityGateRejectedError(ValidationFrameworkError):
+    """Validation completed but its policy decision does not authorize publish."""
+
+
+class SnapshotMismatchError(QualityGateRejectedError):
+    """The candidate identity changed after validation and must be revalidated."""
+
+
+class MetadataExportError(ValidationFrameworkError):
+    """A metadata sink rejected or could not persist validation metadata."""

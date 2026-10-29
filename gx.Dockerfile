@@ -33,9 +33,15 @@ RUN pyspark --version >/dev/null \
     && rm -rf /home/gx/.ivy2 /tmp/resolve_spark_dependencies.py
 
 COPY --chown=gx:gx lakehouse/gx_runtime /opt/gx/gx_runtime
+COPY --chown=gx:gx lakehouse/spark/gx_validation_request.py /opt/gx/gx_validation_request.py
+COPY --chown=gx:gx lakehouse/spark/gx_candidate_binding.py /opt/gx/gx_candidate_binding.py
+COPY --chown=gx:gx lakehouse/spark/gx_approval_receipt.py /opt/gx/gx_approval_receipt.py
 COPY --chown=gx:gx lakehouse/gx /opt/gx/config
 
 WORKDIR /opt/gx
+
+HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=12 \
+    CMD ["python", "-m", "gx_runtime.healthcheck", "ready"]
 
 ENTRYPOINT ["python", "-m", "gx_runtime.smoke"]
 CMD ["imports"]

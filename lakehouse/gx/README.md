@@ -17,6 +17,19 @@ Spark definitions use native GX JSON. SQL definitions use the local
 engine behavior stays explicit and independently testable. Validation results and
 Data Docs must be written to the configured object store, never this directory.
 
+Bronze technical suites use `lakehouse-bronze-suite/v1`. They evaluate bounded
+boolean/numeric ingestion evidence through `POST /v1/validate/bronze`; raw rows
+and source credentials are never sent to or persisted by GX. File, API and
+database sources share the same contract route and common checks for readability,
+non-empty volume, corrupt-record ratio, technical metadata, checksum and duplicate
+ingestion. Source-specific expectations add file format/header, API HTTP/pagination,
+or database extraction/watermark completeness. Missing metrics fail closed.
+
+Bronze is intentionally technical. Business nullability, grain, ranges and
+semantic reconciliation remain in Silver, Gold and reconciliation suites. A
+dataset without an effective Bronze contract route is `NOT_CONFIGURED` and must
+enter onboarding; GX does not infer a schema and return PASS.
+
 Versioned data contracts are registered separately in `contract_registry.json`.
 Contracts define layer schemas, evolution policy, rule severity, thresholds,
 and engine compatibility. Expectation suites in phase 4 implement those rules;

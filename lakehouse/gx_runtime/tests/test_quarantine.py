@@ -9,6 +9,7 @@ from gx_runtime.errors import ValidationConfigurationError
 from gx_runtime.quarantine import QuarantineManifest, QuarantineStatus
 from gx_runtime.api import TableValidationApplication
 from gx_runtime.tests.test_snapshot_gate import summary
+from gx_runtime.bronze import BronzeValidationResult
 try:
     from gx_approval_receipt import sign_approval_receipt
 except ModuleNotFoundError:
@@ -136,6 +137,29 @@ class CandidateQuarantineTest(unittest.TestCase):
         )
         S3QuarantineStore("bucket").save(manifest)
         self.assertEqual(client.return_value.put_object.call_args.kwargs["IfNoneMatch"], "*")
+
+    def test_failed_bronze_result_quarantines_raw_artifact(self):
+        result = BronzeValidationResult(
+            validation_id="bronze-validation",
+            dataset_id="education.teaching_progress",
+            contract_version="1.0.0",
+            data_asset_ref="lakehouse.bronze.teaching_progress",
+            source_kind="file",
+            run_id="manual__bronze",
+            artifact_ref="s3://bucket/staging/input.csv",
+            status="FAILED",
+            merge_allowed=False,
+            evaluated_expectations=1,
+            failures=({"severity": "critical"},),
+            metrics={"readable": False},
+            validated_at="2026-10-29T00:00:00+00:00",
+        )
+        manifest = QuarantineManifest.from_bronze_result(
+            result, "s3://bucket/results/bronze.json"
+        )
+        self.assertEqual(manifest.status, QuarantineStatus.QUARANTINED)
+        self.assertEqual(manifest.data_layer, "bronze")
+        self.assertIsNone(manifest.candidate_branch)
 
 
 if __name__ == "__main__":

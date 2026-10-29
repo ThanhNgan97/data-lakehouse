@@ -77,6 +77,7 @@ from .snapshot_gate import NessieSnapshotResolver, SnapshotAwareQualityGate
 from .storage import result_store_from_env
 from .suite_registry import SuiteRegistry
 from .validation_registry import DatasetValidationRegistry
+from .bronze import persist_bronze_result, validate_bronze_evidence
 
 
 class CapturingStore:
@@ -150,6 +151,20 @@ class TableValidationApplication:
             "dataset_id": proposal.dataset_id,
             "contract_version": proposal.contract_version,
         }
+
+    def validate_bronze(self, body: dict[str, Any]) -> dict[str, Any]:
+        result = validate_bronze_evidence(body, routes=self.routes, suites=self.suites)
+        uri = persist_bronze_result(result)
+        payload = {**result.as_dict(), "validation_uri": uri}
+        if not result.merge_allowed:
+            manifest = QuarantineManifest.from_bronze_result(result, uri)
+            quarantine_uri = self.quarantine.save(manifest)
+            error = QualityGateRejectedError("BRONZE_DATA_QUALITY_FAILED")
+            error.bronze_result = payload
+            error.quarantine_id = manifest.quarantine_id
+            error.quarantine_uri = quarantine_uri
+            raise error
+        return payload
 
     def get_governance_resource(self, path: str, *, caller: str) -> dict[str, Any]:
         self.http_security.authorize_governance(caller)
@@ -547,7 +562,9 @@ class Handler(BaseHTTPRequestHandler):
         )
         self.gx_caller = None
         quarantine_action = self.path.startswith("/v1/quarantine/")
-        if self.path not in {"/v1/validate/table", "/v1/onboarding/proposals"} and not quarantine_action:
+        if self.path not in {
+            "/v1/validate/table", "/v1/validate/bronze", "/v1/onboarding/proposals"
+        } and not quarantine_action:
             self._send(404, {"error_code": "NOT_FOUND"})
             return
         try:
@@ -594,6 +611,8 @@ class Handler(BaseHTTPRequestHandler):
                 )
             elif self.path == "/v1/validate/table":
                 self._send(200, self.application.validate(body))
+            elif self.path == "/v1/validate/bronze":
+                self._send(200, self.application.validate_bronze(body))
             else:
                 self._send(
                     200,
@@ -624,6 +643,17 @@ class Handler(BaseHTTPRequestHandler):
                     if getattr(exc, "quarantine_uri", None):
                         payload["quarantine_id"] = exc.quarantine_id
                         payload["quarantine_uri"] = exc.quarantine_uri
+                    bronze_result = getattr(exc, "bronze_result", None)
+                    if bronze_result:
+                        payload.update(
+                            {
+                                "validation_id": bronze_result["validation_id"],
+                                "validation_uri": bronze_result["validation_uri"],
+                                "status": bronze_result["status"],
+                                "merge_allowed": False,
+                                "failures": bronze_result["failures"],
+                            }
+                        )
                     self._send(status, payload)
                     return
             self._send(

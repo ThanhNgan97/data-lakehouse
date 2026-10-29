@@ -138,6 +138,33 @@ class GXAirflowAdapterTest(unittest.TestCase):
         self.assertEqual(raised.exception.code, "VALIDATION_TIMEOUT")
         self.assertTrue(raised.exception.retryable)
 
+    def test_bronze_gate_uses_dedicated_endpoint(self):
+        calls = []
+
+        def opener(call, **_kwargs):
+            calls.append(call)
+            return Response(
+                json.dumps(
+                    {
+                        "status": "PASSED",
+                        "validation_id": "bronze-1",
+                        "validation_uri": "s3://bucket/bronze-1.json",
+                        "merge_allowed": True,
+                        "contract_version": "1.0.0",
+                        "source_kind": "file",
+                        "failures": [],
+                    }
+                ).encode()
+            )
+
+        result = adapter.execute_bronze_quality_gate(
+            {"dataset_id": "education.teaching_progress"},
+            service_url="http://gx",
+            opener=opener,
+        )
+        self.assertTrue(calls[0].full_url.endswith("/v1/validate/bronze"))
+        self.assertTrue(result["merge_allowed"])
+
 
 if __name__ == "__main__":
     unittest.main()

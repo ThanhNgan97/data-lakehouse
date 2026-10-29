@@ -116,6 +116,32 @@ def execute_quality_gate(
     raise AssertionError("unreachable")
 
 
+def execute_bronze_quality_gate(
+    payload: dict[str, Any],
+    *,
+    service_url: str | None = None,
+    timeout_seconds: float = 120,
+    opener: Callable[..., Any] = request.urlopen,
+) -> dict[str, Any]:
+    endpoint = (service_url or os.getenv("GX_SERVICE_URL", "http://gx-validator:8090")).rstrip(
+        "/"
+    ) + "/v1/validate/bronze"
+    result = _post_json(endpoint, payload, timeout_seconds, opener)
+    allowed = {
+        key: result[key]
+        for key in (
+            "status", "validation_id", "validation_uri", "merge_allowed",
+            "contract_version", "source_kind", "failures",
+        )
+        if key in result
+    }
+    if len(json.dumps(allowed).encode("utf-8")) > MAX_XCOM_BYTES:
+        raise GXAirflowError(
+            "GX_CONFIGURATION_ERROR", "GX Bronze XCom exceeds 4096 bytes", False
+        )
+    return allowed
+
+
 def airflow_quality_gate(**context):
     from airflow.exceptions import AirflowException, AirflowFailException
 

@@ -24,6 +24,8 @@ ALLOWED_RULE_TYPES = frozenset(
         "row_count_match",
         "key_set_match",
         "column_reconciliation",
+        "technical_boolean",
+        "corrupt_ratio",
     }
 )
 ALLOWED_SEVERITIES = frozenset({"critical", "warning"})

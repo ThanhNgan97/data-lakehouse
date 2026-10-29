@@ -20,6 +20,18 @@
     "column_rename": "require_contract_version"
   },
   "layers": {
+    "bronze": {
+      "data_asset_ref": "lakehouse.bronze.learning_outcomes",
+      "columns": {},
+      "rules": [
+        {"id": "learning.bronze.readable", "type": "technical_boolean", "severity": "critical", "supported_engines": ["sql"]},
+        {"id": "learning.bronze.volume", "type": "volume", "severity": "critical", "threshold": {"min_rows": 1}, "supported_engines": ["sql"]},
+        {"id": "learning.bronze.corrupt_ratio", "type": "corrupt_ratio", "severity": "critical", "threshold": {"max_ratio": 0.0}, "supported_engines": ["sql"]},
+        {"id": "learning.bronze.metadata", "type": "technical_boolean", "severity": "critical", "supported_engines": ["sql"]},
+        {"id": "learning.bronze.checksum", "type": "technical_boolean", "severity": "critical", "supported_engines": ["sql"]},
+        {"id": "learning.bronze.duplicate_ingestion", "type": "volume", "severity": "critical", "threshold": {"max_rows": 0}, "supported_engines": ["sql"]}
+      ]
+    },
     "silver": {
       "data_asset_ref": "lakehouse.silver.learning_outcomes",
       "columns": {

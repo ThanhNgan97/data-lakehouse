@@ -47,6 +47,8 @@ class TeachingProgressContractTest(unittest.TestCase):
                 "row_count_match",
                 "key_set_match",
                 "column_reconciliation",
+                "technical_boolean",
+                "corrupt_ratio",
             },
         )
 

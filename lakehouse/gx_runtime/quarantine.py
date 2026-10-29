@@ -81,9 +81,43 @@ class QuarantineManifest:
             updated_at=now,
         )
 
+    @classmethod
+    def from_bronze_result(
+        cls, result, validation_uri: str
+    ) -> "QuarantineManifest":
+        now = datetime.now(timezone.utc).isoformat()
+        identity = "|".join(
+            (result.dataset_id, "bronze", result.run_id, result.artifact_ref)
+        )
+        return cls(
+            quarantine_id=hashlib.sha256(identity.encode("utf-8")).hexdigest(),
+            status=QuarantineStatus.QUARANTINED,
+            dataset_id=result.dataset_id,
+            data_layer="bronze",
+            source_kind=result.source_kind,
+            data_asset_ref=result.data_asset_ref,
+            run_id=result.run_id,
+            contract_version=result.contract_version,
+            candidate_branch=None,
+            candidate_snapshot_id=None,
+            candidate_hash=None,
+            validation_id=result.validation_id,
+            validation_uri=validation_uri,
+            reason="BRONZE_DATA_QUALITY_FAILED",
+            critical_failure_count=sum(
+                1 for failure in result.failures if failure.get("severity") == "critical"
+            ),
+            created_at=now,
+            updated_at=now,
+        )
+
     def request_revalidation(self, caller: str) -> "QuarantineManifest":
         if self.status is not QuarantineStatus.QUARANTINED:
             raise ValidationConfigurationError("Only quarantined candidates may be revalidated")
+        if self.data_layer == "bronze":
+            raise ValidationConfigurationError(
+                "Bronze artifacts must be corrected and re-ingested before revalidation"
+            )
         return replace(
             self,
             status=QuarantineStatus.REVALIDATION_REQUESTED,

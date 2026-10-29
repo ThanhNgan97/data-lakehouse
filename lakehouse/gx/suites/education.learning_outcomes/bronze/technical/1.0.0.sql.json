@@ -1,0 +1,14 @@
+{"format":"lakehouse-bronze-suite/v1","suite_name":"learning_outcomes_bronze_technical","suite_version":"1.0.0","contract_version":"1.0.0","effective_from":"2026-10-29","expectations":[
+  {"id":"learning.bronze.readable","metric":"readable","severity":"critical","success":{"operator":"eq","value":true}},
+  {"id":"learning.bronze.volume","metric":"row_count","severity":"critical","success":{"operator":"gte","value":1}},
+  {"id":"learning.bronze.corrupt_ratio","metric":"corrupt_record_ratio","severity":"critical","success":{"operator":"lte","value":0.0}},
+  {"id":"learning.bronze.metadata","metric":"metadata_complete","severity":"critical","success":{"operator":"eq","value":true}},
+  {"id":"learning.bronze.checksum","metric":"checksum_present","severity":"critical","success":{"operator":"eq","value":true}},
+  {"id":"learning.bronze.duplicate_ingestion","metric":"duplicate_ingestion_count","severity":"critical","success":{"operator":"eq","value":0}},
+  {"id":"learning.bronze.file.format","metric":"format_supported","severity":"critical","source_kinds":["file"],"success":{"operator":"eq","value":true}},
+  {"id":"learning.bronze.file.header","metric":"header_valid","severity":"critical","source_kinds":["file"],"success":{"operator":"eq","value":true}},
+  {"id":"learning.bronze.api.http","metric":"http_success","severity":"critical","source_kinds":["api"],"success":{"operator":"eq","value":true}},
+  {"id":"learning.bronze.api.pagination","metric":"pagination_complete","severity":"critical","source_kinds":["api"],"success":{"operator":"eq","value":true}},
+  {"id":"learning.bronze.database.extraction","metric":"extraction_complete","severity":"critical","source_kinds":["database"],"success":{"operator":"eq","value":true}},
+  {"id":"learning.bronze.database.watermark","metric":"watermark_present","severity":"critical","source_kinds":["database"],"success":{"operator":"eq","value":true}}
+]}

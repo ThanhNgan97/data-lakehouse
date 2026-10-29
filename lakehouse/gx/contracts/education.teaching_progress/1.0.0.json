@@ -25,6 +25,18 @@
     "column_rename": "require_contract_version"
   },
   "layers": {
+    "bronze": {
+      "data_asset_ref": "lakehouse.bronze.teaching_progress",
+      "columns": {},
+      "rules": [
+        {"id": "bronze.readable", "type": "technical_boolean", "severity": "critical", "supported_engines": ["sql"]},
+        {"id": "bronze.volume.non_empty", "type": "volume", "severity": "critical", "threshold": {"min_rows": 1}, "supported_engines": ["sql"]},
+        {"id": "bronze.corrupt_ratio", "type": "corrupt_ratio", "severity": "critical", "threshold": {"max_ratio": 0.0}, "supported_engines": ["sql"]},
+        {"id": "bronze.metadata.complete", "type": "technical_boolean", "severity": "critical", "supported_engines": ["sql"]},
+        {"id": "bronze.checksum.present", "type": "technical_boolean", "severity": "critical", "supported_engines": ["sql"]},
+        {"id": "bronze.duplicate_ingestion", "type": "volume", "severity": "critical", "threshold": {"max_rows": 0}, "supported_engines": ["sql"]}
+      ]
+    },
     "silver": {
       "data_asset_ref": "lakehouse.silver.teaching_progress",
       "columns": {

@@ -1,6 +1,22 @@
 {
   "suites": [
     {
+      "name": "teaching_progress_bronze_technical",
+      "version": "1.0.0",
+      "supported_engines": ["sql"],
+      "contract_version": "1.0.0",
+      "effective_from": "2026-10-29",
+      "definitions": {"sql": "suites/education.teaching_progress/bronze/technical/1.0.0.sql.json"}
+    },
+    {
+      "name": "learning_outcomes_bronze_technical",
+      "version": "1.0.0",
+      "supported_engines": ["sql"],
+      "contract_version": "1.0.0",
+      "effective_from": "2026-10-29",
+      "definitions": {"sql": "suites/education.learning_outcomes/bronze/technical/1.0.0.sql.json"}
+    },
+    {
       "name": "lakehouse_baseline_silver",
       "version": "1.0.0",
       "supported_engines": ["sql"],

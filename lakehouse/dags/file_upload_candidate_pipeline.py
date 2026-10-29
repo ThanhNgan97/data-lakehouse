@@ -97,6 +97,24 @@ def validate_file_candidate(**context):
         raise AirflowException(str(exc)) from exc
 
 
+def validate_file_bronze_task(**context):
+    from gx_airflow_adapter import GXAirflowError, NON_RETRYABLE
+    from gx_bronze_gate import validate_file_bronze
+
+    profile = context["ti"].xcom_pull(task_ids="profile_and_resolve_contract") or {}
+    try:
+        return validate_file_bronze(
+            dataset_id=str(profile["dataset_id"]),
+            run_id=str(context["run_id"]),
+            path=str(profile["input_path"]),
+            artifact_ref=str(profile.get("source_path") or profile["input_path"]),
+        )
+    except GXAirflowError as exc:
+        if exc.code in NON_RETRYABLE or not exc.retryable:
+            raise AirflowFailException(str(exc)) from exc
+        raise AirflowException(str(exc)) from exc
+
+
 def publish_file_candidate_task(**context):
     from gx_candidate_publisher import CandidatePublishError, publish_file_candidate
 
@@ -227,6 +245,11 @@ with DAG(
             "--run-id '{{ run_id }}'"
         ),
     )
+    gx_bronze = PythonOperator(
+        task_id="gx_validate_bronze",
+        python_callable=validate_file_bronze_task,
+        retries=1,
+    )
     gx = PythonOperator(
         task_id="gx_validate_file_candidate",
         python_callable=validate_file_candidate,
@@ -272,6 +295,7 @@ with DAG(
     profile >> route
     (
         route
+        >> gx_bronze
         >> prepare
         >> gx
         >> publish

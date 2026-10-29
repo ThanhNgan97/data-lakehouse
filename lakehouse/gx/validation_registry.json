@@ -1,6 +1,18 @@
 {
   "routes": [
     {
+      "dataset_id": "education.teaching_progress", "layer": "bronze", "contract_version": "1.0.0",
+      "data_asset_ref": "lakehouse.bronze.teaching_progress",
+      "supported_source_kinds": ["file", "api", "database"],
+      "suites": {"sql": [{"name": "teaching_progress_bronze_technical", "version": "1.0.0"}]}
+    },
+    {
+      "dataset_id": "education.learning_outcomes", "layer": "bronze", "contract_version": "1.0.0",
+      "data_asset_ref": "lakehouse.bronze.learning_outcomes",
+      "supported_source_kinds": ["file", "api", "database"],
+      "suites": {"sql": [{"name": "learning_outcomes_bronze_technical", "version": "1.0.0"}]}
+    },
+    {
       "dataset_id": "education.teaching_progress", "layer": "silver", "contract_version": "1.0.0",
       "data_asset_ref": "lakehouse.silver.teaching_progress",
       "supported_source_kinds": ["file", "api", "database"],

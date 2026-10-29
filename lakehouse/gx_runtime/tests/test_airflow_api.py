@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import unittest
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from gx_runtime.api import CapturingStore, ERRORS, TableValidationApplication
@@ -68,6 +70,23 @@ class AirflowApiContractTest(unittest.TestCase):
             "Invalid GX table validation request",
         ):
             application.validate({})
+
+    @patch("gx_runtime.api.persist_bronze_result", return_value="s3://bucket/bronze.json")
+    @patch("gx_runtime.api.validate_bronze_evidence")
+    def test_bronze_endpoint_persists_bounded_result(self, validate, _persist):
+        validate.return_value = SimpleNamespace(
+            merge_allowed=True,
+            as_dict=lambda: {
+                "status": "PASSED",
+                "validation_id": "bronze-1",
+                "merge_allowed": True,
+            },
+        )
+        application = TableValidationApplication.__new__(TableValidationApplication)
+        application.routes = MagicMock()
+        application.suites = MagicMock()
+        result = application.validate_bronze({"dataset_id": "dataset"})
+        self.assertEqual(result["validation_uri"], "s3://bucket/bronze.json")
 
 
 if __name__ == "__main__":

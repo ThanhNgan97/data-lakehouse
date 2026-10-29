@@ -23,6 +23,7 @@ class FileUploadCandidateDagTest(unittest.TestCase):
         expected = (
             "profile_and_resolve_contract",
             "branch_contract_status",
+            "gx_validate_bronze",
             "prepare_file_silver_candidate",
             "gx_validate_file_candidate",
             "publish_file_silver_candidate",

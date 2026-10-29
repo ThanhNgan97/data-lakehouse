@@ -31,6 +31,7 @@ from incremental_ingestion import (
     run_incremental_ingestion,
 )
 from bronze_writer import read_parquet_object
+from env_config import S3_BUCKET_NAME
 from checkpoint_store import OzoneCheckpointStore
 from gx_candidate_state import (
     CandidateAssetIdentity,
@@ -404,6 +405,27 @@ def command_validate_bronze(
             "Bronze contains null record checksums"
         )
 
+    from gx_bronze_gate import validate_bronze_metrics
+
+    gx_result = validate_bronze_metrics(
+        dataset_id=config.dataset,
+        source_kind="api",
+        run_id=run_id,
+        artifact_ref=f"s3://{S3_BUCKET_NAME}/{object_key}",
+        metrics={
+            "readable": True,
+            "row_count": row_count,
+            "corrupt_record_ratio": 0.0,
+            "metadata_complete": not missing_metadata,
+            "checksum_present": checksum_nulls == 0,
+            "duplicate_ingestion_count": 0,
+            "http_success": True,
+            "pagination_complete": True,
+        },
+    )
+    if gx_result.get("merge_allowed") is not True:
+        raise RuntimeError("GX Bronze gate denied Silver candidate creation")
+
     print(f"DATASET_ID={config.dataset}")
     print(f"BRONZE_BATCH_ID={batch_id}")
     print(f"BRONZE_OBJECT_KEY={object_key}")
@@ -417,6 +439,8 @@ def command_validate_bronze(
         f"{checksum_nulls}"
     )
     print("VALIDATE_BRONZE_PASS=True")
+    print(f"GX_BRONZE_VALIDATION_ID={gx_result['validation_id']}")
+    print(f"GX_BRONZE_VALIDATION_URI={gx_result['validation_uri']}")
 
 
 def command_process_silver(

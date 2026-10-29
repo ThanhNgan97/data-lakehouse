@@ -30,6 +30,9 @@ from airflow.utils.trigger_rule import TriggerRule
 
 # Thêm /opt/airflow/spark vào sys.path để nạp router và config
 SPARK_DIR = "/opt/airflow/spark"
+SPARK_TEMPLATE_SEARCHPATH = os.environ.get(
+    "SPARK_TEMPLATE_SEARCHPATH", "/opt/airflow/k8s/spark/templates"
+)
 if SPARK_DIR not in sys.path:
     sys.path.insert(0, SPARK_DIR)
 
@@ -495,7 +498,10 @@ with DAG(
     schedule_interval=None,
     start_date=datetime(2026, 1, 1),
     catchup=False,
-    template_searchpath=["/opt/airflow/k8s/spark/templates"],
+    template_searchpath=[
+        SPARK_TEMPLATE_SEARCHPATH,
+        "/opt/airflow/k8s/spark/templates",
+    ],
     # Spark/Iceberg jobs share one local Airflow host. Serialise uploads so
     # queued runs cannot start several memory-heavy Spark sessions at once.
     max_active_runs=1,

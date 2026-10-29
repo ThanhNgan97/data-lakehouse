@@ -1,0 +1,50 @@
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: kpi-predict-{{ ts_nodash | lower }}-{{ ti.try_number }}
+  namespace: lakehouse-spark
+spec:
+  type: Python
+  mode: cluster
+  image: docker.io/tdang2202/cusc-datalakehouse:spark-3.5.0-v3
+  imagePullPolicy: IfNotPresent
+  mainApplicationFile: local:///opt/lakehouse/spark/spark_predictive_analysis.py
+  sparkVersion: "3.5.0"
+  sparkConf:
+    spark.sql.extensions: org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions,org.projectnessie.spark.extensions.NessieSparkSessionExtensions
+    spark.sql.catalog.lakehouse: org.apache.iceberg.spark.SparkCatalog
+    spark.sql.catalog.lakehouse.catalog-impl: org.apache.iceberg.nessie.NessieCatalog
+    spark.sql.catalog.lakehouse.uri: http://windows-dependencies.lakehouse-spark.svc:19120/api/v1
+    spark.sql.catalog.lakehouse.ref: main
+    spark.sql.catalog.lakehouse.warehouse: s3a://university-lakehouse/iceberg-warehouse
+    spark.hadoop.fs.s3a.impl: org.apache.hadoop.fs.s3a.S3AFileSystem
+    spark.hadoop.fs.s3a.endpoint: http://windows-dependencies.lakehouse-spark.svc:9878
+    spark.hadoop.fs.s3a.path.style.access: "true"
+    spark.hadoop.fs.s3a.connection.ssl.enabled: "false"
+    spark.hadoop.fs.s3a.aws.credentials.provider: com.amazonaws.auth.EnvironmentVariableCredentialsProvider
+  driver:
+    labels:
+      app: lakehouse-kpi-flow
+    cores: 1
+    coreRequest: 500m
+    memory: 1g
+    serviceAccount: spark-operator-spark
+    envVars:
+      S3_ENDPOINT: http://windows-dependencies.lakehouse-spark.svc:9878
+      S3_BUCKET_NAME: university-lakehouse
+      ICEBERG_WAREHOUSE: s3a://university-lakehouse/iceberg-warehouse
+      NESSIE_API_URL: http://windows-dependencies.lakehouse-spark.svc:19120/api/v1
+    envSecretKeyRefs:
+      S3_ACCESS_KEY: {name: ozone-s3-credentials, key: access-key}
+      S3_SECRET_KEY: {name: ozone-s3-credentials, key: secret-key}
+      AWS_ACCESS_KEY_ID: {name: ozone-s3-credentials, key: access-key}
+      AWS_SECRET_ACCESS_KEY: {name: ozone-s3-credentials, key: secret-key}
+  executor:
+    instances: 2
+    cores: 1
+    coreRequest: 500m
+    memory: 1g
+    envSecretKeyRefs:
+      AWS_ACCESS_KEY_ID: {name: ozone-s3-credentials, key: access-key}
+      AWS_SECRET_ACCESS_KEY: {name: ozone-s3-credentials, key: secret-key}
+  restartPolicy: {type: Never}

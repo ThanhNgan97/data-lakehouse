@@ -442,6 +442,7 @@ services:
       TRINO_HOST: 'trino'
       TRINO_PORT: '8080'
       TRINO_HTTP_URL: 'http://trino:8080'
+      SPARK_TEMPLATE_SEARCHPATH: ${SPARK_TEMPLATE_SEARCHPATH:-/opt/airflow/k8s/spark/templates}
     volumes:
       - ./airflow_webserver_config.py:/opt/airflow/webserver_config.py:ro
       - ./lakehouse/dags:/opt/airflow/dags
@@ -494,6 +495,7 @@ services:
       TRINO_HOST: 'trino'
       TRINO_PORT: '8080'
       TRINO_HTTP_URL: 'http://trino:8080'
+      SPARK_TEMPLATE_SEARCHPATH: ${SPARK_TEMPLATE_SEARCHPATH:-/opt/airflow/k8s/spark/templates}
     volumes:
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark

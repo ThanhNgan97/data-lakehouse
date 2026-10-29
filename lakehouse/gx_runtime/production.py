@@ -95,15 +95,14 @@ class ProductionSettings:
                 raise ValidationConfigurationError(
                     "Production approval signing key is revoked"
                 )
-            service_token = os.getenv("GX_SERVICE_TOKEN", "").strip()
-            if (
-                len(service_token) < 32
-                or service_token == "development-only-gx-service-token-change-me"
-            ):
+            if os.getenv("GX_SERVICE_TOKEN", "").strip():
                 raise ValidationConfigurationError(
-                    "Production requires a non-default GX_SERVICE_TOKEN "
-                    "with at least 32 characters"
+                    "GX_SERVICE_TOKEN is not allowed in production; configure "
+                    "per-caller GX_CALLER_CREDENTIALS"
                 )
+            from .http_security import HTTPBoundarySecurity
+
+            HTTPBoundarySecurity.from_env()
             if _boolean("GX_ALLOW_PILOT_CONTRACTS", True):
                 raise ValidationConfigurationError(
                     "GX_ALLOW_PILOT_CONTRACTS must be false in production"

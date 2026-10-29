@@ -72,6 +72,28 @@ Rotate keys by adding the new public key to the key ring, switching
 receipt TTL, then removing the old public key. Emergency revocation uses
 `GX_APPROVAL_REVOKED_KEY_IDS`; revoked keys cannot sign or authorize publish.
 
+## Service caller identities
+
+The GX HTTP boundary authenticates the caller from its bearer credential, not
+from the user-controlled `X-GX-Caller` header. The validator receives a
+server-side JSON key ring in `GX_CALLER_CREDENTIALS`; each key is a caller ID
+and each value is either one credential or an array during rotation. A
+credential can be a development token string or an object containing `token`
+and a timezone-aware `expires_at`. Production requires expiry metadata.
+Tokens must contain at least 32 characters and cannot be shared by callers.
+
+Airflow receives only its own token as `GX_CALLER_TOKEN` (populated from
+`GX_AIRFLOW_CALLER_TOKEN` by Compose) plus `GX_CALLER_ID=airflow`. If the
+optional caller header disagrees with the identity bound to the token, the
+request is rejected. Only identities listed in `GX_GOVERNANCE_CALLERS` may
+manage onboarding and quarantine resources. Production rejects the legacy
+shared `GX_SERVICE_TOKEN` configuration.
+
+Rotate a caller credential by temporarily configuring an array containing the
+old and new tokens, deploying the new client token, then removing the old token
+from the server key ring. Inject production values through service-specific
+secret management; never commit them to this repository.
+
 ## Production operations
 
 Start the optional monitoring profile with:

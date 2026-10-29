@@ -33,7 +33,7 @@ def _post_json(
     timeout_seconds: float,
     opener: Callable[..., Any] = request.urlopen,
 ) -> dict[str, Any]:
-    token = os.getenv("GX_SERVICE_TOKEN", "").strip()
+    token = os.getenv("GX_CALLER_TOKEN", "").strip()
     caller = os.getenv("GX_CALLER_ID", "airflow").strip()
     if len(token) < 32 or not caller:
         raise GXAirflowError(

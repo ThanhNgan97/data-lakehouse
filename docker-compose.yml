@@ -337,8 +337,7 @@ services:
       GX_APPROVAL_PUBLIC_KEYS: '${GX_APPROVAL_PUBLIC_KEYS:-{"development":"7VfexdIjq7grSVgW/4x+kP4d1wg+296V+txcBCOhHOA="}}'
       GX_APPROVAL_REVOKED_KEY_IDS: ${GX_APPROVAL_REVOKED_KEY_IDS:-}
       GX_APPROVAL_TTL_SECONDS: ${GX_APPROVAL_TTL_SECONDS:-900}
-      GX_SERVICE_TOKEN: ${GX_SERVICE_TOKEN:-development-only-gx-service-token-change-me}
-      GX_ALLOWED_CALLERS: ${GX_ALLOWED_CALLERS:-airflow,gx-admin}
+      GX_CALLER_CREDENTIALS: '${GX_CALLER_CREDENTIALS:-{"airflow":"development-airflow-token-change-me-123456789","gx-admin":"development-gx-admin-token-change-me-123456"}}'
       GX_GOVERNANCE_CALLERS: ${GX_GOVERNANCE_CALLERS:-gx-admin}
       GX_MAX_REQUEST_BYTES: ${GX_MAX_REQUEST_BYTES:-65536}
       GX_ALLOW_PILOT_CONTRACTS: ${GX_ALLOW_PILOT_CONTRACTS:-true}
@@ -440,8 +439,6 @@ services:
       dockerfile: airflow.Dockerfile
     image: custom-airflow:2.9.2
     container_name: demo-airflow-init
-    env_file:
-      - .env
     environment:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:${PG_PASSWORD}@postgres:5432/airflow_db
       _AIRFLOW_DB_UPGRADE: 'true'
@@ -461,8 +458,6 @@ services:
     container_name: demo-airflow-webserver
     ports:
       - "8080:8080"
-    env_file:
-      - .env
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:${PG_PASSWORD}@postgres:5432/airflow_db
@@ -475,6 +470,20 @@ services:
       # cookies unless Secure=true, which drops the session and breaks CSRF.
       AIRFLOW__WEBSERVER__SESSION_COOKIE_SAMESITE: 'Lax'
       AIRFLOW__WEBSERVER__SESSION_COOKIE_SECURE: 'False'
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_DOCUMENT_MODELS: ${GEMINI_DOCUMENT_MODELS:-gemini-3.5-flash-lite}
+      PG_HOST: postgres
+      PG_PORT: '5432'
+      PG_USER: ${PG_USER:-postgres}
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_DATABASE: ${PG_DATABASE:-university_db}
+      PG_MAINTENANCE_DB: ${PG_MAINTENANCE_DB:-postgres}
+      NESSIE_DB: ${NESSIE_DB:-nessie_db}
+      OPENMETADATA_HOST_PORT: ${OPENMETADATA_HOST_PORT:-http://openmetadata_server:8585}
+      OPENMETADATA_JWT_TOKEN: ${OPENMETADATA_JWT_TOKEN:-}
+      CTU_IOC_API_BASE_URL: ${CTU_IOC_API_BASE_URL:-}
+      CTU_IOC_API_KEY: ${CTU_IOC_API_KEY:-}
+      MOCK_API_KEY: ${MOCK_API_KEY:-}
       S3_ENDPOINT: 'http://s3g:9878'
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-lakehouse}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-lakehouse-secret}
@@ -494,7 +503,7 @@ services:
       GX_SERVICE_URL: 'http://gx-validator:8090'
       GX_APPROVAL_PUBLIC_KEYS: '${GX_APPROVAL_PUBLIC_KEYS:-{"development":"7VfexdIjq7grSVgW/4x+kP4d1wg+296V+txcBCOhHOA="}}'
       GX_APPROVAL_REVOKED_KEY_IDS: ${GX_APPROVAL_REVOKED_KEY_IDS:-}
-      GX_SERVICE_TOKEN: ${GX_SERVICE_TOKEN:-development-only-gx-service-token-change-me}
+      GX_CALLER_TOKEN: ${GX_AIRFLOW_CALLER_TOKEN:-development-airflow-token-change-me-123456789}
       GX_CALLER_ID: airflow
       GX_ALLOW_PILOT_CONTRACTS: ${GX_ALLOW_PILOT_CONTRACTS:-true}
       GX_API_GATE_MODE: ${GX_API_GATE_MODE:-enforce}
@@ -514,7 +523,6 @@ services:
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark
       - ./lakehouse/gx:/opt/airflow/gx-config:ro
-      - ./.env:/opt/airflow/.env
       - airflow_logs:/opt/airflow/logs
     command: webserver
     depends_on:
@@ -532,8 +540,6 @@ services:
     restart: unless-stopped
     image: custom-airflow:2.9.2
     container_name: demo-airflow-scheduler
-    env_file:
-      - .env
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       # Spark runs in this LocalExecutor container. Keep unrelated DAG tasks
@@ -545,6 +551,20 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
       AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_WEBSERVER_SECRET_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_DOCUMENT_MODELS: ${GEMINI_DOCUMENT_MODELS:-gemini-3.5-flash-lite}
+      PG_HOST: postgres
+      PG_PORT: '5432'
+      PG_USER: ${PG_USER:-postgres}
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_DATABASE: ${PG_DATABASE:-university_db}
+      PG_MAINTENANCE_DB: ${PG_MAINTENANCE_DB:-postgres}
+      NESSIE_DB: ${NESSIE_DB:-nessie_db}
+      OPENMETADATA_HOST_PORT: ${OPENMETADATA_HOST_PORT:-http://openmetadata_server:8585}
+      OPENMETADATA_JWT_TOKEN: ${OPENMETADATA_JWT_TOKEN:-}
+      CTU_IOC_API_BASE_URL: ${CTU_IOC_API_BASE_URL:-}
+      CTU_IOC_API_KEY: ${CTU_IOC_API_KEY:-}
+      MOCK_API_KEY: ${MOCK_API_KEY:-}
       S3_ENDPOINT: 'http://s3g:9878'
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-lakehouse}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-lakehouse-secret}
@@ -564,7 +584,7 @@ services:
       GX_SERVICE_URL: 'http://gx-validator:8090'
       GX_APPROVAL_PUBLIC_KEYS: '${GX_APPROVAL_PUBLIC_KEYS:-{"development":"7VfexdIjq7grSVgW/4x+kP4d1wg+296V+txcBCOhHOA="}}'
       GX_APPROVAL_REVOKED_KEY_IDS: ${GX_APPROVAL_REVOKED_KEY_IDS:-}
-      GX_SERVICE_TOKEN: ${GX_SERVICE_TOKEN:-development-only-gx-service-token-change-me}
+      GX_CALLER_TOKEN: ${GX_AIRFLOW_CALLER_TOKEN:-development-airflow-token-change-me-123456789}
       GX_CALLER_ID: airflow
       GX_ALLOW_PILOT_CONTRACTS: ${GX_ALLOW_PILOT_CONTRACTS:-true}
       GX_API_GATE_MODE: ${GX_API_GATE_MODE:-enforce}
@@ -583,7 +603,6 @@ services:
       - ./lakehouse/dags:/opt/airflow/dags
       - ./lakehouse/spark:/opt/airflow/spark
       - ./lakehouse/gx:/opt/airflow/gx-config:ro
-      - ./.env:/opt/airflow/.env
       - airflow_logs:/opt/airflow/logs
     command: scheduler
     depends_on:

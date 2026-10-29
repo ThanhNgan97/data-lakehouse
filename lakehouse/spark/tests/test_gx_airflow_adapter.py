@@ -52,7 +52,7 @@ class GXAirflowAdapterTest(unittest.TestCase):
         self.environment = patch.dict(
             os.environ,
             {
-                "GX_SERVICE_TOKEN": "unit-test-service-token-that-is-at-least-32-chars",
+                "GX_CALLER_TOKEN": "airflow-unit-test-token-that-is-at-least-32-chars",
                 "GX_CALLER_ID": "airflow",
             },
         )
@@ -76,12 +76,12 @@ class GXAirflowAdapterTest(unittest.TestCase):
         self.assertEqual(result["contract_status"], "MISSING")
         self.assertEqual(
             calls[0].get_header("Authorization"),
-            "Bearer unit-test-service-token-that-is-at-least-32-chars",
+            "Bearer airflow-unit-test-token-that-is-at-least-32-chars",
         )
         self.assertEqual(calls[0].get_header("X-gx-caller"), "airflow")
 
     def test_missing_service_credentials_fail_before_network(self):
-        with patch.dict(os.environ, {"GX_SERVICE_TOKEN": ""}), self.assertRaisesRegex(
+        with patch.dict(os.environ, {"GX_CALLER_TOKEN": ""}), self.assertRaisesRegex(
             adapter.GXAirflowError, "credentials"
         ):
             adapter.execute_quality_gate({}, service_url="http://gx")

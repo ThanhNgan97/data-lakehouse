@@ -71,8 +71,8 @@ class ProductionReadinessTest(unittest.TestCase):
         },
         clear=True,
     )
-    def test_production_refuses_default_service_token(self):
-        with self.assertRaisesRegex(ValidationConfigurationError, "non-default"):
+    def test_production_refuses_legacy_shared_service_token(self):
+        with self.assertRaisesRegex(ValidationConfigurationError, "not allowed"):
             ProductionSettings.from_env()
 
     @patch.dict(
@@ -84,7 +84,13 @@ class ProductionReadinessTest(unittest.TestCase):
             "GX_APPROVAL_SIGNING_KEY_ID": "production-2026-10",
             "GX_APPROVAL_PRIVATE_KEY": "mhhz/j9TRR3mbxkFcd8Alqxr7N4NBZUtj6gXGn7xt+Y=",
             "GX_APPROVAL_PUBLIC_KEYS": '{"production-2026-10":"7VfexdIjq7grSVgW/4x+kP4d1wg+296V+txcBCOhHOA="}',
-            "GX_SERVICE_TOKEN": "production-service-token-with-32-characters",
+            "GX_CALLER_CREDENTIALS": (
+                '{"airflow":{"token":"production-airflow-token-with-32-characters",'
+                '"expires_at":"2099-01-01T00:00:00Z"},'
+                '"gx-admin":{"token":"production-admin-token-with-32-characters",'
+                '"expires_at":"2099-01-01T00:00:00Z"}}'
+            ),
+            "GX_GOVERNANCE_CALLERS": "gx-admin",
             "GX_ALLOW_PILOT_CONTRACTS": "true",
         },
         clear=True,

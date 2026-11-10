@@ -246,6 +246,10 @@ def run_ai_semantic_profiling(**context):
 
     with open(decision_file_path, "w", encoding="utf-8") as f:
         f.write(decision.model_dump_json(indent=2))
+    decision_file_uri = upload_file(
+        decision_file_path, f"{control_prefix}/routing_decision.json"
+    )
+    control_artifacts.append(f"{control_prefix}/routing_decision.json")
 
     # Nếu tài liệu đã được bóc tách sang JSON bảng, cập nhật input_path cho Spark Processor
     effective_input_path = decision.extracted_json_path if decision.extracted_json_path else input_path
@@ -259,7 +263,8 @@ def run_ai_semantic_profiling(**context):
     # Đẩy các thông tin quan trọng lên XCom
     ti = context["ti"]
     ti.xcom_push(key="route_target", value=decision.route_target)
-    ti.xcom_push(key="decision_file", value=decision_file_path)
+    ti.xcom_push(key="decision_file", value=decision_file_uri)
+    ti.xcom_push(key="local_input_path", value=effective_input_path)
     ti.xcom_push(key="input_path", value=spark_input_path)
     ti.xcom_push(key="source_name", value=source_name)
     ti.xcom_push(key="s3_staging_key", value=s3_staging_key)
@@ -327,7 +332,9 @@ def validate_universal_bronze(**context):
     from gx_bronze_gate import validate_file_bronze
 
     ti = context["ti"]
-    input_path = ti.xcom_pull(task_ids="ai_semantic_profiler", key="input_path")
+    input_path = ti.xcom_pull(
+        task_ids="ai_semantic_profiler", key="local_input_path"
+    ) or ti.xcom_pull(task_ids="ai_semantic_profiler", key="input_path")
     source_path = ti.xcom_pull(task_ids="ai_semantic_profiler", key="s3_staging_key")
     return validate_file_bronze(
         dataset_id=_universal_dataset_id(context),
@@ -642,6 +649,7 @@ with DAG(
     start_date=datetime(2026, 1, 1),
     catchup=False,
     template_searchpath=[
+        "/opt/airflow/k8s/k3s/spark/templates",
         SPARK_TEMPLATE_SEARCHPATH,
         "/opt/airflow/k8s/spark/templates",
     ],
@@ -720,15 +728,15 @@ with DAG(
         file_bronze = PythonOperator(
             task_id="gx_validate_bronze", python_callable=validate_universal_bronze
         )
-        file_prepare_silver = BashOperator(
+        file_prepare_silver = SparkKubernetesOperator(
             task_id="prepare_silver_candidate",
-            bash_command=(
-                "cd /opt/airflow/spark && python generic_candidate_writer.py "
-                "--source-kind file "
-                "--input '{{ task_instance.xcom_pull(task_ids=\"ai_semantic_profiler\", key=\"input_path\") }}' "
-                "--decision-file '{{ task_instance.xcom_pull(task_ids=\"ai_semantic_profiler\", key=\"decision_file\") }}' "
-                "--run-id '{{ run_id }}'"
-            ),
+            application_file="spark-file-candidate-airflow.yaml",
+            namespace="lakehouse-spark",
+            kubernetes_conn_id="kubernetes_default",
+            get_logs=True,
+            log_events_on_failure=True,
+            delete_on_termination=True,
+            pool="spark_k8s",
         )
         file_gx_silver = PythonOperator(
             task_id="gx_validate_silver",

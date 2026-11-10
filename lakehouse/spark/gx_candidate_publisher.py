@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 from typing import Any, Callable
 from urllib import error, request
 from urllib.parse import quote
@@ -20,10 +19,8 @@ class CandidatePublishError(RuntimeError):
     """Publication lacks approval, is stale, conflicts, or fails verification."""
 
 
-def _state_root() -> Path:
-    return Path(
-        os.getenv("GX_CANDIDATE_STATE_ROOT", "/opt/airflow/logs/gx-candidates")
-    )
+def _state_root() -> str:
+    return os.getenv("GX_CANDIDATE_STATE_ROOT", "/opt/airflow/logs/gx-candidates")
 
 
 def _all_assets_match(state: CandidateState, branch: str) -> tuple[bool, str]:

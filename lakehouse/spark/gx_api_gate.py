@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 from typing import Any
 
 from gx_airflow_adapter import execute_quality_gate
@@ -14,10 +13,8 @@ from gx_universal_gate import resolve_snapshot_identity
 from gx_validation_request import GXTableValidationRequest
 
 
-def _candidate_state_root() -> Path:
-    return Path(
-        os.getenv("GX_CANDIDATE_STATE_ROOT", "/opt/airflow/logs/gx-candidates")
-    )
+def _candidate_state_root() -> str:
+    return os.getenv("GX_CANDIDATE_STATE_ROOT", "/opt/airflow/logs/gx-candidates")
 
 
 def validate_api_candidate_dataset(

@@ -146,6 +146,15 @@ def build(config, run_id):
             save(config, run_id, state)
             return
         if result["status"] == "failed":
+            if result.get("retryable") is True and time.monotonic() < deadline:
+                time.sleep(5)
+                response = requests.post(WORKER + "/jobs", json={
+                    "dataset": config.dataset, "run_id": run_id,
+                    "expected_head": state["base_hash"],
+                }, timeout=30)
+                if not response.ok:
+                    raise RuntimeError(f"dbt worker rejected retry: {response.status_code} {response.text}")
+                continue
             raise RuntimeError(result.get("error", "dbt worker failed"))
         if time.monotonic() > deadline:
             raise RuntimeError("dbt worker timeout; retry task to poll the same job")

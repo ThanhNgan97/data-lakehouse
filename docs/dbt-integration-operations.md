@@ -108,9 +108,16 @@ the report tab; chart data and Superset cache should be checked separately.
    sealed build can be reused; published lifecycle retry does not republish.
    Successful commit followed by failed state save can recover only if the
    complete output bundle already points to the validated metadata.
-3. A failed worker job is not resubmitted by retrying `process_gold`. Worker
-   restart marks interrupted queued/running jobs failed. This implementation
-   does not provide automatic recovery/resume for interrupted builds.
+3. Transport failures (DNS resolution, refused/reset connections and connection
+   timeouts) may retry the same job, up to three total attempts. `process_gold`
+   resubmits retryable failures after five seconds; clearing the Airflow build
+   task also resubmits the same job within that limit. The worker checks the
+   original payload and requires the candidate head to remain `expected_head`;
+   partial candidate writes, SQL/test failures and cleanup failures are refused.
+   Prior status and build logs are retained as `status.attempt-N.json` and
+   `build.attempt-N.log`. Existing failed DNS jobs are classified from their
+   retained build log. Worker restart still marks interrupted queued/running
+   jobs failed; interrupted builds have no automatic recovery/resume.
 4. **A new DAG run is not sufficient recovery by itself.** The ingestion
    watermark advances after Bronze succeeds, before downstream Gold completes.
    With no newer API records, a new run can skip ingestion and all downstream

@@ -66,6 +66,10 @@ class CandidateSparkSessions:
             .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
             .config("spark.sql.shuffle.partitions", "4")
             .config("spark.ui.enabled", "false")
+            # GX runs driver and executor in one container; do not advertise
+            # Docker's transient hostname to the local executor.
+            .config("spark.driver.host", "127.0.0.1")
+            .config("spark.driver.bindAddress", "127.0.0.1")
         )
         if jars:
             builder = builder.config("spark.jars", jars)

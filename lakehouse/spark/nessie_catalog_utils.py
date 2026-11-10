@@ -14,6 +14,8 @@ qua Nessie (branch / merge / tag) trong các pipeline Spark.
 ------------------------------------------------------------
 """
 
+from __future__ import annotations
+
 from datetime import datetime
 from urllib.parse import quote
 

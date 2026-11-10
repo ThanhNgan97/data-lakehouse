@@ -1,7 +1,11 @@
 from pathlib import Path
 import unittest
+from unittest.mock import Mock, patch
 
 from airflow.models import DagBag
+from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import (
+    SparkKubernetesOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 
@@ -60,6 +64,30 @@ class GXUniversalPipelineDagTest(unittest.TestCase):
         self.assertNotIn("generic_flow.process_dynamic_silver_gold", task_ids)
         self.assertNotIn("relational_flow.process_relational_context", task_ids)
         self.assertNotIn("kpi_flow.silver_to_gold", task_ids)
+
+    @patch("gx_bronze_gate.validate_file_bronze")
+    def test_file_bronze_uses_local_copy_for_evidence(self, validate):
+        from universal_lakehouse_pipeline import validate_universal_bronze
+
+        values = {
+            "registered_dataset_id": "education.learning_outcomes",
+            "local_input_path": "/opt/airflow/spark/.staging_downloads/run/input.json",
+            "s3_staging_key": "staging/manual/run/input.json",
+        }
+        task_instance = Mock()
+        task_instance.xcom_pull.side_effect = lambda **kwargs: values.get(kwargs["key"])
+
+        validate_universal_bronze(ti=task_instance, run_id="file_upload__run")
+
+        self.assertEqual(
+            validate.call_args.kwargs["path"],
+            values["local_input_path"],
+        )
+
+    def test_file_candidate_runs_on_kubernetes(self):
+        task = self.dag.get_task("file_flow.prepare_silver_candidate")
+        self.assertIsInstance(task, SparkKubernetesOperator)
+        self.assertEqual(task.application_file, "spark-file-candidate-airflow.yaml")
 
 
 if __name__ == "__main__":

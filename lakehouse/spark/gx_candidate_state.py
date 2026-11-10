@@ -10,6 +10,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from ozone_artifacts import get_s3_client, parse_object_uri
+
 
 SCHEMA_VERSION = 1
 _REF_PATTERN = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]*$")
@@ -135,16 +137,45 @@ def retry_stable_branch_name(prefix: str, dataset_id: str, run_id: str) -> str:
     return f"{safe_prefix[:80]}_{suffix}"
 
 
-def candidate_state_path(root: str | Path, dataset_id: str, run_id: str) -> Path:
+def candidate_state_path(root: str | Path, dataset_id: str, run_id: str) -> str | Path:
     """Build a bounded path without embedding caller-controlled identifiers."""
     digest = hashlib.sha256(
         f"{_text('dataset_id', dataset_id)}\0{_text('run_id', run_id)}".encode("utf-8")
     ).hexdigest()
+    if isinstance(root, str) and root.startswith(("s3://", "s3a://")):
+        bucket, prefix = parse_object_uri(root.rstrip("/"))
+        key = "/".join(part for part in (prefix, digest[:2], f"{digest}.json") if part)
+        return f"s3://{bucket}/{key}"
     return Path(root).resolve() / digest[:2] / f"{digest}.json"
 
 
-def save_candidate_state(state: CandidateState, path: str | Path) -> Path:
+def candidate_state_exists(path: str | Path) -> bool:
+    if isinstance(path, str) and path.startswith(("s3://", "s3a://")):
+        bucket, key = parse_object_uri(path)
+        try:
+            get_s3_client().head_object(Bucket=bucket, Key=key)
+            return True
+        except Exception:
+            return False
+    return Path(path).is_file()
+
+
+def save_candidate_state(state: CandidateState, path: str | Path) -> str | Path:
     """Atomically persist immutable state; retries may only replay it exactly."""
+    if isinstance(path, str) and path.startswith(("s3://", "s3a://")):
+        if candidate_state_exists(path):
+            existing = load_candidate_state(path)
+            if existing != state:
+                raise CandidateStateError("Candidate state already exists with a different identity")
+            return path
+        bucket, key = parse_object_uri(path)
+        get_s3_client().put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=(json.dumps(state.as_payload(), indent=2, sort_keys=True) + "\n").encode("utf-8"),
+            ContentType="application/json",
+        )
+        return path
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.exists():
@@ -168,7 +199,11 @@ def save_candidate_state(state: CandidateState, path: str | Path) -> Path:
 
 def load_candidate_state(path: str | Path) -> CandidateState:
     try:
-        value = json.loads(Path(path).read_text(encoding="utf-8"))
+        if isinstance(path, str) and path.startswith(("s3://", "s3a://")):
+            bucket, key = parse_object_uri(path)
+            value = json.loads(get_s3_client().get_object(Bucket=bucket, Key=key)["Body"].read())
+        else:
+            value = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise CandidateStateError(f"Unable to load candidate state {path}") from exc
     return CandidateState.from_mapping(value)

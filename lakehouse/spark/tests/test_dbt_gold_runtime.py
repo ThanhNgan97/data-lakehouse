@@ -106,6 +106,26 @@ class GoldRuntimeTest(unittest.TestCase):
             runtime.build(CONFIG, "unit-run")
             post.assert_called_once()
 
+    def test_build_retries_transport_failure_with_same_payload(self):
+        s = state("prepared")
+        failed = Mock()
+        failed.json.return_value = {"status": "failed", "retryable": True}
+        passed = Mock()
+        passed.json.return_value = {"status": "passed", "artifact_sha256": "new"}
+        with patch.object(runtime, "load", return_value=s), patch.object(runtime.requests, "post") as post, patch.object(runtime.requests, "get", side_effect=[failed, passed]), patch.object(runtime.time, "sleep"), patch.object(runtime, "save"):
+            runtime.build(CONFIG, "unit-run")
+        self.assertEqual(post.call_count, 2)
+        self.assertEqual(post.call_args_list[0], post.call_args_list[1])
+        self.assertEqual(s["phase"], "built")
+
+    def test_build_does_not_retry_sql_failure(self):
+        response = Mock()
+        response.json.return_value = {"status": "failed", "retryable": False, "error": "SQL test failed"}
+        with patch.object(runtime, "load", return_value=state("prepared")), patch.object(runtime.requests, "post") as post, patch.object(runtime.requests, "get", return_value=response):
+            with self.assertRaisesRegex(RuntimeError, "SQL test failed"):
+                runtime.build(CONFIG, "unit-run")
+        post.assert_called_once()
+
     def test_worker_receipt_identity_or_cleanup_mismatch_is_refused(self):
         s = state()
         baseline = dict(worker(s), status="passed", ref=s["ref"], job_id=s["job"],

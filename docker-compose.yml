@@ -14,7 +14,8 @@ x-ozone-config: &ozone-config
   OZONE-SITE.XML_ozone.om.http-address: om:9874
   OZONE-SITE.XML_ozone.recon.address: recon:9891
   OZONE-SITE.XML_ozone.recon.db.dir: /data/metadata/recon
-  OZONE-SITE.XML_ozone.replication: "3"
+  # Single-host deployment: avoid storing three copies on the same SSD.
+  OZONE-SITE.XML_ozone.replication: "1"
   OZONE-SITE.XML_ozone.scm.block.client.address: scm
   OZONE-SITE.XML_ozone.scm.client.address: scm
   OZONE-SITE.XML_ozone.scm.datanode.id.dir: /data/metadata
@@ -518,6 +519,7 @@ services:
       TRINO_HTTP_URL: 'http://trino:8080'
       SPARK_TEMPLATE_SEARCHPATH: ${SPARK_TEMPLATE_SEARCHPATH:-/opt/airflow/k8s/spark/templates}
       GX_SERVICE_URL: 'http://gx-validator:8090'
+      GX_CANDIDATE_STATE_ROOT: s3://${S3_BUCKET_NAME:-university-lakehouse}/control/gx-candidates
       GX_APPROVAL_PUBLIC_KEYS: '${GX_APPROVAL_PUBLIC_KEYS:-{"development":"7VfexdIjq7grSVgW/4x+kP4d1wg+296V+txcBCOhHOA="}}'
       GX_APPROVAL_REVOKED_KEY_IDS: ${GX_APPROVAL_REVOKED_KEY_IDS:-}
       GX_CALLER_TOKEN: ${GX_AIRFLOW_CALLER_TOKEN:-development-airflow-token-change-me-123456789}
@@ -605,6 +607,7 @@ services:
       TRINO_HTTP_URL: 'http://trino:8080'
       SPARK_TEMPLATE_SEARCHPATH: ${SPARK_TEMPLATE_SEARCHPATH:-/opt/airflow/k8s/spark/templates}
       GX_SERVICE_URL: 'http://gx-validator:8090'
+      GX_CANDIDATE_STATE_ROOT: s3://${S3_BUCKET_NAME:-university-lakehouse}/control/gx-candidates
       GX_APPROVAL_PUBLIC_KEYS: '${GX_APPROVAL_PUBLIC_KEYS:-{"development":"7VfexdIjq7grSVgW/4x+kP4d1wg+296V+txcBCOhHOA="}}'
       GX_APPROVAL_REVOKED_KEY_IDS: ${GX_APPROVAL_REVOKED_KEY_IDS:-}
       GX_CALLER_TOKEN: ${GX_AIRFLOW_CALLER_TOKEN:-development-airflow-token-change-me-123456789}

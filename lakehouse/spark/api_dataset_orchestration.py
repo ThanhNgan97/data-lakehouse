@@ -36,6 +36,7 @@ from checkpoint_store import OzoneCheckpointStore
 from gx_candidate_state import (
     CandidateAssetIdentity,
     CandidateState,
+    candidate_state_exists,
     candidate_state_path,
     load_candidate_state,
     retry_stable_branch_name,
@@ -495,11 +496,9 @@ def command_prepare_silver_candidate(
     batch_id = _latest_committed_batch_id(config.dataset)
     processor = _load_callable(str(config.silver_processor))
     branch = retry_stable_branch_name("gx_api_silver", config.dataset, run_id)
-    root = Path(
-        os.getenv("GX_CANDIDATE_STATE_ROOT", "/opt/airflow/logs/gx-candidates")
-    )
+    root = os.getenv("GX_CANDIDATE_STATE_ROOT", "/opt/airflow/logs/gx-candidates")
     state_file = candidate_state_path(root, config.dataset, run_id)
-    if state_file.is_file():
+    if candidate_state_exists(state_file):
         existing = load_candidate_state(state_file)
         if (
             existing.dataset_id != config.dataset

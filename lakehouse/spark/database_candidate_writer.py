@@ -18,6 +18,7 @@ from gx_bronze_gate import validate_bronze_metrics
 from gx_candidate_state import (
     CandidateAssetIdentity,
     CandidateState,
+    candidate_state_exists,
     candidate_state_path,
     load_candidate_state,
     retry_stable_branch_name,
@@ -59,9 +60,9 @@ def prepare_database_candidate(
         )
     config = get_dataset_config(decision.registered_dataset_id)
     branch = retry_stable_branch_name("gx_database_silver", config.dataset, run_id)
-    root = Path(os.getenv("GX_CANDIDATE_STATE_ROOT", "/opt/airflow/logs/gx-candidates"))
+    root = os.getenv("GX_CANDIDATE_STATE_ROOT", "/opt/airflow/logs/gx-candidates")
     state_file = candidate_state_path(root, config.dataset, run_id)
-    if state_file.is_file():
+    if candidate_state_exists(state_file):
         state = load_candidate_state(state_file)
         if state.source_kind != "database" or state.candidate_branch != branch:
             raise RuntimeError("Existing database candidate state has a different identity")

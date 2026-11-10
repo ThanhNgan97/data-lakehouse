@@ -25,6 +25,53 @@ ROOT.mkdir(exist_ok=True)
 POOL = ThreadPoolExecutor(max_workers=1)
 LOCK = RLock()
 STATES = {}
+MAX_ATTEMPTS = 3
+
+
+def retryable_failure(state, directory):
+    """Only transport failures with successful cleanup may be retried."""
+    if state.get("catalog_cleanup_failed") or state.get("connection_cleanup_failed"):
+        return False
+    message = state.get("error", "")
+    if message == "dbt build failed; inspect private worker build.log":
+        log = directory / "build.log"
+        if not log.exists():
+            return False
+        message = log.read_text(errors="replace")
+    return any(marker in message.lower() for marker in (
+        "temporary failure in name resolution", "failed to resolve",
+        "connection refused", "connection reset by peer",
+        "connecttimeout", "connection timed out",
+    ))
+
+
+def submit_job(payload):
+    job, ref, _ = identity(payload["dataset"], payload["run_id"])
+    with LOCK:
+        directory = ROOT / job
+        attempt = 1
+        if (directory / "status.json").exists():
+            previous = read(job)
+            if any(previous.get(key) != value for key, value in payload.items()):
+                raise ValueError("Job identity/expected head changed")
+            if previous["status"] != "failed":
+                return
+            if not retryable_failure(previous, directory):
+                raise ValueError("Job failure is not safe to retry")
+            attempt = previous.get("attempt", 1) + 1
+            if attempt > MAX_ATTEMPTS:
+                raise ValueError("dbt job retry limit reached (3 attempts)")
+            # A partially written candidate must be rebuilt through a separate recovery flow.
+            response = requests.get(os.environ["NESSIE_API_URL"].rstrip("/") + "/trees/tree/" + ref, timeout=30)
+            response.raise_for_status()
+            if response.json()["hash"] != payload["expected_head"]:
+                raise ValueError("Candidate changed after failed build; automatic retry refused")
+            (directory / f"status.attempt-{attempt - 1}.json").write_text(json.dumps(previous))
+            log = directory / "build.log"
+            if log.exists():
+                log.replace(directory / f"build.attempt-{attempt - 1}.log")
+        save(job, {"job_id": job, "ref": ref, "status": "queued", "attempt": attempt, **payload})
+        POOL.submit(execute, payload)
 
 
 def read(job):
@@ -65,7 +112,8 @@ def project_fingerprint():
 def execute(payload):
     job, ref, alias = identity(payload["dataset"], payload["run_id"])
     directory = ROOT / job
-    state = {"job_id": job, "ref": ref, "status": "running", **payload}
+    state = {"job_id": job, "ref": ref, "status": "running",
+             "attempt": read(job).get("attempt", 1), **payload}
     save(job, state)
     cursor = None
     catalog_created = False
@@ -157,7 +205,7 @@ def execute(payload):
             try:
                 cursor.close()
             except Exception:
-                state.update(status="failed", error="Worker connection cleanup failed")
+                state.update(connection_cleanup_failed=True, status="failed", error="Worker connection cleanup failed")
         save(job, state)
 
 
@@ -181,6 +229,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(400, {"error": "Invalid job ID"})
         try:
             state = read(job)
+            if state.get("status") == "failed":
+                state["retryable"] = retryable_failure(state, ROOT / job) and state.get("attempt", 1) < MAX_ATTEMPTS
             if state.get("status") == "passed":
                 # Re-read the sealed artifact on every successful receipt, including publish retries.
                 artifact = ROOT / job / "target/run_results.json"
@@ -204,14 +254,7 @@ class Handler(BaseHTTPRequestHandler):
             if set(payload) != {"dataset", "run_id", "expected_head"} or not isinstance(payload["expected_head"], str) or not re.fullmatch(r"[0-9a-f]{8,128}", payload["expected_head"]):
                 raise ValueError("Invalid job payload")
             job, ref, _ = identity(payload["dataset"], payload["run_id"])
-            with LOCK:
-                if not (ROOT / job / "status.json").exists():
-                    save(job, {"job_id": job, "ref": ref, "status": "queued", **payload})
-                    POOL.submit(execute, payload)
-                else:
-                    previous = read(job)
-                    if any(previous.get(key) != value for key, value in payload.items()):
-                        raise ValueError("Job identity/expected head changed")
+            submit_job(payload)
             self.respond(202, {"job_id": job, "ref": ref, "status": "accepted"})
         except Exception as exc:
             self.respond(400, {"error": str(exc)})

@@ -76,6 +76,15 @@ class CandidateStateTest(unittest.TestCase):
             self.assertEqual(path.parents[1], root)
             self.assertNotIn("education", str(path.relative_to(root)))
 
+    def test_s3_state_root_remains_an_object_uri(self):
+        path = candidate_state_path(
+            "s3://university-lakehouse/control/gx-candidates",
+            "education.learning_outcomes",
+            "manual__42",
+        )
+        self.assertIsInstance(path, str)
+        self.assertTrue(path.startswith("s3://university-lakehouse/control/gx-candidates/"))
+
     def test_main_branch_empty_assets_and_duplicates_are_rejected(self):
         duplicate = CandidateAssetIdentity(
             "lakehouse.silver.teaching_progress", "snapshot-8"

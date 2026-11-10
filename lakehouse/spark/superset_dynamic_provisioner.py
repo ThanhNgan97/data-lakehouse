@@ -353,6 +353,21 @@ def get_trino_columns(table_name: str, schema: str = "gold") -> Optional[List[st
     return None
 
 
+def _gold_field_name(decision: RoutingDecision, field_name: str) -> str:
+    """Map registered-source fields to their canonical Silver/Gold names."""
+    dataset_id = getattr(decision, "registered_dataset_id", None)
+    if dataset_id:
+        try:
+            from api_dataset_registry import get_dataset_config
+
+            mapping = dict(get_dataset_config(dataset_id).source_to_canonical)
+            resolved = mapping.get(to_snake_case(field_name), to_snake_case(field_name))
+            return "source_updated_at" if resolved == "thoi_gian_cap_nhat_nguon" else resolved
+        except (ImportError, ValueError):
+            pass
+    return to_snake_case(field_name)
+
+
 # =====================================================================
 # BUILDERS: DATASET & CHARTS
 # =====================================================================
@@ -382,7 +397,7 @@ def build_dataset_yaml(decision: RoutingDecision) -> Tuple[Dict[str, Any], str]:
 
     # 1. Cấu hình Dimensions & Temporal
     for dim in decision.dimension_columns:
-        raw_dim = dim.strip().lower()
+        raw_dim = _gold_field_name(decision, dim)
         col_snake = raw_dim if real_cols_set and raw_dim in real_cols_set else to_snake_case(dim)
         if is_technical_column(col_snake) or col_snake in added_cols or not _col_valid(col_snake):
             continue
@@ -401,7 +416,7 @@ def build_dataset_yaml(decision: RoutingDecision) -> Tuple[Dict[str, Any], str]:
     # 2. Cấu hình Temporal / Timestamp nếu chưa có trong dimension_columns
     main_dttm = None
     if decision.source_updated_at_field:
-        main_dttm = to_snake_case(decision.source_updated_at_field)
+        main_dttm = _gold_field_name(decision, decision.source_updated_at_field)
         if is_technical_column(main_dttm) or not _col_valid(main_dttm):
             main_dttm = None
 
@@ -438,10 +453,11 @@ def build_dataset_yaml(decision: RoutingDecision) -> Tuple[Dict[str, Any], str]:
         })
 
     # 3. Cấu hình Metrics (Số liệu)
+    dimension_fields = {_gold_field_name(decision, column) for column in decision.dimension_columns}
     for metric in decision.metric_columns:
-        raw_metric = metric.strip().lower()
+        raw_metric = _gold_field_name(decision, metric)
         m_snake = raw_metric if real_cols_set and raw_metric in real_cols_set else to_snake_case(metric)
-        if is_technical_column(m_snake):
+        if is_technical_column(m_snake) or m_snake in dimension_fields:
             continue
         m_vn = to_vietnamese_label(metric)
         is_avg = is_average_metric(metric)
@@ -1552,7 +1568,7 @@ def _build_layout_time_series(
             metric_name="ts_avg_period",
             metric_label=f"TB {p_label} Định Kỳ",
             column_name=p_avg_field,
-            aggregate="AVG" if p_avg_field.startswith("avg_") else "SUM",
+            aggregate="AVG" if is_p_avg else "SUM",
             y_axis_format=",.1f" if is_p_avg else ",.0f",
         )
     charts.append((kpi_secondary, kpi_sec_uuid))
@@ -2281,6 +2297,8 @@ def build_dashboard_bundle(decision: RoutingDecision) -> Dict[str, Any]:
     valid_cols = {c["column_name"].lower() for c in dataset_dict["columns"]}
 
     def _resolve(pref: str, fallback: str = "total_records") -> str:
+        pref = _gold_field_name(decision, pref)
+        fallback = _gold_field_name(decision, fallback)
         if pref.lower() in valid_cols:
             return pref
         normalized = to_snake_case(pref)
@@ -2293,16 +2311,24 @@ def build_dashboard_bundle(decision: RoutingDecision) -> Dict[str, Any]:
         fallback_matches = sorted(c for c in valid_cols if to_snake_case(c) == fallback_normalized)
         if fallback_matches:
             return fallback_matches[0]
-        return list(valid_cols)[0] if valid_cols else "total_records"
+        if "so_ban_ghi_theo_doi" in valid_cols:
+            return "so_ban_ghi_theo_doi"
+        return sorted(valid_cols)[0] if valid_cols else "total_records"
 
     # Xác định Metric chính (Primary Outcome Metric)
     priority_eval_keywords = [
         "temp", "temperature", "nhiet_do", "pulled_count", "amount_paid", "tuition_amount", "revenue",
-        "sales", "diem_tb", "gpa", "lvl_90_atk", "score", "so_tcdk", "diem_tbrl", "humidity", "do_am"
+        "sales", "diem_tb", "gpa", "lvl_90_atk", "score", "so_tcdk", "diem_tbrl", "humidity", "do_am",
+        "progress", "percent", "ty_le", "ti_le",
+    ]
+    dimension_fields = {_gold_field_name(decision, column) for column in decision.dimension_columns}
+    metric_columns = [
+        metric for metric in decision.metric_columns
+        if _gold_field_name(decision, metric) not in dimension_fields
     ]
     primary_eval_metric = None
     for kw in priority_eval_keywords:
-        for m in decision.metric_columns:
+        for m in metric_columns:
             if kw in m.lower():
                 primary_eval_metric = m
                 break
@@ -2320,13 +2346,13 @@ def build_dashboard_bundle(decision: RoutingDecision) -> Dict[str, Any]:
             if primary_eval_metric:
                 break
 
-    if not primary_eval_metric and decision.metric_columns:
-        primary_eval_metric = decision.metric_columns[0]
+    if not primary_eval_metric and metric_columns:
+        primary_eval_metric = metric_columns[0]
 
     # Xác định Metric hiệu suất/xếp hạng (Efficiency / Rank Metric)
     rank_metric = None
     for kw in ["humidity", "do_am", "atk", "damage", "dmg", "dps", "diem_tb", "gpa", "tbrl", "score", "amount", "pulled_count", "hp"]:
-        for m in decision.metric_columns:
+        for m in metric_columns:
             if kw in m.lower() and m != primary_eval_metric:
                 rank_metric = m
                 break

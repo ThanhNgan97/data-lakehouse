@@ -67,7 +67,9 @@ def init_db():
                     username="admin",
                     email="admin@lakehouse.vn",
                     full_name="System Administrator",
-                    hashed_password=get_password_hash("admin123"),
+                    hashed_password=get_password_hash(
+                        os.getenv("BACKEND_ADMIN_PASSWORD", "admin123")
+                    ),
                     role="admin",
                     is_active=True
                 )
@@ -75,7 +77,9 @@ def init_db():
                     username="canbo_truongA",
                     email="canbo_truonga@lakehouse.vn",
                     full_name="Cán bộ Trường A",
-                    hashed_password=get_password_hash("user123"),
+                    hashed_password=get_password_hash(
+                        os.getenv("BACKEND_USER_PASSWORD", "user123")
+                    ),
                     role="user",
                     is_active=True
                 )

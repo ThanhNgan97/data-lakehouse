@@ -646,6 +646,98 @@ services:
     networks:
       - lakehouse-network
 
+  # Portal API. Spark remains on K3s; the API talks to the Compose services.
+  backend:
+    build:
+      context: ./backend
+    image: lakehouse-backend:latest
+    container_name: lakehouse-backend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8001:8000"
+    environment:
+      PG_HOST: postgres
+      PG_PORT: '5432'
+      PG_USER: ${PG_USER:-postgres}
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_DATABASE: ${PG_DATABASE:-university_db}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      API_SOURCE_CREDENTIAL_KEY: ${API_SOURCE_CREDENTIAL_KEY:?Set API_SOURCE_CREDENTIAL_KEY in .env}
+      BACKEND_ADMIN_PASSWORD: ${BACKEND_ADMIN_PASSWORD:?Set BACKEND_ADMIN_PASSWORD in .env}
+      BACKEND_USER_PASSWORD: ${BACKEND_USER_PASSWORD:?Set BACKEND_USER_PASSWORD in .env}
+      S3_ENDPOINT: http://s3g:9878
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-lakehouse}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-lakehouse-secret}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-university-lakehouse}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      STAGING_PREFIX: ${STAGING_PREFIX:-staging}
+      ARCHIVE_PROCESSED_PREFIX: ${ARCHIVE_PROCESSED_PREFIX:-archive/processed}
+      ARCHIVE_FAILED_PREFIX: ${ARCHIVE_FAILED_PREFIX:-archive/failed}
+      ICEBERG_WAREHOUSE: ${ICEBERG_WAREHOUSE:-s3a://university-lakehouse/iceberg-warehouse}
+      NESSIE_API_URL: http://nessie:19120/api/v1
+      TRINO_HOST: trino
+      TRINO_PORT: '8080'
+      AIRFLOW_WEBSERVER_URL: http://airflow-webserver:8080
+      AIRFLOW_FILE_DAG_ID: universal_lakehouse_pipeline
+      AIRFLOW_API_DAG_ID: universal_lakehouse_pipeline
+      AIRFLOW_API_USERNAME: ${AIRFLOW_API_USERNAME:-airflow}
+      AIRFLOW_ADMIN_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
+      MOCK_API_PUBLIC_URL: ''
+      MOCK_API_INTERNAL_URL: ''
+      MOCK_API_KEY: ''
+      URL_INGESTION_ENABLED: ${URL_INGESTION_ENABLED:-true}
+      URL_CHECKSUM_DEDUP_ENABLED: ${URL_CHECKSUM_DEDUP_ENABLED:-false}
+      GOOGLE_DRIVE_INGESTION_ENABLED: ${GOOGLE_DRIVE_INGESTION_ENABLED:-true}
+      GOOGLE_DRIVE_API_KEY: ${GOOGLE_DRIVE_API_KEY:-}
+      URL_IMPORT_MAX_ACTIVE_FILES: ${URL_IMPORT_MAX_ACTIVE_FILES:-1}
+    depends_on:
+      postgres:
+        condition: service_started
+      s3g:
+        condition: service_healthy
+      nessie:
+        condition: service_started
+      trino:
+        condition: service_healthy
+      airflow-webserver:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=3).read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    networks:
+      - lakehouse-network
+    mem_limit: 1g
+
+  # Static React build; /api stays same-origin and is proxied to FastAPI.
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api
+        VITE_AIRFLOW_URL: ${VITE_AIRFLOW_URL:-}
+        VITE_SUPERSET_URL: ${VITE_SUPERSET_URL:-}
+        VITE_SUPERSET_DASHBOARD_URL: ${VITE_SUPERSET_DASHBOARD_URL:-}
+        VITE_DB_PROVISIONER_DOWNLOAD_URL: ${VITE_DB_PROVISIONER_DOWNLOAD_URL:-}
+    image: lakehouse-frontend:latest
+    container_name: lakehouse-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks:
+      - lakehouse-network
+    mem_limit: 128m
+
   # ========================================================
   # AIRBYTE INGESTION CORE
   # ========================================================

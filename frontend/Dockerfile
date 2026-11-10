@@ -1,0 +1,29 @@
+FROM node:22-alpine AS build
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+
+ARG VITE_API_URL=/api
+ARG VITE_AIRFLOW_URL
+ARG VITE_SUPERSET_URL
+ARG VITE_SUPERSET_DASHBOARD_URL
+ARG VITE_DB_PROVISIONER_DOWNLOAD_URL
+
+ENV VITE_API_URL=${VITE_API_URL} \
+    VITE_AIRFLOW_URL=${VITE_AIRFLOW_URL} \
+    VITE_SUPERSET_URL=${VITE_SUPERSET_URL} \
+    VITE_SUPERSET_DASHBOARD_URL=${VITE_SUPERSET_DASHBOARD_URL} \
+    VITE_DB_PROVISIONER_DOWNLOAD_URL=${VITE_DB_PROVISIONER_DOWNLOAD_URL}
+
+RUN npm run build
+
+FROM nginx:1.29-alpine
+
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/build /usr/share/nginx/html
+
+EXPOSE 80

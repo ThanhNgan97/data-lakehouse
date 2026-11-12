@@ -9,6 +9,16 @@ const authHeader = () => ({
   Authorization: `Bearer ${localStorage.getItem('token')}`,
 });
 
+const apiErrorMessage = (error, fallback) => {
+  const detail = error.response?.data?.detail;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail.map((item) => item?.msg).filter(Boolean);
+    if (messages.length) return messages.join('; ');
+  }
+  return fallback;
+};
+
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +36,7 @@ const UserManagement = () => {
       const res = await axios.get(`${API_URL}/users`, { headers: authHeader() });
       setUsers(res.data);
     } catch (e) {
-      setError(e.response?.data?.detail || 'Không thể tải danh sách người dùng.');
+      setError(apiErrorMessage(e, 'Không thể tải danh sách người dùng.'));
     } finally {
       setLoading(false);
     }
@@ -46,7 +56,7 @@ const UserManagement = () => {
       notify(`Đã xóa tài khoản "${user.username}".`);
       fetchUsers();
     } catch (e) {
-      notify(e.response?.data?.detail || 'Lỗi xóa tài khoản.', true);
+      notify(apiErrorMessage(e, 'Lỗi xóa tài khoản.'), true);
     }
   };
 
@@ -56,7 +66,7 @@ const UserManagement = () => {
       notify(res.data.message);
       fetchUsers();
     } catch (e) {
-      notify(e.response?.data?.detail || 'Lỗi cập nhật trạng thái.', true);
+      notify(apiErrorMessage(e, 'Lỗi cập nhật trạng thái.'), true);
     }
   };
 
@@ -66,7 +76,7 @@ const UserManagement = () => {
       notify(`Đã đổi quyền "${user.username}" thành ${newRole === 'admin' ? 'Admin' : 'Cán bộ'}.`);
       fetchUsers();
     } catch (e) {
-      notify(e.response?.data?.detail || 'Lỗi cập nhật quyền.', true);
+      notify(apiErrorMessage(e, 'Lỗi cập nhật quyền.'), true);
     }
   };
 
@@ -75,13 +85,19 @@ const UserManagement = () => {
     setFormLoading(true);
     setFormError('');
     try {
-      await axios.post(`${API_URL}/users`, form, { headers: authHeader() });
+      const payload = {
+        ...form,
+        username: form.username.trim(),
+        full_name: form.full_name.trim() || null,
+        email: form.email.trim() || null,
+      };
+      await axios.post(`${API_URL}/users`, payload, { headers: authHeader() });
       notify(`Đã tạo tài khoản "${form.username}".`);
       setShowForm(false);
       setForm({ username: '', password: '', full_name: '', email: '', role: 'user' });
       fetchUsers();
     } catch (e) {
-      setFormError(e.response?.data?.detail || 'Lỗi tạo tài khoản.');
+      setFormError(apiErrorMessage(e, 'Lỗi tạo tài khoản.'));
     } finally {
       setFormLoading(false);
     }
@@ -156,6 +172,7 @@ const UserManagement = () => {
                 </label>
                 <input
                   required
+                  minLength={3}
                   value={form.username}
                   onChange={(e) => setForm({ ...form, username: e.target.value })}
                   className={inputClass}
@@ -170,6 +187,7 @@ const UserManagement = () => {
                 <input
                   required
                   type="password"
+                  minLength={6}
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                   className={inputClass}
